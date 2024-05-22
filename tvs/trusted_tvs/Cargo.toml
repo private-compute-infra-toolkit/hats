@@ -1,0 +1,20 @@
+[package]
+name = "trusted_tvs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "trustedtvs"
+crate-type = ["staticlib"]
+
+[dependencies]
+oak_crypto = { path = "../../submodules/oak/oak_crypto" }
+cxx = "1.0"
+hex = "0.4.3"
+prost = { version = "*", default-features = false, features = ["prost-derive"] }
+micro_rpc = { path = "../../submodules/oak/micro_rpc" }
+jwt-simple = {version = "*" }
+
+[build-dependencies]
+micro_rpc_build = { path = "../../submodules/oak/micro_rpc_build" }
+prost-build = "*"
