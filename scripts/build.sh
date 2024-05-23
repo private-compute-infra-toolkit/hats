@@ -32,8 +32,9 @@ popd
 printf "\nBUILDING OAK CONTAINERS IMAGES..."
 pushd ../submodules/oak/oak_containers_system_image
 nix develop --command ./build-old.sh && \
-  mv target/output.img "$PREBUILT_DIR"
-  mv target/image-old.tar "$PREBUILT_DIR"
+  mv target/output.img "$PREBUILT_DIR" && \
+  mv target/image-old.tar "$PREBUILT_DIR" && \
+  xz --force "$PREBUILT_DIR/image-old.tar"
 popd
 
 printf "\nBUILDING OAK CONTAINERS LAUNCHER..."
@@ -41,3 +42,29 @@ pushd ../submodules/oak
 nix develop --command just oak_containers_launcher && \
   mv ./target/x86_64-unknown-linux-gnu/release/oak_containers_launcher "$PREBUILT_DIR"
 popd
+
+printf "\nBUILDING OAK CONTAINERS STAGE0..."
+pushd ../submodules/oak
+nix develop --command just stage0_bin && \
+  mv ./stage0_bin/target/x86_64-unknown-none/release/stage0_bin "$PREBUILT_DIR"
+popd
+
+printf "\nBUILDING OAK CONTAINERS STAGE1..."
+pushd ../submodules/oak
+nix develop --command just stage1_cpio && \
+  mv ./target/stage1.cpio "$PREBUILT_DIR"
+popd
+
+printf "\nBUILDING OAK CONTAINERS STAGE1..."
+pushd ../submodules/oak
+nix develop --command just stage1_cpio && \
+  mv ./target/stage1.cpio "$PREBUILT_DIR"
+popd
+
+printf "\nBUILDING OAK HELLO WORLD CONTAINER BUNDLE TAR..."
+pushd ../submodules/oak
+nix develop --command just oak_containers_hello_world_container_bundle_tar && \
+  mv ./oak_containers_hello_world_container/target/oak_container_example_oci_filesystem_bundle.tar "$PREBUILT_DIR"
+popd
+
+# TODO: build qemu
