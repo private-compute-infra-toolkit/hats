@@ -260,14 +260,14 @@ mod tests {
             // Test report verification.
             let encrypted_report = client_crypter.encrypt("verify".as_bytes()).unwrap();
             let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
-                    VerifyReportRequestEncrypted {
-                        client_message: encrypted_report,
-                    },
+                request: Some(
+                    proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                        VerifyReportRequestEncrypted {
+                            client_message: encrypted_report,
+                        },
+                    ),
                 ),
-            ),
-        };
+            };
 
             let mut message_bin: Vec<u8> = Vec::with_capacity(256);
             message.encode(&mut message_bin).unwrap();
