@@ -1,7 +1,9 @@
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     micro_rpc_build::compile(
-        &["../proto/tvs.proto"],
-        &[".", "../"],
-        micro_rpc_build::CompileOptions::default(),
+        &["../proto/tvs_messages.proto"],
+        &["../"],
+        Default::default(),
     );
+
+    Ok(())
 }

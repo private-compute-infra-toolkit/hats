@@ -1,0 +1,22 @@
+--- oak_proto_rust/build.rs
++++ oak_proto_rust/build.rs
+@@ -53,8 +53,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
+         .compile_protos(&proto_paths, &[
+             "..",
+             // We need to include the well-known protos ourselves
+-            "../external/com_google_protobuf/src/google/protobuf/_virtual_imports/empty_proto",
+-            "../external/com_google_protobuf/src/google/protobuf/_virtual_imports/descriptor_proto",
++             "../../protobuf~/src/google/protobuf/_virtual_imports/empty_proto",
++             "../../protobuf~/src/google/protobuf/_virtual_imports/descriptor_proto",
+         ])
+         .expect("proto compilation failed");
+ 
+@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
+         &[
+             "..",
+             // We need to include the well-known protos ourselves
+-            "../external/com_google_protobuf/src/google/protobuf/_virtual_imports/descriptor_proto",
++             "../../protobuf~/src/google/protobuf/_virtual_imports/descriptor_proto",
+         ],
+         Default::default(),
+     );

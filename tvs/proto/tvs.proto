@@ -16,50 +16,8 @@ syntax = "proto3";
 
 package privacy_sandbox.tvs;
 
-message InitSessionRequest {
-  // Contains client ephemeral public key.
-  bytes client_message = 1;
-}
-
-// TODO(alwabel): define the unencrypted version.
-// Encrypted version of VerifyReportRequest.
-message VerifyReportRequestEncrypted {
-  // Contains attestation report
-  bytes client_message = 1;
-}
-
-message AttestReportRequest {
-  oneof request {
-      // Initiate NK handshake.
-      InitSessionRequest init_session_request = 1;
-      VerifyReportRequestEncrypted verify_report_request = 2;
-    }
-}
-
-message InitSessionResponse {
-  // Contains TVS ephemeral public key.
-   bytes response_for_client = 1;
-}
-
-// TODO(alwabel): define the unencrypted version.
-// Encrypted version of VerifyReportRequest
-message VerifyReportResponseEncrypted {
-  bytes response_for_client = 1;
-}
-
-message AttestReportResponse {
-  oneof response {
-    // NK handshake response.
-    InitSessionResponse init_session_response = 1;
-    VerifyReportResponseEncrypted verify_report_response = 2;
-  }
-}
-
-message OpaqueMessage {
-  bytes binary_message = 1;
-}
+import "tvs/proto/tvs_messages.proto";
 
 service TeeVerificationService {
-  // method_id: 0
   rpc VerifyReport(stream OpaqueMessage) returns (stream OpaqueMessage);
 }

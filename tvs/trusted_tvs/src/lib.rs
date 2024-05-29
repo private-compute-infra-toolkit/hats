@@ -18,7 +18,6 @@ const P256_SCALAR_LEN: usize = 32;
 pub mod proto {
     pub mod privacy_sandbox {
         pub mod tvs {
-            use prost::Message;
             include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
         }
     }

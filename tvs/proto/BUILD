@@ -1,0 +1,29 @@
+load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+proto_library(
+    name = "tvs_messages_proto",
+    srcs = ["tvs_messages.proto"],
+)
+
+proto_library(
+    name = "tvs_proto",
+    srcs = ["tvs.proto"],
+    deps = [":tvs_messages_proto"],
+)
+
+cc_proto_library(
+    name = "tvs_cc_proto",
+    deps = ["tvs_proto"],
+)
+
+cc_grpc_library(
+    name = "tvs_cc_grpc",
+    srcs = ["tvs_proto"],
+    grpc_only = True,
+    deps = [":tvs_cc_proto"],
+)

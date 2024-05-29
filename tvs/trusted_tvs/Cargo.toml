@@ -8,13 +8,13 @@ name = "trustedtvs"
 crate-type = ["staticlib"]
 
 [dependencies]
-oak_crypto = { path = "../../submodules/oak/oak_crypto" }
+oak_crypto = { workspace = true }
+micro_rpc = { workspace = true }
 cxx = "1.0"
 hex = "0.4.3"
 prost = { version = "*", default-features = false, features = ["prost-derive"] }
-micro_rpc = { path = "../../submodules/oak/micro_rpc" }
 jwt-simple = {version = "*" }
 
 [build-dependencies]
-micro_rpc_build = { path = "../../submodules/oak/micro_rpc_build" }
+micro_rpc_build = { workspace = true }
 prost-build = "*"

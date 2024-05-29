@@ -1,0 +1,10 @@
+###############################################################################
+# Bazel now uses Bzlmod by default to manage external dependencies.
+# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
+#
+# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
+###############################################################################
+bazel_dep(name = "protobuf", version = "23.1", repo_name = "com_google_protobuf")
+bazel_dep(name = "grpc", version = "1.62.1", repo_name = "com_github_grpc_grpc")
+bazel_dep(name = "rules_rust", version = "0.45.1", repo_name = "rules_rust")
+bazel_dep(name = "rules_proto", version = "5.3.0-21.7", repo_name = "rules_proto")
