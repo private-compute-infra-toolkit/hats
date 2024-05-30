@@ -71,12 +71,7 @@ struct TrustedTvs {
 }
 
 // Export TrustedTvs and it's methods to C++.
-// The implementation is exported to under `privacy_sandbox::tee_verification` namespace.
-// Example usage in c++:
-//     rust::Box<privacy_sandbox::tee_verification::TrustedTvs> tvs =
-//        privacy_sandbox::tee_verification::new_trusted_tvs_service(key);
-//        rust::Vec<std::uint8_t> result = trusted_tvs->verify_report(...);
-#[cxx::bridge(namespace = "privacy_sandbox::tee_verification")]
+#[cxx::bridge(namespace = "privacy_sandbox::tvs")]
 mod ffi {
     extern "Rust" {
         type TrustedTvs;
@@ -203,7 +198,10 @@ impl TrustedTvs {
     }
 }
 
-// TODO(alwabel): fill in the token with actual data and properly sing it.
+// TODO(alwabel): fill in the token with actual data and properly sign it.
+// We need to  sign over the handshake hash and appraisal policy hash, proving
+// we still have the signing private key, and that we agree on the appraisal
+// policy.
 // Generates a simple JWT token -- see https://jwt.io/
 fn issue_jwt_token() -> String {
     let key = HS384Key::from_bytes(b"secret");
