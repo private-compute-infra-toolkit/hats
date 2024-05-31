@@ -45,11 +45,36 @@ directory, and `scp` or `rsync` the prebuilt directory to the SEV-SNP server.
 
 The last step is running the `oak_containers_launcher`. You may need to tweak
 the path in the script a little to make it work on the SEV-SNP server.
-`./scripts/start-oak-sevsnp.sh`
+
+```
+./scripts/start-oak-sevsnp.sh
+```
 
 Note, in this QEMU setup, you do not need shortleash. The local network between
 host and guest has hardcoded IP addresses: 10.0.2.100 for host and 10.0.2.15 for
 guest.
+
+gLinux offers grpc-cli in its apt. On the SNP machine you need to compile it
+from source.
+
+```
+git clone --recursive --branch v1.64.0 https://github.com/grpc/grpc
+cd grpc
+mkdir -p cmake/build
+cd cmake/build
+cmake -DgRPC_BUILD_TESTS=ON ../..
+make -j32 grpc_cli
+ls -l grpc_cli
+```
+
+Finally run this command to talk with the KV server
+
+```
+./grpc/cmake/build/grpc_cli call localhost:50051 \
+  kv_server.v1.KeyValueService.GetValues \
+  'kv_internal: "hi"'  \
+  --channel_creds_type=insecure
+```
 
 ## Steps to launch Oak containers system with KV server using Cloud Hypervisor
 
