@@ -16,12 +16,23 @@ syntax = "proto3";
 
 package privacy_sandbox.tvs;
 
+import "proto/attestation/evidence.proto";
+
 message InitSessionRequest {
   // Contains client ephemeral public key.
   bytes client_message = 1;
 }
 
-// TODO(alwabel): define the unencrypted version.
+message VerifyReportRequest {
+  oak.attestation.v1.Evidence evidence = 1;
+  bytes tee_certificate = 2;
+  // Used to retrieve VCEK cert chain (and vcek certificate if not provided).
+  // TODO(alwabel): enable produce_name.
+  // string product_name = 3;
+  // TODO(alwabel): add a field to capture the signature over the handshake hash
+  // and appraisal policy.
+}
+
 // Encrypted version of VerifyReportRequest.
 message VerifyReportRequestEncrypted {
   // Contains attestation report

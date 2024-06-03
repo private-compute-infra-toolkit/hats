@@ -8,6 +8,14 @@ package(
 proto_library(
     name = "tvs_messages_proto",
     srcs = ["tvs_messages.proto"],
+    deps = [
+        "@oak//proto/attestation:evidence_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "tvs_messages_cc_proto",
+    deps = [":tvs_messages_proto"],
 )
 
 proto_library(

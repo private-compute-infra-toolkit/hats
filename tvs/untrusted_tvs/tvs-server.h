@@ -2,6 +2,7 @@
 #define HATS_TVS_UNTRUSTED_TVS_SERVER_
 #include <string>
 
+#include "external/oak/proto/attestation/reference_value.pb.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_context.h"
 #include "tvs/proto/tvs.grpc.pb.h"
@@ -21,7 +22,9 @@ namespace privacy_sandbox::tvs {
 // 4. Server verifies the report and mints a JWT token.
 class TvsServer final : public TeeVerificationService::Service {
  public:
-  explicit TvsServer(const std::string& tvs_private_key);
+  // Pass appraisal_policy by value as we expect the caller to use std::move().
+  explicit TvsServer(const std::string& tvs_private_key,
+                     oak::attestation::v1::ReferenceValues appraisal_policy);
   TvsServer() = delete;
   grpc::Status VerifyReport(
       grpc::ServerContext* context,
@@ -29,16 +32,19 @@ class TvsServer final : public TeeVerificationService::Service {
 
  private:
   const std::string tvs_private_key_;
+  const oak::attestation::v1::ReferenceValues appraisal_policy_;
 };
 
 struct TvsServerOptions {
   int port;
   // TODO(alwabel): implement a better key provisioning.
   std::string tvs_private_key;
+  oak::attestation::v1::ReferenceValues appraisal_policy;
 };
 
 // Starts a server and blocks forever.
-void CreateAndStartTvsServer(const TvsServerOptions& options);
+// Pass by value as we expect the caller to use std::move() or use temporaries.
+void CreateAndStartTvsServer(TvsServerOptions options);
 
 }  // namespace privacy_sandbox::tvs
 

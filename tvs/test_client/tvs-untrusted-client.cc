@@ -69,13 +69,6 @@ TvsUntrustedClient::TvsUntrustedClient(
       stream_(std::move(stream)),
       tvs_client_(std::move(tvs_client)) {}
 
-TvsUntrustedClient::~TvsUntrustedClient() {
-  stream_->WritesDone();
-  if (grpc::Status status = stream_->Finish(); !status.ok()) {
-    LOG(WARNING) << "Error closing the stream: " << status.error_message();
-  }
-}
-
 absl::StatusOr<std::unique_ptr<TvsUntrustedClient>>
 TvsUntrustedClient::CreateClient(const Options& options) {
   // try/catch is to handle errors from rust code.
@@ -104,12 +97,12 @@ TvsUntrustedClient::CreateClient(const Options& options) {
 }
 
 absl::StatusOr<std::string> TvsUntrustedClient::VerifyReportAndGetToken(
-    const std::string& report) {
+    const VerifyReportRequest& verify_report_request) {
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
-    rust::Vec<std::uint8_t> encrypted_command =
-        tvs_client_->build_command(report);
+    rust::Vec<std::uint8_t> encrypted_command = tvs_client_->build_command(
+        StringToRustSlice(verify_report_request.SerializeAsString()));
     OpaqueMessage opaque_message;
     opaque_message.set_binary_message(RustVecToString(encrypted_command));
 

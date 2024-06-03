@@ -9,6 +9,8 @@ crate-type = ["staticlib"]
 
 [dependencies]
 oak_crypto = { workspace = true }
+oak_proto_rust = { workspace = true }
+oak_attestation_verification = { workspace = true }
 micro_rpc = { workspace = true }
 cxx = "1.0"
 hex = "0.4.3"

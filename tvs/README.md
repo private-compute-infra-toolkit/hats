@@ -7,16 +7,33 @@ VMs (CVMS) anywhere, in an open and publicly verifiable way.
 ## To run a test server:
 
 ```
-bazel run //tvs/untrusted_tvs:tvs-server_main -- \
+bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
+bazel-bin/tvs/untrusted_tvs/tvs-server_main \
   --port=8080 \
-  --tvs_private_key=0000000000000000000000000000000000000000000000000000000000000001
+  --tvs_private_key=0000000000000000000000000000000000000000000000000000000000000001 \
+  --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto
 ```
 
 ## To run a test client:
 
+### Test with valid report
+
 ```
-bazel run //tvs/test_client:tvs-client_main -- \
+bazel build -c opt //tvs/test_client:tvs-client_main
+bazel-bin/tvs/test_client/tvs-client_main \
   --tvs_address=localhost:8080 \
   --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
-  --nouse_tls
+  --nouse_tls \
+  --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext
+```
+
+### Test with invalid report
+
+bazel build -c opt //tvs/test_client:tvs-client_main
+bazel-bin/tvs/test_client/tvs-client_main \
+--tvs_address=localhost:8080 \
+--tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5
+\
+--nouse_tls \
+--verify_report_request_file=tvs/test_data/bad_verify_request_report.prototext
 ```

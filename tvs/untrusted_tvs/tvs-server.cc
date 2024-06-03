@@ -8,6 +8,10 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
+// TODO(alwabel): remove *external*.
+#include "external/oak/proto/attestation/reference_value.pb.h"
 #include "grpc/grpc.h"
 #include "grpcpp/security/server_credentials.h"
 #include "grpcpp/server.h"
@@ -32,25 +36,30 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
 }  // namespace
 
 absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
-    const std::string& tvs_private_key) {
+    const std::string& tvs_private_key,
+    const oak::attestation::v1::ReferenceValues& appraisal_policy) {
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
-    return new_trusted_tvs_service(tvs_private_key);
+    return new_trusted_tvs_service(
+        absl::ToUnixMillis(absl::Now()), tvs_private_key,
+        StringToRustSlice(appraisal_policy.SerializeAsString()));
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
         absl::StrCat("Cannot create trusted TVS server. ", e.what()));
   }
 }
 
-TvsServer::TvsServer(const std::string& tvs_private_key)
-    : tvs_private_key_(tvs_private_key) {}
+TvsServer::TvsServer(const std::string& tvs_private_key,
+                     oak::attestation::v1::ReferenceValues appraisal_policy)
+    : tvs_private_key_(tvs_private_key),
+      appraisal_policy_(std::move(appraisal_policy)) {}
 
 grpc::Status TvsServer::VerifyReport(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) {
   absl::StatusOr<rust::Box<TrustedTvs>> trusted_tvs =
-      CreateTrustedTvsService(tvs_private_key_);
+      CreateTrustedTvsService(tvs_private_key_, appraisal_policy_);
   if (!trusted_tvs.ok()) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         trusted_tvs.status().ToString());
@@ -72,15 +81,17 @@ grpc::Status TvsServer::VerifyReport(
       }
     }
   } catch (std::exception& e) {
-    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                        "Invalid or malformed command.");
+    return grpc::Status(
+        grpc::StatusCode::INVALID_ARGUMENT,
+        absl::StrCat("Invalid or malformed command. ", e.what()));
   }
   return grpc::Status::OK;
 }
 
-void CreateAndStartTvsServer(const TvsServerOptions& options) {
+void CreateAndStartTvsServer(TvsServerOptions options) {
   std::string server_address = absl::StrCat("0.0.0.0:", options.port);
-  TvsServer tvs_server(options.tvs_private_key);
+  TvsServer tvs_server(options.tvs_private_key,
+                       std::move(options.appraisal_policy));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()
           .AddListeningPort(server_address, grpc::InsecureServerCredentials())

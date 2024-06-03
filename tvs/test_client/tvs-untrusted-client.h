@@ -30,14 +30,12 @@ class TvsUntrustedClient final {
   TvsUntrustedClient& operator=(const TvsUntrustedClient& rhs) = delete;
   TvsUntrustedClient& operator=(TvsUntrustedClient& rhs) = delete;
 
-  ~TvsUntrustedClient();
-
   static absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> CreateClient(
       const Options& options);
 
   // Get JWT token from TVS server.
   absl::StatusOr<std::string> VerifyReportAndGetToken(
-      const std::string& report);
+      const VerifyReportRequest& verify_report_request);
 
  private:
   TvsUntrustedClient(

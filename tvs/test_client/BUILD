@@ -13,8 +13,12 @@ rust_library(
         ":build",
         "@hats_crate_index//:cxx",
         "@hats_crate_index//:hex",
-        "@hats_crate_index//:prost",
+        # Use the same version oak uses protos generated from a different
+        # prost version are not compatible. Here we are referring to the
+        # attestation messages.
+        "@oak_crates_index//:prost",
         "@oak//oak_crypto",
+        "@oak//oak_proto_rust",
     ],
 )
 
@@ -25,10 +29,12 @@ cargo_build_script(
     ],
     build_script_env = {
         "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
+        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
     },
     data = [
         "//tvs/proto:tvs_messages_proto",
         "@com_google_protobuf//:protoc",
+        "@oak//proto/attestation:evidence.proto",
     ],
     deps = [
         "@oak//micro_rpc_build",
@@ -52,11 +58,13 @@ cc_binary(
         ":bridge",
         ":tvs-untrusted-client",
         "//tvs/proto:tvs_cc_grpc",
+        "//tvs/proto:tvs_messages_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:initialize",
+        "@com_google_protobuf//:protobuf",
     ],
 )
 

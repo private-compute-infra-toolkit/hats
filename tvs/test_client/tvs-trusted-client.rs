@@ -26,7 +26,7 @@ mod ffi {
         fn new_tvs_client(tvs_pub_key: &str) -> Result<Box<TvsClient>>;
         fn build_initial_message(&mut self) -> Result<Vec<u8>>;
         fn process_handshake_response(&mut self, response: &[u8]) -> Result<()>;
-        fn build_command(&mut self, message: &str) -> Result<Vec<u8>>;
+        fn build_command(&mut self, message: &[u8]) -> Result<Vec<u8>>;
         fn process_response(&mut self, response: &[u8]) -> Result<String>;
     }
 }
@@ -85,9 +85,9 @@ impl TvsClient {
         Ok(())
     }
 
-    fn build_command(&mut self, message: &str) -> Result<Vec<u8>, String> {
+    fn build_command(&mut self, message: &[u8]) -> Result<Vec<u8>, String> {
         if let Some(crypter) = self.crypter.as_mut() {
-            match crypter.encrypt(message.as_bytes()) {
+            match crypter.encrypt(message) {
                 Ok(cipher) => {
                     let mut message: Vec<u8> = Vec::with_capacity(256);
                     AttestReportRequest {
