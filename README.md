@@ -76,6 +76,20 @@ Finally run this command to talk with the KV server
   --channel_creds_type=insecure
 ```
 
+## Steps to download VCEK cert, CA cert and CRL from AMD
+
+After running `./scripts/build.sh` you have a `snphost` binary in the prebuilt
+directory. Copy that to the SNP machine and run
+
+```
+sudo ./snphost show vcek-url # gives you the URL to download VCEK
+sudo ./snphost fetch ca pem . # download the ca cert to `.` in pem format
+sudo ./snphost fetch vcek pem . # download the vcek to `.` in pem format
+sudo ./snphost fetch crl . # download the revokation list to `.`
+```
+
+If you need the certificates in `der` format, just replace `pem` with `der`.
+
 ## Steps to launch Oak containers system with KV server using Cloud Hypervisor
 
 ```

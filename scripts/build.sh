@@ -67,4 +67,10 @@ nix develop --command just oak_containers_hello_world_container_bundle_tar && \
   mv ./oak_containers_hello_world_container/target/oak_container_example_oci_filesystem_bundle.tar "$PREBUILT_DIR"
 popd
 
+pushd ../submodules/oak
+nix develop --command cargo install --root "$PREBUILT_DIR" snphost && \
+  mv "$PREBUILT_DIR"/bin/snphost "$PREBUILT_DIR" && \
+  rmdir "$PREBUILT_DIR/bin"
+popd
+
 # TODO: build qemu
