@@ -29,6 +29,7 @@ bazel-bin/tvs/test_client/tvs-client_main \
 
 ### Test with invalid report
 
+```
 bazel build -c opt //tvs/test_client:tvs-client_main
 bazel-bin/tvs/test_client/tvs-client_main \
 --tvs_address=localhost:8080 \
