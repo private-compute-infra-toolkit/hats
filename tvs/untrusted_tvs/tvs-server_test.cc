@@ -1,19 +1,26 @@
 #include "tvs/untrusted_tvs/tvs-server.h"
 
-#include <filesystem>
 #include <fstream>
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "external/oak/proto/attestation/reference_value.pb.h"
+#include "absl/strings/string_view.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
+#include "grpcpp/client_context.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
+#include "grpcpp/support/channel_arguments.h"
+#include "grpcpp/support/status.h"
+#include "grpcpp/support/sync_stream.h"
 #include "gtest/gtest.h"
+#include "proto/attestation/reference_value.pb.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
@@ -21,6 +28,8 @@
 namespace privacy_sandbox::tvs {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
 
@@ -30,35 +39,19 @@ constexpr absl::string_view kPublicKey =
     "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
     "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
 
-struct BinaryFile {
-  std::unique_ptr<char[]> buffer;
-  size_t size;
-};
-
-absl::StatusOr<BinaryFile> ReadBinaryFile(const std::string& file_path) {
-  size_t size = std::filesystem::file_size(file_path);
-  auto buffer = std::make_unique<char[]>(size);
-  std::ifstream file(file_path, std::ifstream::binary);
-  if (!file) {
-    return absl::UnknownError(absl::StrCat("Failed to open '", file_path, "'"));
+absl::StatusOr<VerifyReportRequest> VerifyReportRequestFromFile(
+    const std::string& file_path) {
+  VerifyReportRequest verify_report_request;
+  std::ifstream if_stream(file_path);
+  google::protobuf::io::IstreamInputStream istream(&if_stream);
+  if (!google::protobuf::TextFormat::Parse(&istream, &verify_report_request)) {
+    return absl::UnknownError(
+        absl::StrCat("Cannot parse proto from '", file_path, "'"));
   }
-  file.read(buffer.get(), size);
-  if (!file) {
-    return absl::UnknownError(absl::StrCat("Failed to read '", size,
-                                           "' bytes from '", file_path, "'"));
-  }
-  file.close();
-  return BinaryFile{
-      .buffer = std::move(buffer),
-      .size = size,
-  };
+  return verify_report_request;
 }
 
 absl::StatusOr<VerifyReportRequest> GetGoodReportRequest() {
-  // TODO(alwabel): Investigate if its acceptable to use `ParseTextProtoOrDie()`
-  // from
-  // https://github.com/google-ai-edge/mediapipe/blob/2da0c56a5df3463af869dc365339225f0553d43b/mediapipe/framework/port/parse_text_proto.h#L31.
-  VerifyReportRequest verify_report_request;
   std::string runfiles_error;
   auto runfiles =
       bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&runfiles_error);
@@ -66,30 +59,11 @@ absl::StatusOr<VerifyReportRequest> GetGoodReportRequest() {
     return absl::UnknownError(
         absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
   }
-  absl::StatusOr<BinaryFile> vcek_buffer = ReadBinaryFile(
-      runfiles->Rlocation("_main/tvs/test_data/oc_vcek_milan.der"));
-  if (!vcek_buffer.ok()) {
-    return vcek_buffer.status();
-  }
-  verify_report_request.set_tee_certificate(
-      std::string(vcek_buffer->buffer.get(), vcek_buffer->size));
-  const std::string evidence_file_path =
-      runfiles->Rlocation("_main/tvs/test_data/oc_evidence.binarypb");
-  absl::StatusOr<BinaryFile> evidence_buffer =
-      ReadBinaryFile(evidence_file_path);
-  if (!evidence_buffer.ok()) {
-    return evidence_buffer.status();
-  }
-  if (!verify_report_request.mutable_evidence()->ParseFromArray(
-          evidence_buffer->buffer.get(), evidence_buffer->size)) {
-    return absl::UnknownError(absl::StrCat("Failed to decode proto in file '",
-                                           evidence_file_path, "'"));
-  }
-  return verify_report_request;
+  return VerifyReportRequestFromFile(runfiles->Rlocation(
+      "_main/tvs/test_data/good_verify_request_report.prototext"));
 }
 
 absl::StatusOr<VerifyReportRequest> GetBadReportRequest() {
-  VerifyReportRequest verify_report_request;
   std::string runfiles_error;
   auto runfiles =
       bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&runfiles_error);
@@ -97,30 +71,10 @@ absl::StatusOr<VerifyReportRequest> GetBadReportRequest() {
     return absl::UnknownError(
         absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
   }
-  absl::StatusOr<BinaryFile> vcek_buffer = ReadBinaryFile(
-      runfiles->Rlocation("_main/tvs/test_data/oc_vcek_milan.der"));
-  if (!vcek_buffer.ok()) {
-    return vcek_buffer.status();
-  }
-  verify_report_request.set_tee_certificate(
-      std::string(vcek_buffer->buffer.get(), vcek_buffer->size));
-  const std::string evidence_file_path =
-      runfiles->Rlocation("_main/tvs/test_data/bad_evidence.binarypb");
-  absl::StatusOr<BinaryFile> evidence_buffer =
-      ReadBinaryFile(evidence_file_path);
-  if (!evidence_buffer.ok()) {
-    return evidence_buffer.status();
-  }
-  if (!verify_report_request.mutable_evidence()->ParseFromArray(
-          evidence_buffer->buffer.get(), evidence_buffer->size)) {
-    return absl::UnknownError(absl::StrCat("Failed to decode proto in file '",
-                                           evidence_file_path, "'"));
-  }
-  return verify_report_request;
+  return VerifyReportRequestFromFile(runfiles->Rlocation(
+      "_main/tvs/test_data/bad_verify_request_report.prototext"));
 }
 
-// TODO(alwabel): make reading test data consistent. Either read all from binary
-// proto files, or parse from inline texts.
 absl::StatusOr<oak::attestation::v1::ReferenceValues> GetTestAppraisalPolicy() {
   oak::attestation::v1::ReferenceValues appraisal_policy;
   if (!google::protobuf::TextFormat::ParseFromString(
@@ -179,13 +133,10 @@ TEST(TvsServer, Successful) {
   // Ensure that the client can send multiple requests to verify reports within
   // the same session without the need to redo the handshake.
   for (int i = 0; i < 10; ++i) {
-    absl::StatusOr<std::string> token =
-        (*tvs_client)->VerifyReportAndGetToken(*verify_report_request);
-    // We don't have status matcher; otherwise we would use the following:
-    // EXPECT_THAT(.., IsOkAndHolds(...));
-    ASSERT_TRUE(token.ok());
     // We match against the header only.
-    EXPECT_THAT(*token, HasSubstr("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9"));
+    EXPECT_THAT(
+        (*tvs_client)->VerifyReportAndGetToken(*verify_report_request),
+        IsOkAndHolds(HasSubstr("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9")));
   }
 }
 
@@ -209,12 +160,11 @@ TEST(TvsServer, BadReportError) {
   absl::StatusOr<VerifyReportRequest> verify_report_request =
       GetBadReportRequest();
   ASSERT_TRUE(verify_report_request.ok());
-  absl::StatusOr<std::string> token =
-      (*tvs_client)->VerifyReportAndGetToken(*verify_report_request);
-  ASSERT_FALSE(token.ok());
-  EXPECT_THAT(token.status().message(),
-              AllOf(HasSubstr("Failed to verify report"),
-                    HasSubstr("chip id differs")));
+
+  EXPECT_THAT((*tvs_client)->VerifyReportAndGetToken(*verify_report_request),
+              StatusIs(absl::StatusCode::kUnknown,
+                       AllOf(HasSubstr("Failed to verify report"),
+                             HasSubstr("chip id differs"))));
 }
 
 TEST(TvsServer, MalformedMessageError) {
@@ -249,18 +199,17 @@ TEST(TvsServer, CreatingTrustedTvsServerError) {
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
-  absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
+  EXPECT_THAT(
       TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kPublicKey),
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
-      });
-
-  ASSERT_FALSE(tvs_client.ok());
-  EXPECT_THAT(
-      tvs_client.status().message(),
-      AllOf(HasSubstr("FAILED_PRECONDITION: Cannot create trusted TVS server"),
-            HasSubstr(
-                "Invalid private key length. Key should be 32 bytes long.")));
+      }),
+      StatusIs(
+          absl::StatusCode::kUnknown,
+          AllOf(HasSubstr(
+                    "FAILED_PRECONDITION: Cannot create trusted TVS server"),
+                HasSubstr("Invalid private key length. Key should be 32 bytes "
+                          "long."))));
 }
 
 }  // namespace

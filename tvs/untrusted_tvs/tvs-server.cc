@@ -1,8 +1,10 @@
 #include "tvs/untrusted_tvs/tvs-server.h"
 
-#include <cstdlib>
-#include <iostream>
+#include <cstdint>
+#include <exception>
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -10,14 +12,14 @@
 #include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-// TODO(alwabel): remove *external*.
-#include "external/oak/proto/attestation/reference_value.pb.h"
-#include "grpc/grpc.h"
 #include "grpcpp/security/server_credentials.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
 #include "grpcpp/server_context.h"
-#include "tvs/proto/tvs.grpc.pb.h"
+#include "grpcpp/support/interceptor.h"
+#include "grpcpp/support/status.h"
+#include "grpcpp/support/sync_stream.h"
+#include "proto/attestation/reference_value.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/trusted_tvs/src/lib.rs.h"
 
@@ -69,7 +71,7 @@ grpc::Status TvsServer::VerifyReport(
   try {
     OpaqueMessage request;
     while (stream->Read(&request)) {
-      rust::Vec<std::uint8_t> result =
+      const rust::Vec<std::uint8_t> result =
           (*trusted_tvs)
               ->verify_report(StringToRustSlice(request.binary_message()));
       OpaqueMessage response;
@@ -89,7 +91,7 @@ grpc::Status TvsServer::VerifyReport(
 }
 
 void CreateAndStartTvsServer(TvsServerOptions options) {
-  std::string server_address = absl::StrCat("0.0.0.0:", options.port);
+  const std::string server_address = absl::StrCat("0.0.0.0:", options.port);
   TvsServer tvs_server(options.tvs_private_key,
                        std::move(options.appraisal_policy));
   std::unique_ptr<grpc::Server> server =

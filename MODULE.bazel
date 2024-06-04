@@ -10,3 +10,14 @@ bazel_dep(name = "rules_rust", version = "0.45.1", repo_name = "rules_rust")
 bazel_dep(name = "rules_proto", version = "5.3.0-21.7", repo_name = "rules_proto")
 bazel_dep(name = "googletest", version = "1.14.0", repo_name = "com_google_googletest")
 bazel_dep(name = "abseil-cpp", version = "20240116.2", repo_name = "com_google_absl")
+git_override(
+    module_name = "abseil-cpp",
+    commit = "d9f501ef8482b3e6a41e3b544fde4569ad909c0b",
+    remote = "https://github.com/abseil/abseil-cpp",
+)
+bazel_dep(name = "depend_on_what_you_use", version = "0.0.0")
+git_override(
+    module_name = "depend_on_what_you_use",
+    commit = "ee7e0370f01badecd7de5a009c390859b6145c98",
+    remote = "https://github.com/martis42/depend_on_what_you_use",
+)

@@ -57,14 +57,16 @@ cc_binary(
     deps = [
         ":bridge",
         ":tvs-untrusted-client",
-        "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:initialize",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_protobuf//:protobuf",
+        "@com_google_protobuf//src/google/protobuf/io",
     ],
 )
 
@@ -75,11 +77,13 @@ cc_library(
     hdrs = ["tvs-untrusted-client.h"],
     deps = [
         ":bridge",
+        ":bridge/include",
         "//tvs/proto:tvs_cc_grpc",
+        "//tvs/proto:tvs_messages_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/log:initialize",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )

@@ -33,5 +33,6 @@ cc_grpc_library(
     name = "tvs_cc_grpc",
     srcs = ["tvs_proto"],
     grpc_only = True,
+    tags = ["grpc"],
     deps = [":tvs_cc_proto"],
 )

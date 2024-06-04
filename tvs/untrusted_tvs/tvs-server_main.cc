@@ -2,17 +2,20 @@
 #include <fstream>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
+<<<<<<< PATCH SET (daa107 Tidy up TVS code base by running iwyu, and dwyu and use stat)
+=======
 #include "absl/strings/numbers.h"
 #include "external/oak/proto/attestation/reference_value.pb.h"
+>>>>>>> BASE      (3a18fb Provide a dockerfile to run TVS server in GCP (cloud run).)
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
-#include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/trusted_tvs/src/lib.rs.h"
+#include "proto/attestation/reference_value.pb.h"
 #include "tvs/untrusted_tvs/tvs-server.h"
 #include "absl/status/statusor.h"
 #include "absl/status/status.h"

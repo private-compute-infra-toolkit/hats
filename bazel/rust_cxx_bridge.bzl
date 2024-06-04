@@ -39,11 +39,12 @@ def rust_cxx_bridge(name, src, deps = []):
     cc_library(
         name = name,
         srcs = [src + ".cc"],
-        # linkstatic = True,
         deps = deps + [":%s/include" % name],
+        tags = ["rust-bridge"],
     )
 
     cc_library(
         name = "%s/include" % name,
         hdrs = [src + ".h"],
+        tags = ["rust-bridge"],
     )

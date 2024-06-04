@@ -1,16 +1,18 @@
 #include "tvs/test_client/tvs-untrusted-client.h"
 
+#include <cstdint>
+#include <exception>
 #include <string>
+#include <utility>
 
-#include "absl/log/initialize.h"
-#include "absl/log/log.h"
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "grpc/grpc.h"
-#include "grpcpp/channel.h"
 #include "grpcpp/client_context.h"
-#include "grpcpp/create_channel.h"
+#include "grpcpp/support/interceptor.h"
+#include "grpcpp/support/status.h"
+#include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/test_client/tvs-trusted-client.rs.h"
 
@@ -33,7 +35,7 @@ absl::Status PerformNoiseHandshake(
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
-    rust::Vec<std::uint8_t> initial_message =
+    const rust::Vec<std::uint8_t> initial_message =
         tvs_client.build_initial_message();
     OpaqueMessage opaque_message;
     opaque_message.set_binary_message(RustVecToString(initial_message));
@@ -101,8 +103,9 @@ absl::StatusOr<std::string> TvsUntrustedClient::VerifyReportAndGetToken(
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
-    rust::Vec<std::uint8_t> encrypted_command = tvs_client_->build_command(
-        StringToRustSlice(verify_report_request.SerializeAsString()));
+    const rust::Vec<std::uint8_t> encrypted_command =
+        tvs_client_->build_command(
+            StringToRustSlice(verify_report_request.SerializeAsString()));
     OpaqueMessage opaque_message;
     opaque_message.set_binary_message(RustVecToString(encrypted_command));
 

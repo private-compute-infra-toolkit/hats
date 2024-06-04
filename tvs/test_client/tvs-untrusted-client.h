@@ -1,12 +1,14 @@
 #ifndef HATS_TVS_TEST_CLIENT_TVS_UNTRUSTED_CLIENT_H_
 #define HATS_TVS_TEST_CLIENT_TVS_UNTRUSTED_CLIENT_H_
 
+#include <memory>
 #include <string>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/client_context.h"
+#include "grpcpp/support/interceptor.h"
+#include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-trusted-client.rs.h"

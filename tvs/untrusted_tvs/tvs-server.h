@@ -3,8 +3,9 @@
 #include <string>
 
 #include "external/oak/proto/attestation/reference_value.pb.h"
-#include "grpcpp/server.h"
 #include "grpcpp/server_context.h"
+#include "grpcpp/support/status.h"
+#include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
