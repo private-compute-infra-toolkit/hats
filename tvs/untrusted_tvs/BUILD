@@ -12,6 +12,9 @@ cc_binary(
         "@com_google_absl//absl/log:initialize",
         "@com_google_protobuf//:protobuf",
         "@oak//proto/attestation:reference_value_cc_proto",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -39,7 +42,6 @@ cc_test(
         "//tvs/test_client:tvs-untrusted-client",
         "@com_google_googletest//:gtest_main",
         "@bazel_tools//tools/cpp/runfiles",
-        # XXX copy status dep to all targets taht needs it.
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@oak//proto/attestation:reference_value_cc_proto",
