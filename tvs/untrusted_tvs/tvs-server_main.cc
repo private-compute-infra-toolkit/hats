@@ -8,18 +8,14 @@
 #include "absl/flags/parse.h"
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
-<<<<<<< PATCH SET (daa107 Tidy up TVS code base by running iwyu, and dwyu and use stat)
-=======
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
-#include "external/oak/proto/attestation/reference_value.pb.h"
->>>>>>> BASE      (3a18fb Provide a dockerfile to run TVS server in GCP (cloud run).)
+#include "absl/strings/str_cat.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tvs/untrusted_tvs/tvs-server.h"
-#include "absl/status/statusor.h"
-#include "absl/status/status.h"
-#include "absl/strings/str_cat.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
 // TODO(alwabel): implement a better key provisioning.
@@ -32,17 +28,19 @@ namespace {
 
 absl::StatusOr<int> GetPort() {
   int port = absl::GetFlag(FLAGS_port);
-  if (port != -1 ) {
+  if (port != -1) {
     return port;
   }
   // if port is -1, then take try environment variable.
   char* port_str = std::getenv("PORT");
   if (port_str == nullptr) {
-    return absl::FailedPreconditionError("Server port must be specified by flag or PORT environment variable");
+    return absl::FailedPreconditionError(
+        "Server port must be specified by flag or PORT environment variable");
   }
 
   if (!absl::SimpleAtoi(port_str, &port)) {
-    return absl::InvalidArgumentError(absl::StrCat("Cannot convert $PORT '", port_str, "' to integer"));
+    return absl::InvalidArgumentError(
+        absl::StrCat("Cannot convert $PORT '", port_str, "' to integer"));
   }
   return port;
 }

@@ -8,12 +8,12 @@ cc_binary(
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:initialize",
-        "@com_google_protobuf//:protobuf",
-        "@com_google_protobuf//src/google/protobuf/io",
-        "@oak//proto/attestation:reference_value_cc_proto",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_protobuf//:protobuf",
+        "@com_google_protobuf//src/google/protobuf/io",
+        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )
 
@@ -47,10 +47,7 @@ cc_test(
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/test_client:tvs-untrusted-client",
         "@bazel_tools//tools/cpp/runfiles",
-<<<<<<< PATCH SET (daa107 Tidy up TVS code base by running iwyu, and dwyu and use stat)
         "@com_github_grpc_grpc//:grpc++",
-=======
->>>>>>> BASE      (3a18fb Provide a dockerfile to run TVS server in GCP (cloud run).)
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
