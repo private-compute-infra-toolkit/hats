@@ -7,8 +7,10 @@ This repo is for all Privacy Sandbox code related to Hardware Attested TEEs.
 Note: this setup is based on AMD's
 [V15 patch](https://lore.kernel.org/kvm/20240502231140.GC13783@ls.amr.corp.intel.com/T/).
 
-(On a gLinux machine or the jumphost) Fetch the needed submodules `cd hats git
-submodule update --init --recursive`
+(On a gLinux machine or the jumphost)
+Go into the cloned hats directory `cd hats`.
+Fetch the needed submodules with `git
+submodule update --init --recursive`.
 
 Build the KV server, base system image, stage0, stage1, linux kernels, launchers
 etc.
@@ -17,12 +19,12 @@ etc.
 ./scripts/build.sh
 ```
 
-The artifacts will be located at the `hats/prebuilt` directory.
+The artifacts will be located at the `prebuilt` sub-directory.
 
 (On the SEV-SNP server) Next, build QEMU from Yu's branch.
 
 Note: make sure you have build dependencies installed. On the SEV-SNP
-workstation, it is done by running command `sudo apt build-dep qemu`. On the
+workstation, it is done by running the command `sudo apt build-dep qemu`. On the
 jump host or any gLinux machine, this command will not work because some
 toolchains are missing. You can use `apt-rdepends --build-depends
 --follow=DEPENDS qemu` to get a list of build dependencies and install some of
