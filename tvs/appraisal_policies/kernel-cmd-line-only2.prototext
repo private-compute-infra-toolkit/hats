@@ -1,0 +1,51 @@
+oak_containers {
+  root_layer {
+    amd_sev {
+      stage0 {
+        skip {
+        }
+      }
+      min_tcb_version {
+      }
+    }
+  }
+  kernel_layer {
+    kernel {
+      skip {
+      }
+    }
+    init_ram_fs {
+      skip {
+      }
+    }
+    memory_map {
+      skip {
+      }
+    }
+    acpi {
+      skip {
+      }
+    }
+    kernel_cmd_line_text {
+      string_literals {
+	value: " console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off"
+      }
+    }
+  }
+  system_layer {
+    system_image {
+      skip {
+      }
+    }
+  }
+  container_layer {
+    binary {
+      skip {
+      }
+    }
+    configuration {
+      skip {
+      }
+    }
+  }
+}
