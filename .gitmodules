@@ -1,7 +1,7 @@
 [submodule "oak"]
 	path = submodules/oak
 	url = sso://oak/oak
-	branch = main
+	branch = oak-on-prem
 [submodule "protected-auction-key-value-service"]
 	path = submodules/kv-server
 	url = sso://team/kiwi-air-force-eng-team/kv-server
