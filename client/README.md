@@ -4,7 +4,7 @@ This directory contains code intended to run in the client machine.
 
 For example, scripts and code to run and launch oak containers.
 
-## Launch Oak containers system with KV server using SEV-SNP and QEMU
+## Launch Oak containers system with KV server using SEV-SNP and QEMU {#build-basic}
 
 Note: this setup is based on AMD's
 [V15 patch](https://lore.kernel.org/kvm/20240502231140.GC13783@ls.amr.corp.intel.com/T/).
@@ -88,6 +88,61 @@ Note: this setup is based on AMD's
        'kv_internal: "hi"'  \
        --channel_creds_type=insecure
     ```
+
+## Launch Oak containers system with TVS
+
+The goal of this section is to provide instructions on launching Oak container
+with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
+
+1.  Build Oak stack with a patched orchestrator and launcher.
+
+    In your workstation or cloudtop:
+
+    *   Navigate into the cloned hats directory:
+
+        ```
+        $ cd hats
+        ```
+
+    *   Fetch the needed submodules:
+
+        ```
+        $ git submodule update --init --recursive
+        ```
+
+    *   Call the build script and pass it the TVS public key, which will be
+        baked into the configuration that launches the orchestrator:
+
+        ```
+        $ ./scripts/build-for-hats.sh <tvs_public_key_in_hex_format>
+        ```
+
+    The artifacts will be located at the `prebuilt` sub-directory.
+
+1.  Build QEMU: follow the same instructions in [the previous section](#build-basic)
+
+1.  Copy binaries to SEV-SNP machine:
+
+    Copy the prebuilt folder that contains the binaries you built in the first
+    step to the SEV-SNP machine (you can use `scp` or `rsync). Copy
+    qemu-system-x86 binary from the previous step to the same folder.
+
+1.  Run oak_container_launcher and TVS server:
+
+    To run a TVS server that listens to port 7774, use the instructions:
+
+    ```
+    $ bazel build -c opt //tvs/untrusted_tvs:all
+    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+      --port=7774 \
+      --tvs_private_key=<private_key> \
+      --appraisal_policy_file=tvs/appraisal_policies/digests2.prototext
+
+    ```
+
+    Launch the container and pass it the TVS address you ran above.
+    `./scripts/start-hats-sevsnp.sh http://localhost:7779`
+
 
 ## Steps to download VCEK cert, CA cert and CRL from AMD
 
