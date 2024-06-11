@@ -20,9 +20,10 @@ rust_library(
         # attestation messages.
         "@oak_crates_index//:prost",
         "@oak//micro_rpc",
-        "@oak//oak_crypto",
         "@oak//oak_proto_rust",
         "@oak//oak_attestation_verification",
+        "@enclave//crypto",
+        "@enclave//handshake",
     ],
 )
 
@@ -40,9 +41,10 @@ rust_test(
         # attestation messages.
         "@oak_crates_index//:prost",
         "@oak//micro_rpc",
-        "@oak//oak_crypto",
         "@oak//oak_proto_rust",
         "@oak//oak_attestation_verification",
+        "@enclave//handshake",
+        "@enclave//crypto",
     ],
 )
 

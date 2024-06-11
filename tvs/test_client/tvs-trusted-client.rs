@@ -5,10 +5,7 @@ use crate::proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionRequest, VerifyReportRequestEncrypted,
 };
-
-use oak_crypto::noise_handshake::client::HandshakeInitiator;
-use oak_crypto::noise_handshake::{Crypter, P256_X962_LEN};
-
+use crypto::P256_X962_LENGTH;
 use prost::Message;
 
 pub mod proto {
@@ -34,21 +31,21 @@ mod ffi {
 fn new_tvs_client(tvs_pub_key: &str) -> Result<Box<TvsClient>, String> {
     let tvs_pub_key = hex::decode(tvs_pub_key)
         .map_err(|_| "Cannot decode tvs_pub_key. The key is expected to be in hex format")?;
-    let tvs_pub_key_bytes: [u8; P256_X962_LEN] = tvs_pub_key
+    let tvs_pub_key_bytes: [u8; P256_X962_LENGTH] = tvs_pub_key
         .try_into()
-        .map_err(|_| format!("Expected tvs_pub_key to be of length {}.", P256_X962_LEN))?;
+        .map_err(|_| format!("Expected tvs_pub_key to be of length {}.", P256_X962_LENGTH))?;
     Ok(Box::new(TvsClient::new(&tvs_pub_key_bytes)))
 }
 
 struct TvsClient {
-    handshake: HandshakeInitiator,
-    crypter: Option<Crypter>,
+    handshake: handshake::test_client::HandshakeInitiator,
+    crypter: Option<handshake::Crypter>,
 }
 
 impl TvsClient {
-    fn new(peer_public_key: &[u8; P256_X962_LEN]) -> Self {
+    fn new(peer_public_key: &[u8; P256_X962_LENGTH]) -> Self {
         Self {
-            handshake: HandshakeInitiator::new_nk(peer_public_key),
+            handshake: handshake::test_client::HandshakeInitiator::new(peer_public_key),
             crypter: None,
         }
     }

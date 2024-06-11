@@ -1,6 +1,14 @@
 workspace(name = "hats")
 
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "rules_rust",
+    sha256 = "f9b59be3bc20d157212000da1ede8be4399ad869fe439f3d9f3fcc29c4e2fa5a",
+    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.45.1/rules_rust-v0.45.1.tar.gz"],
+)
+
 load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
 
 rules_rust_dependencies()
@@ -12,6 +20,36 @@ rust_register_toolchains(
         "nightly/2024-02-01",
     ],
 )
+
+load("@rules_rust//proto/prost/private:repositories.bzl", "rust_prost_dependencies", "rust_prost_register_toolchains")
+
+rust_prost_dependencies()
+
+rust_prost_register_toolchains()
+
+load("@rules_rust//proto/prost:transitive_repositories.bzl", "rust_prost_transitive_repositories")
+
+rust_prost_transitive_repositories()
+
+load("@rules_rust//proto/protobuf:repositories.bzl", "rust_proto_protobuf_dependencies", "rust_proto_protobuf_register_toolchains")
+
+rust_proto_protobuf_dependencies()
+
+rust_proto_protobuf_register_toolchains()
+
+load("@rules_rust//proto/protobuf:transitive_repositories.bzl", "rust_proto_protobuf_transitive_repositories")
+
+rust_proto_protobuf_transitive_repositories()
+
+load("@rules_rust//bindgen:repositories.bzl", "rust_bindgen_dependencies", "rust_bindgen_register_toolchains")
+
+rust_bindgen_dependencies()
+
+rust_bindgen_register_toolchains()
+
+load("@rules_rust//bindgen:transitive_repositories.bzl", "rust_bindgen_transitive_dependencies")
+
+rust_bindgen_transitive_dependencies()
 
 # Java gRPC support -- required by oak.
 # https://github.com/grpc/grpc-java
@@ -55,7 +93,11 @@ crates_repository(
     packages = {
         "cxx": crate.spec(version = "*"),
         "hex": crate.spec(version = "*"),
-        "jwt-simple": crate.spec(version = "*"),
+        "jwt-simple": crate.spec(
+            default_features = False,
+            features = ["pure-rust"],
+            version = "*",
+        ),
         "prost": crate.spec(
             default_features = False,
             features = ["prost-derive"],
@@ -162,3 +204,34 @@ crates_repository(
 load("@cxxbridge_cmd_deps//:defs.bzl", cxxbridge_cmd_deps = "crate_repositories")
 
 cxxbridge_cmd_deps()
+
+git_repository(
+    name = "boringssl",
+    commit = "56fb43a204e57af68e00f4561c108a7004381aa3",
+    patches = [
+        "//patches/boringssl:boringssl.patch",
+    ],
+    remote = "https://boringssl.googlesource.com/boringssl",
+)
+
+git_repository(
+    name = "enclave",
+    commit = "393f175b870aaf21da2d6bc448d1b1e9e037e55c",
+    patches = [
+        "//patches/enclave:enclave.patch",
+    ],
+    remote = "sso://cloudenclave/enclave",
+)
+
+crates_repository(
+    name = "enclave_crate_index",
+    cargo_lockfile = "//:Cargo.enclave-bazel.lock",
+    lockfile = "//:cargo-enclave-bazel-lock.json",
+    packages = {
+        "static_assertions": crate.spec(version = "*"),
+    },
+)
+
+load("@enclave_crate_index//:defs.bzl", enclave_crate_repositories = "crate_repositories")
+
+enclave_crate_repositories()

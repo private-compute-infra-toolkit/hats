@@ -17,7 +17,8 @@ rust_library(
         # prost version are not compatible. Here we are referring to the
         # attestation messages.
         "@oak_crates_index//:prost",
-        "@oak//oak_crypto",
+        "@enclave//crypto",
+        "@enclave//handshake",
         "@oak//oak_proto_rust",
     ],
 )

@@ -1,18 +1,16 @@
 // Required for prost
 #![feature(never_type)]
 
+extern crate handshake;
 extern crate hex;
-extern crate oak_crypto;
 
 use crate::proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
+use crypto::P256_SCALAR_LENGTH;
 use jwt_simple::prelude::*;
-use oak_crypto::noise_handshake;
 use prost::Message;
-
-const P256_SCALAR_LEN: usize = 32;
 
 pub mod proto {
     pub mod privacy_sandbox {
@@ -25,8 +23,8 @@ pub mod proto {
 struct TrustedTvs {
     time_milis: i64,
     // A big-endian P-256 private scalar, used as the Noise identity key.
-    identity_private_key: [u8; P256_SCALAR_LEN],
-    crypter: Option<noise_handshake::Crypter>,
+    identity_private_key: [u8; P256_SCALAR_LENGTH],
+    crypter: Option<handshake::Crypter>,
     appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
 }
 
@@ -51,11 +49,11 @@ fn new_trusted_tvs_service(
 ) -> Result<Box<TrustedTvs>, String> {
     match hex::decode(private_key_in_hex_str) {
         Ok(identity_private_key) => {
-            let identity_private_key_fixed_size: [u8; P256_SCALAR_LEN] =
+            let identity_private_key_fixed_size: [u8; P256_SCALAR_LENGTH] =
                 identity_private_key.try_into().map_err(|_| {
                     format!(
                         "Invalid private key length. Key should be {} bytes long.",
-                        P256_SCALAR_LEN
+                        P256_SCALAR_LENGTH
                     )
                 })?;
             let appraisal_policy =
@@ -77,7 +75,7 @@ fn new_trusted_tvs_service(
 impl TrustedTvs {
     fn new(
         time_milis: i64,
-        identity_private_key: &[u8; P256_SCALAR_LEN],
+        identity_private_key: &[u8; P256_SCALAR_LENGTH],
         appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
     ) -> Self {
         Self {
@@ -133,7 +131,7 @@ impl TrustedTvs {
         if let Some(_) = &self.crypter {
             Err("Handshake has already been made.".to_string())
         } else {
-            match noise_handshake::respond_nk(&self.identity_private_key, handshake_request) {
+            match handshake::respond(&self.identity_private_key, handshake_request) {
                 Ok(r) => {
                     self.crypter = Some(r.crypter);
                     Ok(r.response)
@@ -220,8 +218,7 @@ fn create_endorsements(
 mod tests {
     use super::*;
     use crate::proto::privacy_sandbox::tvs::{InitSessionRequest, VerifyReportRequestEncrypted};
-    use oak_crypto::noise_handshake::client::HandshakeInitiator;
-    use oak_crypto::noise_handshake::P256Scalar;
+    use crypto::P256Scalar;
 
     fn get_oc_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
@@ -255,7 +252,8 @@ mod tests {
             default_appraisal_policy().as_slice(),
         )
         .unwrap();
-        let mut client = HandshakeInitiator::new_nk(&tvs_private_key.compute_public_key());
+        let mut client =
+            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
 
         // Test initial handshake.
         let message = AttestReportRequest {
@@ -351,7 +349,8 @@ mod tests {
             default_appraisal_policy().as_slice(),
         )
         .unwrap();
-        let mut client = HandshakeInitiator::new_nk(&tvs_private_key.compute_public_key());
+        let mut client =
+            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
 
         // Test initial handshake.
         let message = AttestReportRequest {
@@ -436,14 +435,14 @@ mod tests {
                 e,
                 format!(
                     "Invalid private key length. Key should be {} bytes long.",
-                    P256_SCALAR_LEN
+                    P256_SCALAR_LENGTH
                 )
             ),
         }
 
         match new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &String::from_utf8(vec![b'f'; P256_SCALAR_LEN * 3]).unwrap(),
+            &String::from_utf8(vec![b'f'; P256_SCALAR_LENGTH * 3]).unwrap(),
             default_appraisal_policy().as_slice(),
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
@@ -451,7 +450,7 @@ mod tests {
                 e,
                 format!(
                     "Invalid private key length. Key should be {} bytes long.",
-                    P256_SCALAR_LEN
+                    P256_SCALAR_LENGTH
                 )
             ),
         }
@@ -489,8 +488,9 @@ mod tests {
             default_appraisal_policy().as_slice(),
         )
         .unwrap();
-        let client_handshake = HandshakeInitiator::new_nk(&tvs_private_key.compute_public_key())
-            .build_initial_message();
+        let client_handshake =
+            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key())
+                .build_initial_message();
         assert!(trusted_tvs
             .do_init_session(client_handshake.as_slice())
             .is_ok());
