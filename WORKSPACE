@@ -3,12 +3,6 @@ workspace(name = "hats")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-http_archive(
-    name = "rules_rust",
-    sha256 = "f9b59be3bc20d157212000da1ede8be4399ad869fe439f3d9f3fcc29c4e2fa5a",
-    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.45.1/rules_rust-v0.45.1.tar.gz"],
-)
-
 load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
 
 rules_rust_dependencies()
@@ -204,15 +198,6 @@ crates_repository(
 load("@cxxbridge_cmd_deps//:defs.bzl", cxxbridge_cmd_deps = "crate_repositories")
 
 cxxbridge_cmd_deps()
-
-git_repository(
-    name = "boringssl",
-    commit = "56fb43a204e57af68e00f4561c108a7004381aa3",
-    patches = [
-        "//patches/boringssl:boringssl.patch",
-    ],
-    remote = "https://boringssl.googlesource.com/boringssl",
-)
 
 git_repository(
     name = "enclave",

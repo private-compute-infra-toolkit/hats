@@ -1,3 +1,12 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 1d181bee4..304801f55 100644
+--- MODULE.bazel
++++ MODULE.bazel
+@@ -30,3 +30,4 @@ bazel_dep(name = "googletest", version = "1.14.0.bcr.1")
+ 
+ bazel_dep(name = "platforms", version = "0.0.9")
+ bazel_dep(name = "rules_cc", version = "0.0.9")
++bazel_dep(name = "rules_rust", version = "0.45.1")
 diff --git a/rust/bssl-crypto/BUILD b/rust/bssl-crypto/BUILD
 new file mode 100644
 index 000000000..f0f41ac2c
