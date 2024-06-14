@@ -37,6 +37,7 @@ class TvsUntrustedClient final {
 
   // Get JWT token from TVS server.
   absl::StatusOr<std::string> VerifyReportAndGetToken(
+      const std::string& application_signing_key,
       const VerifyReportRequest& verify_report_request);
 
  private:

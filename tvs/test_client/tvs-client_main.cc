@@ -24,7 +24,10 @@ ABSL_FLAG(bool, use_tls, false, "Whether to use TLS to connect to TVS or not.");
 ABSL_FLAG(
     std::string, verify_report_request_file, "",
     "File containing a VerifyReportRequest to be sent to TVS for validation");
-
+ABSL_FLAG(std::string, application_signing_key, "",
+          "Signing key in the application layer of the DICE certificate in hex "
+          "format e.g. deadbeef. The key is used to sign the handshake hash "
+          "and the evidence.");
 namespace {
 
 std::shared_ptr<grpc::Channel> CreateGrpcChannel(const std::string& target,
@@ -48,6 +51,13 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "--verify_report_request_file cannot be empty.";
     return 1;
   }
+
+  const std::string application_signing_key =
+      absl::GetFlag(FLAGS_application_signing_key);
+  if (application_signing_key.empty()) {
+    LOG(ERROR) << "--application_signing_key cannot be empty.";
+    return 1;
+  }
   std::ifstream if_stream(verify_report_request_file);
   google::protobuf::io::IstreamInputStream istream(&if_stream);
   privacy_sandbox::tvs::VerifyReportRequest verify_report_request;
@@ -69,7 +79,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   absl::StatusOr<std::string> token =
-      (*tvs_client)->VerifyReportAndGetToken(verify_report_request);
+      (*tvs_client)
+          ->VerifyReportAndGetToken(application_signing_key,
+                                    verify_report_request);
   if (!token.ok()) {
     std::cout << "TVS rejected the report: " << token.status() << std::endl;
   }

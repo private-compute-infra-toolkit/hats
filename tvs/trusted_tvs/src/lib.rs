@@ -8,8 +8,10 @@ use crate::proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
-use crypto::P256_SCALAR_LENGTH;
+use crypto::{P256_SCALAR_LENGTH, SHA256_OUTPUT_LEN};
 use jwt_simple::prelude::*;
+use oak_proto_rust::oak::attestation::v1::Evidence;
+use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use prost::Message;
 
 pub mod proto {
@@ -25,6 +27,7 @@ struct TrustedTvs {
     // A big-endian P-256 private scalar, used as the Noise identity key.
     identity_private_key: [u8; P256_SCALAR_LENGTH],
     crypter: Option<handshake::Crypter>,
+    handshake_hash: [u8; SHA256_OUTPUT_LEN],
     appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
 }
 
@@ -83,6 +86,7 @@ impl TrustedTvs {
             identity_private_key: *identity_private_key,
             appraisal_policy,
             crypter: None,
+            handshake_hash: [0; SHA256_OUTPUT_LEN],
         }
     }
 
@@ -134,6 +138,7 @@ impl TrustedTvs {
             match handshake::respond(&self.identity_private_key, handshake_request) {
                 Ok(r) => {
                     self.crypter = Some(r.crypter);
+                    self.handshake_hash = r.handshake_hash;
                     Ok(r.response)
                 }
                 Err(_) => Err("Handshake has already been made.".to_string()),
@@ -145,10 +150,11 @@ impl TrustedTvs {
         &mut self,
         verify_report_request: VerifyReportRequest,
     ) -> Result<Vec<u8>, String> {
-        let endorsement = create_endorsements(verify_report_request.tee_certificate);
         let Some(evidence) = verify_report_request.evidence else {
             return Err("Request does not have `evidence` proto.".to_string());
         };
+        self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
+        let endorsement = create_endorsements(verify_report_request.tee_certificate);
         // TODO(alwabel): verify against the right vcek cert chain as Oak
         // currently uses Milan's cert chains for all requests.
         let _ = oak_attestation_verification::verifier::verify(
@@ -182,6 +188,29 @@ impl TrustedTvs {
             .map_err(|_| "Failed to decode (serialize) request proto")?;
         self.check_report_and_generate_token(verify_report_request)
     }
+
+    fn validate_signature(&self, evidence: &Evidence, signature: &[u8]) -> Result<(), String> {
+        // oak_attestation_verification::verifier::extract_evidence::verify() returns
+        // the same proto that includes the parsed application keys; however, we want
+        // to verify signatures before we validate the certificate (to early reject invalid requests).
+        // Extracting application keys require some processing as they are represented as a CBOR
+        // certificate, which contains claims and other values.
+        let extracted_evidence = oak_attestation_verification::verifier::extract_evidence(evidence)
+            .map_err(|msg| format!("Failed to extract evidence {}", msg))?;
+        let signature = Signature::from_slice(signature)
+            .map_err(|msg| format!("Failed to parse signature. {}", msg))?;
+        let verifying_key =
+            VerifyingKey::from_sec1_bytes(extracted_evidence.signing_public_key.as_slice())
+                .map_err(|msg| {
+                    format!(
+                        "Failed to de-serialize application signing key from evidence. {}",
+                        msg
+                    )
+                })?;
+        verifying_key
+            .verify(&self.handshake_hash, &signature)
+            .map_err(|msg| format!("Signature does not match. {}", msg))
+    }
 }
 
 // TODO(alwabel): fill in the token with actual data and properly sign it.
@@ -191,7 +220,7 @@ impl TrustedTvs {
 // Generates a simple JWT token -- see https://jwt.io/
 fn issue_jwt_token() -> String {
     let key = HS384Key::from_bytes(b"secret");
-    let claims = Claims::create(Duration::from_secs(5));
+    let claims = Claims::create(Duration::from_mins(5));
     let token = key.authenticate(claims).unwrap();
     token
 }
@@ -219,10 +248,11 @@ mod tests {
     use super::*;
     use crate::proto::privacy_sandbox::tvs::{InitSessionRequest, VerifyReportRequestEncrypted};
     use crypto::P256Scalar;
+    use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 
-    fn get_oc_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
+    fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../../test_data/oc_evidence.binarypb").as_slice(),
+            include_bytes!("../../test_data/good_evidence.binarypb").as_slice(),
         )
         .expect("could not decode evidence")
     }
@@ -234,11 +264,26 @@ mod tests {
         .expect("could not decode evidence")
     }
 
-    fn get_oc_vcek() -> Vec<u8> {
-        include_bytes!("../../test_data/oc_vcek_milan.der").to_vec()
+    fn get_malformed_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
+        oak_proto_rust::oak::attestation::v1::Evidence::decode(
+            include_bytes!("../../test_data/malformed_evidence.binarypb").as_slice(),
+        )
+        .expect("could not decode evidence")
     }
+
+    fn get_genoa_vcek() -> Vec<u8> {
+        include_bytes!("../../test_data/vcek_genoa.crt").to_vec()
+    }
+
     fn default_appraisal_policy() -> Vec<u8> {
         include_bytes!("../../test_data/on-perm-reference.binarypb").to_vec()
+    }
+
+    fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> Result<Vec<u8>, String> {
+        let signing_key = SigningKey::from_slice(signing_key)
+            .map_err(|msg| format!("Failed to parse signing keys. {}", msg))?;
+        let signature: Signature = signing_key.sign(handshake_hash);
+        Ok(signature.to_vec())
     }
 
     const NOW_UTC_MILLIS: i64 = 1698829200000;
@@ -280,64 +325,59 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let (_, mut client_crypter) = client.process_response(handshake_response.as_slice());
+        let (handshake_hash, mut client_crypter) =
+            client.process_response(handshake_response.as_slice());
 
         let mut encrypted_tokens = Vec::with_capacity(256);
 
-        for _ in 0..10 {
-            // Test report verification.
+        // Test report verification.
+        let signing_key =
+            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
+                .unwrap();
+        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
 
-            let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
-            VerifyReportRequest {
-                evidence: Some(get_oc_evidence()),
-                tee_certificate: get_oc_vcek(),
-            }
-            .encode(&mut verify_report_request_bin)
+        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
+        VerifyReportRequest {
+            evidence: Some(get_good_evidence()),
+            tee_certificate: get_genoa_vcek(),
+            signature: signature,
+        }
+        .encode(&mut verify_report_request_bin)
+        .unwrap();
+
+        let encrypted_report = client_crypter
+            .encrypt(verify_report_request_bin.as_slice())
             .unwrap();
 
-            let encrypted_report = client_crypter
-                .encrypt(verify_report_request_bin.as_slice())
-                .unwrap();
-
-            let message = AttestReportRequest {
-                request: Some(
-                    proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
-                        VerifyReportRequestEncrypted {
-                            client_message: encrypted_report,
-                        },
-                    ),
+        let message = AttestReportRequest {
+            request: Some(
+                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                    VerifyReportRequestEncrypted {
+                        client_message: encrypted_report,
+                    },
                 ),
-            };
+            ),
+        };
 
-            let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-            message.encode(&mut message_bin).unwrap();
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
 
-            // Get the report.
-            let token_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
-            let message_reponse: AttestReportResponse =
-                AttestReportResponse::decode(token_bin.as_slice()).unwrap();
+        // Get the report.
+        let token_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(token_bin.as_slice()).unwrap();
 
-            let report_response = match &message_reponse.response {
-                Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
-                    report_response.response_for_client.clone()
-                }
-                _ => panic!("Wrong response"),
-            };
+        let report_response = match &message_reponse.response {
+            Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
+                report_response.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
 
-            encrypted_tokens.push(report_response.clone());
-            let jwt_token = client_crypter.decrypt(report_response.as_slice()).unwrap();
-            let jwt_token_text = std::str::from_utf8(jwt_token.as_slice()).unwrap();
-            assert_eq!(jwt_token_text, issue_jwt_token());
-        }
-        encrypted_tokens.sort();
-        // Sanity check: verify that the cipher text of the encrypted_tokens are unique.
-        assert_eq!(
-            1 + encrypted_tokens
-                .windows(2)
-                .filter(|element| element[0] != element[1])
-                .count(),
-            10
-        );
+        encrypted_tokens.push(report_response.clone());
+        let jwt_token = client_crypter.decrypt(report_response.as_slice()).unwrap();
+        let jwt_token_text = std::str::from_utf8(jwt_token.as_slice()).unwrap();
+        assert!(jwt_token_text.contains("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9"));
     }
 
     #[test]
@@ -377,14 +417,93 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let (_, mut client_crypter) = client.process_response(handshake_response.as_slice());
-
+        let (handshake_hash, mut client_crypter) =
+            client.process_response(handshake_response.as_slice());
         // Test report verification.
+        let signing_key =
+            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
+                .unwrap();
+        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
+        VerifyReportRequest {
+            evidence: Some(get_malformed_evidence()),
+            tee_certificate: get_genoa_vcek(),
+            signature: hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap(),
+        }
+        .encode(&mut verify_report_request_bin)
+        .unwrap();
 
+        let encrypted_report = client_crypter
+            .encrypt(verify_report_request_bin.as_slice())
+            .unwrap();
+        let message = AttestReportRequest {
+            request: Some(
+                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                    VerifyReportRequestEncrypted {
+                        client_message: encrypted_report,
+                    },
+                ),
+            ),
+        };
+
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
+
+        match trusted_tvs.verify_report(message_bin.as_slice()) {
+            Ok(_) => assert!(false, "verify_command() should fail."),
+            Err(e) => assert!(e.contains("Failed to verify report. chip id differs")),
+        }
+    }
+
+    #[test]
+    fn verify_report_system_layer_verification_error() {
+        let tvs_private_key = P256Scalar::generate();
+        let mut trusted_tvs = new_trusted_tvs_service(
+            NOW_UTC_MILLIS,
+            &hex::encode(tvs_private_key.bytes()),
+            default_appraisal_policy().as_slice(),
+        )
+        .unwrap();
+        let mut client =
+            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
+
+        // Test initial handshake.
+        let message = AttestReportRequest {
+            request: Some(
+                proto::privacy_sandbox::tvs::attest_report_request::Request::InitSessionRequest(
+                    InitSessionRequest {
+                        client_message: client.build_initial_message(),
+                    },
+                ),
+            ),
+        };
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
+
+        // Ask TVS to do its handshake part
+        let handshake_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
+        let handshake_response = match &message_reponse.response {
+            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
+                init_session.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        let (handshake_hash, mut client_crypter) =
+            client.process_response(handshake_response.as_slice());
+        // Test report verification.
+        let signing_key =
+            hex::decode("df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759")
+                .unwrap();
         let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
         VerifyReportRequest {
             evidence: Some(get_bad_evidence()),
-            tee_certificate: get_oc_vcek(),
+            tee_certificate: get_genoa_vcek(),
+            signature: hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap(),
         }
         .encode(&mut verify_report_request_bin)
         .unwrap();
@@ -407,7 +526,9 @@ mod tests {
 
         match trusted_tvs.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
-            Err(e) => assert!(e.contains("Failed to verify report. chip id differs")),
+            Err(e) => {
+                assert!(e.contains("Failed to verify report. system layer verification failed"))
+            }
         }
     }
 

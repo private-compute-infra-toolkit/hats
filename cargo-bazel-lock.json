@@ -1,5 +1,5 @@
 {
-  "checksum": "60e062bed7583c1cb7a92acd6f155ec15cbb7f4496568d6d1bd8f5ff273befce",
+  "checksum": "bf435206f62f967dd15251e5b256d3a3b0e855aefe0672b4c249d32a425040a9",
   "crates": {
     "anyhow 1.0.86": {
       "name": "anyhow",
@@ -1359,6 +1359,10 @@
             {
               "id": "jwt-simple 0.12.9",
               "target": "jwt_simple"
+            },
+            {
+              "id": "p256 0.13.2",
+              "target": "p256"
             },
             {
               "id": "prost 0.12.6",
@@ -6265,6 +6269,7 @@
     "cxx 1.0.122",
     "hex 0.4.3",
     "jwt-simple 0.12.9",
+    "p256 0.13.2",
     "prost 0.12.6"
   ],
   "direct_dev_deps": []

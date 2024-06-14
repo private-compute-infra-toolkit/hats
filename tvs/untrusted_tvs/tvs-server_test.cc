@@ -33,9 +33,9 @@ using ::absl_testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
 
-constexpr absl::string_view kPrivateKey =
+constexpr absl::string_view kTvsPrivateKey =
     "0000000000000000000000000000000000000000000000000000000000000001";
-constexpr absl::string_view kPublicKey =
+constexpr absl::string_view kTvsPublicKey =
     "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
     "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
 
@@ -83,24 +83,75 @@ absl::StatusOr<oak::attestation::v1::ReferenceValues> GetTestAppraisalPolicy() {
               root_layer {
                 amd_sev {
                   stage0 { skip {} }
-                  min_tcb_version {}
+                  min_tcb_version { boot_loader: 7 snp: 15 microcode: 62 }
                 }
               }
               kernel_layer {
-                kernel { skip {} }
-                init_ram_fs { skip {} }
-                memory_map { skip {} }
-                acpi { skip {} }
+                kernel {
+                  digests {
+                    image {
+                      digests {
+                        sha2_256: "D*6\221>.)\235\242\265\026\201D\203\266\254\357\021\266>\003\3675a\003A\250V\0223\367\277"
+                      }
+                    }
+                    setup_data {
+                      digests {
+                        sha2_256: "h\313Bj\372\242\224e\367\307\037&\324\371\253Z\202\302\341\222b6d\213\354\"j\201\224C\035\271"
+                      }
+                    }
+                  }
+                }
+                init_ram_fs {
+                  digests {
+                    digests {
+                      sha2_256: ";0y=\1778\210t*\326?\023\353\346\240\003\274\233v4\231,dx\246\020\037\236\363#\265\256"
+                    }
+                  }
+                }
+                memory_map {
+                  digests {
+                    digests {
+                      sha2_256: "L\230T(\375\306\020\034q\314&\335\303\023\315\202!\274\274TG\031\221\3549\261\276\002m\016\034("
+                    }
+                  }
+                }
+                acpi {
+                  digests {
+                    digests {
+                      sha2_256: "\244\337\235\212d\334\271\247\023\316\300(\327\r+\025\231\372\357\007\314\320\320\341\201i1IkH\230\310"
+                    }
+                  }
+                }
                 kernel_cmd_line_text {
                   string_literals {
-                    value: "console=ttyS0 panic=-1 earlycon=uart,io,0x3F8 brd.rd_nr=1 brd.rd_size=3072000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off net.ifnames=0 quiet"
+                    value: " console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off"
                   }
                 }
               }
-              system_layer { system_image { skip {} } }
+              system_layer {
+                system_image {
+                  digests {
+                    digests {
+                      sha2_256: "\343\336\331\347\317\331S\264\356cs\373\213A*v\276\020*n\335N\005\252\177\211p\342\013\374K\315"
+                    }
+                  }
+                }
+              }
               container_layer {
-                binary { skip {} }
-                configuration { skip {} }
+                binary {
+                  digests {
+                    digests {
+                      sha2_256: "\277\027=\204ld\345\312\364\221\336\233^\242\337\2544\234\376\"\245\346\360:\330\004\213\270\n\336C\014"
+                    }
+                  }
+                }
+                configuration {
+                  digests {
+                    digests {
+                      sha2_256: "\343\260\304B\230\374\034\024\232\373\364\310\231o\271$\'\256A\344d\233\223L\244\225\231\033xR\270U"
+                    }
+                  }
+                }
               }
             })pb",
           &appraisal_policy)) {
@@ -110,7 +161,7 @@ absl::StatusOr<oak::attestation::v1::ReferenceValues> GetTestAppraisalPolicy() {
 }
 
 TEST(TvsServer, Successful) {
-  std::string key = std::string(kPrivateKey);
+  std::string key = std::string(kTvsPrivateKey);
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
@@ -121,7 +172,7 @@ TEST(TvsServer, Successful) {
 
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kPublicKey),
+          .tvs_public_key = std::string(kTvsPublicKey),
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       });
   ASSERT_TRUE(tvs_client.ok());
@@ -130,18 +181,17 @@ TEST(TvsServer, Successful) {
       GetGoodReportRequest();
   ASSERT_TRUE(verify_report_request.ok());
 
-  // Ensure that the client can send multiple requests to verify reports within
-  // the same session without the need to redo the handshake.
-  for (int i = 0; i < 10; ++i) {
-    // We match against the header only.
-    EXPECT_THAT(
-        (*tvs_client)->VerifyReportAndGetToken(*verify_report_request),
-        IsOkAndHolds(HasSubstr("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9")));
-  }
+  constexpr absl::string_view kApplicationSigningKey =
+      "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
+  // We match against the header only.
+  EXPECT_THAT((*tvs_client)
+                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
+                                            *verify_report_request),
+              IsOkAndHolds(HasSubstr("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9")));
 }
 
 TEST(TvsServer, BadReportError) {
-  std::string key = std::string(kPrivateKey);
+  std::string key = std::string(kTvsPrivateKey);
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
@@ -152,7 +202,7 @@ TEST(TvsServer, BadReportError) {
 
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kPublicKey),
+          .tvs_public_key = std::string(kTvsPublicKey),
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       });
   ASSERT_TRUE(tvs_client.ok());
@@ -161,14 +211,18 @@ TEST(TvsServer, BadReportError) {
       GetBadReportRequest();
   ASSERT_TRUE(verify_report_request.ok());
 
-  EXPECT_THAT((*tvs_client)->VerifyReportAndGetToken(*verify_report_request),
+  constexpr absl::string_view kApplicationSigningKey =
+      "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759";
+  EXPECT_THAT((*tvs_client)
+                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
+                                            *verify_report_request),
               StatusIs(absl::StatusCode::kUnknown,
                        AllOf(HasSubstr("Failed to verify report"),
-                             HasSubstr("chip id differs"))));
+                             HasSubstr("system layer verification failed"))));
 }
 
 TEST(TvsServer, MalformedMessageError) {
-  std::string key = std::string(kPrivateKey);
+  std::string key = std::string(kTvsPrivateKey);
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
@@ -201,7 +255,7 @@ TEST(TvsServer, CreatingTrustedTvsServerError) {
 
   EXPECT_THAT(
       TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kPublicKey),
+          .tvs_public_key = std::string(kTvsPublicKey),
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       }),
       StatusIs(

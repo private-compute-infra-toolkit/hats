@@ -2,7 +2,6 @@ workspace(name = "hats")
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
 load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
 
 rules_rust_dependencies()
@@ -67,6 +66,7 @@ http_archive(
     name = "oak",
     patches = [
         "//patches/oak:proto_dependency.patch",
+        "//patches/oak:cert_chain.patch",
     ],
     sha256 = "586b85edaccbf7a586e73812abc499999385fbbf901c98b37e977507187c85fb",
     strip_prefix = "oak-65892800827299af01330100c3aee9fa0d90c4ee",
@@ -97,6 +97,7 @@ crates_repository(
             features = ["prost-derive"],
             version = "*",
         ),
+        "p256": crate.spec(version = "*"),
     },
 )
 

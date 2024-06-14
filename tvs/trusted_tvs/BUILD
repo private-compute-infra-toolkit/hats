@@ -15,6 +15,7 @@ rust_library(
         "@hats_crate_index//:cxx",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:jwt-simple",
+        "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the
         # attestation messages.
@@ -36,6 +37,7 @@ rust_test(
         "@hats_crate_index//:cxx",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:jwt-simple",
+        "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the
         # attestation messages.

@@ -99,13 +99,17 @@ TvsUntrustedClient::CreateClient(const Options& options) {
 }
 
 absl::StatusOr<std::string> TvsUntrustedClient::VerifyReportAndGetToken(
+    const std::string& application_signing_key,
     const VerifyReportRequest& verify_report_request) {
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
     const rust::Vec<std::uint8_t> encrypted_command =
-        tvs_client_->build_command(
-            StringToRustSlice(verify_report_request.SerializeAsString()));
+        tvs_client_->build_verify_report_request(
+            StringToRustSlice(
+                verify_report_request.evidence().SerializeAsString()),
+            StringToRustSlice(verify_report_request.tee_certificate()),
+            application_signing_key);
     OpaqueMessage opaque_message;
     opaque_message.set_binary_message(RustVecToString(encrypted_command));
 
@@ -127,6 +131,7 @@ absl::StatusOr<std::string> TvsUntrustedClient::VerifyReportAndGetToken(
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to create trusted TVS client.", e.what()));
   }
+  return absl::OkStatus();
 }
 
 }  // namespace privacy_sandbox::tvs

@@ -15,18 +15,20 @@ git_override(
     commit = "d9f501ef8482b3e6a41e3b544fde4569ad909c0b",
     remote = "https://github.com/abseil/abseil-cpp",
 )
+
 bazel_dep(name = "depend_on_what_you_use", version = "0.0.0")
 git_override(
     module_name = "depend_on_what_you_use",
     commit = "ee7e0370f01badecd7de5a009c390859b6145c98",
     remote = "https://github.com/martis42/depend_on_what_you_use",
 )
+
 bazel_dep(name = "boringssl", version = "0.0.0-20230215-5c22014")
 git_override(
     module_name = "boringssl",
     commit = "56fb43a204e57af68e00f4561c108a7004381aa3",
-    remote = "https://boringssl.googlesource.com/boringssl",
     patches = [
         "//patches/boringssl:boringssl.patch",
     ],
+    remote = "https://boringssl.googlesource.com/boringssl",
 )
