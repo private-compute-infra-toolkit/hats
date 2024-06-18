@@ -1,0 +1,48 @@
+diff --git a/oak_attestation_verification/BUILD b/oak_attestation_verification/BUILD
+index 37349407d..51bdb6762 100644
+--- oak_attestation_verification/BUILD
++++ oak_attestation_verification/BUILD
+@@ -26,6 +26,7 @@ rust_library(
+     srcs = glob(["src/**"]),
+     compile_data = [
+         "//oak_attestation_verification/data:ask_milan.pem",
++        "//oak_attestation_verification/data:ask_genoa.pem",
+     ],
+     deps = [
+         "//oak_dice",
+diff --git a/oak_attestation_verification/src/verifier.rs b/oak_attestation_verification/src/verifier.rs
+index e84b3f78f..d9afdf81b 100644
+--- oak_attestation_verification/src/verifier.rs
++++ oak_attestation_verification/src/verifier.rs
+@@ -76,6 +76,7 @@ use crate::{
+ };
+ 
+ const ASK_MILAN_CERT_PEM: &str = include_str!("../data/ask_milan.pem");
++const ASK_GENOA_CERT_PEM: &str = include_str!("../data/ask_genoa.pem");
+ 
+ // We don't use additional authenticated data.
+ const ADDITIONAL_DATA: &[u8] = b"";
+@@ -504,14 +505,17 @@ fn verify_root_attestation_signature(
+             // We demand that product-specific ASK signs the VCEK.
+             let vcek = Certificate::from_der(serialized_certificate)
+                 .map_err(|_err| anyhow::anyhow!("could not parse VCEK cert"))?;
+-            // Right now there are only Milan CPUs, so it is not urgent to code the
+-            // decision between Milan and Genoa which would appear here.
++            // For now, try verifying first with Milan, and then with Genoa.
++            // TODO(waywardgeek): have the client send the product family na
+             let ask_milan = Certificate::from_pem(ASK_MILAN_CERT_PEM)
+-                .map_err(|_err| anyhow::anyhow!("could not parse ASK cert"))?;
+-
+-            // TODO(#4747): user current date as part of VCEK verification.
+-            verify_cert_signature(&ask_milan, &vcek)?;
++                .map_err(|_err| anyhow::anyhow!("could not parse Milan ASK cert"))?;
++            let ask_genoa = Certificate::from_pem(ASK_GENOA_CERT_PEM)
++                .map_err(|_err| anyhow::anyhow!("could not parse Genoa ASK cert"))?;
+ 
++            // TODO(#4747): use current date as part of VCEK verification.
++            if let Err(_) = verify_cert_signature(&ask_milan, &vcek) {
++                verify_cert_signature(&ask_genoa, &vcek)?;
++            }
+             let report = AttestationReport::ref_from(&root_layer.remote_attestation_report)
+                 .context("invalid AMD SEV-SNP attestation report")?;
+             report.validate().map_err(|msg| anyhow::anyhow!(msg))?;
