@@ -14,4 +14,5 @@ sudo ${PREBUILT_DIR}/oak_containers_launcher \
   --kernel ${PREBUILT_DIR}/bzImage \
   --initrd ${PREBUILT_DIR}/stage1.cpio \
   --memory-size="8G" \
-  --ramdrive-size="10000000"
+  --ramdrive-size="10000000" \
+  --vm-type sev-snp

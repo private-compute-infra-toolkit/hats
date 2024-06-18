@@ -34,8 +34,8 @@ function build_oak_containers_kernel() {
   printf "\nBUILDING OAK CONTAINERS KERNEL..."
   pushd ../../submodules/oak/oak_containers_kernel
     nix develop --command make clean && \
-    nix develop --command make && \
-    cp -f target/bzImage "$BUILD_DIR"
+    nix develop --command make target/vanilla_bzImage && \
+    cp -f target/vanilla_bzImage "$BUILD_DIR"
   popd
 }
 

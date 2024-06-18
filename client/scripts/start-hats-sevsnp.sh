@@ -13,4 +13,5 @@ sudo ${PREBUILT_DIR}/oak_containers_launcher \
   --initrd ${PREBUILT_DIR}/stage1.cpio \
   --memory-size="8G" \
   --ramdrive-size="10000000" \
+  --vm-type sev-snp \
   --tvs-address $1
