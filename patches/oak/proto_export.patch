@@ -1,8 +1,0 @@
---- proto/attestation/BUILD
-+++ proto/attestation/BUILD
-@@ -172,3 +172,5 @@ build_test(
-         ":verification_java_proto",
-     ],
- )
-+
-+exports_files(glob(["*.proto"]))

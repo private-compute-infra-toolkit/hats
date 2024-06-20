@@ -57,22 +57,6 @@ http_archive(
 )
 
 load("@io_grpc_grpc_java//:repositories.bzl", "IO_GRPC_GRPC_JAVA_ARTIFACTS", "IO_GRPC_GRPC_JAVA_OVERRIDE_TARGETS", "grpc_java_repositories")
-
-# Pull a remote copy of oak to patch proto include paths. The relative paths changes
-# if Oak is an external repo itself. We should use oak repository in the submodules;
-# however, local_repository does not support patching.
-# TODO(alwabel): use local_repository. This might require writing a custom bazel script to patch files.
-http_archive(
-    name = "oak",
-    patches = [
-        "//patches/oak:proto_dependency.patch",
-        "//patches/oak:cert_chain.patch",
-    ],
-    sha256 = "586b85edaccbf7a586e73812abc499999385fbbf901c98b37e977507187c85fb",
-    strip_prefix = "oak-65892800827299af01330100c3aee9fa0d90c4ee",
-    url = "https://github.com/project-oak/oak/archive/65892800827299af01330100c3aee9fa0d90c4ee.tar.gz",
-)
-
 load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
 
 crate_universe_dependencies(bootstrap = True)
@@ -105,29 +89,29 @@ load("@hats_crate_index//:defs.bzl", hats_crate_repositories = "crate_repositori
 
 hats_crate_repositories()
 
-# Create oak_crates_index repository that is used by oak libraries.
-# We rely on Cargo.toml to generate the dependencies needed by oak libraries.
-# We manually overrides dependencies to overcome compliation issues, the overrides
-# are copied from oak WORKSPACE.
-crates_repository(
-    name = "oak_crates_index",
-    cargo_lockfile = "//:Cargo.oak.bazel.lock",
-    lockfile = "//:cargo-oak-bazel-lock.json",
-    manifests = [
-        "//:Cargo.toml",
-        "//tvs/trusted_tvs:Cargo.toml",
+http_archive(
+    name = "oak",
+    patches = [
+        "//patches/oak:proto_dependency.patch",
+        "//patches/oak:cert_chain.patch",
     ],
-    packages = {
-        "curve25519-dalek": crate.spec(
-            default_features = False,
-            version = "=4.1.1",
-        ),
-    },
+    sha256 = "91c056be8235f69c8ab08fa15bbc3ef061b564efbf55de2c53a3a95004858cc9",
+    strip_prefix = "oak-346e2ecf7130f1dc1e189cb56b65c54d27f45465",
+    url = "https://github.com/project-oak/oak/archive/346e2ecf7130f1dc1e189cb56b65c54d27f45465.tar.gz",
 )
 
-load("@oak_crates_index//:defs.bzl", oak_crate_repositories = "crate_repositories")
+load("@oak//bazel/crates:repositories.bzl", "create_oak_crate_repositories")
 
-oak_crate_repositories()
+create_oak_crate_repositories(
+    cargo_lockfile = "//:Cargo_oak.bazel.lock",
+    lockfile = "//:cargo-oak-bazel-lock.json",
+    no_std_cargo_lockfile = "//:Cargo_oak_no_std.bazel.lock",
+    no_std_lockfile = "//:cargo-oak-no-std-bazel-lock.json",
+)
+
+load("@oak//bazel/crates:crates.bzl", "load_oak_crate_repositories")
+
+load_oak_crate_repositories()
 
 # CXX bridge setup.
 # Mostly copied from https://github.com/bazelbuild/rules_rust/blob/df80ce61e418ea1c45c5bd51f88a440a7fb9ebc9/examples/crate_universe/WORKSPACE.bazel#L502
