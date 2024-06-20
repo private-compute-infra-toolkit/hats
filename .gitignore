@@ -1,0 +1,5 @@
+# Baze symlinks
+bazel-*
+
+# Generated vscode files.
+**/.vscode/
