@@ -1,0 +1,38 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[package]
+name = "crypto"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["ring"]
+ring = ["dep:ring", "dep:prng", "dep:untrusted"]
+rustcrypto = ["dep:hkdf", "dep:sha2", "dep:aes-gcm", "dep:aead", "dep:p256", "dep:primeorder", "dep:ecdsa", "dep:pkcs8"]
+bssl = ["dep:bssl-crypto"]
+
+[dependencies]
+ring = {path = "../third_party/ring-0.16.20", optional = true }
+prng = {path = "../prng", optional = true }
+hkdf = {version = "0.12.3", default_features = false, optional = true }
+sha2 = {version = "0.10.8", default_features = false, optional = true }
+aes-gcm = { version = "0.10.3", default-features = false, features = ["aes"], optional = true }
+aead = { version = "0.5.2", default-features = false, features = ["alloc"], optional = true }
+p256 = { version = "0.13.2", default-features = false, features = ["alloc", "arithmetic", "ecdsa-core", "ecdsa", "pkcs8"], optional = true }
+ecdsa = { version = "0.16.6", default-features = false, features = ["der", "pkcs8", "signing", "der", "pem", "pkcs8"], optional = true }
+pkcs8 = { version = "0.10.2", default-features = false, features = [], optional = true }
+primeorder = { version = "0.13.2", default-features = false, optional = true }
+untrusted = { version = "0.7.1", optional = true }
+bssl-crypto = { version = "0.2.0", optional = true, path = "../../boringssl/rust/bssl-crypto" }

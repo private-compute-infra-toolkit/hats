@@ -183,13 +183,9 @@ load("@cxxbridge_cmd_deps//:defs.bzl", cxxbridge_cmd_deps = "crate_repositories"
 
 cxxbridge_cmd_deps()
 
-git_repository(
+local_repository(
     name = "enclave",
-    commit = "393f175b870aaf21da2d6bc448d1b1e9e037e55c",
-    patches = [
-        "//patches/enclave:enclave.patch",
-    ],
-    remote = "sso://cloudenclave/enclave",
+    path = "third_party/enclave",
 )
 
 crates_repository(
