@@ -9,9 +9,9 @@
 #include "grpcpp/client_context.h"
 #include "grpcpp/support/interceptor.h"
 #include "grpcpp/support/sync_stream.h"
+#include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/test_client/tvs-trusted-client.rs.h"
 
 namespace privacy_sandbox::tvs {
 
@@ -46,12 +46,12 @@ class TvsUntrustedClient final {
       std::unique_ptr<grpc::ClientContext> context,
       std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
           stream,
-      rust::Box<test_client::TvsClient> tvs_client);
+      rust::Box<TvsClient> tvs_client);
   std::unique_ptr<TeeVerificationService::Stub> stub_;
   std::unique_ptr<grpc::ClientContext> context_;
   std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
       stream_;
-  rust::Box<test_client::TvsClient> tvs_client_;
+  rust::Box<TvsClient> tvs_client_;
 };
 
 }  // namespace privacy_sandbox::tvs
