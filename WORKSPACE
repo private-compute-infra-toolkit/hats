@@ -93,6 +93,7 @@ http_archive(
     name = "oak",
     patches = [
         "//patches/oak:cert_chain.patch",
+        "//patches/oak:launcher.patch",
     ],
     sha256 = "b7f571ccaebe18eb38a4cc08d77b37161485718e4163cd529c2fbe40c00df529",
     strip_prefix = "oak-4c05a0312d0688b3b86c6695b7463df9626d8104",

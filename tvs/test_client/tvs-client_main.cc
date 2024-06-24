@@ -14,6 +14,7 @@
 #include "grpcpp/channel.h"
 #include "grpcpp/create_channel.h"
 #include "grpcpp/security/credentials.h"
+#include "tvs/credentials/credentials.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
 
@@ -28,18 +29,6 @@ ABSL_FLAG(std::string, application_signing_key, "",
           "Signing key in the application layer of the DICE certificate in hex "
           "format e.g. deadbeef. The key is used to sign the handshake hash "
           "and the evidence.");
-namespace {
-
-std::shared_ptr<grpc::Channel> CreateGrpcChannel(const std::string& target,
-                                                 bool use_tls) {
-  if (use_tls) {
-    return grpc::CreateChannel(target, grpc::SslCredentials(/*options=*/{}));
-  } else {
-    return grpc::CreateChannel(target, grpc::InsecureChannelCredentials());
-  }
-}
-
-}  // namespace
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
@@ -71,8 +60,8 @@ int main(int argc, char* argv[]) {
   absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient>>
       tvs_client = privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = absl::GetFlag(FLAGS_tvs_public_key),
-          .channel =
-              CreateGrpcChannel(tvs_address, absl::GetFlag(FLAGS_use_tls)),
+          .channel = privacy_sandbox::tvs::CreateGrpcChannel(
+              tvs_address, absl::GetFlag(FLAGS_use_tls)),
       });
   if (!tvs_client.ok()) {
     LOG(ERROR) << "Couldn't create TVS client: " << tvs_client.status();

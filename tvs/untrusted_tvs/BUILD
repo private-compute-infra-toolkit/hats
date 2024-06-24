@@ -1,3 +1,7 @@
+package(
+    default_visibility = ["//visibility:public"],
+)
+
 cc_binary(
     name = "tvs-server_main",
     srcs = ["tvs-server_main.cc"],

@@ -1,0 +1,34 @@
+diff --git a/oak_containers_launcher/src/qemu.rs b/oak_containers_launcher/src/qemu.rs
+index 88472aa3b..b830daadc 100644
+--- oak_containers_launcher/src/qemu.rs
++++ oak_containers_launcher/src/qemu.rs
+@@ -233,6 +233,16 @@ impl Qemu {
+                 "hostfwd=tcp:{host_address}:{host_proxy_port}-{vm_address}:{vm_port}"
+             ));
+         };
++
++        // Route traffic from guest to kv-server.
++        netdev_rules.push(format!(
++        "hostfwd=tcp:{host_address}:50051-{vm_address}:50051"
++        ));
++
++        // Route traffic from host to HATs launcher service.
++        netdev_rules.push(
++            format!("guestfwd=tcp:10.0.2.100:8889-tcp:{host_address}:8889"));
++
+         cmd.args(["-netdev", netdev_rules.join(",").as_str()]);
+         cmd.args([
+             "-device",
+diff --git a/oak_containers_orchestrator/src/crypto.rs b/oak_containers_orchestrator/src/crypto.rs
+index 9bef552b2..09051391f 100644
+--- oak_containers_orchestrator/src/crypto.rs
++++ oak_containers_orchestrator/src/crypto.rs
+@@ -43,7 +43,7 @@ pub fn generate_instance_keys() -> (InstanceKeys, InstancePublicKeys) {
+ 
+ pub struct InstanceKeys {
+     encryption_key: EncryptionKey,
+-    signing_key: p256::ecdsa::SigningKey,
++    pub signing_key: p256::ecdsa::SigningKey,
+ }
+ 
+ pub struct InstancePublicKeys {
