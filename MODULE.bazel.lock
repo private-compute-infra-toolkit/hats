@@ -533,6 +533,36 @@
         ]
       }
     },
+    "@@depend_on_what_you_use~//third_party:extensions.bzl%non_module_dependencies": {
+      "general": {
+        "bzlTransitiveDigest": "HxVM0IMuGKjrxc16ESfI4287L5G+N0yvEpRhjdWrdk0=",
+        "usagesDigest": "4Mg5kLWOGt8aeXKMafZhj1/FmtV7rK2ua5+7CsZIDVU=",
+        "recordedFileInputs": {},
+        "recordedDirentsInputs": {},
+        "envVariables": {},
+        "generatedRepoSpecs": {
+          "dwyu_pcpp": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_archive",
+            "attributes": {
+              "sha256": "5af9fbce55f136d7931ae915fae03c34030a3b36c496e72d9636cedc8e2543a1",
+              "strip_prefix": "pcpp-1.30",
+              "build_file": "@@depend_on_what_you_use~//third_party/pcpp:pcpp.BUILD",
+              "urls": [
+                "https://files.pythonhosted.org/packages/41/07/876153f611f2c610bdb8f706a5ab560d888c938ea9ea65ed18c374a9014a/pcpp-1.30.tar.gz"
+              ]
+            }
+          }
+        },
+        "recordedRepoMappingEntries": [
+          [
+            "depend_on_what_you_use~",
+            "bazel_tools",
+            "bazel_tools"
+          ]
+        ]
+      }
+    },
     "@@googleapis~//:extensions.bzl%switched_rules": {
       "general": {
         "bzlTransitiveDigest": "vG6fuTzXD8MMvHWZEQud0MMH7eoC4GXY0va7VrFFh04=",

@@ -1,5 +1,6 @@
 #ifndef HATS_TVS_UNTRUSTED_TVS_SERVER_
 #define HATS_TVS_UNTRUSTED_TVS_SERVER_
+
 #include <string>
 
 #include "external/oak/proto/attestation/reference_value.pb.h"

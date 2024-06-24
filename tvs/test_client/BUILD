@@ -8,6 +8,7 @@ cc_binary(
     srcs = ["tvs-client_main.cc"],
     deps = [
         ":tvs-untrusted-client",
+        "//tvs/credentials",
         "//tvs/proto:tvs_messages_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
