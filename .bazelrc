@@ -1,2 +1,4 @@
 build --cxxopt='-std=c++20' --host_cxxopt='-std=c++20'
 build --@rules_rust//rust/toolchain/channel=nightly
+build --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
+build --output_groups=+rustfmt_checks

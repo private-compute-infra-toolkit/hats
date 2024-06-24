@@ -22,7 +22,7 @@ pub mod proto {
     }
 }
 
-struct TrustedTvs {
+pub struct TrustedTvs {
     time_milis: i64,
     // A big-endian P-256 private scalar, used as the Noise identity key.
     identity_private_key: [u8; P256_SCALAR_LENGTH],
@@ -45,7 +45,7 @@ mod ffi {
     }
 }
 
-fn new_trusted_tvs_service(
+pub fn new_trusted_tvs_service(
     time_milis: i64,
     private_key_in_hex_str: &str,
     policy: &[u8],
@@ -101,7 +101,7 @@ impl TrustedTvs {
         Ok(buf)
     }
 
-    pub fn attest_report_internal(
+    fn attest_report_internal(
         &mut self,
         request: &AttestReportRequest,
     ) -> Result<AttestReportResponse, String> {

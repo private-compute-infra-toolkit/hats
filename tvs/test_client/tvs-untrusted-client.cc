@@ -13,8 +13,8 @@
 #include "grpcpp/support/interceptor.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
+#include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/tvs.grpc.pb.h"
-#include "tvs/test_client/tvs-trusted-client.rs.h"
 
 namespace privacy_sandbox::tvs {
 
@@ -31,7 +31,7 @@ rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
 
 absl::Status PerformNoiseHandshake(
     grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>& stream,
-    test_client::TvsClient& tvs_client) {
+    TvsClient& tvs_client) {
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
@@ -65,7 +65,7 @@ TvsUntrustedClient::TvsUntrustedClient(
     std::unique_ptr<grpc::ClientContext> context,
     std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
         stream,
-    rust::Box<test_client::TvsClient> tvs_client)
+    rust::Box<TvsClient> tvs_client)
     : stub_(std::move(stub)),
       context_(std::move(context)),
       stream_(std::move(stream)),
@@ -76,8 +76,7 @@ TvsUntrustedClient::CreateClient(const Options& options) {
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
-    rust::Box<test_client::TvsClient> tvs_client =
-        test_client::new_tvs_client(options.tvs_public_key);
+    rust::Box<TvsClient> tvs_client = new_tvs_client(options.tvs_public_key);
     // Perform handshake.
     std::unique_ptr<TeeVerificationService::Stub> stub =
         TeeVerificationService::NewStub(options.channel);
