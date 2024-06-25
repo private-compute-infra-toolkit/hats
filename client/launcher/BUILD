@@ -111,15 +111,9 @@ cc_library(
     name = "forwarding-tvs-server-ffi-include",
     hdrs = ["forwarding-tvs-server-ffi.h"],
     deps = [
-        "//tvs/credentials",
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
         "@using_cxx//:cxx_cc",
     ],
 )
