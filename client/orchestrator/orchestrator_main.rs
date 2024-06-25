@@ -101,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
     let token = client
         .send_evidence(evidence, instance_keys.signing_key.clone())
         .await
-        .map_err(|error| anyhow!("XXX couldn't get tvs client: {:?}", error))?;
+        .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
     // Print the token for now.
     println!("token {token}");
 
