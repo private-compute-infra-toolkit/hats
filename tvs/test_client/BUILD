@@ -9,7 +9,6 @@ cc_binary(
     deps = [
         ":tvs-untrusted-client",
         "//tvs/credentials",
-        "//tvs/proto:tvs_messages_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -33,7 +32,6 @@ cc_library(
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

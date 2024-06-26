@@ -94,3 +94,36 @@ bazel-bin/tvs/test_client/tvs-client_main \
   --verify_report_request_file=tvs/test_data/bad_verify_request_report.prototext \
   --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
 ```
+
+#### Test with GCP credentials
+
+If the cloud service requires authentication, you can pass in an access token.
+
+To pass an access token for your account:
+
+```
+$ bazel build -c opt //tvs/test_client:tvs-client_main
+$ bazel-bin/tvs/test_client/tvs-client_main \
+  --tvs_address=<service_name>:443 \
+  --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
+  --use_tls \
+  --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext \
+  --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
+  --access_token=$(gcloud auth print-identity-token)
+```
+
+To impersonate a service account, you can pass an impersonation access token.
+You need permission to impersonate an account.
+
+To pass an impersonation access toke for a service account:
+
+```
+$ bazel build -c opt //tvs/test_client:tvs-client_main
+$ bazel-bin/tvs/test_client/tvs-client_main \
+  --tvs_address=<service_name>:443 \
+  --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
+  --use_tls \
+  --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext \
+  --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
+  --access_token=$(gcloud auth print-identity-token --impersonate-service-account <service-account>@<project>.iam.gserviceaccount.com)
+```

@@ -5,9 +5,15 @@
 
 namespace privacy_sandbox::tvs {
 
+struct CreateGrpcChannelOptions {
+  bool use_tls;
+  std::string target;
+  std::string access_token;
+};
+
 // Utility to returns credentials to be used in Grpc channel.
-std::shared_ptr<grpc::Channel> CreateGrpcChannel(const std::string& target,
-                                                 bool use_tls);
+absl::StatusOr<std::shared_ptr<grpc::Channel>> CreateGrpcChannel(
+    const CreateGrpcChannelOptions& options);
 
 }  // namespace privacy_sandbox::tvs
 

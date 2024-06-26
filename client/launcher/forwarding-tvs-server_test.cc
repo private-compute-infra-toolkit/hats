@@ -3,7 +3,6 @@
 #include <fstream>
 #include <memory>
 #include <string>
-#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
@@ -13,12 +12,10 @@
 #include "gmock/gmock.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
-#include "grpcpp/client_context.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
 #include "grpcpp/support/channel_arguments.h"
 #include "grpcpp/support/status.h"
-#include "grpcpp/support/sync_stream.h"
 #include "gtest/gtest.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tools/cpp/runfiles/runfiles.h"
