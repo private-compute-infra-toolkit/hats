@@ -12,10 +12,7 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/channel.h"
-#include "grpcpp/create_channel.h"
-#include "grpcpp/security/credentials.h"
 #include "tvs/credentials/credentials.h"
-#include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
 
 ABSL_FLAG(std::string, tvs_address, "localhost:8081", "TVS server address.");
@@ -29,6 +26,8 @@ ABSL_FLAG(std::string, application_signing_key, "",
           "Signing key in the application layer of the DICE certificate in hex "
           "format e.g. deadbeef. The key is used to sign the handshake hash "
           "and the evidence.");
+ABSL_FLAG(std::string, access_token, "",
+          "Access token to pass in the GRPC request. TLS needs to be enabled");
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
@@ -55,13 +54,29 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  if (!absl::GetFlag(FLAGS_access_token).empty() &&
+      !absl::GetFlag(FLAGS_use_tls)) {
+    LOG(ERROR) << "TLS need to be enabled when passing access token.";
+    return 1;
+  }
+
+  absl::StatusOr<std::shared_ptr<grpc::Channel>> channel =
+      privacy_sandbox::tvs::CreateGrpcChannel({
+          .use_tls = absl::GetFlag(FLAGS_use_tls),
+          .target = absl::GetFlag(FLAGS_tvs_address),
+          .access_token = absl::GetFlag(FLAGS_access_token),
+      });
+  if (!channel.ok()) {
+    LOG(ERROR) << "Error creating GRPC channel: " << channel;
+    return 1;
+  }
+
   const std::string tvs_address = absl::GetFlag(FLAGS_tvs_address);
   LOG(INFO) << "Creating TVS client to : " << tvs_address;
   absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient>>
       tvs_client = privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = absl::GetFlag(FLAGS_tvs_public_key),
-          .channel = privacy_sandbox::tvs::CreateGrpcChannel(
-              tvs_address, absl::GetFlag(FLAGS_use_tls)),
+          .channel = std::move(channel).value(),
       });
   if (!tvs_client.ok()) {
     LOG(ERROR) << "Couldn't create TVS client: " << tvs_client.status();

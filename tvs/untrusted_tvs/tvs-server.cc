@@ -16,7 +16,6 @@
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
 #include "grpcpp/server_context.h"
-#include "grpcpp/support/interceptor.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
 #include "proto/attestation/reference_value.pb.h"

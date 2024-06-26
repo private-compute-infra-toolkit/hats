@@ -7,7 +7,6 @@
 #include "absl/status/statusor.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/client_context.h"
-#include "grpcpp/support/interceptor.h"
 #include "grpcpp/support/sync_stream.h"
 #include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/tvs.grpc.pb.h"
