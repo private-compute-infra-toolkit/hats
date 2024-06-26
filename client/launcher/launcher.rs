@@ -1,5 +1,4 @@
 use clap::Parser;
-use oak_containers_launcher::path_exists;
 
 #[cxx::bridge(namespace = "privacy_sandbox::tvs")]
 mod ffi {
