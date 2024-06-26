@@ -70,7 +70,7 @@ grpc::Status TvsServer::VerifyReport(
   // Errors returned by rust functions are converted to C++ exception.
   try {
     OpaqueMessage request;
-    while (stream->Read(&request)) {
+    while (stream->Read(&request) && !(*trusted_tvs)->is_terminated()) {
       const rust::Vec<std::uint8_t> result =
           (*trusted_tvs)
               ->verify_report(StringToRustSlice(request.binary_message()));
