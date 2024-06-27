@@ -17,28 +17,43 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "google/cloud/kms/v1/key_management_client.h"
+#include "key_manager/kms-client.h"
 
 // Defines an interface for interacting with a Key Management System (KMS)
 // service.  This abstraction allows for the implementation to be swapped
 // out with minimal code changes.  For example, the implementation could
 // use the Google Cloud Platform KMS, or it could use a local KMS for
 // testing purposes.
+namespace privacy_sandbox::key_manager {
+enum class ProtectionLevel { SOFTWARE, HSM, UNKNOWN };
+
+enum class CryptoKeyPurpose { ASYMMETRIC_SIGN, ENCRYPT_DECRYPT };
+
+struct PublicKey {
+  std::string pem_key;
+  ProtectionLevel protection_level;
+};
+
+struct CryptoKey {
+  std::string key_id;
+  CryptoKeyPurpose purpose;
+};
+
 class KmsClient {
  public:
   virtual ~KmsClient() = default;
 
-  virtual ::google::cloud::v2_25::StatusOr<google::cloud::kms::v1::PublicKey>
-  GetPublicKey(std::string const& key_name) = 0;
-  virtual ::google::cloud::v2_25::StatusOr<google::cloud::kms::v1::CryptoKey>
-  CreateAsymmetricKey(std::string const& key_name,
-                      std::string const& key_ring_id) = 0;
-  virtual ::google::cloud::v2_25::StatusOr<
-      google::cloud::kms::v1::EncryptResponse>
-  EncryptData(std::string const& key_name, std::string const& plaintext) = 0;
-  virtual google::cloud::v2_25::StatusOr<
-      google::cloud::kms::v1::DecryptResponse>
-  DecryptData(std::string const& key_name, std::string const& ciphertext) = 0;
+  virtual absl::StatusOr<PublicKey> GetPublicKey(std::string const &key_id) = 0;
+
+  virtual absl::StatusOr<CryptoKey> CreateAsymmetricKey(
+      std::string const &parent, std::string const &key_id) = 0;
+
+  virtual absl::StatusOr<std::string> EncryptData(
+      std::string const &key_id, std::string const &plaintext) = 0;
+
+  virtual absl::StatusOr<std::string> DecryptData(
+      std::string const &key_id, std::string const &ciphertext) = 0;
 };
 
+}  // namespace privacy_sandbox::key_manager
 #endif  // HATS_KEY_MANAGER_KMS_CLIENT
