@@ -29,6 +29,7 @@ pub struct TrustedTvs {
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
     appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
+    terminated: bool,
 }
 
 // Export TrustedTvs and it's methods to C++.
@@ -42,6 +43,7 @@ mod ffi {
             policy: &[u8],
         ) -> Result<Box<TrustedTvs>>;
         pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
+        pub fn is_terminated(self: &TrustedTvs) -> bool;
     }
 }
 
@@ -87,10 +89,14 @@ impl TrustedTvs {
             appraisal_policy,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
+            terminated: false,
         }
     }
 
     pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>, String> {
+        if self.is_terminated() {
+            return Err("The session is terminated.".to_string());
+        }
         let request = AttestReportRequest::decode(request)
             .map_err(|_| "Failed to decode (serialize) AttestReportRequest.".to_string())?;
         let response = self.attest_report_internal(&request)?;
@@ -118,14 +124,18 @@ impl TrustedTvs {
                 })
             }
             Some(attest_report_request::Request::VerifyReportRequest(verify_report)) => {
-                let token = self.do_verify_report(verify_report.client_message.as_slice())?;
-                Ok(AttestReportResponse {
-                    response: Some(attest_report_response::Response::VerifyReportResponse(
-                        VerifyReportResponseEncrypted {
-                            response_for_client: token,
-                        },
-                    )),
-                })
+                let token = self.do_verify_report(verify_report.client_message.as_slice());
+                self.terminate();
+                match token {
+                    Ok(token) => Ok(AttestReportResponse {
+                        response: Some(attest_report_response::Response::VerifyReportResponse(
+                            VerifyReportResponseEncrypted {
+                                response_for_client: token,
+                            },
+                        )),
+                    }),
+                    Err(err) => Err(err),
+                }
             }
             None => Err("AttestReportRequest is malformed".to_string()),
         }
@@ -211,6 +221,17 @@ impl TrustedTvs {
             .verify(&self.handshake_hash, &signature)
             .map_err(|msg| format!("Signature does not match. {}", msg))
     }
+
+    // Drop crypter and handshake hash to force clients to re-initiate the session.
+    fn terminate(&mut self) {
+        self.crypter = None;
+        self.handshake_hash = [0; SHA256_OUTPUT_LEN];
+        self.terminated = true;
+    }
+
+    fn is_terminated(&self) -> bool {
+        self.terminated
+    }
 }
 
 // TODO(alwabel): fill in the token with actual data and properly sign it.
@@ -286,6 +307,24 @@ mod tests {
         Ok(signature.to_vec())
     }
 
+    fn handshake_to_attest_report_request(handshake: Vec<u8>) -> Result<Vec<u8>, String> {
+        // Test initial handshake.
+        let message = AttestReportRequest {
+            request: Some(
+                proto::privacy_sandbox::tvs::attest_report_request::Request::InitSessionRequest(
+                    InitSessionRequest {
+                        client_message: handshake,
+                    },
+                ),
+            ),
+        };
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message
+            .encode(&mut message_bin)
+            .map_err(|error| format!("Failed to serialize AttestReportRequest. {}", error))?;
+        Ok(message_bin)
+    }
+
     const NOW_UTC_MILLIS: i64 = 1698829200000;
 
     #[test]
@@ -300,21 +339,14 @@ mod tests {
         let mut client =
             handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
 
-        // Test initial handshake.
-        let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::InitSessionRequest(
-                    InitSessionRequest {
-                        client_message: client.build_initial_message(),
-                    },
-                ),
-            ),
-        };
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-
         // Ask TVS to do its handshake part
-        let handshake_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let handshake_bin = trusted_tvs
+            .verify_report(
+                handshake_to_attest_report_request(client.build_initial_message())
+                    .unwrap()
+                    .as_slice(),
+            )
+            .unwrap();
 
         let message_reponse: AttestReportResponse =
             AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
@@ -380,6 +412,107 @@ mod tests {
         assert!(jwt_token_text.contains("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9"));
     }
 
+    // Test that the handshake session is terminated after the first
+    // VerifyReportRequest regardless of the success status.
+    #[test]
+    fn verify_report_session_termination_on_successful_session() {
+        let tvs_private_key = P256Scalar::generate();
+        let mut trusted_tvs = new_trusted_tvs_service(
+            NOW_UTC_MILLIS,
+            &hex::encode(tvs_private_key.bytes()),
+            default_appraisal_policy().as_slice(),
+        )
+        .unwrap();
+        let mut client =
+            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
+
+        // Ask TVS to do its handshake part
+        let handshake_bin = trusted_tvs
+            .verify_report(
+                handshake_to_attest_report_request(client.build_initial_message())
+                    .unwrap()
+                    .as_slice(),
+            )
+            .unwrap();
+
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
+        let handshake_response = match &message_reponse.response {
+            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
+                init_session.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        let (handshake_hash, mut client_crypter) =
+            client.process_response(handshake_response.as_slice());
+
+        let mut encrypted_tokens = Vec::with_capacity(256);
+
+        // Test report verification.
+        let signing_key =
+            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
+                .unwrap();
+        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
+
+        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
+        VerifyReportRequest {
+            evidence: Some(get_good_evidence()),
+            tee_certificate: get_genoa_vcek(),
+            signature: signature,
+        }
+        .encode(&mut verify_report_request_bin)
+        .unwrap();
+
+        let encrypted_report = client_crypter
+            .encrypt(verify_report_request_bin.as_slice())
+            .unwrap();
+
+        let message = AttestReportRequest {
+            request: Some(
+                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                    VerifyReportRequestEncrypted {
+                        client_message: encrypted_report,
+                    },
+                ),
+            ),
+        };
+
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
+
+        // Get the report.
+        let token_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(token_bin.as_slice()).unwrap();
+
+        let report_response = match &message_reponse.response {
+            Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
+                report_response.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        encrypted_tokens.push(report_response.clone());
+        let jwt_token = client_crypter.decrypt(report_response.as_slice()).unwrap();
+        let jwt_token_text = std::str::from_utf8(jwt_token.as_slice()).unwrap();
+        assert!(jwt_token_text.contains("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9"));
+
+        match trusted_tvs.verify_report(message_bin.as_slice()) {
+            Ok(_) => assert!(false, "verify_command() should fail."),
+            Err(e) => assert!(e.contains("The session is terminated.")),
+        }
+
+        match trusted_tvs.verify_report(
+            handshake_to_attest_report_request(client.build_initial_message())
+                .unwrap()
+                .as_slice(),
+        ) {
+            Ok(_) => assert!(false, "verify_command() should fail."),
+            Err(e) => assert!(e.contains("The session is terminated.")),
+        }
+    }
+
     #[test]
     fn verify_report_invalid_report_error() {
         let tvs_private_key = P256Scalar::generate();
@@ -392,21 +525,14 @@ mod tests {
         let mut client =
             handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
 
-        // Test initial handshake.
-        let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::InitSessionRequest(
-                    InitSessionRequest {
-                        client_message: client.build_initial_message(),
-                    },
-                ),
-            ),
-        };
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-
         // Ask TVS to do its handshake part
-        let handshake_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let handshake_bin = trusted_tvs
+            .verify_report(
+                handshake_to_attest_report_request(client.build_initial_message())
+                    .unwrap()
+                    .as_slice(),
+            )
+            .unwrap();
 
         let message_reponse: AttestReportResponse =
             AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
@@ -454,6 +580,11 @@ mod tests {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => assert!(e.contains("Failed to verify report. chip id differs")),
         }
+
+        match trusted_tvs.verify_report(message_bin.as_slice()) {
+            Ok(_) => assert!(false, "verify_command() should fail."),
+            Err(e) => assert!(e.contains("The session is terminated.")),
+        }
     }
 
     #[test]
@@ -468,21 +599,14 @@ mod tests {
         let mut client =
             handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
 
-        // Test initial handshake.
-        let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::InitSessionRequest(
-                    InitSessionRequest {
-                        client_message: client.build_initial_message(),
-                    },
-                ),
-            ),
-        };
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-
         // Ask TVS to do its handshake part
-        let handshake_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let handshake_bin = trusted_tvs
+            .verify_report(
+                handshake_to_attest_report_request(client.build_initial_message())
+                    .unwrap()
+                    .as_slice(),
+            )
+            .unwrap();
 
         let message_reponse: AttestReportResponse =
             AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
