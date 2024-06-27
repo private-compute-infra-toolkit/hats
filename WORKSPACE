@@ -201,3 +201,22 @@ crates_repository(
 load("@enclave_crate_index//:defs.bzl", enclave_crate_repositories = "crate_repositories")
 
 enclave_crate_repositories()
+
+http_archive(
+    name = "google_cloud_cpp",
+    sha256 = "6f58213e2af16326392da84cd8a52af78cb80bc47338eb87e87d14c14c0e6bad",
+    strip_prefix = "google-cloud-cpp-2.25.0",
+    url = "https://github.com/googleapis/google-cloud-cpp/archive/v2.25.0.tar.gz",
+)
+
+load("@google_cloud_cpp//bazel:google_cloud_cpp_deps.bzl", "google_cloud_cpp_deps")
+
+google_cloud_cpp_deps()
+
+load("@com_google_googleapis//:repository_rules.bzl", "switched_rules_by_language")
+
+switched_rules_by_language(
+    name = "com_google_googleapis_imports",
+    cc = True,
+    grpc = True,
+)
