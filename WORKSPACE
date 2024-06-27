@@ -92,12 +92,11 @@ hats_crate_repositories()
 http_archive(
     name = "oak",
     patches = [
-        "//patches/oak:cert_chain.patch",
         "//patches/oak:launcher.patch",
     ],
-    sha256 = "b7f571ccaebe18eb38a4cc08d77b37161485718e4163cd529c2fbe40c00df529",
-    strip_prefix = "oak-4c05a0312d0688b3b86c6695b7463df9626d8104",
-    url = "https://github.com/project-oak/oak/archive/4c05a0312d0688b3b86c6695b7463df9626d8104.tar.gz",
+    sha256 = "66d2d01cf199674f458d3bef571cf022acad3883271e6b0971405bc8aeb856ae",
+    strip_prefix = "oak-3920e52eff75100b9ee58a523fc6227780b7f45f",
+    url = "https://github.com/project-oak/oak/archive/3920e52eff75100b9ee58a523fc6227780b7f45f.tar.gz",
 )
 
 load("@oak//bazel/crates:repositories.bzl", "create_oak_crate_repositories")
