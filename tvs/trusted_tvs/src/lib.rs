@@ -165,8 +165,6 @@ impl TrustedTvs {
         };
         self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
         let endorsement = create_endorsements(verify_report_request.tee_certificate);
-        // TODO(alwabel): verify against the right vcek cert chain as Oak
-        // currently uses Milan's cert chains for all requests.
         let _ = oak_attestation_verification::verifier::verify(
             self.time_milis,
             &evidence,
