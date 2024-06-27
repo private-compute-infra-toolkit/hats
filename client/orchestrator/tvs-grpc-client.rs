@@ -3,7 +3,6 @@ use crate::proto::privacy_sandbox::tvs::OpaqueMessage;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
 use prost::Message;
-use std::{fs, fs::File, io::Read};
 use tonic::transport::Channel;
 use tonic::Request;
 
@@ -47,8 +46,8 @@ impl TvsGrpcClient {
         &self,
         evidence: Evidence,
         signing_key: SigningKey,
+        vcek: Vec<u8>,
     ) -> Result<String, String> {
-        let vcek = get_vcek_bytes()?;
         let mut tvs = tvs_trusted_client::new_tvs_client(&self.tvs_public_key)?;
 
         // Channel between the `outbound stream` - the one that sends grpc
@@ -138,18 +137,6 @@ impl TvsGrpcClient {
     }
 }
 
-// TODO(alwabel): Get the vcek from the host.
-fn get_vcek_bytes() -> Result<Vec<u8>, String> {
-    let mut f = File::open("/usr/vcek_genoa.crt")
-        .map_err(|error| format!("error opening vcek file: {}", error))?;
-    let metadata = fs::metadata("/usr/vcek_genoa.crt")
-        .map_err(|error| format!("error reading vcek metafile: {}", error))?;
-    let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer)
-        .map_err(|error| format!("error reading bytes from vcek file: {}", error))?;
-    Ok(buffer)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,6 +212,10 @@ mod tests {
         .expect("could not decode evidence")
     }
 
+    fn get_test_vcek_bytes() -> Vec<u8> {
+        include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec()
+    }
+
     const NOW_UTC_MILLIS: i64 = 1698829200000;
     #[tokio::test]
     async fn verify_report_successful() {
@@ -264,6 +255,7 @@ mod tests {
                         .unwrap(),
                     )
                     .unwrap(),
+                    get_test_vcek_bytes(),
                 )
                 .await
         })

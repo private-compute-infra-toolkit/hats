@@ -4,7 +4,7 @@ use oak_containers_orchestrator::{
     crypto::generate_instance_keys, launcher_client::LauncherClient,
     proto::oak::containers::v1::KeyProvisioningRole,
 };
-use std::{path::PathBuf, sync::Arc};
+use std::{fs, fs::File, io::Read, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Parser, Debug)]
@@ -98,8 +98,11 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow!("couldn't send attestation evidence: {:?}", error))?;
 
+    let vcek =
+        get_vcek_bytes().map_err(|error| anyhow!("couldn't find vcek certificate: {:?}", error))?;
+
     let token = client
-        .send_evidence(evidence, instance_keys.signing_key.clone())
+        .send_evidence(evidence, instance_keys.signing_key.clone(), vcek)
         .await
         .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
     // Print the token for now.
@@ -153,4 +156,16 @@ async fn main() -> anyhow::Result<()> {
     )?;
 
     Ok(())
+}
+
+// TODO(alwabel): Get the vcek from the host.
+fn get_vcek_bytes() -> Result<Vec<u8>, String> {
+    let mut f = File::open("/usr/vcek_genoa.crt")
+        .map_err(|error| format!("error opening vcek file: {}", error))?;
+    let metadata = fs::metadata("/usr/vcek_genoa.crt")
+        .map_err(|error| format!("error reading vcek metafile: {}", error))?;
+    let mut buffer = vec![0; metadata.len() as usize];
+    f.read(&mut buffer)
+        .map_err(|error| format!("error reading bytes from vcek file: {}", error))?;
+    Ok(buffer)
 }
