@@ -4,6 +4,12 @@ Kokoro is used to perform presubmit testing.
 
 ## Behavior
 
+At a high level, Kokoro runs tests on every cl patch, voting -1/+1 depending on success.
+This tag currently has no behavior.
+The logs can be checked in the Kokoro comment that adds the vote.
+(This may require "show all entries" to see the comment in Gerrit)
+Generally the logs of notes are via the second link ("Logs at"), under "Targets -> Target Log".
+
 ### Triggers
 
 Kokoro monitors cl's in the Gerrit repository for changes.
@@ -13,7 +19,7 @@ Commenting on the cl can also re-trigger Kokoro.
 *  kokoro rebuild: rerun on the same revision as the last presubmit
 *  kokoro rerun: run on the latest revision
 
-Through Fusion, via "Trigger Build".
+It can be triggered manually through Fusion, via "Trigger Build".
 It requires flags for Git/Gerrit-on-Borg, which can be added via clicking "+ Git/Gerrit-on-Borg".
 SCM is the repo, in this case `hats-test`.
 Change # is the gerrit cl number.
@@ -21,7 +27,7 @@ Change # is the gerrit cl number.
 ### Execution
 Currently, Kokoro essentially runs `bazel test ...` locally.
 
-TODO
+TODO: This is slow, and building via RBE is in progress.
 
 ### Actions
 
@@ -33,7 +39,7 @@ Ideally, a +1 tag should be required by Kokoro, and a -1 tag blocks.
 Due to potential slowness of execution (local), the current plan is for -1 to block, but not require a +1.
 
 It also replies to the CL with the result of the test, including a Fusion link.
-Fusion can be found under [prod:privacy-sandbox/hats/hats/presubmit](https://fusion2.corp.google.com/ci/kokoro/prod:privacy-sandbox%2Fhats%2Fhats%2Fpresubmit/)
+Fusion info can also be found under [prod:privacy-sandbox/hats/hats/presubmit](https://fusion2.corp.google.com/ci/kokoro/prod:privacy-sandbox%2Fhats%2Fhats%2Fpresubmit/)
 
 ## Documentation followed.
 
