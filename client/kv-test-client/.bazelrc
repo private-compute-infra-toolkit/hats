@@ -1,0 +1,3 @@
+build --cxxopt='-std=c++20' --host_cxxopt='-std=c++20'
+build:iwyu --aspects @com_github_storypku_bazel_iwyu//bazel/iwyu:iwyu.bzl%iwyu_aspect
+build:iwyu --output_groups=report

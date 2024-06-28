@@ -219,3 +219,8 @@ switched_rules_by_language(
     cc = True,
     grpc = True,
 )
+
+local_repository(
+    name = "kv-test-client",
+    path = "client/kv-test-client",
+)

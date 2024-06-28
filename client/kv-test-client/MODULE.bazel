@@ -1,0 +1,17 @@
+###############################################################################
+# Bazel now uses Bzlmod by default to manage external dependencies.
+# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
+#
+# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
+###############################################################################
+bazel_dep(name = "protobuf", version = "23.1", repo_name = "com_google_protobuf")
+bazel_dep(name = "grpc", version = "1.63.1", repo_name = "com_github_grpc_grpc")
+bazel_dep(name = "rules_proto", version = "5.3.0-21.7", repo_name = "rules_proto")
+bazel_dep(name = "abseil-cpp", version = "20240116.2", repo_name = "com_google_absl")
+git_override(
+   module_name = "abseil-cpp",
+   commit = "d9f501ef8482b3e6a41e3b544fde4569ad909c0b",
+   remote = "https://github.com/abseil/abseil-cpp",
+)
+bazel_dep(name = "rules_buf", version = "0.3.0")
+bazel_dep(name = "zlib", version = "1.3.1")
