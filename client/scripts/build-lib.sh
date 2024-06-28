@@ -123,12 +123,3 @@ WantedBy=multi-user.target
 EOF
   popd
 }
-
-function apply_oak_patches() {
-  PATCH_FILE=$1
-  echo "APPLY OAK PATCHES"
-  cp ../../tvs/test_client/tvs-trusted-client.rs ../../submodules/oak/oak_containers_orchestrator/src/tvs_client.rs
-  pushd ../../submodules/oak
-    patch -p1 < $PATCH_FILE
-  popd
-}
