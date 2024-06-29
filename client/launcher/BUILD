@@ -13,7 +13,7 @@ rust_binary(
     ],
     deps = [
         ":bridge",
-        ":forwarding-tvs-server-ffi",
+        ":server-ffi",
         "@oak//oak_client",
         "@oak//oak_containers_launcher:lib",
         "@oak//oak_crypto",
@@ -28,7 +28,7 @@ rust_binary(
 rust_cxx_bridge(
     name = "bridge",
     src = "launcher.rs",
-    deps = [":forwarding-tvs-server-ffi-include"],
+    deps = [":server-ffi-include"],
 )
 
 cc_binary(
@@ -89,9 +89,9 @@ cc_test(
 )
 
 cc_library(
-    name = "forwarding-tvs-server-ffi",
-    srcs = ["forwarding-tvs-server-ffi.cc"],
-    hdrs = ["forwarding-tvs-server-ffi.h"],
+    name = "server-ffi",
+    srcs = ["server-ffi.cc"],
+    hdrs = ["server-ffi.h"],
     deps = [
         ":forwarding-tvs-server",
         "//tvs/credentials",
@@ -104,12 +104,14 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@using_cxx//:cxx_cc",
+        "@google_privacysandbox_servers_common//:local_parc_server",
+        "@google_privacysandbox_servers_common//:local_parameters",
     ],
 )
 
 cc_library(
-    name = "forwarding-tvs-server-ffi-include",
-    hdrs = ["forwarding-tvs-server-ffi.h"],
+    name = "server-ffi-include",
+    hdrs = ["server-ffi.h"],
     deps = [
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",

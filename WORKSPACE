@@ -4,6 +4,17 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
 
+# Required for google_privacysandbox_servers_common (Parc) and the order
+# matters. This needs to be in the beginning.
+http_archive(
+    name = "rules_python",
+    sha256 = "0a8003b044294d7840ac7d9d73eef05d6ceb682d7516781a4ec62eeb34702578",
+    strip_prefix = "rules_python-0.24.0",
+    urls = [
+        "https://github.com/bazelbuild/rules_python/releases/download/0.24.0/rules_python-0.24.0.tar.gz",
+    ],
+)
+
 rules_rust_dependencies()
 
 rust_register_toolchains(
@@ -224,3 +235,21 @@ local_repository(
     name = "kv-test-client",
     path = "client/kv-test-client",
 )
+
+git_repository(
+   name = "google_privacysandbox_servers_common",
+   remote = "rpc://team/privacy-sandbox-team/servers/common",
+   commit = "8e3a351b33ed127e52584b7769ece6205492b725",
+    patches = [
+        "//patches/parc:parc.patch",
+    ],
+)
+
+load("@google_privacysandbox_servers_common//third_party:cpp_deps.bzl", parc_cpp_dep = "cpp_dependencies")
+parc_cpp_dep()
+
+load("@google_privacysandbox_servers_common//third_party:deps1.bzl", parc_dep1 = "deps1")
+parc_dep1()
+
+load("@google_privacysandbox_servers_common//third_party:deps2.bzl", parc_dep2 = "deps2")
+parc_dep2()

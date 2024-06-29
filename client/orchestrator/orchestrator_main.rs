@@ -105,8 +105,9 @@ async fn main() -> anyhow::Result<()> {
         .send_evidence(evidence, instance_keys.signing_key.clone(), vcek)
         .await
         .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
+
     // Print the token for now.
-    println!("token {token}");
+    println!("Token {token}");
 
     // Request group keys.
     if key_provisioning_role == KeyProvisioningRole::Follower {

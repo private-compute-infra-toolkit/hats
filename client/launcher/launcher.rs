@@ -1,26 +1,40 @@
 use clap::Parser;
 
-#[cxx::bridge(namespace = "privacy_sandbox::tvs")]
+#[cxx::bridge(namespace = "privacy_sandbox::launcher")]
 mod ffi {
+    struct LauncherServerOptions<'a> {
+        port: u32,
+        // Forwarding TVS options.
+        use_tls: bool,
+        target: &'a str,
+        access_token: &'a str,
+        // Parc server options.
+        enable_parc: bool,
+        parc_parameters_file: &'a str,
+        parc_blobstore_root: &'a str,
+    }
     unsafe extern "C++" {
-        include!("client/launcher/forwarding-tvs-server-ffi.h");
-        fn CreateAndStartForwardingTvsServer(
-            port: u32,
-            use_tls: bool,
-            target: &str,
-            access_token: &str,
-        ) -> Result<()>;
+        include!("client/launcher/server-ffi.h");
+        type LauncherServerOptions;
+        fn CreateAndStartServers(launcher_server_options: &LauncherServerOptions) -> Result<()>;
     }
 }
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(long, required = true, default_value = "localhost:7779")]
+    #[arg(long, default_value = "localhost:7779")]
     pub tvs_address: String,
     #[arg(long)]
     pub use_tls: bool,
     #[arg(long, default_value = "")]
     pub access_token: String,
+
+    #[arg(long)]
+    pub enable_parc: bool,
+    #[arg(long, default_value = "parc_data/parameters/parameters-local.json")]
+    pub parc_parameters_file: String,
+    #[arg(long, default_value = "parc_data/blob_root")]
+    pub parc_blobstore_root: String,
     #[command(flatten)]
     pub oak_args: oak_containers_launcher::Args,
 }
@@ -28,13 +42,17 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
+
     tokio::spawn(async move {
-        ffi::CreateAndStartForwardingTvsServer(
-            8889,
-            args.use_tls,
-            &args.tvs_address,
-            &args.access_token,
-        )
+        ffi::CreateAndStartServers(&ffi::LauncherServerOptions {
+            port: 8889,
+            use_tls: args.use_tls,
+            target: &args.tvs_address,
+            access_token: &args.access_token,
+            enable_parc: args.enable_parc,
+            parc_parameters_file: &args.parc_parameters_file,
+            parc_blobstore_root: &args.parc_blobstore_root,
+        })
     })
     .await?
     .map_err(|error| anyhow::anyhow!("error waiting for launcher: {}", error))?;
@@ -47,6 +65,5 @@ async fn main() -> Result<(), anyhow::Error> {
         .wait()
         .await
         .map_err(|error| anyhow::anyhow!("error waiting for launcher: {}", error))?;
-
     Ok(())
 }

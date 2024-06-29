@@ -14,7 +14,7 @@ index 88472aa3b..b830daadc 100644
 +
 +        // Route traffic from host to HATs launcher service.
 +        netdev_rules.push(
-+            format!("guestfwd=tcp:10.0.2.100:8889-tcp:{host_address}:8889"));
++            format!("guestfwd=tcp:10.0.2.100:8889-cmd:nc {host_address} 8889"));
 +
          cmd.args(["-netdev", netdev_rules.join(",").as_str()]);
          cmd.args([
