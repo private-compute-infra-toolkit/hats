@@ -27,6 +27,9 @@ class TvsServer final : public TeeVerificationService::Service {
   // Pass appraisal_policy by value as we expect the caller to use std::move().
   explicit TvsServer(const std::string& tvs_private_key,
                      oak::attestation::v1::ReferenceValues appraisal_policy);
+  explicit TvsServer(const std::string& tvs_private_key,
+                     const std::string& token,
+                     oak::attestation::v1::ReferenceValues appraisal_policy);
   TvsServer() = delete;
   grpc::Status VerifyReport(
       grpc::ServerContext* context,
@@ -34,6 +37,7 @@ class TvsServer final : public TeeVerificationService::Service {
 
  private:
   const std::string tvs_private_key_;
+  const std::string token_;
   const oak::attestation::v1::ReferenceValues appraisal_policy_;
 };
 
@@ -42,6 +46,7 @@ struct TvsServerOptions {
   // TODO(alwabel): implement a better key provisioning.
   std::string tvs_private_key;
   oak::attestation::v1::ReferenceValues appraisal_policy;
+  std::string token;
 };
 
 // Starts a server and blocks forever.

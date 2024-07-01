@@ -37,14 +37,20 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
 }  // namespace
 
 absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
-    const std::string& tvs_private_key,
+    const std::string& tvs_private_key, const std::string& token,
     const oak::attestation::v1::ReferenceValues& appraisal_policy) {
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
-    return new_trusted_tvs_service(
-        absl::ToUnixMillis(absl::Now()), tvs_private_key,
-        StringToRustSlice(appraisal_policy.SerializeAsString()));
+    if (token.empty()) {
+      return new_trusted_tvs_service(
+          absl::ToUnixMillis(absl::Now()), tvs_private_key,
+          StringToRustSlice(appraisal_policy.SerializeAsString()));
+    } else {
+      return new_trusted_tvs_service_with_token(
+          absl::ToUnixMillis(absl::Now()), tvs_private_key,
+          StringToRustSlice(appraisal_policy.SerializeAsString()), token);
+    }
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
         absl::StrCat("Cannot create trusted TVS server. ", e.what()));
@@ -52,15 +58,23 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
 }
 
 TvsServer::TvsServer(const std::string& tvs_private_key,
+                     const std::string& token,
                      oak::attestation::v1::ReferenceValues appraisal_policy)
     : tvs_private_key_(tvs_private_key),
+      token_(token),
+      appraisal_policy_(std::move(appraisal_policy)) {}
+
+TvsServer::TvsServer(const std::string& tvs_private_key,
+                     oak::attestation::v1::ReferenceValues appraisal_policy)
+    : tvs_private_key_(tvs_private_key),
+      token_(""),
       appraisal_policy_(std::move(appraisal_policy)) {}
 
 grpc::Status TvsServer::VerifyReport(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) {
   absl::StatusOr<rust::Box<TrustedTvs>> trusted_tvs =
-      CreateTrustedTvsService(tvs_private_key_, appraisal_policy_);
+      CreateTrustedTvsService(tvs_private_key_, token_, appraisal_policy_);
   if (!trusted_tvs.ok()) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         trusted_tvs.status().ToString());
@@ -91,7 +105,7 @@ grpc::Status TvsServer::VerifyReport(
 
 void CreateAndStartTvsServer(TvsServerOptions options) {
   const std::string server_address = absl::StrCat("0.0.0.0:", options.port);
-  TvsServer tvs_server(options.tvs_private_key,
+  TvsServer tvs_server(options.tvs_private_key, options.token,
                        std::move(options.appraisal_policy));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()

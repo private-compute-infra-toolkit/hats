@@ -29,6 +29,7 @@ pub struct TrustedTvs {
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
     appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
+    token: Option<String>,
     terminated: bool,
 }
 
@@ -41,6 +42,12 @@ mod ffi {
             time_milis: i64,
             private_key_in_hex_str: &str,
             policy: &[u8],
+        ) -> Result<Box<TrustedTvs>>;
+        fn new_trusted_tvs_service_with_token(
+            time_milis: i64,
+            private_key_in_hex_str: &str,
+            policy: &[u8],
+            token: &str,
         ) -> Result<Box<TrustedTvs>>;
         pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
         pub fn is_terminated(self: &TrustedTvs) -> bool;
@@ -68,6 +75,7 @@ pub fn new_trusted_tvs_service(
                 time_milis,
                 &identity_private_key_fixed_size,
                 appraisal_policy,
+                None,
             )))
         }
         Err(_) => Err(
@@ -77,11 +85,43 @@ pub fn new_trusted_tvs_service(
     }
 }
 
+pub fn new_trusted_tvs_service_with_token(
+    time_milis: i64,
+    private_key_in_hex_str: &str,
+    policy: &[u8],
+    token: &str,
+) -> Result<Box<TrustedTvs>, String> {
+    match hex::decode(private_key_in_hex_str) {
+        Ok(identity_private_key) => {
+            let identity_private_key_fixed_size: [u8; P256_SCALAR_LENGTH] =
+                identity_private_key.try_into().map_err(|_| {
+                    format!(
+                        "Invalid private key length. Key should be {} bytes long.",
+                        P256_SCALAR_LENGTH
+                    )
+                })?;
+            let appraisal_policy =
+                oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(policy)
+                    .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
+            Ok(Box::new(TrustedTvs::new(
+                time_milis,
+                &identity_private_key_fixed_size,
+                appraisal_policy,
+                Some(token.to_string()),
+            )))
+        }
+        Err(_) => Err(
+            "Invalid private key format. Private key should be formatted as hex string."
+                .to_string(),
+        ),
+    }
+}
 impl TrustedTvs {
     fn new(
         time_milis: i64,
         identity_private_key: &[u8; P256_SCALAR_LENGTH],
         appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
+        token: Option<String>,
     ) -> Self {
         Self {
             time_milis,
@@ -89,6 +129,7 @@ impl TrustedTvs {
             appraisal_policy,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
+            token: token,
             terminated: false,
         }
     }
@@ -172,12 +213,8 @@ impl TrustedTvs {
             &self.appraisal_policy,
         )
         .map_err(|msg| format!("Failed to verify report. {}", msg))?;
-        match self
-            .crypter
-            .as_mut()
-            .unwrap()
-            .encrypt(issue_jwt_token().as_bytes())
-        {
+        let token = self.issue_token();
+        match self.crypter.as_mut().unwrap().encrypt(token.as_bytes()) {
             Ok(cipher_text) => Ok(cipher_text),
             Err(_) => Err("Failed to encrypt message.".to_string()),
         }
@@ -230,18 +267,22 @@ impl TrustedTvs {
     fn is_terminated(&self) -> bool {
         self.terminated
     }
-}
 
-// TODO(alwabel): fill in the token with actual data and properly sign it.
-// We need to  sign over the handshake hash and appraisal policy hash, proving
-// we still have the signing private key, and that we agree on the appraisal
-// policy.
-// Generates a simple JWT token -- see https://jwt.io/
-fn issue_jwt_token() -> String {
-    let key = HS384Key::from_bytes(b"secret");
-    let claims = Claims::create(Duration::from_mins(5));
-    let token = key.authenticate(claims).unwrap();
-    token
+    // TODO(alwabel): either remove JWT token generation logic or fill in the token
+    // with actual data and properly sign it.
+    // Return `token` provided when constructing the object if exists otherwise,
+    // generates a simple JWT token -- see https://jwt.io/
+    fn issue_token(&self) -> String {
+        match &self.token {
+            Some(token) => token.to_string(),
+            None => {
+                let key = HS384Key::from_bytes(b"secret");
+                let claims = Claims::create(Duration::from_mins(5));
+                let token = key.authenticate(claims).unwrap();
+                token
+            }
+        }
+    }
 }
 
 fn create_endorsements(
@@ -408,6 +449,93 @@ mod tests {
         let jwt_token = client_crypter.decrypt(report_response.as_slice()).unwrap();
         let jwt_token_text = std::str::from_utf8(jwt_token.as_slice()).unwrap();
         assert!(jwt_token_text.contains("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9"));
+    }
+
+    #[test]
+    fn verify_report_successful_with_custom_token() {
+        let tvs_private_key = P256Scalar::generate();
+        const TOKEN: &str = "some_token";
+        let mut trusted_tvs = new_trusted_tvs_service_with_token(
+            NOW_UTC_MILLIS,
+            &hex::encode(tvs_private_key.bytes()),
+            default_appraisal_policy().as_slice(),
+            TOKEN,
+        )
+        .unwrap();
+        let mut client =
+            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
+
+        // Ask TVS to do its handshake part
+        let handshake_bin = trusted_tvs
+            .verify_report(
+                handshake_to_attest_report_request(client.build_initial_message())
+                    .unwrap()
+                    .as_slice(),
+            )
+            .unwrap();
+
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
+        let handshake_response = match &message_reponse.response {
+            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
+                init_session.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        let (handshake_hash, mut client_crypter) =
+            client.process_response(handshake_response.as_slice());
+
+        let mut encrypted_tokens = Vec::with_capacity(256);
+
+        // Test report verification.
+        let signing_key =
+            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
+                .unwrap();
+        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
+
+        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
+        VerifyReportRequest {
+            evidence: Some(get_good_evidence()),
+            tee_certificate: get_genoa_vcek(),
+            signature: signature,
+        }
+        .encode(&mut verify_report_request_bin)
+        .unwrap();
+
+        let encrypted_report = client_crypter
+            .encrypt(verify_report_request_bin.as_slice())
+            .unwrap();
+
+        let message = AttestReportRequest {
+            request: Some(
+                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                    VerifyReportRequestEncrypted {
+                        client_message: encrypted_report,
+                    },
+                ),
+            ),
+        };
+
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
+
+        // Get the report.
+        let token_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(token_bin.as_slice()).unwrap();
+
+        let report_response = match &message_reponse.response {
+            Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
+                report_response.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        encrypted_tokens.push(report_response.clone());
+        let token = client_crypter.decrypt(report_response.as_slice()).unwrap();
+        let token_text = std::str::from_utf8(token.as_slice()).unwrap();
+        assert_eq!(token_text, TOKEN);
     }
 
     // Test that the handshake session is terminated after the first

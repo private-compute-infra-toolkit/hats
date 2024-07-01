@@ -32,6 +32,7 @@ using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
+using ::testing::StrEq;
 
 constexpr absl::string_view kTvsPrivateKey =
     "0000000000000000000000000000000000000000000000000000000000000001";
@@ -188,6 +189,37 @@ TEST(TvsServer, Successful) {
                   ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
                                             *verify_report_request),
               IsOkAndHolds(HasSubstr("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9")));
+}
+
+TEST(TvsServer, CustomToken) {
+  std::string key = std::string(kTvsPrivateKey);
+  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
+      GetTestAppraisalPolicy();
+  ASSERT_TRUE(appraisal_policy.ok());
+
+  constexpr absl::string_view kToken = "CUSTOM_TOKEN";
+  TvsServer tvs_server(key, std::string(kToken), *std::move(appraisal_policy));
+  std::unique_ptr<grpc::Server> server =
+      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+
+  absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
+      TvsUntrustedClient::CreateClient({
+          .tvs_public_key = std::string(kTvsPublicKey),
+          .channel = server->InProcessChannel(grpc::ChannelArguments()),
+      });
+  ASSERT_TRUE(tvs_client.ok());
+
+  absl::StatusOr<VerifyReportRequest> verify_report_request =
+      GetGoodReportRequest();
+  ASSERT_TRUE(verify_report_request.ok());
+
+  constexpr absl::string_view kApplicationSigningKey =
+      "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
+  // We match against the header only.
+  EXPECT_THAT((*tvs_client)
+                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
+                                            *verify_report_request),
+              IsOkAndHolds(StrEq(kToken)));
 }
 
 TEST(TvsServer, BadReportError) {
