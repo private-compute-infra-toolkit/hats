@@ -253,3 +253,14 @@ parc_dep1()
 
 load("@google_privacysandbox_servers_common//third_party:deps2.bzl", parc_dep2 = "deps2")
 parc_dep2()
+
+# Declare submodules as local repository so that `build //...` doesn't try to build them.
+local_repository(
+    name = "submodule1",
+    path = "submodules/kv-server",
+)
+
+local_repository(
+    name = "submodule2",
+    path = "submodules/oak",
+)
