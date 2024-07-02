@@ -16,6 +16,47 @@ $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
    --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto
 ```
 
+### To run a test server through GCP KMS Integration:
+
+1. Authenticate with GCP:
+```
+$ gcloud auth login
+```
+2. Generate HPKE Key Pair :
+```
+bazel build //key_manager:key-gen
+bazel-bin/key_manager/key-gen --key-type x25519-hkdf-sha256
+```
+3. Wrap TVS Private Key and format to pass in as flag:
+```
+gcloud kms encrypt \
+    --key key \
+    --keyring key-ring \
+    --location location  \
+    --plaintext-file file-with-data-to-encrypt \
+    --ciphertext-file file-to-store-encrypted-data
+
+xxd -p file-with-encrypted-data.bin
+```
+4. Run test server:
+```
+bazel build //key_manager:key-gen
+bazel
+$ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
+$ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+    --port=8080 \
+    --tvs_private_key=0a240079214835c942365a1f19443819dc074a6c3e6369f8928739eabec8\
+6c3c920b3b38d2ab126900fd7ff73aa5284fa337fca0aeca16ab942b8212\
+d0f539aadeb3d8bd56a21a52909d388e12476589806561c845753b659d96\
+0331a2acd47b66a6c4e7faf0e88924921c183db375166ee7dfbefd35bb57\
+7ef2d6650329591fde32207eb496ca7cee3269312902b4e489\
+    --project_id=ps-hats-playground \
+    --location_id=global \
+    --key_ring_id=ps-hats-keyring-test \
+    --cryptokey_id=ps-hats-encrypt-decrypt \
+    --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto
+```
+
 ### To run a test client:
 
 #### Test with valid report

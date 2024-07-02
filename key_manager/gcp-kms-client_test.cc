@@ -51,13 +51,11 @@ constexpr absl::string_view kExpectedCiphertext = "Encrypted data here";
 
 TEST(GcpKmsClientTest, GetPublicKeySuccess) {
   std::shared_ptr<
-      ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
+      google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
       mock_connection_ = std::make_shared<
-          ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
-  std::shared_ptr<::google::cloud::kms_v1::KeyManagementServiceClient>
-      mock_client_ =
-          std::make_shared<::google::cloud::kms_v1::KeyManagementServiceClient>(
-              mock_connection_);
+          google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient mock_client_(
+      mock_connection_);
 
   std::unique_ptr<GcpKmsClient> client_ =
       std::make_unique<GcpKmsClient>(mock_client_);
@@ -73,13 +71,11 @@ TEST(GcpKmsClientTest, GetPublicKeySuccess) {
 
 TEST(GcpKmsClientTest, GetPublicKeyFailure) {
   std::shared_ptr<
-      ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
+      google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
       mock_connection_ = std::make_shared<
-          ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
-  std::shared_ptr<::google::cloud::kms_v1::KeyManagementServiceClient>
-      mock_client_ =
-          std::make_shared<::google::cloud::kms_v1::KeyManagementServiceClient>(
-              mock_connection_);
+          google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient mock_client_(
+      mock_connection_);
   google::cloud::Status error_status(
       google::cloud::StatusCode::kPermissionDenied, "Permission denied");
   std::unique_ptr<GcpKmsClient> client_ =
@@ -94,14 +90,11 @@ TEST(GcpKmsClientTest, GetPublicKeyFailure) {
 
 TEST(GcpKmsClientTest, CreateAsymmetricKeySuccess) {
   std::shared_ptr<
-      ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
+      google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
       mock_connection_ = std::make_shared<
-          ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
-  std::shared_ptr<::google::cloud::kms_v1::KeyManagementServiceClient>
-      mock_client_ =
-          std::make_shared<::google::cloud::kms_v1::KeyManagementServiceClient>(
-              mock_connection_);
-
+          google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient mock_client_(
+      mock_connection_);
   std::unique_ptr<GcpKmsClient> client_ =
       std::make_unique<GcpKmsClient>(mock_client_);
   google::cloud::kms::v1::CryptoKey expected_crypto_key;
@@ -119,13 +112,11 @@ TEST(GcpKmsClientTest, CreateAsymmetricKeySuccess) {
 
 TEST(GcpKmsClientTest, CreateAsymmetricKeyFailure) {
   std::shared_ptr<
-      ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
+      google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
       mock_connection_ = std::make_shared<
-          ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
-  std::shared_ptr<::google::cloud::kms_v1::KeyManagementServiceClient>
-      mock_client_ =
-          std::make_shared<::google::cloud::kms_v1::KeyManagementServiceClient>(
-              mock_connection_);
+          google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient mock_client_(
+      mock_connection_);
 
   std::unique_ptr<GcpKmsClient> client_ =
       std::make_unique<GcpKmsClient>(mock_client_);
@@ -146,13 +137,11 @@ TEST(GcpKmsClientTest, CreateAsymmetricKeyFailure) {
 
 TEST(GcpKmsClientTest, EncryptDataSuccess) {
   std::shared_ptr<
-      ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
+      google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
       mock_connection_ = std::make_shared<
-          ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
-  std::shared_ptr<::google::cloud::kms_v1::KeyManagementServiceClient>
-      mock_client_ =
-          std::make_shared<::google::cloud::kms_v1::KeyManagementServiceClient>(
-              mock_connection_);
+          google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient mock_client_(
+      mock_connection_);
 
   std::unique_ptr<GcpKmsClient> client_ =
       std::make_unique<GcpKmsClient>(mock_client_);
@@ -170,14 +159,11 @@ TEST(GcpKmsClientTest, EncryptDataSuccess) {
 
 TEST(GcpKmsClientTest, EncryptDataFailure_InvalidRequest) {
   std::shared_ptr<
-      ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
+      google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
       mock_connection_ = std::make_shared<
-          ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
-  std::shared_ptr<::google::cloud::kms_v1::KeyManagementServiceClient>
-      mock_client_ =
-          std::make_shared<::google::cloud::kms_v1::KeyManagementServiceClient>(
-              mock_connection_);
-
+          google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient mock_client_(
+      mock_connection_);
   std::unique_ptr<GcpKmsClient> client_ =
       std::make_unique<GcpKmsClient>(mock_client_);
   google::cloud::Status error_status(
@@ -195,14 +181,11 @@ TEST(GcpKmsClientTest, EncryptDataFailure_InvalidRequest) {
 
 TEST(GcpKmsClientTest, DecryptDataSuccess) {
   std::shared_ptr<
-      ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
+      google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
       mock_connection_ = std::make_shared<
-          ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
-  std::shared_ptr<::google::cloud::kms_v1::KeyManagementServiceClient>
-      mock_client_ =
-          std::make_shared<::google::cloud::kms_v1::KeyManagementServiceClient>(
-              mock_connection_);
-
+          google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient mock_client_(
+      mock_connection_);
   std::unique_ptr<GcpKmsClient> client_ =
       std::make_unique<GcpKmsClient>(mock_client_);
   google::cloud::kms::v1::DecryptResponse expected_response;
@@ -220,13 +203,11 @@ TEST(GcpKmsClientTest, DecryptDataSuccess) {
 
 TEST(GcpKmsClientTest, DecryptDataFailure_AuthenticationError) {
   std::shared_ptr<
-      ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
+      google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>
       mock_connection_ = std::make_shared<
-          ::google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
-  std::shared_ptr<::google::cloud::kms_v1::KeyManagementServiceClient>
-      mock_client_ =
-          std::make_shared<::google::cloud::kms_v1::KeyManagementServiceClient>(
-              mock_connection_);
+          google::cloud::kms_v1_mocks::MockKeyManagementServiceConnection>();
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient mock_client_(
+      mock_connection_);
 
   std::unique_ptr<GcpKmsClient> client_ =
       std::make_unique<GcpKmsClient>(mock_client_);

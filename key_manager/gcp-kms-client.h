@@ -25,7 +25,7 @@ namespace privacy_sandbox::key_manager {
 class GcpKmsClient : public KmsClient {
  public:
   explicit GcpKmsClient(
-      const std::shared_ptr<google::cloud::kms_v1::KeyManagementServiceClient>
+      const google::cloud::kms_v1::v2_25::KeyManagementServiceClient
           client_);
   GcpKmsClient() = delete;
 
@@ -38,7 +38,7 @@ class GcpKmsClient : public KmsClient {
       const std::string &key_id, const std::string &ciphertext) override;
 
  private:
-  std::shared_ptr<google::cloud::kms_v1::KeyManagementServiceClient> client_;
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient client_;
 };
 
 }  // namespace privacy_sandbox::key_manager
