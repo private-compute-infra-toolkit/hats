@@ -1,6 +1,48 @@
 # Kokoro integration
 
 Kokoro is used to perform presubmit testing.
+For each cl, it runs tests on every revision, and votes +1/-1 depending on if it succeeds.
+
+## Quick Guides
+
+### Checking Failure reasons
+
+1. Open the latest comment where Kokoro reports FAILURE (generally the one with a -1).
+1. Click the second link for `Logs at:`
+1. Check "Target Log" for general execution. Errors should be at the bottom.
+    1. If it says the log will appear once it starts executing, then likely Kokoro failed to set up. See below. (The link also leads to the build log)
+    1. Generally, test results will show up at the bottom, and info around the failing test should be nearby.
+    1. If the error is something along the lines of `no such package` and `error running git fetch`, this is likely a repository issue, and Kokoro needs to clone the repo.
+1. If Kokoro failed to set up, check "Build log" up on the upper menu bar.
+    1. This is generally if Kokoro itself is not set up correctly. For example, insufficient permissions for the relevant repositories.
+
+### Bypassing Kokoro
+
+Currently, the vote has no impact on the ability to submit, so nothing is needed.
+This is due to slowness (RBE/docker will improve this) and volatility (not fully set up yetr).
+Therefore, no bypass is needed, cl's can be submitted with a -1 Kokoro vote or if Kokoro is still running.
+
+In the future, once the vote has an impact, the plan is to have an override mdb group also able to set the vote.
+This will allow for submission when Kokoro breaks, or when a submit/fix needs to go through fast without waiting.
+This can also allow submitting w/ new submodules without needing to update permissions, but note this will break all future cl's too until Kokoro updates.
+
+### Adding permissions / repositories
+
+When e.g. adding a sub-module or other import that Kokoro needs permissions to.
+1. Update [git\_on\_borg\_resource\_acl.gcl](http://google3/devtools/kokoro/config/data/git_on_borg_resource_acl.gcl), for access permission
+    1. Find `privacy-sandbox/hats` job prefix
+    1. Add the repo url(s) (or prefix). This should probably `rpc://`. This should also cover any imported sub-modules
+    1. Get team member LGTM
+    1. Once team LGTM, add `kokoro-reviews`. (Can enable auto-submit here)
+    1. Note it may take up to 30 min for this to propagate
+1. Update job config to pull the repo
+    1. Currently, this is in [hats/hats/common.cfg](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/common.cfg)
+    1. Because submodule cloning is disabled, add a separate entry to the multi-scm.
+        1. For Git-on-Borg it matches `git clone <url> <name>`, and for github it is `git clone https://github.com/<owner>/<repository> <name>`
+        1. Of note, `disable_triggering: true` so Kokoro doesn't watch them for updates
+    1. Get team approval, and submit
+    1. Note that passing pre-submit for this cl requires the ACL to propagate, so that Kokoro has access.
+1. Kokoro can be re-run on the same revision by replying to the cl with `kokoro rebuild`. (Submitting a new revision would also work).
 
 ## Behavior
 
@@ -18,6 +60,7 @@ This happens every few minutes, generally.
 Commenting on the cl can also re-trigger Kokoro.
 *  kokoro rebuild: rerun on the same revision as the last presubmit
 *  kokoro rerun: run on the latest revision
+These are the same if Kokoro ran on the latest revision.
 
 It can be triggered manually through Fusion, via "Trigger Build".
 It requires flags for Git/Gerrit-on-Borg, which can be added via clicking "+ Git/Gerrit-on-Borg".
@@ -41,7 +84,7 @@ Due to potential slowness of execution (local), the current plan is for -1 to bl
 It also replies to the CL with the result of the test, including a Fusion link.
 Fusion info can also be found under [prod:privacy-sandbox/hats/hats/presubmit](https://fusion2.corp.google.com/ci/kokoro/prod:privacy-sandbox%2Fhats%2Fhats%2Fpresubmit/)
 
-## Documentation followed.
+## Documentation followed
 
 * The original test version in hats-test was set up following the Kokoro codelab ([go/kokoro-codelab](go/kokoro-codelab)) for Gerrit-on-Borg
 * This uses a Kokoro instance, following [go/kokoro-instances](go/kokoro-instances)
@@ -62,13 +105,16 @@ Generally the jobs have the prefix `privacy-sandbox`, and it specifically create
   * Includes some meta info, like BCID, contact, GCP project (ps-hats-playground)
 * ACLs
   * Under [google3/devtools/kokoro/config/data](http://google3/devtools/kokoro/config/data)
+    * For CL's: First get a team LGTM, then request review from `kokoro-reviews`.
+    * May also require a `REASON=` in the description.
   * [pool\_resource\_acl](http://google3/devtools/kokoro/config/data/pool_resource_acl.gcl) defines the default pool
   * [git\_on\_borg\_resource\_acl.gcl](http://google3/devtools/kokoro/config/data/git_on_borg_resource_acl.gcl)
-    * Points to `rpc://privacysandbox`
-    * Note: supports any sub-repo, but currently only set up for hats.
-    * Also disables submodules, as they are not neeeded for building
+    * Determines what repos Kokoro is allowed to access
+    * Points to `rpc://privacysandbox", so can work on any sub-repo
+    * Also includes sub-modules and similar that are needed.
   * [gfile\_resource\_acl.gcl](http://google3/devtools/kokoro/config/data/gfile_resource_acl.gcl)
     * Gfile resources that Kokoro can grab, see [go/kokoro-gfile-inputs](http://go/kokoro-gfile-inputs)
+    * Was for x20 Bazel, to be deprecated.
 * Job definition
   * Under [google3/devtools/kokoro/config/prod/privacy-sandbox/hats](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats)
     * For Hats team projects
@@ -79,6 +125,8 @@ Generally the jobs have the prefix `privacy-sandbox`, and it specifically create
       * Picks out branch for auto-triggering (main)
       * Points to label to use (Kokoro)
       * Path to config directory `hats/kokoro` in the repository
+      * Also disables submodules, as they are not neeeded for building
+      * Individually picks which sub-modules for Kokoro to include.
     * [presubmit.cfg](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit.cfg)
       * Defines the job type, and the instance pool to use (hats-presubmit-l2/default)
       * Should have the same file name as the executable in the config directory
