@@ -91,7 +91,7 @@ Note: this setup is based on AMD's
 
 ## Launch Oak containers system with TVS
 
-The goal of this section is to provide instructions on launching Oak container
+The goal of this section is to provide instructions on launching Oak containers
 with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
 
 1.  Build Oak stack with a patched orchestrator and launcher.
@@ -119,12 +119,13 @@ with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
 
     The artifacts will be located at the `prebuilt` sub-directory.
 
-1.  Build QEMU: follow the same instructions in [the previous section](#build-basic)
+1.  Build QEMU: follow the same instructions in
+    [the previous section](#build-basic)
 
 1.  Copy binaries to SEV-SNP machine:
 
     Copy the prebuilt folder that contains the binaries you built in the first
-    step to the SEV-SNP machine (you can use `scp` or `rsync). Copy
+    step to the SEV-SNP machine (you can use `scp` or `rsync1). Copy
     qemu-system-x86 binary from the previous step to the same folder.
 
 1.  Run oak_container_launcher and TVS server:
@@ -143,6 +144,81 @@ with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
     Launch the container and pass it the TVS address you ran above.
     `./scripts/start-hats-sevsnp.sh http://localhost:7779`
 
+## Launch Oak containers system with TVS and Parc
+
+The goal of this section is to provide instructions on launching a binary in Oak
+Containers (with QEMU on SEP-SNP) that communicate with Parc and TVS. The
+orchestrator talks to TVS, obtains a token and pass it to the trusted
+application. The trusted application communicates with Parc to fetch
+configuration and data.
+
+1.  Build Oak containers stack and hats launcher and orchestrator:
+
+    In your workstation or cloudtop:
+
+    *   Navigate into the cloned hats directory:
+
+        ```
+        $ cd hats
+        ```
+
+    *   Fetch the needed submodules:
+
+        ```
+        $ git submodule update --init --recursive
+        ```
+
+    *   Copy the binary you intend to run in a confidential VM to
+        client/prebuilt. `$ mkdir -p client/prebuilt && cp <YOUR_BINARY>
+        client/prebuilt/`
+
+    *   Modify client/scripts/launch-trusted-app.sh to run your application.
+        Note: your application is copied to the CVM under `/usr/bin/server`.
+        Result from TVS attestation validation is passed to the shell script as
+        the first argument - saved into `$1`.
+
+    *   Call the build script and pass it the TVS public key, which will be
+        baked into the configuration that launches the orchestrator:
+
+        ```
+        $ ./scripts/build-for-parc.sh <tvs_public_key_in_hex_format>
+        ```
+
+    The artifacts will be located in the `prebuilt` sub-directory. Parc
+    configuration/data will be located in `prebuilt/parc` sub-directory.
+
+1.  Build QEMU: follow the same instructions in
+    [the previous section](#build-basic)
+
+1.  Copy binaries to SEV-SNP machine:
+
+    Copy the prebuilt folder that contains the binaries you built in the first
+    step to the SEV-SNP machine (you can use `scp` or `rsync1). Copy
+    qemu-system-x86 binary from the previous step to the same folder.
+
+1.  Run hats launcher and TVS server:
+
+    To run a TVS server that listens to port 7774, use the instructions:
+
+    ```
+    $ bazel build -c opt //tvs/untrusted_tvs:all
+    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+      --port=7774 \
+      --tvs_private_key=<private_key> \
+      --appraisal_policy_file=tvs/appraisal_policies/digests2.prototext \
+      --token=<private_hpke_key>
+    ```
+
+    Launch the container and pass it the TVS address you ran above.
+    `./scripts/start-hats-parc-sevsnp.sh localhost:7779`
+
+1.  (Optional): To run KV-Server that fetches an HPKE private key from TVS You
+    can apply client/kv-server.patch to a KV server so that it takes the private
+    key as a flag. After running KV-server in a CVM, send encrypted OHTTP
+    requests using the public key corresponding the private key passed to the
+    private server. You can use the binary in `client/kv-test-client` as
+    follows: `kv-test-client --public_key=<public_hpke_key>`. The default park
+    data, contains the following keys: foo0, foo1, foo2, foo3, and foo4.
 
 ## Steps to download VCEK cert, CA cert and CRL from AMD
 

@@ -1,0 +1,33 @@
+diff --git a/components/data_server/server/key_fetcher_factory_local.cc b/components/data_server/server/key_fetcher_factory_local.cc
+index dcf68525..d65b478a 100644
+--- a/components/data_server/server/key_fetcher_factory_local.cc
++++ b/components/data_server/server/key_fetcher_factory_local.cc
+@@ -12,7 +12,9 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
++#include <fstream>
+ #include <memory>
++#include <string>
+ #include <utility>
+ 
+ #include "absl/flags/flag.h"
+@@ -28,6 +30,7 @@ ABSL_FLAG(std::string, primary_coordinator_region, "",
+           "Primary coordinator region.");
+ ABSL_FLAG(std::string, secondary_coordinator_region, "",
+           "Secondary coordinator region.");
++ABSL_FLAG(std::string, onperm_private_key, "", "On perm private key");
+ 
+ namespace kv_server {
+ using ::privacy_sandbox::server_common::FakeKeyFetcherManager;
+@@ -36,7 +39,9 @@ using ::privacy_sandbox::server_common::KeyFetcherManagerInterface;
+ class LocalKeyFetcherFactory : public KeyFetcherFactory {
+   std::unique_ptr<KeyFetcherManagerInterface> CreateKeyFetcherManager(
+       const ParameterFetcher& parameter_fetcher) const override {
+-    return std::make_unique<FakeKeyFetcherManager>();
++    return std::make_unique<FakeKeyFetcherManager>(
++        /*public_key=*/"2", absl::GetFlag(FLAGS_onperm_private_key),
++        /*key_id=*/"64");
+   }
+ };
+ 
