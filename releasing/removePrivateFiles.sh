@@ -1,3 +1,4 @@
+#!/bin/bash
 # Copyright 2024 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,22 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+# Remove files we don't want to publish before pushing to github.  We'll
+# eventually move to CopyBara, but the overhead for CopyBara to update github,
+# rather than the other way around, is fairly high.
 
-readonly SCRIPTS_DIR="$(dirname "$0")"
-readonly PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
-cd "$SCRIPTS_DIR"
-mkdir -p "$PREBUILT_DIR"
-
-source ./build-lib.sh
-
-TVS_PUBLIC_KEY=$1
-build_kv_service
-copy_vcek
-pass_key_to_orchestrator $TVS_PUBLIC_KEY
-build_oak_containers_kernel $PREBUILT_DIR
-build_oak_containers_images $PREBUILT_DIR
-build_oak_containers_launcher $PREBUILT_DIR
-build_oak_containers_stage0 $PREBUILT_DIR
-build_oak_containers_stage1 $PREBUILT_DIR
-build_oak_hello_world_container_bundle_tar $PREBUILT_DIR
+rm `find . -name METADATA`
+rm `find . -name GOOGLE.md`
+rm -r kokoro releasing
