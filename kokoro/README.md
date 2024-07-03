@@ -125,7 +125,6 @@ Generally the jobs have the prefix `privacy-sandbox`, and it specifically create
       * Picks out branch for auto-triggering (main)
       * Points to label to use (Kokoro)
       * Path to config directory `hats/kokoro` in the repository
-      * Also disables submodules, as they are not neeeded for building
       * Individually picks which sub-modules for Kokoro to include.
     * [presubmit.cfg](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit.cfg)
       * Defines the job type, and the instance pool to use (hats-presubmit-l2/default)
@@ -162,12 +161,15 @@ These are all stored under the `kokoro` sub-directory
 * kokoro_build.sh
   * Wrapper for setting up and building bazel
   * Copies and sets up bazel binary, then calls it
+  * Patches build to grab "rpc" dependencies from submodules instead
+    * Patches workspace to use local path
+    * Manually applies patch via git
 * bazel_wrapper.py
   * Based on [google3/devtools/kokoro/scripts/bazel_wrapper.py](http://google3/devtools/kokoro/scripts/bazel_wrapper.py)
   * Originally for RBE, simplified for local execution
 
 
-## Other options
+## Other options, TODO
 
 ### Docker images
 Kokoro instances execute builds inside Docker containers.
@@ -188,3 +190,7 @@ We are looking into RBE to speed up testing.
 ### Release builds
 
 Kokoro also supports e.g. the creation of release builds (and also continuous testing).
+
+### Google Internal
+Similar to Kiwi, the Kokoro directory should be private, as it is only internal tools and includes paths.
+This directory should probably be moved to within `google\_internal`, or just separately made private
