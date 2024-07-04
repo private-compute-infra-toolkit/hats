@@ -10,3 +10,6 @@
 [submodule "kv-server"]
 	path = submodules/kv-server
 	url = sso://team/kiwi-air-force-eng-team/kv-server
+[submodule "builders"]
+	path = builders
+	url = https://github.com/privacysandbox/build-system
