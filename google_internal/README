@@ -1,0 +1,18 @@
+# This is for Google internal used assets only
+
+## RBE
+For each shell that you run bazel in (directly or indirectly),
+run `source google_internal/rbe_setup.sh`.
+This may require configuring gcloud (one time).
+
+Then, use `bazel_rbe` in place of `bazel` to utilize Kiwi's RBE to speed up building.
+For example, `bazel_rbe test //...`
+
+Now when building you should see **remote cache hit** in the bazel output.
+This holds even when running local `bazel clean`.
+
+In the future, this may also matter/help when using `builders` locally
+The current version does not do any builders image pulling, but the original kiwi version does.
+
+## Kokoro
+TODO: move Kokoro to this directory, probably.
