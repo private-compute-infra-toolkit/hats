@@ -23,24 +23,32 @@ set -e
 #  the credentials being printed in build logs.
 #  Additionally, recursive invocation with credentials as command-line
 #  parameters, will print the full command, with credentials, in the build logs.
-set -x
-
-echo "Starting kokoro_build"
+# export TZ=Etc/UTC
+# export PS4='+\t $(basename ${BASH_SOURCE[0]}):${LINENO} ' # xtrace prompt
+# set -x
 
 BAZEL_VERSION=bazel-7.2.0-linux-x86_64
 BAZEL_TMP_DIR=/tmpfs/tmp/bazel-release
 mkdir -p "${BAZEL_TMP_DIR}"
 echo "Bazel file: ${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}"
-ls "${KOKORO_GFILE_DIR}"
 ln -fs "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}" "${BAZEL_TMP_DIR}/bazel"
 chmod 755 "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}"
 export PATH="${BAZEL_TMP_DIR}:${PATH}"
 # This should show /tmpfs/tmp/bazel-release/bazel
 which bazel
-KOKORO_LOCAL_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats/kokoro"
 
-# Cd required to be in workspace
-cd "${KOKORO_LOCAL_DIR}"
+KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
+
+# Apply patch
+cd "${KOKORO_HATS_DIR}/submodules/common"
+git apply ../../patches/parc/parc.patch
+
+# to access workspace, etc.
+cd "${KOKORO_HATS_DIR}/kokoro"
+
+# Patch WORKSPACE to use `google_privacysandbox_servers_common` from a local path.
+perl -i -pe 'BEGIN{undef $/;} s/git_repository\(\n[\s\t]*name = \"google_privacysandbox_servers_common\",\n[\s\t]*remote = \"rpc[^\"]+\",\n[\s\t]*commit = \"[^\"]+\",\n([\s\t]*patches = \[\n([\s\t]*\"[^\"]+\",)+\n[\s\t]*\],\n)?\)/local_repository\(\n\tname = \"google_privacysandbox_servers_common\",\n\tpath = \"submodules\/common"\n)/smg' ../WORKSPACE
+
 args=(
   test
   --verbose_failures=true

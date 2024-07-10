@@ -236,10 +236,11 @@ local_repository(
     path = "client/kv-test-client",
 )
 
+# NOTE: For kokoro, make sure submodule is on commit, and patches are applied in script
 git_repository(
-   name = "google_privacysandbox_servers_common",
-   remote = "rpc://team/privacy-sandbox-team/servers/common",
-   commit = "8e3a351b33ed127e52584b7769ece6205492b725",
+    name = "google_privacysandbox_servers_common",
+    remote = "rpc://team/privacy-sandbox-team/servers/common",
+    commit = "8e3a351b33ed127e52584b7769ece6205492b725",
     patches = [
         "//patches/parc:parc.patch",
     ],
@@ -263,4 +264,9 @@ local_repository(
 local_repository(
     name = "submodule2",
     path = "submodules/oak",
+)
+
+local_repository(
+    name = "submodule3",
+    path = "submodules/common",
 )
