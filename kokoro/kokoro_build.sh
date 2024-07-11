@@ -49,10 +49,21 @@ cd "${KOKORO_HATS_DIR}/kokoro"
 # Patch WORKSPACE to use `google_privacysandbox_servers_common` from a local path.
 perl -i -pe 'BEGIN{undef $/;} s/git_repository\(\n[\s\t]*name = \"google_privacysandbox_servers_common\",\n[\s\t]*remote = \"rpc[^\"]+\",\n[\s\t]*commit = \"[^\"]+\",\n([\s\t]*patches = \[\n([\s\t]*\"[^\"]+\",)+\n[\s\t]*\],\n)?\)/local_repository\(\n\tname = \"google_privacysandbox_servers_common\",\n\tpath = \"submodules\/common"\n)/smg' ../WORKSPACE
 
+#shellcheck disable=SC1091
+source "${KOKORO_HATS_DIR}/google_internal/lib_build.sh"
+
+lib_build::configure_gcloud_access
+lib_build::set_rbe_flags
+
 args=(
+  "${BAZEL_STARTUP_ARGS}"
   test
+  # "${BAZEL_DIRECT_ARGS}"
+  # Multiple args in one strings breaks, due to py wrapper
+  --config=rbecache
+  --google_default_credentials
+  --noshow_progress
   --verbose_failures=true
-  # --test_output=all
   --symlink_prefix=/
   --
   //...
