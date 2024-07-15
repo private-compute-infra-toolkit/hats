@@ -19,7 +19,7 @@ For each cl, it runs tests on every revision, and votes +1/-1 depending on if it
 ### Bypassing Kokoro
 
 Currently, the vote has no impact on the ability to submit, so nothing is needed.
-This is due to slowness (RBE/docker will improve this) and volatility (not fully set up yetr).
+This is due to slowness (RBE/docker will improve this) and volatility (not fully set up yet).
 Therefore, no bypass is needed, cl's can be submitted with a -1 Kokoro vote or if Kokoro is still running.
 
 In the future, once the vote has an impact, the plan is to have an override mdb group also able to set the vote.
@@ -68,9 +68,9 @@ SCM is the repo, in this case `hats-test`.
 Change # is the gerrit cl number.
 
 ### Execution
-Currently, Kokoro essentially runs `bazel test ...` locally.
-
-TODO: This is slow, and building via RBE is in progress.
+Kokoro uses remote build execution and caching to performs the tests.
+This uses Kiwi's GCP instance "kiwi-air-force-remote-build" to do the execution and caching.
+In the future, having a more dedicated/fixed toolchain will improve caching.
 
 ### Actions
 
@@ -179,18 +179,9 @@ See go/kokoro-docker-image-options
 The codelab has also been recently updated to include instructions for "Container Build".
 This can help with coming pre-packaged with build dependencies, build tools, etc. to speed up building.
 
-### Remote execution
-
-Kokoro Bazel integration recommends RBE.
-Currently, we use local execution instead for simplicity.
-Our current GCP project, `ps-hats-playground`, is not an internal Google project, and therefore does not support RBE.
-Also, the documentation for Kokoro instances with bazel is out of date, see [yaqs/258724981620342784#n1](http://yaqs/258724981620342784#n1).
-We are looking into RBE to speed up testing.
-
 ### Release builds
 
 Kokoro also supports e.g. the creation of release builds (and also continuous testing).
 
-### Google Internal
-Similar to Kiwi, the Kokoro directory should be private, as it is only internal tools and includes paths.
-This directory should probably be moved to within `google\_internal`, or just separately made private
+### Additional presubmit checks
+Some other presubmits planned included formatting and license checking.
