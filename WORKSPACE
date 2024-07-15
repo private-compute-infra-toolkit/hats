@@ -99,6 +99,15 @@ crates_repository(
                 default_features = False,
                 version = "=4.1.1",
         ),
+        "sev": crate.spec(
+            version = "*",
+        ),
+        "curl": crate.spec(
+            # TODO(sidachen): Note that rustls is experimental in Curl and may contain bugs.
+            # However because this is only for HTTPs verification, likely this is ok.
+            features = ["rustls"],
+            version = "*",
+        ),
     },
 )
 
@@ -253,12 +262,15 @@ git_repository(
 )
 
 load("@google_privacysandbox_servers_common//third_party:cpp_deps.bzl", parc_cpp_dep = "cpp_dependencies")
+
 parc_cpp_dep()
 
 load("@google_privacysandbox_servers_common//third_party:deps1.bzl", parc_dep1 = "deps1")
+
 parc_dep1()
 
 load("@google_privacysandbox_servers_common//third_party:deps2.bzl", parc_dep2 = "deps2")
+
 parc_dep2()
 
 # Declare submodules as local repository so that `build //...` doesn't try to build them.
