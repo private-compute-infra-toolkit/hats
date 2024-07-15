@@ -1,3 +1,5 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
 package(
     default_visibility = ["//visibility:public"],
 )
@@ -42,5 +44,17 @@ cc_test(
         "@com_google_protobuf//:protobuf_headers",
         "@com_google_protobuf//src/google/protobuf/io",
         "@oak//proto/attestation:reference_value_cc_proto",
+    ],
+)
+
+rust_binary(
+    name = "key-gen",
+    srcs = ["key-gen.rs"],
+    deps = [
+        "@enclave//crypto",
+        "@hats_crate_index//:hex",
+        "@hats_crate_index//:hpke",
+        "@hats_crate_index//:rand",
+        "@oak_crates_index//:clap",
     ],
 )

@@ -93,6 +93,12 @@ crates_repository(
             version = "*",
         ),
         "p256": crate.spec(version = "*"),
+        "rand": crate.spec(version = "*"),
+        "hpke": crate.spec(version = "*"),
+        "curve25519-dalek": crate.spec(
+                default_features = False,
+                version = "=4.1.1",
+        ),
     },
 )
 
