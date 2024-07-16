@@ -1,25 +1,50 @@
-diff --git a/oak_containers_launcher/src/qemu.rs b/oak_containers_launcher/src/qemu.rs
-index 88472aa3b..b830daadc 100644
+diff --git oak_containers_launcher/src/qemu.rs oak_containers_launcher/src/qemu.rs
+index 88472aa3b..7ee0fc64a 100644
 --- oak_containers_launcher/src/qemu.rs
 +++ oak_containers_launcher/src/qemu.rs
-@@ -233,6 +233,16 @@ impl Qemu {
+@@ -92,6 +92,14 @@ pub struct Params {
+     /// SevSnp, or Tdx (TDX is unimplemented yet)
+     #[arg(long, required = false, value_enum, default_value_t = VmType::Default)]
+     pub vm_type: VmType,
++
++    /// Forward message from VM to launcher running on host.
++    #[arg(long, required = false, default_value_t = 8889)]
++    pub hats_launcher_port: u16,
++
++    /// Forward messages from host to VM.
++    #[arg(long, required = false, default_value_t = 50051)]
++    pub host_forwarding_port: u16,
+ }
+ 
+ impl Params {
+@@ -113,6 +121,8 @@ impl Params {
+             virtio_guest_cid: None,
+             pci_passthrough: None,
+             vm_type: VmType::Default,
++            hats_launcher_port: 8889,
++            host_forwarding_port: 50051,
+         }
+     }
+ }
+@@ -233,6 +243,17 @@ impl Qemu {
                  "hostfwd=tcp:{host_address}:{host_proxy_port}-{vm_address}:{vm_port}"
              ));
          };
 +
 +        // Route traffic from guest to kv-server.
 +        netdev_rules.push(format!(
-+        "hostfwd=tcp:{host_address}:50051-{vm_address}:50051"
++        "hostfwd=tcp:{host_address}:{}-{vm_address}:50051",
++        params.host_forwarding_port
 +        ));
 +
 +        // Route traffic from host to HATs launcher service.
 +        netdev_rules.push(
-+            format!("guestfwd=tcp:10.0.2.100:8889-cmd:nc {host_address} 8889"));
++            format!("guestfwd=tcp:10.0.2.100:8889-cmd:nc {host_address} {}", params.hats_launcher_port));
 +
          cmd.args(["-netdev", netdev_rules.join(",").as_str()]);
          cmd.args([
              "-device",
-diff --git a/oak_containers_orchestrator/src/crypto.rs b/oak_containers_orchestrator/src/crypto.rs
+diff --git oak_containers_orchestrator/src/crypto.rs oak_containers_orchestrator/src/crypto.rs
 index 9bef552b2..09051391f 100644
 --- oak_containers_orchestrator/src/crypto.rs
 +++ oak_containers_orchestrator/src/crypto.rs
