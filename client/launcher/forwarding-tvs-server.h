@@ -15,6 +15,8 @@
 #ifndef HATS_CLIENT_LAUNCHER_FORWARDING_TVS_SERVER_
 #define HATS_CLIENT_LAUNCHER_FORWARDING_TVS_SERVER_
 
+#include "client/launcher/proto/launcher.grpc.pb.h"
+#include "client/launcher/proto/launcher.pb.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/tvs.grpc.pb.h"
@@ -25,12 +27,19 @@ namespace privacy_sandbox::tvs {
 // Grpc server that pipes messages between the client and the server.
 // The server is used to proxy communication between the orchestrator
 // and Tvs.
-class ForwardingTvsServer final : public TeeVerificationService::Service {
+// TODO(sidachen): Rename to LauncherService.
+class ForwardingTvsServer final
+    : public privacy_sandbox::launcher::LauncherService::Service {
  public:
   ForwardingTvsServer(std::shared_ptr<grpc::Channel> channel);
   grpc::Status VerifyReport(
-      grpc::ServerContext* context,
-      grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) override;
+      grpc::ServerContext *context,
+      grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage> *stream) override;
+
+  grpc::Status FetchTeeCertificate(
+      grpc::ServerContext *context,
+      const privacy_sandbox::launcher::FetchTeeCertificateRequest *request,
+      privacy_sandbox::launcher::FetchTeeCertificateResponse *reply) override;
 
  private:
   std::unique_ptr<TeeVerificationService::Stub> stub_;

@@ -4,5 +4,8 @@ bazel-*
 # Generated vscode files.
 **/.vscode/
 
+# Prebuilt binaries that shouldn't checked in.
+prebuilt/
+
 # Rust Analyzer
 rust-project.json

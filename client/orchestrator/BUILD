@@ -78,6 +78,8 @@ cargo_build_script(
     },
     data = [
         "//tvs/proto:tvs_proto",
+        "//client/launcher/proto:launcher_proto",
+        "//client/launcher/proto:launcher.proto",
         "@oak//proto/attestation:evidence.proto",
     ],
     tools = [
@@ -100,6 +102,8 @@ cargo_build_script(
     },
     data = [
         "//tvs/proto:tvs_proto",
+        "//client/launcher/proto:launcher_proto",
+        "//client/launcher/proto:launcher.proto",
         "@oak//proto/attestation:evidence.proto",
     ],
     tools = [

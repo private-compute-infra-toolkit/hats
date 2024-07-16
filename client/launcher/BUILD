@@ -35,7 +35,7 @@ rust_library(
     name = "certificates",
     srcs = ["certificates.rs"],
     deps = [
-        "@hats_crate_index//:curl",
+        "@hats_crate_index//:reqwest",
         "@hats_crate_index//:sev",
         "@oak_crates_index//:anyhow",
         "@using_cxx//:cxx",
@@ -73,6 +73,10 @@ cc_library(
     deps = [
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
+        "//client/launcher/proto:launcher_cc_grpc",
+        "//client/launcher/proto:launcher_cc_proto",
+        "//client/launcher:certificates_bridge",
+        "@using_cxx//:cxx",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",

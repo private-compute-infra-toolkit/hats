@@ -20,7 +20,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let include_path =
         &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
     generate_grpc_code(
-        &["../../tvs/proto/tvs.proto"],
+        &[
+            "../../client/launcher/proto/launcher.proto",
+        ],
         &["../..", include_path],
         CodegenOptions {
             build_client: true,

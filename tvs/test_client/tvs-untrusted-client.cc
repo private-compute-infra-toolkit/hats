@@ -21,6 +21,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "client/launcher/proto/launcher.grpc.pb.h"
 #include "grpcpp/client_context.h"
 #include "grpcpp/support/interceptor.h"
 #include "grpcpp/support/status.h"
@@ -31,6 +32,8 @@
 namespace privacy_sandbox::tvs {
 
 namespace {
+
+using privacy_sandbox::launcher::LauncherService;
 
 std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
   return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
@@ -73,12 +76,14 @@ absl::Status PerformNoiseHandshake(
 }  // namespace
 
 TvsUntrustedClient::TvsUntrustedClient(
+    std::unique_ptr<LauncherService::Stub> launcher_stub,
     std::unique_ptr<TeeVerificationService::Stub> stub,
     std::unique_ptr<grpc::ClientContext> context,
     std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
         stream,
     rust::Box<TvsClient> tvs_client)
-    : stub_(std::move(stub)),
+    : launcher_stub_(std::move(launcher_stub)),
+      stub_(std::move(stub)),
       context_(std::move(context)),
       stream_(std::move(stream)),
       tvs_client_(std::move(tvs_client)) {}
@@ -90,19 +95,29 @@ TvsUntrustedClient::CreateClient(const Options& options) {
   try {
     rust::Box<TvsClient> tvs_client = new_tvs_client(options.tvs_public_key);
     // Perform handshake.
-    std::unique_ptr<TeeVerificationService::Stub> stub =
-        TeeVerificationService::NewStub(options.channel);
+    std::unique_ptr<TeeVerificationService::Stub> stub = nullptr;
+    std::unique_ptr<LauncherService::Stub> launcher_stub = nullptr;
+
+    if (options.use_launcher_forwarding) {
+      launcher_stub = LauncherService::NewStub(options.channel);
+    } else {
+      stub = TeeVerificationService::NewStub(options.channel);
+    }
     auto context = std::make_unique<grpc::ClientContext>();
     std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
-        stream = stub->VerifyReport(context.get());
-
+        stream;
+    if (stub != nullptr) {
+      stream = stub->VerifyReport(context.get());
+    } else {
+      stream = launcher_stub->VerifyReport(context.get());
+    }
     if (absl::Status status = PerformNoiseHandshake(*stream, *tvs_client);
         !status.ok()) {
       return status;
     }
-    return absl::WrapUnique(
-        new TvsUntrustedClient(std::move(stub), std::move(context),
-                               std::move(stream), std::move(tvs_client)));
+    return absl::WrapUnique(new TvsUntrustedClient(
+        std::move(launcher_stub), std::move(stub), std::move(context),
+        std::move(stream), std::move(tvs_client)));
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to create trusted TVS client.", e.what()));
