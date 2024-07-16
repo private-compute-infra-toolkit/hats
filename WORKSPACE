@@ -84,7 +84,6 @@ crates_repository(
     cargo_lockfile = "//:Cargo.bazel.lock",
     lockfile = "//:cargo-bazel-lock.json",
     packages = {
-        "cxx": crate.spec(version = "*"),
         "hex": crate.spec(version = "*"),
         "jwt-simple": crate.spec(
             default_features = False,
