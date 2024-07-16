@@ -6,20 +6,9 @@ package(
 )
 
 proto_library(
-    name = "launcher_messages_proto",
-    srcs = ["launcher_messages.proto"],
-)
-
-cc_proto_library(
-    name = "launcher_messages_cc_proto",
-    deps = [":launcher_messages_proto"],
-)
-
-proto_library(
     name = "launcher_proto",
     srcs = ["launcher.proto"],
     deps = [
-        ":launcher_messages_proto",
         "//tvs/proto:tvs_messages_proto",
     ],
 )
