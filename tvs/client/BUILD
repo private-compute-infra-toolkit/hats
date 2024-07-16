@@ -11,7 +11,7 @@ rust_library(
     srcs = ["trusted-client.rs"],
     deps = [
         ":build",
-        "@hats_crate_index//:cxx",
+        "@using_cxx//:cxx",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different

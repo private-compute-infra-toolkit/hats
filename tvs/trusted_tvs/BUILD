@@ -12,7 +12,7 @@ rust_library(
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
         ":build",
-        "@hats_crate_index//:cxx",
+        "@using_cxx//:cxx",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:jwt-simple",
         "@hats_crate_index//:p256",
@@ -34,7 +34,7 @@ rust_test(
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
         ":build",
-        "@hats_crate_index//:cxx",
+        "@using_cxx//:cxx",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:jwt-simple",
         "@hats_crate_index//:p256",
