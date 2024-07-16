@@ -25,6 +25,10 @@ rust_register_toolchains(
     ],
 )
 
+load("@rules_rust//tools/rust_analyzer:deps.bzl", "rust_analyzer_dependencies")
+
+rust_analyzer_dependencies()
+
 load("@rules_rust//proto/prost/private:repositories.bzl", "rust_prost_dependencies", "rust_prost_register_toolchains")
 
 rust_prost_dependencies()

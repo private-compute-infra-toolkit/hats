@@ -3,3 +3,6 @@ bazel-*
 
 # Generated vscode files.
 **/.vscode/
+
+# Rust Analyzer
+rust-project.json
