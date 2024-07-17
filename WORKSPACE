@@ -89,6 +89,10 @@ crates_repository(
         ),
         "hex": crate.spec(version = "*"),
         "hpke": crate.spec(version = "*"),
+        "num-bigint": crate.spec(
+            features = ["rand"],
+            version = "*",
+        ),
         "p256": crate.spec(version = "*"),
         "prost": crate.spec(
             default_features = False,

@@ -1,7 +1,26 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(
     default_visibility = ["//visibility:public"],
+)
+
+rust_library(
+    name = "secret-sharing",
+    srcs = ["secret-sharing.rs"],
+    deps = [
+        "@hats_crate_index//:num-bigint",
+        "@hats_crate_index//:rand",
+    ],
+)
+
+rust_test(
+    name = "secret-sharing_test",
+    srcs = ["secret-sharing.rs"],
+    deps = [
+        "@hats_crate_index//:num-bigint",
+        "@hats_crate_index//:rand",
+    ],
 )
 
 cc_library(
