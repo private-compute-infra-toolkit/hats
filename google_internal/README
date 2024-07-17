@@ -24,9 +24,6 @@ This holds even when running local `bazel clean`.
 In the future, this may also matter/help when using `builders` locally
 The current version does not do any builders image pulling, but the original kiwi version does.
 
-## Kokoro
-TODO: move Kokoro to this directory, probably.
-
 ## Future work
 
 * Fixed toolchain to improve caching
