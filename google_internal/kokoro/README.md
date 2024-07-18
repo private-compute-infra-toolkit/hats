@@ -1,6 +1,6 @@
 # Kokoro integration
 
-Kokoro is used to perform presubmit testing.
+Kokoro (go/kokoro) is used to perform presubmit testing.
 For each cl, it runs tests on every revision, and votes +1/-1 depending on if it succeeds.
 
 ## Quick Guides
@@ -47,7 +47,7 @@ When e.g. adding a sub-module or other import that Kokoro needs permissions to.
 ## Behavior
 
 At a high level, Kokoro runs tests on every cl patch, voting -1/+1 depending on success.
-This tag currently has no behavior.
+A +1 tag is required, which can be overwritten when needed.
 The logs can be checked in the Kokoro comment that adds the vote.
 (This may require "show all entries" to see the comment in Gerrit)
 Generally the logs of notes are via the second link ("Logs at"), under "Targets -> Target Log".
@@ -74,12 +74,10 @@ In the future, having a more dedicated/fixed toolchain will improve caching.
 
 ### Actions
 
-Kokoro has a tag added, where it can give -1 or +1.
-This tag is configured to reset on code change.
-
-Currently, this tag has no behavior, beyond appearing on the cl.
-Ideally, a +1 tag should be required by Kokoro, and a -1 tag blocks.
-Due to potential slowness of execution (local), the current plan is for -1 to block, but not require a +1.
+Kokoro has a tag added, where it can give -1 or +1 depending on success.
+This tag is configured to reset on code change, triggering Kokoro to rerun.
+The +1 tag is required for submission, and a -1 blocks.
+Anyone in mdb/ps-onprem-eng can override this tag manually, in case Kokoro is breaking for reasons unrelated to the cl, or if the cl needs to be submitted quickly without waiting for the tests to finish.
 
 It also replies to the CL with the result of the test, including a Fusion link.
 Fusion info can also be found under [prod:privacy-sandbox/hats/hats/presubmit](https://fusion2.corp.google.com/ci/kokoro/prod:privacy-sandbox%2Fhats%2Fhats%2Fpresubmit/)
@@ -140,7 +138,7 @@ This also creates the label.
   * groups
     * Define kokoro-dedicated, kokoro-gob-readers
   * project.config
-    * Define Kokoro label (values, condition, in the future blocking behavior)
+    * Define Kokoro label (values, condition, requirement)
     * kokoro-gob-readers to `refs/for/*` for review read access
     * kokoro-dedicated to `refs/heads/*`, for (non-meta) label access
 * [google3/configs/production/gerritcodereview/prod/privacysandbox/config.textproto](http://google3/configs/production/gerritcodereview/prod/privacysandbox/config.textproto)
@@ -173,11 +171,11 @@ These are all stored under the `kokoro` sub-directory
 
 ### Docker images
 Kokoro instances execute builds inside Docker containers.
-Currently it uses a general pre-provided default option.
-There is support for custom images.
+Currently it uses a general pre-provided default option, but also supports custom images.
 See go/kokoro-docker-image-options
 The codelab has also been recently updated to include instructions for "Container Build".
 This can help with coming pre-packaged with build dependencies, build tools, etc. to speed up building.
+There is also the option of using the builders library for bazel-debian to have bazel build in a docker image, see b/351201455.
 
 ### Release builds
 
@@ -185,3 +183,4 @@ Kokoro also supports e.g. the creation of release builds (and also continuous te
 
 ### Additional presubmit checks
 Some other presubmits planned included formatting and license checking.
+See b/351144496.
