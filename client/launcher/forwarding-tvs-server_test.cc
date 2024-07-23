@@ -197,6 +197,7 @@ TEST(ForwardingTvsServer, Successful) {
           .tvs_public_key = std::string(kTvsPublicKey),
           .channel =
               forwarding_tvs_server->InProcessChannel(grpc::ChannelArguments()),
+          .use_launcher_forwarding = true,
       });
   ASSERT_TRUE(tvs_client.ok());
 
@@ -235,6 +236,7 @@ TEST(ForwardingTvsServer, BadReportError) {
           .tvs_public_key = std::string(kTvsPublicKey),
           .channel =
               forwarding_tvs_server->InProcessChannel(grpc::ChannelArguments()),
+          .use_launcher_forwarding = true,
       });
   ASSERT_TRUE(tvs_client.ok());
 

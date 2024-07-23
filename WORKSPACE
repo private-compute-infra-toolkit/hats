@@ -105,10 +105,9 @@ crates_repository(
         "sev": crate.spec(
             version = "*",
         ),
-        "curl": crate.spec(
-            # TODO(sidachen): Note that rustls is experimental in Curl and may contain bugs.
-            # However because this is only for HTTPs verification, likely this is ok.
-            features = ["rustls"],
+        "reqwest": crate.spec(
+            default_features = False,
+            features = ["rustls-tls", "blocking"],
             version = "*",
         ),
     },

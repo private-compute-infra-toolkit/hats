@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::proto::privacy_sandbox::tvs::tee_verification_service_client;
+use crate::proto::privacy_sandbox::launcher::launcher_service_client;
+use crate::proto::privacy_sandbox::launcher::FetchTeeCertificateRequest;
 use crate::proto::privacy_sandbox::tvs::OpaqueMessage;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
@@ -25,11 +26,14 @@ pub mod proto {
         pub mod tvs {
             include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
         }
+        pub mod launcher {
+            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.launcher.rs"));
+        }
     }
 }
 
 pub struct TvsGrpcClient {
-    inner: tee_verification_service_client::TeeVerificationServiceClient<Channel>,
+    inner: launcher_service_client::LauncherServiceClient<Channel>,
     tvs_public_key: String,
 }
 
@@ -39,8 +43,7 @@ impl TvsGrpcClient {
         tvs_public_key: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let channel = Channel::builder(addr.clone()).connect().await?;
-        let inner =
-            tee_verification_service_client::TeeVerificationServiceClient::new(channel.clone());
+        let inner = launcher_service_client::LauncherServiceClient::new(channel.clone());
         Ok(Self {
             inner,
             tvs_public_key,
@@ -50,11 +53,20 @@ impl TvsGrpcClient {
         channel: tonic::transport::Channel,
         tvs_public_key: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let inner = tee_verification_service_client::TeeVerificationServiceClient::new(channel);
+        let inner = launcher_service_client::LauncherServiceClient::new(channel);
         Ok(Self {
             inner,
             tvs_public_key,
         })
+    }
+    pub async fn fetch_tee_certificate(&self) -> Result<Vec<u8>, String> {
+        let response = self
+            .inner
+            .clone()
+            .fetch_tee_certificate(Request::new(FetchTeeCertificateRequest {}))
+            .await
+            .map_err(|error| format!("error from launcher server: {}", error))?;
+        Ok(response.into_inner().signature)
     }
     pub async fn send_evidence(
         &self,
@@ -154,9 +166,11 @@ impl TvsGrpcClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::privacy_sandbox::tvs::tee_verification_service_server;
-    use crate::tests::tee_verification_service_server::TeeVerificationService;
-    use crate::tests::tee_verification_service_server::TeeVerificationServiceServer;
+    use crate::proto::privacy_sandbox::launcher::launcher_service_server;
+    use crate::proto::privacy_sandbox::launcher::FetchTeeCertificateRequest;
+    use crate::proto::privacy_sandbox::launcher::FetchTeeCertificateResponse;
+    use crate::tests::launcher_service_server::LauncherService;
+    use crate::tests::launcher_service_server::LauncherServiceServer;
     use crypto::P256Scalar;
     use futures::FutureExt;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -171,9 +185,18 @@ mod tests {
     }
 
     #[tonic::async_trait]
-    impl TeeVerificationService for TestService {
+    impl LauncherService for TestService {
         type VerifyReportStream =
             Pin<Box<dyn tokio_stream::Stream<Item = Result<OpaqueMessage, tonic::Status>> + Send>>;
+        async fn fetch_tee_certificate(
+            &self,
+            request: tonic::Request<FetchTeeCertificateRequest>,
+        ) -> Result<tonic::Response<FetchTeeCertificateResponse>, tonic::Status> {
+            Ok(Response::new(FetchTeeCertificateResponse {
+                signature: include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec(),
+            }))
+        }
+
         async fn verify_report(
             &self,
             request: tonic::Request<tonic::Streaming<OpaqueMessage>>,
@@ -226,10 +249,6 @@ mod tests {
         .expect("could not decode evidence")
     }
 
-    fn get_test_vcek_bytes() -> Vec<u8> {
-        include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec()
-    }
-
     const NOW_UTC_MILLIS: i64 = 1698829200000;
     #[tokio::test]
     async fn verify_report_successful() {
@@ -245,7 +264,7 @@ mod tests {
 
         let server = tokio::spawn(async move {
             tonic::transport::Server::builder()
-                .add_service(TeeVerificationServiceServer::new(test_service))
+                .add_service(LauncherServiceServer::new(test_service))
                 .serve_with_incoming_shutdown(
                     TcpListenerStream::new(listener),
                     shutdown_rx.map(|_| ()),
@@ -269,7 +288,7 @@ mod tests {
                         .unwrap(),
                     )
                     .unwrap(),
-                    get_test_vcek_bytes(),
+                    tvs_client.fetch_tee_certificate().await.unwrap(),
                 )
                 .await
         })
@@ -281,5 +300,43 @@ mod tests {
             .unwrap()
             .unwrap()
             .contains("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9"));
+    }
+
+    #[tokio::test]
+    async fn fetch_tee_certificate_successful() {
+        let tvs_private_key = P256Scalar::generate();
+        let test_service = TestService {
+            tvs_private_key: hex::encode(tvs_private_key.bytes()),
+        };
+        let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
+        let listener = TcpListener::bind(sockaddr).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+        let server = tokio::spawn(async move {
+            tonic::transport::Server::builder()
+                .add_service(LauncherServiceServer::new(test_service))
+                .serve_with_incoming_shutdown(
+                    TcpListenerStream::new(listener),
+                    shutdown_rx.map(|_| ()),
+                )
+                .await
+        });
+        let cert = tokio::spawn(async move {
+            let tvs_client = TvsGrpcClient::create(
+                format!("http://localhost:{}", port).parse().unwrap(),
+                hex::encode(tvs_private_key.compute_public_key()),
+            )
+            .await
+            .unwrap();
+            tvs_client.fetch_tee_certificate().await
+        })
+        .await;
+
+        let _ = shutdown_tx.send(());
+        let _ = server.await;
+        let want = include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec();
+        assert_eq!(cert.unwrap().unwrap(), want)
     }
 }

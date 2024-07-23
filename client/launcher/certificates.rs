@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use curl::easy::Easy;
 use sev::firmware::host::*;
 use std::arch::x86_64;
 
@@ -91,21 +90,9 @@ fn vcek_url() -> Result<String> {
 }
 
 fn get_vcek_from_url(url: &str) -> Result<Vec<u8>> {
-    let mut http_handle = Easy::new();
+    let mut response = reqwest::blocking::get(url)?;
     let mut buf: Vec<u8> = Vec::new();
-
-    http_handle.url(url)?;
-    http_handle.get(true)?;
-
-    let mut transfer = http_handle.transfer();
-    transfer.write_function(|data| {
-        buf.extend_from_slice(data);
-        Ok(data.len())
-    })?;
-
-    transfer.perform()?;
-    drop(transfer);
-
+    response.copy_to(&mut buf)?;
     Ok(buf)
 }
 
