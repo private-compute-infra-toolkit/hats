@@ -77,9 +77,9 @@ cargo_build_script(
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
     },
     data = [
+        "//client/proto:launcher.proto",
+        "//client/proto:launcher_proto",
         "//tvs/proto:tvs_proto",
-        "//client/launcher/proto:launcher_proto",
-        "//client/launcher/proto:launcher.proto",
         "@oak//proto/attestation:evidence.proto",
     ],
     tools = [
@@ -101,9 +101,9 @@ cargo_build_script(
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
     },
     data = [
+        "//client/proto:launcher.proto",
+        "//client/proto:launcher_proto",
         "//tvs/proto:tvs_proto",
-        "//client/launcher/proto:launcher_proto",
-        "//client/launcher/proto:launcher.proto",
         "@oak//proto/attestation:evidence.proto",
     ],
     tools = [

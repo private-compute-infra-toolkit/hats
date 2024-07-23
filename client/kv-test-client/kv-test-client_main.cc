@@ -21,12 +21,12 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
-#include "quiche/binary_http/binary_http_message.h"
-#include "quiche/oblivious_http/oblivious_http_client.h"
 #include "external/kv-server/public/query/v2/get_values_v2.grpc.pb.h"
 #include "external/kv-server/public/query/v2/get_values_v2.pb.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/create_channel.h"
+#include "quiche/binary_http/binary_http_message.h"
+#include "quiche/oblivious_http/oblivious_http_client.h"
 
 ABSL_FLAG(std::string, kv_server, "localhost:50051", "KV server address.");
 ABSL_FLAG(std::string, public_key, "",

@@ -25,7 +25,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "client/launcher/certificates.rs.h"
-#include "client/launcher/proto/launcher.grpc.pb.h"
+#include "client/proto/launcher.grpc.pb.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"

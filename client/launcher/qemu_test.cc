@@ -154,7 +154,6 @@ TEST_P(QemuLauncherTest, Success) {
   EXPECT_EQ(qemu.GetCommand(), test_case.expected_output);
 }
 
-
 // Seperate test case for default options so we can fix the virtio_guest_cid
 // b/c guest_cid is generated randomly when we don't pass in the parameter
 TEST(Qemu, SuccessDefaultOptions) {

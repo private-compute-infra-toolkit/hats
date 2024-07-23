@@ -21,7 +21,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "client/launcher/proto/launcher.grpc.pb.h"
+#include "client/proto/launcher.grpc.pb.h"
 #include "grpcpp/client_context.h"
 #include "grpcpp/support/interceptor.h"
 #include "grpcpp/support/status.h"

@@ -71,18 +71,18 @@ cc_library(
     srcs = ["forwarding-tvs-server.cc"],
     hdrs = ["forwarding-tvs-server.h"],
     deps = [
+        "//client/launcher:certificates_bridge",
+        "//client/proto:launcher_cc_grpc",
+        "//client/proto:launcher_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
-        "//client/launcher/proto:launcher_cc_grpc",
-        "//client/launcher/proto:launcher_cc_proto",
-        "//client/launcher:certificates_bridge",
-        "@using_cxx//:cxx",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
+        "@using_cxx//:cxx",
     ],
 )
 
