@@ -99,15 +99,18 @@ crates_repository(
         "rand": crate.spec(version = "*"),
         "hpke": crate.spec(version = "*"),
         "curve25519-dalek": crate.spec(
-                default_features = False,
-                version = "=4.1.1",
+            default_features = False,
+            version = "=4.1.1",
         ),
         "sev": crate.spec(
             version = "*",
         ),
         "reqwest": crate.spec(
             default_features = False,
-            features = ["rustls-tls", "blocking"],
+            features = [
+                "rustls-tls",
+                "blocking",
+            ],
             version = "*",
         ),
     },
