@@ -33,8 +33,6 @@ namespace privacy_sandbox::tvs {
 
 namespace {
 
-using privacy_sandbox::launcher::LauncherService;
-
 std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
   return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
 }
@@ -76,7 +74,8 @@ absl::Status PerformNoiseHandshake(
 }  // namespace
 
 TvsUntrustedClient::TvsUntrustedClient(
-    std::unique_ptr<LauncherService::Stub> launcher_stub,
+    std::unique_ptr<privacy_sandbox::client::LauncherService::Stub>
+        launcher_stub,
     std::unique_ptr<TeeVerificationService::Stub> stub,
     std::unique_ptr<grpc::ClientContext> context,
     std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
@@ -96,10 +95,13 @@ TvsUntrustedClient::CreateClient(const Options& options) {
     rust::Box<TvsClient> tvs_client = new_tvs_client(options.tvs_public_key);
     // Perform handshake.
     std::unique_ptr<TeeVerificationService::Stub> stub = nullptr;
-    std::unique_ptr<LauncherService::Stub> launcher_stub = nullptr;
+    std::unique_ptr<privacy_sandbox::client::LauncherService::Stub>
+        launcher_stub = nullptr;
 
     if (options.use_launcher_forwarding) {
-      launcher_stub = LauncherService::NewStub(options.channel);
+      launcher_stub =
+          privacy_sandbox::client::LauncherService::LauncherService::NewStub(
+              options.channel);
     } else {
       stub = TeeVerificationService::NewStub(options.channel);
     }

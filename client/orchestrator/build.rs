@@ -17,11 +17,16 @@ use oak_grpc_utils::{generate_grpc_code, CodegenOptions};
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let include_path =
+    let oak_include_path =
         &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
+
+    let protobuf_include_path = &env::var("DESCRIPTOR_PROTO_PATH")
+        .unwrap()
+        .replace("google/protobuf/descriptor.proto", "");
+
     generate_grpc_code(
         &["../../client/proto/launcher.proto"],
-        &["../", "../..", include_path],
+        &["../", "../..", oak_include_path, protobuf_include_path],
         CodegenOptions {
             build_client: true,
             extern_paths: vec![ExternPath::new(

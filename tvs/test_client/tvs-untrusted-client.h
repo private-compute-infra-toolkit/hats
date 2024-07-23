@@ -57,14 +57,15 @@ class TvsUntrustedClient final {
 
  private:
   TvsUntrustedClient(
-      std::unique_ptr<privacy_sandbox::launcher::LauncherService::Stub>
+      std::unique_ptr<privacy_sandbox::client::LauncherService::Stub>
           launcher_stub_,
       std::unique_ptr<TeeVerificationService::Stub> stub,
       std::unique_ptr<grpc::ClientContext> context,
       std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
           stream,
       rust::Box<TvsClient> tvs_client);
-  std::unique_ptr<privacy_sandbox::launcher::LauncherService::Stub>
+
+  std::unique_ptr<privacy_sandbox::client::LauncherService::Stub>
       launcher_stub_;
   std::unique_ptr<TeeVerificationService::Stub> stub_;
   std::unique_ptr<grpc::ClientContext> context_;

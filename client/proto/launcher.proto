@@ -14,21 +14,21 @@
 
 syntax = "proto3";
 
-package privacy_sandbox.launcher;
+package privacy_sandbox.client;
 
 import "tvs/proto/tvs_messages.proto";
+import "google/protobuf/empty.proto";
+
+message FetchTeeCertificateResponse {
+  bytes signature = 1;
+}
 
 service LauncherService {
   // Provides chip endorsement key for DICE verification purpose to
   // orchestrator.
-  rpc FetchTeeCertificate(FetchTeeCertificateRequest)
+  rpc FetchTeeCertificate(google.protobuf.Empty)
       returns (FetchTeeCertificateResponse);
   // Proxies messages between the orchestrator and a TVS service.
   rpc VerifyReport(stream privacy_sandbox.tvs.OpaqueMessage)
       returns (stream privacy_sandbox.tvs.OpaqueMessage);
-}
-
-message FetchTeeCertificateRequest {}
-message FetchTeeCertificateResponse {
-  bytes signature = 1;
 }

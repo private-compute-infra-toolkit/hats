@@ -10,6 +10,7 @@ proto_library(
     srcs = ["launcher.proto"],
     deps = [
         "//tvs/proto:tvs_messages_proto",
+        "@com_google_protobuf//:empty_proto",
     ],
 )
 

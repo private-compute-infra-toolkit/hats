@@ -29,7 +29,7 @@ namespace privacy_sandbox::tvs {
 // and Tvs.
 // TODO(sidachen): Rename to LauncherService.
 class ForwardingTvsServer final
-    : public privacy_sandbox::launcher::LauncherService::Service {
+    : public privacy_sandbox::client::LauncherService::Service {
  public:
   ForwardingTvsServer(std::shared_ptr<grpc::Channel> channel);
   grpc::Status VerifyReport(
@@ -37,9 +37,8 @@ class ForwardingTvsServer final
       grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage> *stream) override;
 
   grpc::Status FetchTeeCertificate(
-      grpc::ServerContext *context,
-      const privacy_sandbox::launcher::FetchTeeCertificateRequest *request,
-      privacy_sandbox::launcher::FetchTeeCertificateResponse *reply) override;
+      grpc::ServerContext *context, const google::protobuf::Empty *request,
+      privacy_sandbox::client::FetchTeeCertificateResponse *reply) override;
 
  private:
   std::unique_ptr<TeeVerificationService::Stub> stub_;

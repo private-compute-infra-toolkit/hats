@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::proto::privacy_sandbox::launcher::launcher_service_client;
-use crate::proto::privacy_sandbox::launcher::FetchTeeCertificateRequest;
+use crate::proto::privacy_sandbox::client::launcher_service_client;
 use crate::proto::privacy_sandbox::tvs::OpaqueMessage;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
@@ -26,8 +25,8 @@ pub mod proto {
         pub mod tvs {
             include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
         }
-        pub mod launcher {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.launcher.rs"));
+        pub mod client {
+            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.client.rs"));
         }
     }
 }
@@ -63,7 +62,7 @@ impl TvsGrpcClient {
         let response = self
             .inner
             .clone()
-            .fetch_tee_certificate(Request::new(FetchTeeCertificateRequest {}))
+            .fetch_tee_certificate(Request::new({}))
             .await
             .map_err(|error| format!("error from launcher server: {}", error))?;
         Ok(response.into_inner().signature)
@@ -166,9 +165,8 @@ impl TvsGrpcClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::privacy_sandbox::launcher::launcher_service_server;
-    use crate::proto::privacy_sandbox::launcher::FetchTeeCertificateRequest;
-    use crate::proto::privacy_sandbox::launcher::FetchTeeCertificateResponse;
+    use crate::proto::privacy_sandbox::client::launcher_service_server;
+    use crate::proto::privacy_sandbox::client::FetchTeeCertificateResponse;
     use crate::tests::launcher_service_server::LauncherService;
     use crate::tests::launcher_service_server::LauncherServiceServer;
     use crypto::P256Scalar;
@@ -190,7 +188,7 @@ mod tests {
             Pin<Box<dyn tokio_stream::Stream<Item = Result<OpaqueMessage, tonic::Status>> + Send>>;
         async fn fetch_tee_certificate(
             &self,
-            request: tonic::Request<FetchTeeCertificateRequest>,
+            _request: tonic::Request<()>,
         ) -> Result<tonic::Response<FetchTeeCertificateResponse>, tonic::Status> {
             Ok(Response::new(FetchTeeCertificateResponse {
                 signature: include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec(),

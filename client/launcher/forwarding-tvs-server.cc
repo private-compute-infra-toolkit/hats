@@ -37,27 +37,15 @@
 namespace privacy_sandbox::tvs {
 
 namespace {
-using privacy_sandbox::launcher::FetchTeeCertificateRequest;
-using privacy_sandbox::launcher::FetchTeeCertificateResponse;
+
 std::string RustVecToString(const rust::Vec<std::uint8_t> &vec) {
   return std::string(reinterpret_cast<const char *>(vec.data()), vec.size());
 }
+
 }  // namespace
 
 ForwardingTvsServer::ForwardingTvsServer(std::shared_ptr<grpc::Channel> channel)
     : stub_(TeeVerificationService::NewStub(channel)) {}
-
-grpc::Status ForwardingTvsServer::FetchTeeCertificate(
-    grpc::ServerContext *context, const FetchTeeCertificateRequest *request,
-    FetchTeeCertificateResponse *reply) {
-  try {
-    reply->set_signature(
-        RustVecToString(privacy_sandbox::launcher::get_vcek()));
-    return grpc::Status::OK;
-  } catch (rust::Error error) {
-    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error.what());
-  }
-}
 
 grpc::Status ForwardingTvsServer::VerifyReport(
     grpc::ServerContext *context,
@@ -86,6 +74,18 @@ grpc::Status ForwardingTvsServer::VerifyReport(
     }
   }
   return grpc::Status::OK;
+}
+
+grpc::Status ForwardingTvsServer::FetchTeeCertificate(
+    grpc::ServerContext *context, const google::protobuf::Empty *request,
+    privacy_sandbox::client::FetchTeeCertificateResponse *reply) {
+  try {
+    reply->set_signature(
+        RustVecToString(privacy_sandbox::launcher::get_vcek()));
+    return grpc::Status::OK;
+  } catch (rust::Error error) {
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error.what());
+  }
 }
 
 void CreateAndStartForwardingTvsServer(int port,
