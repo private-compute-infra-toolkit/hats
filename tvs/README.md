@@ -36,14 +36,23 @@ gcloud kms encrypt \
     --plaintext-file file-with-data-to-encrypt \
     --ciphertext-file file-to-store-encrypted-data
 
-xxd -p file-with-encrypted-data.bin
+xxd -p file-with-encrypted-key.bin
+
+4. Wrap TVS Token and format to pass in as flag:
+```
+gcloud kms encrypt \
+    --key key \
+    --keyring key-ring \
+    --location location  \
+    --plaintext-file file-with-data-to-encrypt \
+    --ciphertext-file file-to-store-encrypted-data
+
+xxd -p file-with-encrypted-token.bin
 ```
 4. Run test server:
 ```
-bazel build //key_manager:key-gen
-bazel
-$ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
-$ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+$ bazel build -c opt //tvs/untrusted_tvs:tvs-server-gcp_main
+$ bazel-bin/tvs/untrusted_tvs/tvs-server-gcp_main \
     --port=8080 \
     --tvs_private_key=0a240079214835c942365a1f19443819dc074a6c3e6369f8928739eabec8\
 6c3c920b3b38d2ab126900fd7ff73aa5284fa337fca0aeca16ab942b8212\
@@ -53,7 +62,12 @@ d0f539aadeb3d8bd56a21a52909d388e12476589806561c845753b659d96\
     --project_id=ps-hats-playground \
     --location_id=global \
     --key_ring_id=ps-hats-keyring-test \
-    --cryptokey_id=ps-hats-encrypt-decrypt \
+    --private_key_id=ps-hats-encrypt-decrypt \
+    --jwt_token_id=ps-hats-jwt \
+    --token=0a2400580d333e2c8902a66351671408343d74dff88f80778ce6decc5073\
+5bc845dea30845af123500649610304affb397161ca90a7b70c42f51007c\
+3ccab96f6480c9addb3fb6af7df0e9862d962ea5d50f9971e14abdfeeff1\
+87f9fb \
     --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto
 ```
 
@@ -81,6 +95,40 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
     --nouse_tls \
     --verify_report_request_file=tvs/test_data/bad_verify_request_report.prototext \
     --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
+```
+
+### To run a test client with GCP KMS Integration:
+
+#### Test with valid report
+
+```
+$ bazel build -c opt //tvs/test_client:tvs-client-gcp_main
+$ bazel-bin/tvs/test_client/tvs-client-gcp_main \
+   --tvs_address=localhost:8080 \
+   --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
+   --nouse_tls \
+   --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext \
+   --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23
+   --project_id=ps-hats-playground \
+   --location_id=global \
+   --key_ring_id=ps-hats-keyring-test \
+   --cryptokey_id=ps-hats-jwt \
+```
+
+#### Test with invalid report
+
+```
+$ bazel build -c opt //tvs/test_client:tvs-client-gcp_main
+$ bazel-bin/tvs/test_client/tvs-client-gcp_main \
+    --tvs_address=localhost:8080 \
+    --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
+    --nouse_tls \
+    --verify_report_request_file=tvs/test_data/bad_verify_request_report.prototext \
+    --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
+    --project_id=ps-hats-playground \
+    --location_id=global \
+    --key_ring_id=ps-hats-keyring-test \
+    --cryptokey_id=ps-hats-jwt \
 ```
 
 ## Testing on GCP:

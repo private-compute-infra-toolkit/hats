@@ -40,11 +40,18 @@ ABSL_FLAG(std::string, tvs_private_key, "",
 ABSL_FLAG(std::string, project_id, "", "Project ID.");
 ABSL_FLAG(std::string, location_id, "", "Location ID.");
 ABSL_FLAG(std::string, key_ring_id, "", "Key Ring ID.");
-ABSL_FLAG(std::string, cryptokey_id, "", "CryptoKey ID.");
+ABSL_FLAG(std::string, private_key_id, "", "CryptoKey ID.");
+ABSL_FLAG(std::string, jwt_token_id, "", "JWT Token ID.");
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
+<<<<<<< PATCH SET (f80140 Unwrapping JWT Token during TVS Boot)
+ABSL_FLAG(std::string, token, "",
+          "A token to be returned to client passing attestation validation. If "
+          "empty returns a JWT token.");
+=======
 ABSL_FLAG(std::string, secret, "",
           "A secret to be returned to client passing attestation validation.");
+>>>>>>> BASE      (51be59 Merge "Remove logic that generate jwt token as won't be need)
 
 namespace {
 
@@ -92,11 +99,18 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "Cannot get server port " << port.status();
   }
 
-  std::string key_id =
+  // Unwrapping key for TVS Private Key
+  std::string private_key_id =
       absl::StrCat("projects/", absl::GetFlag(FLAGS_project_id), "/locations/",
                    absl::GetFlag(FLAGS_location_id), "/keyRings/",
                    absl::GetFlag(FLAGS_key_ring_id), "/cryptoKeys/",
-                   absl::GetFlag(FLAGS_cryptokey_id));
+                   absl::GetFlag(FLAGS_private_key_id));
+  // Unwrapping key for JWT Token
+  std::string jwt_token_id =
+      absl::StrCat("projects/", absl::GetFlag(FLAGS_project_id), "/locations/",
+                   absl::GetFlag(FLAGS_location_id), "/keyRings/",
+                   absl::GetFlag(FLAGS_key_ring_id), "/cryptoKeys/",
+                   absl::GetFlag(FLAGS_jwt_token_id));
   google::cloud::kms_v1::v2_25::KeyManagementServiceClient kms_client =
       google::cloud::kms_v1::KeyManagementServiceClient(
           google::cloud::kms_v1::MakeKeyManagementServiceConnection());
@@ -108,20 +122,32 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   absl::StatusOr<std::string> decrypted_key =
-      client.DecryptData(key_id, encrypted_key);
+      client.DecryptData(private_key_id, encrypted_key);
   if (!decrypted_key.ok()) {
     LOG(ERROR) << "Failed to decrypt private key: " << decrypted_key.status();
   }
-
-  std::string key = client.DecryptData(key_id, encrypted_key).value();
+  std::string encrypted_token;
+  if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_token), &encrypted_token)) {
+    LOG(ERROR) << "Failed to convert hex to binary";
+    return 1;
+  }
+  absl::StatusOr<std::string> decrypted_token =
+      client.DecryptData(jwt_token_id, encrypted_token);
+  if (!decrypted_token.ok()) {
+    LOG(ERROR) << "Failed to decrypt JWT Token: " << decrypted_token.status();
+  }
 
   LOG(INFO) << "Starting TVS server on port " << port;
   privacy_sandbox::tvs::CreateAndStartTvsServer(
       privacy_sandbox::tvs::TvsServerOptions{
           .port = *std::move(port),
-          .tvs_private_key = *std::move(decrypted_key),
+          .tvs_private_key = std::move(decrypted_key.value()),
           .appraisal_policy = std::move(appraisal_policy),
+<<<<<<< PATCH SET (f80140 Unwrapping JWT Token during TVS Boot)
+          .token = std::move(decrypted_token.value()),
+=======
           .secret = absl::GetFlag(FLAGS_secret),
+>>>>>>> BASE      (51be59 Merge "Remove logic that generate jwt token as won't be need)
       });
   return 0;
 }
