@@ -35,14 +35,12 @@ namespace privacy_sandbox::tvs {
 // 1. Client initiate noise handshake.
 // 2. Server responds to the handshake with an ephemeral public key.
 // 3. Client sends attestation report.
-// 4. Server verifies the report and mints a JWT token.
+// 4. Server verifies the report and returns a secret.
 class TvsServer final : public TeeVerificationService::Service {
  public:
   // Pass appraisal_policy by value as we expect the caller to use std::move().
   explicit TvsServer(const std::string& tvs_private_key,
-                     oak::attestation::v1::ReferenceValues appraisal_policy);
-  explicit TvsServer(const std::string& tvs_private_key,
-                     const std::string& token,
+                     const std::string& secret,
                      oak::attestation::v1::ReferenceValues appraisal_policy);
   TvsServer() = delete;
   grpc::Status VerifyReport(
@@ -51,7 +49,7 @@ class TvsServer final : public TeeVerificationService::Service {
 
  private:
   const std::string tvs_private_key_;
-  const std::string token_;
+  const std::string secret_;
   const oak::attestation::v1::ReferenceValues appraisal_policy_;
 };
 
@@ -60,7 +58,7 @@ struct TvsServerOptions {
   // TODO(alwabel): implement a better key provisioning.
   std::string tvs_private_key;
   oak::attestation::v1::ReferenceValues appraisal_policy;
-  std::string token;
+  std::string secret;
 };
 
 // Starts a server and blocks forever.
