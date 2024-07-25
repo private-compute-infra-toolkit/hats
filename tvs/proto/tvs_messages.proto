@@ -28,9 +28,6 @@ message VerifyReportRequest {
   bytes tee_certificate = 2;
   // Signature over the handshake.
   bytes signature = 3;
-  // Used to retrieve VCEK cert chain (and vcek certificate if not provided).
-  // TODO(alwabel): enable produce_name.
-  // string product_name = 3;
 }
 
 // Encrypted version of VerifyReportRequest.
