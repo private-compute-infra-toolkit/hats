@@ -44,14 +44,8 @@ ABSL_FLAG(std::string, private_key_id, "", "CryptoKey ID.");
 ABSL_FLAG(std::string, jwt_token_id, "", "JWT Token ID.");
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
-<<<<<<< PATCH SET (f80140 Unwrapping JWT Token during TVS Boot)
-ABSL_FLAG(std::string, token, "",
-          "A token to be returned to client passing attestation validation. If "
-          "empty returns a JWT token.");
-=======
 ABSL_FLAG(std::string, secret, "",
           "A secret to be returned to client passing attestation validation.");
->>>>>>> BASE      (51be59 Merge "Remove logic that generate jwt token as won't be need)
 
 namespace {
 
@@ -126,28 +120,24 @@ int main(int argc, char* argv[]) {
   if (!decrypted_key.ok()) {
     LOG(ERROR) << "Failed to decrypt private key: " << decrypted_key.status();
   }
-  std::string encrypted_token;
-  if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_token), &encrypted_token)) {
+  std::string encrypted_secret;
+  if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_secret), &encrypted_secret)) {
     LOG(ERROR) << "Failed to convert hex to binary";
     return 1;
   }
-  absl::StatusOr<std::string> decrypted_token =
-      client.DecryptData(jwt_token_id, encrypted_token);
-  if (!decrypted_token.ok()) {
-    LOG(ERROR) << "Failed to decrypt JWT Token: " << decrypted_token.status();
+  absl::StatusOr<std::string> decrypted_secret =
+      client.DecryptData(jwt_token_id, encrypted_secret);
+  if (!decrypted_secret.ok()) {
+    LOG(ERROR) << "Failed to decrypt JWT Token: " << decrypted_secret.status();
   }
 
   LOG(INFO) << "Starting TVS server on port " << port;
   privacy_sandbox::tvs::CreateAndStartTvsServer(
       privacy_sandbox::tvs::TvsServerOptions{
           .port = *std::move(port),
-          .tvs_private_key = std::move(decrypted_key.value()),
+          .tvs_private_key = *std::move(decrypted_key),
           .appraisal_policy = std::move(appraisal_policy),
-<<<<<<< PATCH SET (f80140 Unwrapping JWT Token during TVS Boot)
-          .token = std::move(decrypted_token.value()),
-=======
-          .secret = absl::GetFlag(FLAGS_secret),
->>>>>>> BASE      (51be59 Merge "Remove logic that generate jwt token as won't be need)
+          .secret = *std::move(decrypted_secret),
       });
   return 0;
 }
