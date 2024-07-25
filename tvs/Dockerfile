@@ -30,5 +30,5 @@ RUN bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
 
 # TODO(alwabel): provide instructions on how to generate test keys.
 CMD ["./bazel-bin/tvs/untrusted_tvs/tvs-server_main", \
-     "--tvs_private_key=0000000000000000000000000000000000000000000000000000000000000001", \
+     "--primary_private_key=0000000000000000000000000000000000000000000000000000000000000001", \
      "--appraisal_policy_file=tvs/test_data/on-perm-reference.textproto"]

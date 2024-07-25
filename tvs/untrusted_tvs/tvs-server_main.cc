@@ -32,9 +32,10 @@
 #include "tvs/untrusted_tvs/tvs-server.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
-// TODO(alwabel): implement a better key provisioning.
-ABSL_FLAG(std::string, tvs_private_key, "",
-          "Private key for NK-Noise handshake protocol.");
+ABSL_FLAG(std::string, primary_private_key, "",
+          "Primary private key for NK-Noise handshake protocol.");
+ABSL_FLAG(std::string, secondary_private_key, "",
+          "Secondary private key for NK-Noise handshake protocol.");
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
 ABSL_FLAG(std::string, secret, "secret",
@@ -90,7 +91,8 @@ int main(int argc, char* argv[]) {
   privacy_sandbox::tvs::CreateAndStartTvsServer(
       privacy_sandbox::tvs::TvsServerOptions{
           .port = *std::move(port),
-          .tvs_private_key = absl::GetFlag(FLAGS_tvs_private_key),
+          .primary_private_key = absl::GetFlag(FLAGS_primary_private_key),
+          .secondary_private_key = absl::GetFlag(FLAGS_secondary_private_key),
           .appraisal_policy = std::move(appraisal_policy),
           .secret = absl::GetFlag(FLAGS_secret),
       });

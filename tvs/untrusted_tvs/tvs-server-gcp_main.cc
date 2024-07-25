@@ -119,7 +119,7 @@ int main(int argc, char* argv[]) {
   privacy_sandbox::tvs::CreateAndStartTvsServer(
       privacy_sandbox::tvs::TvsServerOptions{
           .port = *std::move(port),
-          .tvs_private_key = *std::move(decrypted_key),
+          .primary_private_key = *std::move(decrypted_key),
           .appraisal_policy = std::move(appraisal_policy),
           .secret = absl::GetFlag(FLAGS_secret),
       });

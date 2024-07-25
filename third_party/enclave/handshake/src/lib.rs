@@ -48,7 +48,12 @@ pub struct Crypter {
 /// direction.
 impl Crypter {
     fn new(read_key: &[u8; 32], write_key: &[u8; 32]) -> Self {
-        Self { read_key: *read_key, write_key: *write_key, read_nonce: 0, write_nonce: 0 }
+        Self {
+            read_key: *read_key,
+            write_key: *write_key,
+            read_nonce: 0,
+            write_nonce: 0,
+        }
     }
 
     fn next_nonce(nonce: &mut u32) -> Result<[u8; NONCE_LEN], Error> {
@@ -122,22 +127,25 @@ pub struct Response {
 /// alternatively be stored separately to reduce computation if needed to
 /// reduce per-transaction computation.
 /// See https://noiseexplorer.com/patterns/NK/
-pub fn respond(identity_private_key_bytes: &[u8], in_data: &[u8]) -> Result<Response, Error> {
+pub fn respond(
+    identity_scalar: &P256Scalar,
+    identity_pub: &[u8],
+    in_data: &[u8],
+    prologue: &[u8],
+) -> Result<Response, Error> {
     if in_data.len() < P256_X962_LENGTH {
         return Err(Error::InvalidHandshake);
     }
 
     let mut noise = Noise::new(HandshakeType::Nk);
-    noise.mix_hash(&[0; 1]); // Prologue
+    noise.mix_hash(prologue);
 
-    let identity_scalar: P256Scalar =
-        identity_private_key_bytes.try_into().map_err(|_| Error::InvalidPrivateKey)?;
-    let identity_pub = identity_scalar.compute_public_key();
-
-    noise.mix_hash_point(identity_pub.as_slice());
+    noise.mix_hash_point(identity_pub);
 
     // unwrap: we know that `in_data` is `P256_X962_LENGTH` bytes long.
-    let peer_pub: [u8; P256_X962_LENGTH] = (&in_data[..P256_X962_LENGTH]).try_into().unwrap();
+    let peer_pub: [u8; P256_X962_LENGTH] = (&in_data[..P256_X962_LENGTH])
+        .try_into()
+        .map_err(|_| Error::InvalidPrivateKey)?;
     noise.mix_hash(peer_pub.as_slice());
     noise.mix_key(peer_pub.as_slice());
 
@@ -188,7 +196,8 @@ pub mod test_client {
         }
 
         pub fn build_initial_message(&mut self) -> Vec<u8> {
-            self.noise.mix_hash(&[0; 1]);
+            // Use peer_public_key as a prologue.
+            self.noise.mix_hash(&self.identity_pub_key);
             self.noise.mix_hash_point(self.identity_pub_key.as_slice());
             let ephemeral_pub_key = self.ephemeral_priv_key.compute_public_key();
             let ephemeral_pub_key_bytes = ephemeral_pub_key.as_ref();
@@ -219,7 +228,10 @@ pub mod test_client {
             let plaintext = self.noise.decrypt_and_hash(ciphertext).unwrap();
             assert_eq!(plaintext.len(), 0);
             let (write_key, read_key) = self.noise.traffic_keys();
-            (self.noise.handshake_hash(), Crypter::new(&read_key, &write_key))
+            (
+                self.noise.handshake_hash(),
+                Crypter::new(&read_key, &write_key),
+            )
         }
     }
 }
