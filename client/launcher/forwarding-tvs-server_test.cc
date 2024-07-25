@@ -44,12 +44,7 @@ using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
-
-constexpr absl::string_view kTvsPrivateKey =
-    "0000000000000000000000000000000000000000000000000000000000000001";
-constexpr absl::string_view kTvsPublicKey =
-    "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
-    "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+using ::testing::StrEq;
 
 absl::StatusOr<VerifyReportRequest> VerifyReportRequestFromFile(
     const std::string& file_path) {
@@ -172,13 +167,20 @@ absl::StatusOr<oak::attestation::v1::ReferenceValues> GetTestAppraisalPolicy() {
   return appraisal_policy;
 }
 
+constexpr absl::string_view kTvsPrivateKey =
+    "0000000000000000000000000000000000000000000000000000000000000001";
+constexpr absl::string_view kTvsPublicKey =
+    "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
+    "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+constexpr absl::string_view kSecret = "secret";
+
 TEST(ForwardingTvsServer, Successful) {
-  std::string key = std::string(kTvsPrivateKey);
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
   // Real TVS server.
-  TvsServer tvs_service(key, *std::move(appraisal_policy));
+  TvsServer tvs_service(std::string(kTvsPrivateKey), std::string(kSecret),
+                        *std::move(appraisal_policy));
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
@@ -205,21 +207,20 @@ TEST(ForwardingTvsServer, Successful) {
       GetGoodReportRequest();
   ASSERT_TRUE(verify_report_request.ok());
 
-  // We match against the header only.
   EXPECT_THAT((*tvs_client)
                   ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
                                             *verify_report_request),
-              IsOkAndHolds(HasSubstr("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9")));
+              IsOkAndHolds(StrEq(kSecret)));
 }
 
 TEST(ForwardingTvsServer, BadReportError) {
-  std::string key = std::string(kTvsPrivateKey);
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
 
   // Real TVS server.
-  TvsServer tvs_service(key, *std::move(appraisal_policy));
+  TvsServer tvs_service(std::string(kTvsPrivateKey), /*secret=*/"",
+                        *std::move(appraisal_policy));
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 

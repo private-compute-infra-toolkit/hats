@@ -114,11 +114,11 @@ impl TvsGrpcClient {
                     .send(command)
                     .await
                     .map_err(|_| "error sending requests out")?;
-                let Some(token_bin) = inbound_rx.recv().await else {
+                let Some(secret_bin) = inbound_rx.recv().await else {
                     return Err("no response from the server".to_string());
                 };
-                let token = tvs.process_response(token_bin.binary_message.as_slice())?;
-                Ok(token)
+                let secret = tvs.process_response(secret_bin.binary_message.as_slice())?;
+                Ok(secret)
             });
 
         let outbound_stream = async_stream::stream! {
@@ -178,6 +178,8 @@ mod tests {
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::Response;
 
+    const SECRET: &str = "test_secret";
+
     struct TestService {
         pub tvs_private_key: String,
     }
@@ -204,6 +206,7 @@ mod tests {
                 NOW_UTC_MILLIS,
                 &self.tvs_private_key,
                 default_appraisal_policy().as_slice(),
+                SECRET,
             ) else {
                 return Err(tonic::Status::internal("Error creating TVS Server"));
             };
@@ -269,7 +272,7 @@ mod tests {
                 )
                 .await
         });
-        let token = tokio::spawn(async move {
+        let secret = tokio::spawn(async move {
             let tvs_client = TvsGrpcClient::create(
                 format!("http://localhost:{}", port).parse().unwrap(),
                 hex::encode(tvs_private_key.compute_public_key()),
@@ -294,10 +297,7 @@ mod tests {
 
         let _ = shutdown_tx.send(());
         let _ = server.await;
-        assert!(token
-            .unwrap()
-            .unwrap()
-            .contains("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9"));
+        assert_eq!(secret.unwrap().unwrap(), SECRET);
     }
 
     #[tokio::test]

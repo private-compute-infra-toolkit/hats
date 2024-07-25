@@ -171,7 +171,7 @@ impl TvsClient {
         };
         match crypter.decrypt(report_response.as_slice()) {
             Ok(plain_text) => match std::str::from_utf8(plain_text.as_slice()) {
-                Ok(token) => Ok(token.to_string()),
+                Ok(secret) => Ok(secret.to_string()),
                 Err(_) => Err("Failed to convert decrypted message to utf8 string".to_string()),
             },
             Err(_) => Err("Failed to decrypt ciphertext.".to_string()),
@@ -208,14 +208,16 @@ mod tests {
 
     const NOW_UTC_MILLIS: i64 = 1698829200000;
 
-    // End to end testing: handshake, building and signing the report and decrypt the token.
+    // End to end testing: handshake, building and signing the report and decrypt the secret.
     #[test]
     fn verify_report_successful() {
         let tvs_private_key = P256Scalar::generate();
+        const SECRET: &str = "some_secret2";
         let mut trusted_tvs_service = tvs_trusted::new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &hex::encode(tvs_private_key.bytes()),
             default_appraisal_policy().as_slice(),
+            SECRET,
         )
         .unwrap();
 
@@ -237,12 +239,12 @@ mod tests {
                 "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
             )
             .unwrap();
-        let token = trusted_tvs_service
+        let secret = trusted_tvs_service
             .verify_report(report.as_slice())
             .unwrap();
 
-        let decrypted_token = tvs_client.process_response(token.as_slice()).unwrap();
-        assert!(decrypted_token.contains("eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9"));
+        let decrypted_secret = tvs_client.process_response(secret.as_slice()).unwrap();
+        assert_eq!(decrypted_secret, SECRET);
     }
 
     #[test]
@@ -288,6 +290,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &hex::encode(tvs_private_key.bytes()),
             default_appraisal_policy().as_slice(),
+            "test_secret",
         )
         .unwrap();
 

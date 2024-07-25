@@ -37,9 +37,8 @@ ABSL_FLAG(std::string, tvs_private_key, "",
           "Private key for NK-Noise handshake protocol.");
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
-ABSL_FLAG(std::string, token, "",
-          "A token to be returned to client passing attestation validation. If "
-          "empty returns a JTW token.");
+ABSL_FLAG(std::string, secret, "secret",
+          "A secret to be returned to client passing attestation validation.");
 
 namespace {
 
@@ -93,7 +92,7 @@ int main(int argc, char* argv[]) {
           .port = *std::move(port),
           .tvs_private_key = absl::GetFlag(FLAGS_tvs_private_key),
           .appraisal_policy = std::move(appraisal_policy),
-          .token = absl::GetFlag(FLAGS_token),
+          .secret = absl::GetFlag(FLAGS_secret),
       });
   return 0;
 }

@@ -43,9 +43,8 @@ ABSL_FLAG(std::string, key_ring_id, "", "Key Ring ID.");
 ABSL_FLAG(std::string, cryptokey_id, "", "CryptoKey ID.");
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
-ABSL_FLAG(std::string, token, "",
-          "A token to be returned to client passing attestation validation. If "
-          "empty returns a JTW token.");
+ABSL_FLAG(std::string, secret, "",
+          "A secret to be returned to client passing attestation validation.");
 
 namespace {
 
@@ -122,7 +121,7 @@ int main(int argc, char* argv[]) {
           .port = *std::move(port),
           .tvs_private_key = *std::move(decrypted_key),
           .appraisal_policy = std::move(appraisal_policy),
-          .token = absl::GetFlag(FLAGS_token),
+          .secret = absl::GetFlag(FLAGS_secret),
       });
   return 0;
 }
