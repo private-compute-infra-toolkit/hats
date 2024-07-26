@@ -28,18 +28,13 @@
 #include "absl/strings/str_cat.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
+#include "key_manager/key-fetcher.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tvs/untrusted_tvs/tvs-server.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
-ABSL_FLAG(std::string, primary_private_key, "",
-          "Primary private key for NK-Noise handshake protocol.");
-ABSL_FLAG(std::string, secondary_private_key, "",
-          "Secondary private key for NK-Noise handshake protocol.");
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
-ABSL_FLAG(std::string, secret, "secret",
-          "A secret to be returned to client passing attestation validation.");
 
 namespace {
 
@@ -82,6 +77,29 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  std::unique_ptr<privacy_sandbox::key_manager::KeyFetcher> key_fetcher =
+      privacy_sandbox::key_manager::KeyFetcher::Create();
+  absl::StatusOr<std::string> primary_private_key =
+      key_fetcher->GetPrimaryPrivateKey();
+  if (!primary_private_key.ok()) {
+    LOG(ERROR) << "Failed to fetch primary private key: "
+               << primary_private_key.status();
+    return 1;
+  }
+
+  absl::StatusOr<std::string> secondary_private_key =
+      key_fetcher->GetSecondaryPrivateKey();
+  if (!secondary_private_key.ok()) {
+    LOG(WARNING) << "Failed to fetch secondary private key: "
+                 << secondary_private_key.status();
+  }
+
+  absl::StatusOr<std::string> secret = key_fetcher->GetSecret(/*secret_id=*/"");
+  if (!secret.ok()) {
+    LOG(ERROR) << "Failed to fetch secret: " << secret.status();
+    return 1;
+  }
+
   absl::StatusOr<int> port = GetPort();
   if (!port.ok()) {
     LOG(ERROR) << "Cannot get server port " << port.status();
@@ -91,10 +109,12 @@ int main(int argc, char* argv[]) {
   privacy_sandbox::tvs::CreateAndStartTvsServer(
       privacy_sandbox::tvs::TvsServerOptions{
           .port = *std::move(port),
-          .primary_private_key = absl::GetFlag(FLAGS_primary_private_key),
-          .secondary_private_key = absl::GetFlag(FLAGS_secondary_private_key),
+          .primary_private_key = *std::move(primary_private_key),
+          .secondary_private_key = secondary_private_key.ok()
+                                       ? *std::move(secondary_private_key)
+                                       : "",
           .appraisal_policy = std::move(appraisal_policy),
-          .secret = absl::GetFlag(FLAGS_secret),
+          .secret = *std::move(secret),
       });
   return 0;
 }
