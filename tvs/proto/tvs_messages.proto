@@ -21,6 +21,9 @@ import "proto/attestation/evidence.proto";
 message InitSessionRequest {
   // Contains client ephemeral public key.
   bytes client_message = 1;
+  // Contains the TVS public key the client intends to use. In some cases,
+  // the server might have a number of active keys.
+  bytes tvs_public_key = 2;
 }
 
 message VerifyReportRequest {

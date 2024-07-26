@@ -23,6 +23,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
@@ -52,13 +53,38 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
 }  // namespace
 
 absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
-    const std::string& tvs_private_key, const std::string& secret,
+    const std::string& primary_private_key,
+    const std::string& secondary_private_key, const std::string& secret,
     const oak::attestation::v1::ReferenceValues& appraisal_policy) {
+  std::string primary_private_key_bytes;
+  if (!absl::HexStringToBytes(primary_private_key,
+                              &primary_private_key_bytes)) {
+    return absl::FailedPreconditionError(
+        "Failed to parse the primary private key. Private keys should be "
+        "formatted as hex "
+        "string.");
+  }
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
-    return new_trusted_tvs_service(
-        absl::ToUnixMillis(absl::Now()), tvs_private_key,
+    if (secondary_private_key.empty()) {
+      return new_trusted_tvs_service(
+          absl::ToUnixMillis(absl::Now()),
+          StringToRustSlice(primary_private_key_bytes),
+          StringToRustSlice(appraisal_policy.SerializeAsString()), secret);
+    }
+    std::string secondary_private_key_bytes;
+    if (!absl::HexStringToBytes(secondary_private_key,
+                                &secondary_private_key_bytes)) {
+      return absl::FailedPreconditionError(
+          "Failed to parse the secondary private key. Private keys should be "
+          "formatted as hex "
+          "string.");
+    }
+    return new_trusted_tvs_service_with_second_key(
+        absl::ToUnixMillis(absl::Now()),
+        StringToRustSlice(primary_private_key_bytes),
+        StringToRustSlice(secondary_private_key_bytes),
         StringToRustSlice(appraisal_policy.SerializeAsString()), secret);
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
@@ -66,18 +92,27 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
   }
 }
 
-TvsServer::TvsServer(const std::string& tvs_private_key,
+TvsServer::TvsServer(const std::string& primary_private_key,
                      const std::string& secret,
                      oak::attestation::v1::ReferenceValues appraisal_policy)
-    : tvs_private_key_(tvs_private_key),
+    : primary_private_key_(primary_private_key),
+      secret_(secret),
+      appraisal_policy_(std::move(appraisal_policy)) {}
+
+TvsServer::TvsServer(const std::string& primary_private_key,
+                     const std::string& secondary_private_key,
+                     const std::string& secret,
+                     oak::attestation::v1::ReferenceValues appraisal_policy)
+    : primary_private_key_(primary_private_key),
+      secondary_private_key_(secondary_private_key),
       secret_(secret),
       appraisal_policy_(std::move(appraisal_policy)) {}
 
 grpc::Status TvsServer::VerifyReport(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) {
-  absl::StatusOr<rust::Box<TrustedTvs>> trusted_tvs =
-      CreateTrustedTvsService(tvs_private_key_, secret_, appraisal_policy_);
+  absl::StatusOr<rust::Box<TrustedTvs>> trusted_tvs = CreateTrustedTvsService(
+      primary_private_key_, secondary_private_key_, secret_, appraisal_policy_);
   if (!trusted_tvs.ok()) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         trusted_tvs.status().ToString());
@@ -108,7 +143,8 @@ grpc::Status TvsServer::VerifyReport(
 
 void CreateAndStartTvsServer(TvsServerOptions options) {
   const std::string server_address = absl::StrCat("0.0.0.0:", options.port);
-  TvsServer tvs_server(options.tvs_private_key, options.secret,
+  TvsServer tvs_server(options.primary_private_key,
+                       options.secondary_private_key, options.secret,
                        std::move(options.appraisal_policy));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()

@@ -313,7 +313,7 @@ TEST(TvsServer, CreatingTrustedTvsServerError) {
           absl::StatusCode::kUnknown,
           AllOf(HasSubstr(
                     "FAILED_PRECONDITION: Cannot create trusted TVS server"),
-                HasSubstr("Invalid private key length. Key should be 32 bytes "
+                HasSubstr("Invalid private key. Key should be 32 bytes "
                           "long."))));
 }
 

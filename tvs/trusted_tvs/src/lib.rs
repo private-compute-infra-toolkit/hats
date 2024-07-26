@@ -22,7 +22,7 @@ use crate::proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
-use crypto::{P256_SCALAR_LENGTH, SHA256_OUTPUT_LEN};
+use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use prost::Message;
@@ -37,8 +37,10 @@ pub mod proto {
 
 pub struct TrustedTvs {
     time_milis: i64,
-    // A big-endian P-256 private scalar, used as the Noise identity key.
-    identity_private_key: [u8; P256_SCALAR_LENGTH],
+    primary_private_key: P256Scalar,
+    primary_public_key: [u8; P256_X962_LENGTH],
+    secondary_private_key: Option<P256Scalar>,
+    secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
     appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
@@ -54,10 +56,19 @@ mod ffi {
 
         fn new_trusted_tvs_service(
             time_milis: i64,
-            private_key_in_hex_str: &str,
+            primary_private_key: &[u8],
             policy: &[u8],
             secret: &str,
         ) -> Result<Box<TrustedTvs>>;
+
+        fn new_trusted_tvs_service_with_second_key(
+            time_milis: i64,
+            primary_private_key: &[u8],
+            secondary_private_key: &[u8],
+            policy: &[u8],
+            secret: &str,
+        ) -> Result<Box<TrustedTvs>>;
+
         pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
         pub fn is_terminated(self: &TrustedTvs) -> bool;
     }
@@ -65,45 +76,68 @@ mod ffi {
 
 pub fn new_trusted_tvs_service(
     time_milis: i64,
-    private_key_in_hex_str: &str,
+    primary_private_key: &[u8],
     policy: &[u8],
     secret: &str,
 ) -> Result<Box<TrustedTvs>, String> {
-    match hex::decode(private_key_in_hex_str) {
-        Ok(identity_private_key) => {
-            let identity_private_key_fixed_size: [u8; P256_SCALAR_LENGTH] =
-                identity_private_key.try_into().map_err(|_| {
-                    format!(
-                        "Invalid private key length. Key should be {} bytes long.",
-                        P256_SCALAR_LENGTH
-                    )
-                })?;
-            let appraisal_policy =
-                oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(policy)
-                    .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
-            Ok(Box::new(TrustedTvs::new(
-                time_milis,
-                &identity_private_key_fixed_size,
-                appraisal_policy,
-                secret.to_string(),
-            )))
-        }
-        Err(_) => Err(
-            "Invalid private key format. Private key should be formatted as hex string."
-                .to_string(),
-        ),
-    }
+    let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
+        format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
+    })?;
+    let appraisal_policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(policy)
+        .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
+    Ok(Box::new(TrustedTvs::new(
+        time_milis,
+        primary_private_key_scalar,
+        appraisal_policy,
+        secret.to_string(),
+        None,
+    )))
 }
+
+fn new_trusted_tvs_service_with_second_key(
+    time_milis: i64,
+    primary_private_key: &[u8],
+    secondary_private_key: &[u8],
+    policy: &[u8],
+    secret: &str,
+) -> Result<Box<TrustedTvs>, String> {
+    let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
+        format!("Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
+    })?;
+    let secondary_private_key_scalar: P256Scalar =
+        secondary_private_key.try_into().map_err(|_| {
+            format!("Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
+        })?;
+    let appraisal_policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(policy)
+        .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
+    Ok(Box::new(TrustedTvs::new(
+        time_milis,
+        primary_private_key_scalar,
+        appraisal_policy,
+        secret.to_string(),
+        Some(secondary_private_key_scalar),
+    )))
+}
+
 impl TrustedTvs {
     fn new(
         time_milis: i64,
-        identity_private_key: &[u8; P256_SCALAR_LENGTH],
+        primary_private_key: P256Scalar,
         appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
         secret: String,
+        secondary_private_key: Option<P256Scalar>,
     ) -> Self {
+        let secondary_public_key = match &secondary_private_key {
+            Some(secondary_private_key) => Some(secondary_private_key.compute_public_key()),
+            None => None,
+        };
+
         Self {
             time_milis,
-            identity_private_key: *identity_private_key,
+            primary_public_key: primary_private_key.compute_public_key(),
+            primary_private_key,
+            secondary_private_key: secondary_private_key,
+            secondary_public_key: secondary_public_key,
             appraisal_policy,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
@@ -132,8 +166,10 @@ impl TrustedTvs {
     ) -> Result<AttestReportResponse, String> {
         match &request.request {
             Some(attest_report_request::Request::InitSessionRequest(init_session)) => {
-                let ephemeral_pubkey =
-                    self.do_init_session(init_session.client_message.as_slice())?;
+                let ephemeral_pubkey = self.do_init_session(
+                    init_session.client_message.as_slice(),
+                    init_session.tvs_public_key.as_slice(),
+                )?;
                 Ok(AttestReportResponse {
                     response: Some(attest_report_response::Response::InitSessionResponse(
                         InitSessionResponse {
@@ -160,19 +196,39 @@ impl TrustedTvs {
         }
     }
 
-    fn do_init_session(&mut self, handshake_request: &[u8]) -> Result<Vec<u8>, String> {
-        if let Some(_) = &self.crypter {
-            Err("Handshake has already been made.".to_string())
-        } else {
-            match handshake::respond(&self.identity_private_key, handshake_request) {
-                Ok(r) => {
-                    self.crypter = Some(r.crypter);
-                    self.handshake_hash = r.handshake_hash;
-                    Ok(r.response)
-                }
-                Err(_) => Err("Handshake has already been made.".to_string()),
-            }
+    // Given a public key, return the private counter part.
+    fn private_key_to_use(&self, public_key: &[u8]) -> Result<&P256Scalar, String> {
+        if public_key == self.primary_public_key {
+            return Ok(&self.primary_private_key);
         }
+        let Some(secondary_public_key) = self.secondary_public_key else {
+            return Err("Unknown public key".to_string());
+        };
+        if public_key != secondary_public_key {
+            return Err("Unknown public key".to_string());
+        }
+        match &self.secondary_private_key {
+            Some(secondary_private_key) => Ok(secondary_private_key),
+            None => Err("Internal error, no secondary key".to_string()),
+        }
+    }
+
+    fn do_init_session(
+        &mut self,
+        handshake_request: &[u8],
+        public_key: &[u8],
+    ) -> Result<Vec<u8>, String> {
+        if let Some(_) = &self.crypter {
+            return Err("Handshake has already been made.".to_string());
+        }
+
+        let private_key = self.private_key_to_use(public_key)?;
+        let handshake_response =
+            handshake::respond(&private_key, public_key, handshake_request, public_key)
+                .map_err(|_| "Invalid handshake.".to_string())?;
+        self.crypter = Some(handshake_response.crypter);
+        self.handshake_hash = handshake_response.handshake_hash;
+        Ok(handshake_response.response)
     }
 
     fn check_report_and_encrypt_secret(
@@ -312,13 +368,17 @@ mod tests {
         Ok(signature.to_vec())
     }
 
-    fn handshake_to_attest_report_request(handshake: Vec<u8>) -> Result<Vec<u8>, String> {
+    fn create_attest_report_request(
+        handshake: Vec<u8>,
+        tvs_public_key: &[u8],
+    ) -> Result<Vec<u8>, String> {
         // Test initial handshake.
         let message = AttestReportRequest {
             request: Some(
                 proto::privacy_sandbox::tvs::attest_report_request::Request::InitSessionRequest(
                     InitSessionRequest {
                         client_message: handshake,
+                        tvs_public_key: tvs_public_key.to_vec(),
                     },
                 ),
             ),
@@ -338,20 +398,109 @@ mod tests {
         const SECRET: &str = "some_secret1";
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             SECRET,
         )
         .unwrap();
-        let mut client =
-            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let mut client = handshake::test_client::HandshakeInitiator::new(&tvs_public_key);
 
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
-                handshake_to_attest_report_request(client.build_initial_message())
+                create_attest_report_request(client.build_initial_message(), &tvs_public_key)
                     .unwrap()
                     .as_slice(),
+            )
+            .unwrap();
+
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
+        let handshake_response = match &message_reponse.response {
+            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
+                init_session.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        let (handshake_hash, mut client_crypter) =
+            client.process_response(handshake_response.as_slice());
+
+        // Test report verification.
+        let signing_key =
+            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
+                .unwrap();
+        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
+
+        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
+        VerifyReportRequest {
+            evidence: Some(get_good_evidence()),
+            tee_certificate: get_genoa_vcek(),
+            signature: signature,
+        }
+        .encode(&mut verify_report_request_bin)
+        .unwrap();
+
+        let encrypted_report = client_crypter
+            .encrypt(verify_report_request_bin.as_slice())
+            .unwrap();
+
+        let message = AttestReportRequest {
+            request: Some(
+                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                    VerifyReportRequestEncrypted {
+                        client_message: encrypted_report,
+                    },
+                ),
+            ),
+        };
+
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
+
+        // Get the report.
+        let secret_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(secret_bin.as_slice()).unwrap();
+
+        let report_response = match &message_reponse.response {
+            Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
+                report_response.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
+        let secret_text = std::str::from_utf8(secret.as_slice()).unwrap();
+        assert_eq!(secret_text, SECRET);
+    }
+
+    #[test]
+    fn verify_report_with_seconary_key_successful() {
+        let primary_tvs_private_key = P256Scalar::generate();
+        let secondary_tvs_private_key = P256Scalar::generate();
+        const SECRET: &str = "some_secret1";
+        let mut trusted_tvs = new_trusted_tvs_service_with_second_key(
+            NOW_UTC_MILLIS,
+            &primary_tvs_private_key.bytes(),
+            &secondary_tvs_private_key.bytes(),
+            default_appraisal_policy().as_slice(),
+            SECRET,
+        )
+        .unwrap();
+        let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
+        let mut client = handshake::test_client::HandshakeInitiator::new(&secondary_tvs_public_key);
+
+        // Ask TVS to do its handshake part
+        let handshake_bin = trusted_tvs
+            .verify_report(
+                create_attest_report_request(
+                    client.build_initial_message(),
+                    &secondary_tvs_public_key,
+                )
+                .unwrap()
+                .as_slice(),
             )
             .unwrap();
 
@@ -424,18 +573,19 @@ mod tests {
         const SECRET: &str = "some_secret2";
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             SECRET,
         )
         .unwrap();
-        let mut client =
-            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
+
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let mut client = handshake::test_client::HandshakeInitiator::new(&tvs_public_key);
 
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
-                handshake_to_attest_report_request(client.build_initial_message())
+                create_attest_report_request(client.build_initial_message(), &tvs_public_key)
                     .unwrap()
                     .as_slice(),
             )
@@ -507,7 +657,7 @@ mod tests {
         }
 
         match trusted_tvs.verify_report(
-            handshake_to_attest_report_request(client.build_initial_message())
+            create_attest_report_request(client.build_initial_message(), &tvs_public_key)
                 .unwrap()
                 .as_slice(),
         ) {
@@ -521,18 +671,19 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             "secret",
         )
         .unwrap();
-        let mut client =
-            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
+
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let mut client = handshake::test_client::HandshakeInitiator::new(&tvs_public_key);
 
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
-                handshake_to_attest_report_request(client.build_initial_message())
+                create_attest_report_request(client.build_initial_message(), &tvs_public_key)
                     .unwrap()
                     .as_slice(),
             )
@@ -596,18 +747,18 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             "secret",
         )
         .unwrap();
-        let mut client =
-            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key());
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let mut client = handshake::test_client::HandshakeInitiator::new(&tvs_public_key);
 
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
-                handshake_to_attest_report_request(client.build_initial_message())
+                create_attest_report_request(client.build_initial_message(), &tvs_public_key)
                     .unwrap()
                     .as_slice(),
             )
@@ -662,56 +813,62 @@ mod tests {
     }
 
     #[test]
+    fn verify_report_unknown_public_key_error() {
+        let primary_tvs_private_key = P256Scalar::generate();
+        let secondary_tvs_private_key = P256Scalar::generate();
+        let mut trusted_tvs = new_trusted_tvs_service(
+            // _with_second_key(
+            NOW_UTC_MILLIS,
+            &primary_tvs_private_key.bytes(),
+            default_appraisal_policy().as_slice(),
+            "secret",
+        )
+        .unwrap();
+
+        let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
+        let mut client = handshake::test_client::HandshakeInitiator::new(&secondary_tvs_public_key);
+
+        match trusted_tvs.verify_report(
+            create_attest_report_request(client.build_initial_message(), &secondary_tvs_public_key)
+                .unwrap()
+                .as_slice(),
+        ) {
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, "Unknown public key"),
+        }
+    }
+
+    #[test]
     fn new_trusted_tvs_service_error() {
         match new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &format!("{}fg", ["ff"; 31].join("")),
+            &[1, 2, 3],
             default_appraisal_policy().as_slice(),
             "test_secret",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(
                 e,
-                "Invalid private key format. Private key should be formatted as hex string."
+                format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
             ),
         }
 
         match new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            "abcd",
+            &[b'f'; P256_SCALAR_LENGTH * 3],
             default_appraisal_policy().as_slice(),
             "test_secret",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(
                 e,
-                format!(
-                    "Invalid private key length. Key should be {} bytes long.",
-                    P256_SCALAR_LENGTH
-                )
+                format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
             ),
         }
 
         match new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &String::from_utf8(vec![b'f'; P256_SCALAR_LENGTH * 3]).unwrap(),
-            default_appraisal_policy().as_slice(),
-            "test_secret",
-        ) {
-            Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
-            Err(e) => assert_eq!(
-                e,
-                format!(
-                    "Invalid private key length. Key should be {} bytes long.",
-                    P256_SCALAR_LENGTH
-                )
-            ),
-        }
-
-        let tvs_private_key = P256Scalar::generate();
-        match new_trusted_tvs_service(
-            NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &P256Scalar::generate().bytes(),
             &[1, 2, 3],
             "test_secret",
         ) {
@@ -725,21 +882,22 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             "test_secret",
         )
         .unwrap();
 
+        let tvs_public_key = tvs_private_key.compute_public_key();
         // Test invalid initiator handshake error.
-        match trusted_tvs.do_init_session(b"ab") {
+        match trusted_tvs.do_init_session(b"ab", &tvs_public_key) {
             Ok(_) => assert!(false, "do_init_session() should fail."),
-            Err(e) => assert_eq!(e, "Handshake has already been made.".to_string()),
+            Err(e) => assert_eq!(e, "Invalid handshake.".to_string()),
         }
 
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             "test_secret",
         )
@@ -748,10 +906,10 @@ mod tests {
             handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key())
                 .build_initial_message();
         assert!(trusted_tvs
-            .do_init_session(client_handshake.as_slice())
+            .do_init_session(client_handshake.as_slice(), &tvs_public_key)
             .is_ok());
         // Test duplicate initiator handshake error.
-        match trusted_tvs.do_init_session(client_handshake.as_slice()) {
+        match trusted_tvs.do_init_session(client_handshake.as_slice(), &tvs_public_key) {
             Ok(_) => assert!(false, "do_init_session() should fail."),
             Err(e) => assert_eq!(e, "Handshake has already been made.".to_string()),
         }
@@ -762,7 +920,7 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             "secret",
         )

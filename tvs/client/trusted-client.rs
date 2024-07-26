@@ -69,6 +69,7 @@ pub struct TvsClient {
     handshake: HandshakeInitiator,
     crypter: Option<Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
+    peer_public_key: [u8; P256_X962_LENGTH],
 }
 
 impl TvsClient {
@@ -77,6 +78,7 @@ impl TvsClient {
             handshake: HandshakeInitiator::new(&peer_public_key),
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
+            peer_public_key,
         }
     }
 
@@ -86,6 +88,7 @@ impl TvsClient {
             request: Some(attest_report_request::Request::InitSessionRequest(
                 InitSessionRequest {
                     client_message: self.handshake.build_initial_message(),
+                    tvs_public_key: self.peer_public_key.to_vec(),
                 },
             )),
         }
@@ -215,7 +218,7 @@ mod tests {
         const SECRET: &str = "some_secret2";
         let mut trusted_tvs_service = tvs_trusted::new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             SECRET,
         )
@@ -288,7 +291,7 @@ mod tests {
 
         let mut trusted_tvs_service = tvs_trusted::new_trusted_tvs_service(
             NOW_UTC_MILLIS,
-            &hex::encode(tvs_private_key.bytes()),
+            &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
             "test_secret",
         )

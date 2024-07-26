@@ -169,7 +169,7 @@ mod tests {
     use crate::proto::privacy_sandbox::client::FetchTeeCertificateResponse;
     use crate::tests::launcher_service_server::LauncherService;
     use crate::tests::launcher_service_server::LauncherServiceServer;
-    use crypto::P256Scalar;
+    use crypto::{P256Scalar, P256_SCALAR_LENGTH};
     use futures::FutureExt;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::pin::Pin;
@@ -181,7 +181,7 @@ mod tests {
     const SECRET: &str = "test_secret";
 
     struct TestService {
-        pub tvs_private_key: String,
+        pub tvs_private_key: [u8; P256_SCALAR_LENGTH],
     }
 
     #[tonic::async_trait]
@@ -255,7 +255,7 @@ mod tests {
     async fn verify_report_successful() {
         let tvs_private_key = P256Scalar::generate();
         let test_service = TestService {
-            tvs_private_key: hex::encode(tvs_private_key.bytes()),
+            tvs_private_key: tvs_private_key.bytes(),
         };
         let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let listener = TcpListener::bind(sockaddr).await.unwrap();
@@ -304,7 +304,7 @@ mod tests {
     async fn fetch_tee_certificate_successful() {
         let tvs_private_key = P256Scalar::generate();
         let test_service = TestService {
-            tvs_private_key: hex::encode(tvs_private_key.bytes()),
+            tvs_private_key: tvs_private_key.bytes(),
         };
         let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let listener = TcpListener::bind(sockaddr).await.unwrap();
