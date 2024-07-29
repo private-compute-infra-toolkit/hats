@@ -56,7 +56,7 @@ lib_build::configure_gcloud_access
 lib_build::set_rbe_flags
 
 args=(
-  "${BAZEL_STARTUP_ARGS}"
+  "${BAZEL_STARTUP_ARGS_ABSL}"
   test
   # "${BAZEL_DIRECT_ARGS}"
   # Multiple args in one strings breaks, due to py wrapper

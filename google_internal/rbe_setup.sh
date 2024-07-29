@@ -24,8 +24,8 @@
 
 # require this script to be sourced rather than executed
 if ! (return 0 2>/dev/null); then
-    printf "Error: Script %s must be sourced\n" "${BASH_SOURCE[0]}" &>/dev/stderr
-    exit 1
+  printf "Error: Script %s must be sourced\n" "${BASH_SOURCE[0]}" &>/dev/stderr
+  exit 1
 fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
@@ -33,11 +33,13 @@ SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 . "${SCRIPT_DIR}"/lib_build.sh
 
 lib_build::configure_gcloud_access
+# shellcheck disable=2119
+lib_build::get_docker_images
 lib_build::set_rbe_flags
 
 function bazel_rbe() {
   declare -r CMD="$1"
   shift
   # shellcheck disable=2086
-  bazel ${BAZEL_STARTUP_ARGS} "${CMD}" ${BAZEL_DIRECT_ARGS} "$@"
+  bazel ${BAZEL_STARTUP_ARGS_ABSL} "${CMD}" ${BAZEL_DIRECT_ARGS} "$@"
 }

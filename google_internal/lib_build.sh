@@ -53,18 +53,78 @@ function lib_build::configure_gcloud_access() {
 function lib_build::set_rbe_flags() {
   lib_build::set_workspace
 
-  export BAZEL_STARTUP_ARGS="--bazelrc=${WORKSPACE}/google_internal/.bazelrc"
+  # Relative, for bazel_debian
+  export BAZEL_STARTUP_ARGS="--bazelrc=google_internal/.bazelrc"
+  # Absl for bazel_rbe to run in any sub-folder
+  export BAZEL_STARTUP_ARGS_ABSL="--bazelrc=${WORKSPACE}/google_internal/.bazelrc"
   declare -a _BAZEL_ARGS=(
     "--config=rbecache"
   )
 
+  # Cleaner as arrays, but needed this way for bazel-debian etc.
   export BAZEL_DIRECT_ARGS="${_BAZEL_ARGS[*]} --google_default_credentials"
+  declare -a DOCKER_RUN_ARGS
   # optionally set credentials (likely useful only if executing this outside kokoro)
   declare -r HOST_CREDS_JSON="${HOME}/.config/gcloud/application_default_credentials.json"
   if [[ -s ${HOST_CREDS_JSON} ]]; then
     declare -r CREDS_JSON=/gcloud/application_default_credentials.json
     export BAZEL_EXTRA_ARGS="${_BAZEL_ARGS[*]} --google_credentials=${CREDS_JSON}"
+    DOCKER_RUN_ARGS+=(
+      "--volume ${HOST_CREDS_JSON}:${CREDS_JSON}"
+    )
   else
     export BAZEL_EXTRA_ARGS="${BAZEL_DIRECT_ARGS}"
   fi
+  export EXTRA_DOCKER_RUN_ARGS="${DOCKER_RUN_ARGS[*]}"
+}
+
+#######################################
+# Set up bazel flags for use with RBE
+#
+# Optionally also set credentials
+#######################################
+function lib_build::get_docker_images() {
+  # lib_build::set_workspace
+  lib_build::configure_gcloud_access
+
+  if [[ -n $1 ]]; then
+    declare -n _image_list=$1
+  else
+    declare -a -r _image_list=(
+      presubmit
+      build-debian
+      # build-amazonlinux2
+      # utils
+      # test-tools
+    )
+  fi
+
+  declare -r GAR_HOST=us-docker.pkg.dev
+  declare -r GAR_PROJECT=kiwi-air-force-remote-build
+  declare -r GAR_REPO="${GAR_HOST}/${GAR_PROJECT}/privacysandbox/builders"
+
+  # update gcloud if it doesn't support artifact registry
+  if ! gcloud artifacts --help &>/dev/null; then
+    yes | gcloud components update
+  fi
+
+  # update docker config to use gcloud for auth to required artifact registry repo
+  if ! yes | gcloud auth configure-docker ${GAR_HOST} >/dev/null; then
+    printf "Error configuring docker for Artifact Registry [%s]\n" "${GAR_HOST}" &>/dev/stderr
+    return 1
+  fi
+
+  # test connecting to GAR repo
+  if ! gcloud artifacts docker images list "${GAR_REPO}/build-debian" --include-tags --limit 1 >/dev/null; then
+    printf "Error connecting to Artifact Registry [%s]\n" "${GAR_REPO}" &>/dev/stderr
+    return 1
+  fi
+
+  for IMAGE in "${_image_list[@]}"; do
+    printf "Pulling or generating image [%s]\n" "${IMAGE}"
+    if ! "${WORKSPACE}"/google_internal/pull_builder_image --image "${IMAGE}"; then
+      printf "Error pulling, regenerating or pushing image [%s]\n" "${IMAGE}" &>/dev/stderr
+      return 1
+    fi
+  done
 }

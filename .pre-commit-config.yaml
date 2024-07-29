@@ -76,6 +76,7 @@ repos:
   - id: script-must-have-extension
     name: Use .sh extension for shell scripts and executables
     types: [shell, executable]
+    exclude: ^(google_internal/(pull|push)_builder_image)$
   - id: require-ascii
     exclude: ^(CHANGELOG|.*RELEASE)\.md$
   - id: shellcheck
