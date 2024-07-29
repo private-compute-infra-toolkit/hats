@@ -72,6 +72,7 @@ cc_library(
     hdrs = ["forwarding-tvs-server.h"],
     deps = [
         "//client/launcher:certificates_bridge",
+        "//client/launcher:certificates_bridge/include",
         "//client/proto:launcher_cc_grpc",
         "//client/proto:launcher_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
@@ -81,7 +82,6 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
         "@using_cxx//:cxx",
     ],
 )
@@ -118,14 +118,11 @@ cc_library(
     deps = [
         ":forwarding-tvs-server",
         "//tvs/credentials",
-        "//tvs/proto:tvs_cc_grpc",
-        "//tvs/proto:tvs_messages_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
         "@google_privacysandbox_servers_common//:local_parameters",
         "@google_privacysandbox_servers_common//:local_parc_server",
         "@using_cxx//:cxx_cc",
@@ -136,9 +133,6 @@ cc_library(
     name = "server-ffi-include",
     hdrs = ["server-ffi.h"],
     deps = [
-        "//tvs/proto:tvs_cc_grpc",
-        "//tvs/proto:tvs_messages_cc_proto",
-        "@com_github_grpc_grpc//:grpc++",
         "@using_cxx//:cxx_cc",
     ],
 )
@@ -148,8 +142,6 @@ cc_library(
     srcs = ["qemu.cc"],
     hdrs = ["qemu.h"],
     deps = [
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
     ],
@@ -160,8 +152,6 @@ cc_test(
     srcs = ["qemu_test.cc"],
     deps = [
         ":qemu",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

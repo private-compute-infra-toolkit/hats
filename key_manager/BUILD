@@ -31,8 +31,6 @@ cc_test(
     srcs = ["gcp-kms-client_test.cc"],
     deps = [
         ":gcp-kms-client",
-        "@bazel_tools//tools/cpp/runfiles",
-        "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
@@ -43,7 +41,6 @@ cc_test(
         "@com_google_protobuf//src/google/protobuf/io",
         "@google_cloud_cpp//:kms",
         "@google_cloud_cpp//:kms_mocks",
-        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )
 

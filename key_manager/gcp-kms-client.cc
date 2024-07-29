@@ -33,6 +33,7 @@
 
 namespace privacy_sandbox::key_manager {
 namespace {
+
 absl::Status GcpStatusToAbslStatus(google::cloud::Status status) {
   switch (status.code()) {
     case google::cloud::StatusCode::kOk:
@@ -49,6 +50,7 @@ absl::Status GcpStatusToAbslStatus(google::cloud::Status status) {
       return absl::UnknownError(status.message());
   }
 }
+
 }  // namespace
 
 absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(

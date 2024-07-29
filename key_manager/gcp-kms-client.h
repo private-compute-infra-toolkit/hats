@@ -25,7 +25,7 @@ namespace privacy_sandbox::key_manager {
 class GcpKmsClient : public KmsClient {
  public:
   explicit GcpKmsClient(
-      const google::cloud::kms_v1::v2_25::KeyManagementServiceClient client_);
+      google::cloud::kms_v1::v2_25::KeyManagementServiceClient client);
   GcpKmsClient() = delete;
 
   absl::StatusOr<PublicKey> GetPublicKey(const std::string &key_id) override;

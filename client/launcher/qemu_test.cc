@@ -19,8 +19,6 @@
 #include <string>
 #include <thread>
 
-#include "absl/strings/str_cat.h"
-#include "absl/strings/str_format.h"
 #include "gtest/gtest.h"
 
 namespace privacy_sandbox::launcher {
