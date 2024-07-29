@@ -20,14 +20,14 @@ $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
 
 1. Authenticate with GCP:
 ```
-$ gcloud auth login
+gcloud auth login
 ```
-2. Generate HPKE Key Pair :
+1. Generate HPKE Key Pair :
 ```
 bazel build //key_manager:key-gen
 bazel-bin/key_manager/key-gen --key-type x25519-hkdf-sha256
 ```
-3. Wrap TVS Private Key and format to pass in as flag:
+1. Wrap TVS Private Key and format to pass in as flag:
 ```
 gcloud kms encrypt \
     --key key \
@@ -37,8 +37,8 @@ gcloud kms encrypt \
     --ciphertext-file file-to-store-encrypted-data
 
 xxd -p file-with-encrypted-key.bin
-
-4. Wrap TVS Token and format to pass in as flag:
+```
+1. Wrap TVS Token and format to pass in as flag:
 ```
 gcloud kms encrypt \
     --key key \
@@ -50,7 +50,7 @@ gcloud kms encrypt \
 xxd -p file-with-encrypted-token.bin
 ```
 
-5. Run test server:
+1. Run test server:
 ```
 $ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
 $ bazel-bin/tvs/untrusted_tvs/tvs-server-gcp_main \
@@ -137,15 +137,15 @@ $ bazel-bin/tvs/test_client/tvs-client-gcp_main \
 ### To run a server on GCP:
 1. Build a docker container
 ```
-$ docker build -t tvs-server -f tvs/Dockerfile .
+docker build -t tvs-server -f tvs/Dockerfile .
 ```
 1. Authenticate with GCP:
 ```
-$ gcloud auth login
+gcloud auth login
 ```
 1. Tag docker container:
 ```
-$ docker tag tvs-server gcr.io/<project-name>/<your-image-name>
+docker tag tvs-server gcr.io/<project-name>/<your-image-name>
 ```
 1. Push the containe:
 ```
@@ -153,7 +153,7 @@ docker push gcr.io/<project-name>/<your-image-name>
 ```
 1. Deploy the image:
 ```
-$ gcloud run deploy --image=gcr.io/<project-name>/<your-image-name> --use-http2  --min-instances 3 --allow-unauthenticated --region us-central1
+gcloud run deploy --image=gcr.io/<project-name>/<your-image-name> --use-http2  --min-instances 3 --allow-unauthenticated --region us-central1
 ```
 The command outputs a service URL similar to https://tvs-server-gaig7cicoq-uc.a.run.app
 
@@ -176,8 +176,8 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
 #### Test with invalid report
 
 ```
-bazel build -c opt //tvs/test_client:tvs-client_main
-bazel-bin/tvs/test_client/tvs-client_main \
+$ bazel build -c opt //tvs/test_client:tvs-client_main
+$ bazel-bin/tvs/test_client/tvs-client_main \
   --tvs_address=<service_name>:443 \
   --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
   --use_tls \
@@ -205,7 +205,7 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
 To impersonate a service account, you can pass an impersonation access token.
 You need permission to impersonate an account.
 
-To pass an impersonation access toke for a service account:
+To pass an impersonation access token for a service account:
 
 ```
 $ bazel build -c opt //tvs/test_client:tvs-client_main
