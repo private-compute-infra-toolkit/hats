@@ -18,7 +18,9 @@ exclude: (?x)^(
              bazel-(bin|out|testlogs|workspace)/.*|
              .bazel_output/.*|
              builders/.*|
-             version.txt
+             version.txt|
+             .*\.crt|
+             .*\.patch
          )$
 
 fail_fast: true
@@ -41,10 +43,10 @@ repos:
   - id: detect-private-key
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
-  rev: v18.1.4
+  rev: v18.1.8
   hooks:
   - id: clang-format
     types_or:
     - c++
     - c
-
+    - proto
