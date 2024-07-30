@@ -33,12 +33,12 @@ class ForwardingTvsServer final
  public:
   ForwardingTvsServer(std::shared_ptr<grpc::Channel> channel);
   grpc::Status VerifyReport(
-      grpc::ServerContext *context,
-      grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage> *stream) override;
+      grpc::ServerContext* context,
+      grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) override;
 
   grpc::Status FetchTeeCertificate(
-      grpc::ServerContext *context, const google::protobuf::Empty *request,
-      privacy_sandbox::client::FetchTeeCertificateResponse *reply) override;
+      grpc::ServerContext* context, const google::protobuf::Empty* request,
+      privacy_sandbox::client::FetchTeeCertificateResponse* reply) override;
 
  private:
   std::unique_ptr<TeeVerificationService::Stub> stub_;

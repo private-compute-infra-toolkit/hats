@@ -28,13 +28,13 @@ class GcpKmsClient : public KmsClient {
       google::cloud::kms_v1::v2_25::KeyManagementServiceClient client);
   GcpKmsClient() = delete;
 
-  absl::StatusOr<PublicKey> GetPublicKey(const std::string &key_id) override;
+  absl::StatusOr<PublicKey> GetPublicKey(const std::string& key_id) override;
   absl::StatusOr<CryptoKey> CreateAsymmetricKey(
-      const std::string &parent, const std::string &key_id) override;
+      const std::string& parent, const std::string& key_id) override;
   absl::StatusOr<std::string> EncryptData(
-      const std::string &key_id, const std::string &plaintext) override;
+      const std::string& key_id, const std::string& plaintext) override;
   absl::StatusOr<std::string> DecryptData(
-      const std::string &key_id, const std::string &ciphertext) override;
+      const std::string& key_id, const std::string& ciphertext) override;
 
  private:
   google::cloud::kms_v1::v2_25::KeyManagementServiceClient client_;
