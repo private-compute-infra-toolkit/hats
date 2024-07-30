@@ -22,7 +22,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@google_cloud_cpp//:kms",
-        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )
 
@@ -53,5 +52,59 @@ rust_binary(
         "@hats_crate_index//:hpke",
         "@hats_crate_index//:rand",
         "@oak_crates_index//:clap",
+    ],
+)
+
+cc_library(
+    name = "key-fetcher-local",
+    srcs = ["key-fetcher-local.cc"],
+    hdrs = ["key-fetcher.h"],
+    deps = [
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_test(
+    name = "key-fetcher-local_test",
+    srcs = [":key-fetcher-local_test.cc"],
+    deps = [
+        ":key-fetcher-local",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "key-fetcher-gcp",
+    srcs = ["key-fetcher-gcp.cc"],
+    hdrs = [
+        "key-fetcher.h",
+        "key-fetcher-gcp.h",
+    ],
+    deps = [
+        "//key_manager:gcp-kms-client",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@google_cloud_cpp//:kms",
+    ],
+)
+
+cc_test(
+    name = "key-fetcher-gcp_test",
+    srcs = [":key-fetcher-gcp_test.cc"],
+    deps = [
+        ":key-fetcher-gcp",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@google_cloud_cpp//:kms",
     ],
 )

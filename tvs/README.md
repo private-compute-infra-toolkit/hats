@@ -49,12 +49,13 @@ gcloud kms encrypt \
 
 xxd -p file-with-encrypted-token.bin
 ```
-4. Run test server:
+
+5. Run test server:
 ```
-$ bazel build -c opt //tvs/untrusted_tvs:tvs-server-gcp_main
+$ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
 $ bazel-bin/tvs/untrusted_tvs/tvs-server-gcp_main \
     --port=8080 \
-    --tvs_private_key=0a240079214835c942365a1f19443819dc074a6c3e6369f8928739eabec8\
+    --primary_private_key=0a240079214835c942365a1f19443819dc074a6c3e6369f8928739eabec8\
 6c3c920b3b38d2ab126900fd7ff73aa5284fa337fca0aeca16ab942b8212\
 d0f539aadeb3d8bd56a21a52909d388e12476589806561c845753b659d96\
 0331a2acd47b66a6c4e7faf0e88924921c183db375166ee7dfbefd35bb57\
@@ -63,8 +64,8 @@ d0f539aadeb3d8bd56a21a52909d388e12476589806561c845753b659d96\
     --location_id=global \
     --key_ring_id=ps-hats-keyring-test \
     --private_key_id=ps-hats-encrypt-decrypt \
-    --jwt_token_id=ps-hats-jwt \
-    --token=0a2400580d333e2c8902a66351671408343d74dff88f80778ce6decc5073\
+    --secret_id=ps-hats-jwt \
+    --secret=0a2400580d333e2c8902a66351671408343d74dff88f80778ce6decc5073\
 5bc845dea30845af123500649610304affb397161ca90a7b70c42f51007c\
 3ccab96f6480c9addb3fb6af7df0e9862d962ea5d50f9971e14abdfeeff1\
 87f9fb \
