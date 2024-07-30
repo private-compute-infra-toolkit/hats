@@ -248,7 +248,13 @@ mod tests {
         let identity_pub_bytes = identity_priv.compute_public_key();
         let mut initiator = HandshakeInitiator::new(&identity_pub_bytes);
         let message = initiator.build_initial_message();
-        let handshake_response = respond(identity_priv.bytes().as_slice(), &message).unwrap();
+        let handshake_response = respond(
+            &identity_priv,
+            &identity_pub_bytes,
+            &message,
+            &identity_pub_bytes,
+        )
+        .unwrap();
         let mut enclave_crypter = handshake_response.crypter;
 
         let (client_hash, mut client_crypter) =

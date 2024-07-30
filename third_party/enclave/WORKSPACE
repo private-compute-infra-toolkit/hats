@@ -1,1 +1,34 @@
 workspace(name = "enclave")
+
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
+
+rules_rust_dependencies()
+
+rust_register_toolchains(
+    edition = "2021",
+    versions = [
+        "1.76.0",
+        "nightly/2024-02-01",
+    ],
+)
+
+load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
+crate_universe_dependencies(bootstrap = True)
+
+load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository", "splicing_config")
+
+crates_repository(
+    name = "enclave_crate_index",
+    cargo_lockfile = "//:Cargo.enclave-bazel.lock",
+    lockfile = "//:cargo-enclave-bazel-lock.json",
+    packages = {
+        "static_assertions": crate.spec(version = "*"),
+        "hex": crate.spec(version = "*"),
+    },
+)
+
+load("@enclave_crate_index//:defs.bzl", enclave_crate_repositories = "crate_repositories")
+
+enclave_crate_repositories()

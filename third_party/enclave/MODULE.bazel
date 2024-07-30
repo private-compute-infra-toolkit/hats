@@ -4,3 +4,13 @@
 #
 # For more details, please check https://github.com/bazelbuild/bazel/issues/18958
 ###############################################################################
+bazel_dep(name = "rules_rust", version = "0.45.1")
+bazel_dep(name = "boringssl", version = "0.0.0-20230215-5c22014")
+git_override(
+    module_name = "boringssl",
+    commit = "56fb43a204e57af68e00f4561c108a7004381aa3",
+    patches = [
+        "//:boringssl.patch",
+    ],
+    remote = "https://boringssl.googlesource.com/boringssl",
+)
