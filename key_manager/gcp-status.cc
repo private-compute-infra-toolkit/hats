@@ -19,6 +19,7 @@
 
 namespace privacy_sandbox::key_manager {
 
+// Not casting since there is no guarantee of values being synced
 absl::Status GcpToAbslStatus(const google::cloud::Status& status) {
   switch (status.code()) {
     case google::cloud::StatusCode::kOk:
@@ -56,7 +57,8 @@ absl::Status GcpToAbslStatus(const google::cloud::Status& status) {
     case google::cloud::StatusCode::kDeadlineExceeded:
       return absl::DeadlineExceededError(status.message());
   }
-  // Return unknown error if there is match.
+  // Return unknown error if there is no match.
+  // Not default so that error raised by new types
   return absl::UnknownError(status.message());
 }
 

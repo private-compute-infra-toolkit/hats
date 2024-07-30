@@ -83,7 +83,7 @@ grpc::Status ForwardingTvsServer::FetchTeeCertificate(
     reply->set_signature(
         RustVecToString(privacy_sandbox::launcher::get_vcek()));
     return grpc::Status::OK;
-  } catch (rust::Error error) {
+  } catch (rust::Error& error) {
     return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error.what());
   }
 }

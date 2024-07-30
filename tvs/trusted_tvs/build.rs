@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "bazel")]
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let include_path = "../../submodules/oak";
-    // paths differs between Cargo and Bazel.
-    #[cfg(feature = "bazel")]
     let include_path =
         &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
     micro_rpc_build::compile(
