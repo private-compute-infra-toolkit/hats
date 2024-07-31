@@ -15,13 +15,15 @@
 
 set -e
 
-readonly SCRIPTS_DIR="$(dirname "$0")"
-readonly PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
+SCRIPTS_DIR="$(dirname "$0")"
+readonly SCRIPTS_DIR
+PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
+readonly PREBUILT_DIR
 
-sudo ${PREBUILT_DIR}/cloud-hypervisor \
+sudo "${PREBUILT_DIR}/cloud-hypervisor" \
   --seccomp false \
-  --kernel ${PREBUILT_DIR}/bzImage \
-  --disk path=${PREBUILT_DIR}/output.img \
+  --kernel "${PREBUILT_DIR}/bzImage" \
+  --disk path="${PREBUILT_DIR}/output.img" \
   --cmdline "console=hvc0 root=/dev/vda rw" \
   --cpus boot=4 \
   --memory size=2048M \

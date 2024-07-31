@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-for file in $(find . -name '*.rs') $(find . -name '*.[chly]') $(find -name '*.cc'); do
-  grep Apache $file > /dev/null
-  if [[ $? != 0 ]]; then
-    echo $file
+# TODO(b/351144496): Exclude submodules/
+for file in $(find . -name '*.rs') $(find . -name '*.[chly]') $(find . -name '*.cc'); do
+  if ! (grep Apache "$file" > /dev/null); then
+    echo "$file"
   fi
 done

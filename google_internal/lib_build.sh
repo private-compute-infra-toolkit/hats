@@ -27,9 +27,9 @@ function lib_build::set_workspace() {
 # In the future, also check artifact registry permission once those are being used
 #######################################
 function lib_build::configure_gcloud_access() {
-  declare -r GAR_HOST=us-docker.pkg.dev
+  # declare -r GAR_HOST=us-docker.pkg.dev
   declare -r GAR_PROJECT=kiwi-air-force-remote-build
-  declare -r GAR_REPO="${GAR_HOST}/${GAR_PROJECT}/privacysandbox/builders"
+  # declare -r GAR_REPO="${GAR_HOST}/${GAR_PROJECT}/privacysandbox/builders"
 
   # Set account if no Kokoro artifact dir (i.e. not kokoro)
   if [[ -z ${KOKORO_ARTIFACTS_DIR} ]]; then

@@ -1,3 +1,4 @@
+#!/bin/bash
 # Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +28,8 @@ if ! (return 0 2>/dev/null); then
     exit 1
 fi
 
-SCRIPT_DIR="$(dirname $(readlink -f "${BASH_SOURCE[0]}"))"
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# shellcheck disable=1091
 . "${SCRIPT_DIR}"/lib_build.sh
 
 lib_build::configure_gcloud_access
@@ -36,5 +38,6 @@ lib_build::set_rbe_flags
 function bazel_rbe() {
   declare -r CMD="$1"
   shift
-  bazel ${BAZEL_STARTUP_ARGS} ${CMD} ${BAZEL_DIRECT_ARGS} "$@"
+  # shellcheck disable=2086
+  bazel ${BAZEL_STARTUP_ARGS} "${CMD}" ${BAZEL_DIRECT_ARGS} "$@"
 }

@@ -145,8 +145,8 @@ function build_hats_launcher() {
   local BUILD_DIR="$1"
   echo "BUILDING LAUNCHER"
   bazel build -c opt //client/launcher:launcher
-  cp -f ../../bazel-bin/client/launcher/launcher $BUILD_DIR
-  cp -r ../test_data/parc_data $BUILD_DIR
+  cp -f ../../bazel-bin/client/launcher/launcher "$BUILD_DIR"
+  cp -r ../test_data/parc_data "$BUILD_DIR"
 }
 
 function build_parc_containers_images() {
@@ -156,8 +156,8 @@ function build_parc_containers_images() {
   cp -f ../../bazel-bin/client/orchestrator/orchestrator_main ../../submodules/oak/oak_containers_system_image/target/oak_containers_orchestrator
   echo "COPY APPLICATION BINARIES"
   mkdir -p ../../submodules/oak/oak_containers_system_image/target
-  cp -f $BUILD_DIR/../scripts/launch-trusted-app.sh ../../submodules/oak/oak_containers_system_image/target/
-  cp -f $BUILD_DIR/trusted-app ../../submodules/oak/oak_containers_system_image/target/
+  cp -f "$BUILD_DIR"/../scripts/launch-trusted-app.sh ../../submodules/oak/oak_containers_system_image/target/
+  cp -f "$BUILD_DIR"/trusted-app ../../submodules/oak/oak_containers_system_image/target/
   printf "\nBUILDING PARC CONTAINERS IMAGES..."
   pushd ../../submodules/oak/oak_containers_system_image
 cat << EOF > Dockerfile

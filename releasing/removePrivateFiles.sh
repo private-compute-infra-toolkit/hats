@@ -17,6 +17,6 @@
 # eventually move to CopyBara, but the overhead for CopyBara to update github,
 # rather than the other way around, is fairly high.
 
-rm `find . -name METADATA`
-rm `find . -name GOOGLE.md`
-rm -r kokoro releasing
+rm "$(find . -name METADATA)"
+rm "$(find . -name GOOGLE.md)"
+rm -r google_internal releasing

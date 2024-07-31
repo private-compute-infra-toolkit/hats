@@ -15,18 +15,21 @@
 
 set -e
 
-readonly SCRIPTS_DIR="$(dirname "$0")"
-readonly PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
+SCRIPTS_DIR="$(dirname "$0")"
+readonly SCRIPTS_DIR
+PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
+readonly PREBUILT_DIR
 cd "$SCRIPTS_DIR"
 mkdir -p "$PREBUILT_DIR"
 
+# shellcheck disable=1091
 source ./build-lib.sh
 
 build_kv_service
-build_oak_containers_kernel $PREBUILT_DIR
-build_oak_containers_images $PREBUILT_DIR
-build_oak_containers_launcher $PREBUILT_DIR
-build_oak_containers_stage0 $PREBUILT_DIR
-build_oak_containers_stage1 $PREBUILT_DIR
-build_oak_hello_world_container_bundle_tar $PREBUILT_DIR
-build_snphost $PREBUILT_DIR
+build_oak_containers_kernel "$PREBUILT_DIR"
+build_oak_containers_images "$PREBUILT_DIR"
+build_oak_containers_launcher "$PREBUILT_DIR"
+build_oak_containers_stage0 "$PREBUILT_DIR"
+build_oak_containers_stage1 "$PREBUILT_DIR"
+build_oak_hello_world_container_bundle_tar "$PREBUILT_DIR"
+build_snphost "$PREBUILT_DIR"

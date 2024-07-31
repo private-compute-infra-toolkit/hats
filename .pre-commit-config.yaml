@@ -68,3 +68,11 @@ repos:
     - -lint=fix
     - -mode=fix
     - -warnings=all
+
+- repo: https://github.com/jumanjihouse/pre-commit-hooks
+  rev: 3.0.0
+  hooks:
+  - id: require-ascii
+    exclude: ^(CHANGELOG|.*RELEASE)\.md$
+  - id: shellcheck
+    exclude: ^(builders/images)/.*$
