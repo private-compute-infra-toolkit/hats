@@ -73,6 +73,9 @@ repos:
 - repo: https://github.com/jumanjihouse/pre-commit-hooks
   rev: 3.0.0
   hooks:
+  - id: script-must-have-extension
+    name: Use .sh extension for shell scripts and executables
+    types: [shell, executable]
   - id: require-ascii
     exclude: ^(CHANGELOG|.*RELEASE)\.md$
   - id: shellcheck
