@@ -14,6 +14,9 @@
 
 #include "tvs/credentials/credentials.h"
 
+#include <memory>
+#include <string>
+
 namespace privacy_sandbox::tvs {
 
 absl::StatusOr<std::shared_ptr<grpc::Channel>> CreateGrpcChannel(

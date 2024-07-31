@@ -32,7 +32,6 @@
 #include "google/cloud/kms/v1/mocks/mock_key_management_connection.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
-#include "gtest/gtest.h"
 #include "key_manager/kms-client.h"
 
 namespace privacy_sandbox::key_manager {

@@ -15,6 +15,9 @@
 #ifndef HATS_TVS_CREDENTIALS_CREDENTIALS_H_
 #define HATS_TVS_CREDENTIALS_CREDENTIALS_H_
 
+#include <memory>
+#include <string>
+
 #include "grpcpp/create_channel.h"
 
 namespace privacy_sandbox::tvs {

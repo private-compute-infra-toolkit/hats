@@ -15,6 +15,8 @@
 #ifndef HATS_KEY_MANAGER_KMS_CLIENT_H
 #define HATS_KEY_MANAGER_KMS_CLIENT_H
 
+#include <string>
+
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "key_manager/kms-client.h"

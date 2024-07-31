@@ -14,6 +14,9 @@
 
 #include "key_manager/key-fetcher-gcp.h"
 
+#include <string>
+#include <utility>
+
 #include "absl/flags/flag.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"

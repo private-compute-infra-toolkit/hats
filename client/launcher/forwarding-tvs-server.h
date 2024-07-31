@@ -15,6 +15,8 @@
 #ifndef HATS_CLIENT_LAUNCHER_FORWARDING_TVS_SERVER_
 #define HATS_CLIENT_LAUNCHER_FORWARDING_TVS_SERVER_
 
+#include <memory>
+
 #include "client/proto/launcher.grpc.pb.h"
 #include "client/proto/launcher.pb.h"
 #include "grpcpp/support/status.h"

@@ -18,6 +18,7 @@ exclude: (?x)^(
              bazel-(bin|out|testlogs|workspace)/.*|
              .bazel_output/.*|
              builders/.*|
+             submodules/.*|
              version.txt|
              .*\.crt|
              .*\.patch
@@ -76,3 +77,15 @@ repos:
     exclude: ^(CHANGELOG|.*RELEASE)\.md$
   - id: shellcheck
     exclude: ^(builders/images)/.*$
+
+- repo: https://github.com/cpplint/cpplint
+  rev: 1.6.1
+  hooks:
+  - id: cpplint
+    types_or:
+    - c++
+    - c
+    # Switch to c++20. Include_what_you_use. Skip conflicts with other checks
+    args:
+    - --filter=-build/c++11,+build/c++20,-build/header_guard,-build/include_order,+build/include_what_you_use,-build/include_subdir,-readability/casting,-readability/todo,-whitespace/braces,-runtime/references
+    - --quiet
