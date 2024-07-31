@@ -45,7 +45,7 @@ git apply ../../patches/parc/parc.patch
 
 # Patch WORKSPACE to use `google_privacysandbox_servers_common` from a local path.
 cd "${KOKORO_HATS_DIR}"
-perl -i -pe 'BEGIN{undef $/;} s/git_repository\(\n[\s\t]*name = \"google_privacysandbox_servers_common\",\n[\s\t]*remote = \"rpc[^\"]+\",\n[\s\t]*commit = \"[^\"]+\",\n([\s\t]*patches = \[\n([\s\t]*\"[^\"]+\",)+\n[\s\t]*\],\n)?\)/local_repository\(\n\tname = \"google_privacysandbox_servers_common\",\n\tpath = \"submodules\/common"\n)/smg' WORKSPACE
+perl -i -pe 'BEGIN{undef $/;} s/git_repository\(\n[\s\t]*name = \"google_privacysandbox_servers_common\",\n[\s\t]*commit = \"[^\"]+\",\n([\s\t]*patches = \[\n([\s\t]*\"[^\"]+\",)+\n[\s\t]*\],)\n[\s\t]*remote = \"rpc[^\"]+\",\n\)/local_repository\(\n\tname = \"google_privacysandbox_servers_common\",\n\tpath = \"submodules\/common"\n)/smg' WORKSPACE
 
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 

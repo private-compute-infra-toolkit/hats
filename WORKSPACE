@@ -2,7 +2,7 @@ workspace(name = "hats")
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
 
 # Required for google_privacysandbox_servers_common (Parc) and the order
 # matters. This needs to be in the beginning.
@@ -71,7 +71,6 @@ http_archive(
     ],
 )
 
-load("@io_grpc_grpc_java//:repositories.bzl", "IO_GRPC_GRPC_JAVA_ARTIFACTS", "IO_GRPC_GRPC_JAVA_OVERRIDE_TARGETS", "grpc_java_repositories")
 load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
 
 crate_universe_dependencies(bootstrap = True)
@@ -84,28 +83,28 @@ crates_repository(
     cargo_lockfile = "//:Cargo.bazel.lock",
     lockfile = "//:cargo-bazel-lock.json",
     packages = {
+        "curve25519-dalek": crate.spec(
+            default_features = False,
+            version = "=4.1.1",
+        ),
         "hex": crate.spec(version = "*"),
+        "hpke": crate.spec(version = "*"),
+        "p256": crate.spec(version = "*"),
         "prost": crate.spec(
             default_features = False,
             features = ["prost-derive"],
             version = "*",
         ),
-        "p256": crate.spec(version = "*"),
         "rand": crate.spec(version = "*"),
-        "hpke": crate.spec(version = "*"),
-        "curve25519-dalek": crate.spec(
-            default_features = False,
-            version = "=4.1.1",
-        ),
-        "sev": crate.spec(
-            version = "*",
-        ),
         "reqwest": crate.spec(
             default_features = False,
             features = [
                 "rustls-tls",
                 "blocking",
             ],
+            version = "*",
+        ),
+        "sev": crate.spec(
             version = "*",
         ),
     },
@@ -254,11 +253,11 @@ local_repository(
 # NOTE: For kokoro, make sure submodule is on commit, and patches are applied in script
 git_repository(
     name = "google_privacysandbox_servers_common",
-    remote = "rpc://team/privacy-sandbox-team/servers/common",
     commit = "8e3a351b33ed127e52584b7769ece6205492b725",
     patches = [
         "//patches/parc:parc.patch",
     ],
+    remote = "rpc://team/privacy-sandbox-team/servers/common",
 )
 
 load("@google_privacysandbox_servers_common//third_party:cpp_deps.bzl", parc_cpp_dep = "cpp_dependencies")

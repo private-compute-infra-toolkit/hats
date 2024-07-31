@@ -69,8 +69,8 @@ cargo_build_script(
         "build.rs",
     ],
     build_script_env = {
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
+        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//tvs/proto:tvs_messages_proto",

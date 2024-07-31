@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
 cc_binary(
     name = "kv-test-client_main",
     srcs = ["kv-test-client_main.cc"],

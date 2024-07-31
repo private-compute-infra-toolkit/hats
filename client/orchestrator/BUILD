@@ -73,9 +73,9 @@ cargo_build_script(
         "build.rs",
     ],
     build_script_env = {
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
-        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
         "DESCRIPTOR_PROTO_PATH": "$(location @com_google_protobuf//:descriptor_proto_srcs)",
+        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
+        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//client/proto:launcher.proto",
@@ -100,9 +100,9 @@ cargo_build_script(
         "build-for-test.rs",
     ],
     build_script_env = {
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
-        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
         "DESCRIPTOR_PROTO_PATH": "$(location @com_google_protobuf//:descriptor_proto_srcs)",
+        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
+        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//client/proto:launcher.proto",

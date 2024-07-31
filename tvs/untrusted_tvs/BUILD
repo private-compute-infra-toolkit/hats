@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
 package(
     default_visibility = ["//visibility:public"],
 )
@@ -19,8 +21,8 @@ cc_binary(
         "@com_google_protobuf//src/google/protobuf/io",
         "@oak//proto/attestation:reference_value_cc_proto",
     ] + select({
-        "//conditions:default": ["//key_manager:key-fetcher-local"],
         "//:gcp": ["//key_manager:key-fetcher-gcp"],
+        "//conditions:default": ["//key_manager:key-fetcher-local"],
     }),
 )
 

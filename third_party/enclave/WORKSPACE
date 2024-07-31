@@ -1,8 +1,6 @@
 workspace(name = "enclave")
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
 
 rules_rust_dependencies()
 
@@ -15,17 +13,18 @@ rust_register_toolchains(
 )
 
 load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
+
 crate_universe_dependencies(bootstrap = True)
 
-load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository", "splicing_config")
+load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository")
 
 crates_repository(
     name = "enclave_crate_index",
     cargo_lockfile = "//:Cargo.enclave-bazel.lock",
     lockfile = "//:cargo-enclave-bazel-lock.json",
     packages = {
-        "static_assertions": crate.spec(version = "*"),
         "hex": crate.spec(version = "*"),
+        "static_assertions": crate.spec(version = "*"),
     },
 )
 
