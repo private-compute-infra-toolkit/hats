@@ -21,5 +21,8 @@ pub enum Error {
     EmptyPlaintext,
     InvalidHandshake,
     InvalidPrivateKey,
+    InvalidPublicKey,
+    MustProvideClientStaticForKk,
+    MustHaveSecondaryPrivKeyForKk,
     UnknownError(&'static str),
 }

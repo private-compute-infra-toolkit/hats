@@ -20,9 +20,10 @@ use alloc::vec::Vec;
 const SYMMETRIC_KEY_SIZE: usize = 32;
 const NONCE_LEN: usize = 12;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum HandshakeType {
     Nk, // https://noiseexplorer.com/patterns/NK/
+    Kk, // https://noiseexplorer.com/patterns/KK/
 }
 
 // Helper to generate 2 keys.
@@ -49,10 +50,12 @@ pub struct Noise {
 
 impl Noise {
     pub fn new(handshake_type: HandshakeType) -> Self {
-        assert_eq!(handshake_type, HandshakeType::Nk);
         let mut chaining_key_in = [0; SYMMETRIC_KEY_SIZE];
-        let nk_protocol_name = b"Noise_NK_P256_AESGCM_SHA256";
-        chaining_key_in[..nk_protocol_name.len()].copy_from_slice(nk_protocol_name);
+        let protocol_name = match handshake_type {
+            HandshakeType::Nk => b"Noise_NK_P256_AESGCM_SHA256",
+            HandshakeType::Kk => b"Noise_KK_P256_AESGCM_SHA256",
+        };
+        chaining_key_in[..protocol_name.len()].copy_from_slice(protocol_name);
         Noise {
             chaining_key: chaining_key_in,
             h: chaining_key_in,
