@@ -18,7 +18,6 @@
 #include <string>
 
 #include "google/cloud/kms/v1/key_management_client.h"
-#include "google/cloud/location.h"
 #include "key_manager/kms-client.h"
 
 namespace privacy_sandbox::key_manager {

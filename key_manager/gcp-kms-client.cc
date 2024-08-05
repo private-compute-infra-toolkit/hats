@@ -22,12 +22,9 @@
 #include <string>
 #include <utility>
 
-#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "absl/time/clock.h"
-#include "absl/time/time.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/status.h"
 
