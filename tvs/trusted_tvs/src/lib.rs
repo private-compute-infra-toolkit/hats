@@ -247,12 +247,13 @@ impl TrustedTvs {
             &self.appraisal_policy,
         )
         .map_err(|msg| format!("Failed to verify report. {}", msg))?;
-        match self
-            .crypter
-            .as_mut()
-            .unwrap()
-            .encrypt(self.secret.as_slice())
-        {
+        let secret = &self.secret;
+        // TODO(alwabel): change local mode to obtain secrets and keys from
+        // `key_fetcher`, also pass in the secret_id or the authenticated client
+        // id instead of `default`.
+        #[cfg(feature = "gcp")]
+        let secret = &key_fetcher::get_secret("default").map_err(|msg| format!("{}", msg))?;
+        match self.crypter.as_mut().unwrap().encrypt(secret) {
             Ok(cipher_text) => Ok(cipher_text),
             Err(_) => Err("Failed to encrypt message.".to_string()),
         }

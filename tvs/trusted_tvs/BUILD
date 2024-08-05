@@ -10,6 +10,10 @@ rust_library(
     name = "tvs-trusted",
     srcs = ["src/lib.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
+    crate_features = select({
+        "//:gcp": ["gcp"],
+        "//conditions:default": ["local"],
+    }),
     deps = [
         ":build",
         "@using_cxx//:cxx",
@@ -24,6 +28,7 @@ rust_library(
         "@oak//oak_attestation_verification",
         "@enclave//crypto",
         "@enclave//handshake",
+        "//key_manager:rust-key-fetcher",
     ],
 )
 

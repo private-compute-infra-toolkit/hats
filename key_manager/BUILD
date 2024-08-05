@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
-load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -139,5 +140,38 @@ cc_binary(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@google_cloud_cpp//:spanner",
+    ],
+)
+
+cc_library(
+    name = "key-fetcher-wrapper",
+    srcs = ["key-fetcher-wrapper.cc"],
+    hdrs = ["key-fetcher-wrapper.h"],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@using_cxx//:cxx_cc",
+    ] + select({
+        "//conditions:default": ["//key_manager:key-fetcher-local"],
+        "//:gcp": ["//key_manager:key-fetcher-gcp"],
+    }),
+)
+
+rust_cxx_bridge(
+    name = "bridge",
+    src = "rust-key-fetcher.rs",
+    deps = [":key-fetcher-wrapper"],
+)   
+
+rust_library(
+    name = "rust-key-fetcher",
+    srcs = ["rust-key-fetcher.rs"],
+    crate_name = "key_fetcher",
+    deps = [
+        ":bridge",
+        ":key-fetcher-wrapper",
+        "@using_cxx//:cxx",
     ],
 )
