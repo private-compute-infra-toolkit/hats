@@ -2,3 +2,6 @@ build --cxxopt='-std=c++20' --host_cxxopt='-std=c++20' --cxxopt='-Wswitch' --cxx
 build --@rules_rust//rust/toolchain/channel=nightly
 build --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
 build --output_groups=+rustfmt_checks
+# Hide warnings for external libraries
+# external_include_paths actually stops warnings (helps with stricter build flags), but seems to only be for .h files, not most .cc files.
+build --output_filter='^//((?!(external):).)*$'
