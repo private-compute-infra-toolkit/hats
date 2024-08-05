@@ -17,6 +17,8 @@
 #ifndef HATS_SECRET_DATA_H_
 #define HATS_SECRET_DATA_H_
 
+#include <memory>
+
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 

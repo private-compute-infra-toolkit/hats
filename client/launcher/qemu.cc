@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <string>
@@ -62,7 +63,7 @@ Qemu::Options Qemu::Options::Default() {
   };
 }
 
-Qemu::Qemu(const Qemu::Options &options)
+Qemu::Qemu(const Qemu::Options& options)
     : binary_(options.vmm_binary), log_filename_(std::tmpnam(nullptr)) {
   args_.push_back(binary_);
   args_.push_back("-enable-kvm");
@@ -213,7 +214,7 @@ Qemu::~Qemu() {
 
 namespace {
 
-void ClosePosixObjects(posix_spawn_file_actions_t &file_actions,
+void ClosePosixObjects(posix_spawn_file_actions_t& file_actions,
                        posix_spawnattr_t attr) {
   posix_spawn_file_actions_destroy(&file_actions);
   posix_spawnattr_destroy(&attr);
@@ -269,17 +270,16 @@ absl::Status Qemu::Start() {
     return absl::FailedPreconditionError(
         "posix_spawn_file_actions_adddup2() failed.");
   }
-  auto argv =
-      std::unique_ptr<const char *[]>(new const char *[args_.size() + 2]);
+  auto argv = std::unique_ptr<const char*[]>(new const char*[args_.size() + 2]);
   // posix_spawn , similar to execvp, expects all arguments including the binary
   // name in an array of c-strings. The array is terminated with nullptr.
   argv[args_.size() + 1] = nullptr;
   argv[0] = binary_.c_str();
   for (size_t i = 0; i < args_.size(); ++i) {
-    argv[i + 1] = (char *)args_[i].c_str();
+    argv[i + 1] = (char*)args_[i].c_str();
   }
   if (int status = posix_spawn(&process_id_, binary_.c_str(), &file_actions,
-                               &attr, /*argv=*/const_cast<char **>(argv.get()),
+                               &attr, /*argv=*/const_cast<char**>(argv.get()),
                                /*envp=*/nullptr);
       status != 0) {
     return absl::FailedPreconditionError("Failed to launch qemu");

@@ -97,9 +97,9 @@ class Qemu final {
   };
 
   Qemu() = delete;
-  Qemu(const Qemu &) = delete;
-  Qemu &operator=(const Qemu &) = delete;
-  Qemu(const Options &options);
+  Qemu(const Qemu&) = delete;
+  Qemu& operator=(const Qemu&) = delete;
+  Qemu(const Options& options);
   ~Qemu();
 
   // This function should be called once and only once.
@@ -123,7 +123,7 @@ class Qemu final {
   // Whether a QEMU was started or not.
   bool started_ ABSL_GUARDED_BY(mu_) = false;
   // File where VMM stdout and stderr are directed to.
-  FILE *log_file_ ABSL_GUARDED_BY(mu_) = nullptr;
+  FILE* log_file_ ABSL_GUARDED_BY(mu_) = nullptr;
   // Process id of the QEMU process.
   pid_t process_id_ ABSL_GUARDED_BY(mu_);
 };

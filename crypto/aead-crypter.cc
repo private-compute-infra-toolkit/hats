@@ -61,11 +61,10 @@ absl::StatusOr<std::string> Encrypt(const SecretData& key,
   size_t ciphertext_len;
   std::vector<uint8_t> associated_data_bytes(associated_data.begin(),
                                              associated_data.end());
-  if (!EVP_AEAD_CTX_seal(ctx.get(), ciphertext.data(), &ciphertext_len,
-                         ciphertext.size(), nonce.data(), nonce.size(),
-                         plaintext.GetData(), plaintext.GetSize(),
-                         associated_data_bytes.data(),
-                         associated_data_bytes.size())) {
+  if (!EVP_AEAD_CTX_seal(
+          ctx.get(), ciphertext.data(), &ciphertext_len, ciphertext.size(),
+          nonce.data(), nonce.size(), plaintext.GetData(), plaintext.GetSize(),
+          associated_data_bytes.data(), associated_data_bytes.size())) {
     return absl::FailedPreconditionError("EVP_AEAD_CTX_seal failed.");
   }
 
