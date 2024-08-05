@@ -83,6 +83,7 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@using_cxx//:cxx",
+        "@using_cxx//:cxx_cc",
     ],
 )
 
