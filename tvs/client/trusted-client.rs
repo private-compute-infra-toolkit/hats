@@ -52,7 +52,7 @@ mod ffi {
             vcek: &[u8],
             application_signing_key: &str,
         ) -> Result<Vec<u8>>;
-        fn process_response(&mut self, response: &[u8]) -> Result<String>;
+        fn process_response(&mut self, response: &[u8]) -> Result<Vec<u8>>;
     }
 }
 
@@ -158,7 +158,7 @@ impl TvsClient {
         }
     }
 
-    pub fn process_response(&mut self, response: &[u8]) -> Result<String, String> {
+    pub fn process_response(&mut self, response: &[u8]) -> Result<Vec<u8>, String> {
         let Some(crypter) = self.crypter.as_mut() else {
             return Err(
                 "Handshake initiation should be done before encrypting messages.".to_string(),
@@ -173,10 +173,7 @@ impl TvsClient {
             _ => return Err("Unexpected proto message.".to_string()),
         };
         match crypter.decrypt(report_response.as_slice()) {
-            Ok(plain_text) => match std::str::from_utf8(plain_text.as_slice()) {
-                Ok(secret) => Ok(secret.to_string()),
-                Err(_) => Err("Failed to convert decrypted message to utf8 string".to_string()),
-            },
+            Ok(plain_text) => Ok(plain_text),
             Err(_) => Err("Failed to decrypt ciphertext.".to_string()),
         }
     }
@@ -220,7 +217,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            SECRET,
+            SECRET.as_bytes(),
         )
         .unwrap();
 
@@ -247,7 +244,7 @@ mod tests {
             .unwrap();
 
         let decrypted_secret = tvs_client.process_response(secret.as_slice()).unwrap();
-        assert_eq!(decrypted_secret, SECRET);
+        assert_eq!(decrypted_secret, SECRET.as_bytes());
     }
 
     #[test]
@@ -293,7 +290,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            "test_secret",
+            b"test_secret",
         )
         .unwrap();
 

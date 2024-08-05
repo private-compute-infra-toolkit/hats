@@ -72,7 +72,7 @@ impl TvsGrpcClient {
         evidence: Evidence,
         signing_key: SigningKey,
         vcek: Vec<u8>,
-    ) -> Result<String, String> {
+    ) -> Result<Vec<u8>, String> {
         let mut tvs = tvs_trusted_client::new_tvs_client(&self.tvs_public_key)?;
 
         // Channel between the `outbound stream` - the one that sends grpc
@@ -83,7 +83,7 @@ impl TvsGrpcClient {
         // Channel between the `inbound_task` task that gets the inbound grpc requests and the
         // the `processing_task` that process and generates Verify Report requests.
         let (inbound_tx, mut inbound_rx) = tokio::sync::mpsc::channel(1);
-        let processing_task: tokio::task::JoinHandle<Result<String, String>> =
+        let processing_task: tokio::task::JoinHandle<Result<Vec<u8>, String>> =
             tokio::spawn(async move {
                 let initial_message = tvs.build_initial_message()?;
                 let handshake_initial = OpaqueMessage {
@@ -206,7 +206,7 @@ mod tests {
                 NOW_UTC_MILLIS,
                 &self.tvs_private_key,
                 default_appraisal_policy().as_slice(),
-                SECRET,
+                SECRET.as_bytes(),
             ) else {
                 return Err(tonic::Status::internal("Error creating TVS Server"));
             };
@@ -297,7 +297,7 @@ mod tests {
 
         let _ = shutdown_tx.send(());
         let _ = server.await;
-        assert_eq!(secret.unwrap().unwrap(), SECRET);
+        assert_eq!(secret.unwrap().unwrap(), SECRET.as_bytes());
     }
 
     #[tokio::test]
