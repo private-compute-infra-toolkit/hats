@@ -27,33 +27,46 @@ namespace privacy_sandbox::key_manager {
 namespace {
 
 using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
+using ::testing::HasSubstr;
 using ::testing::StrEq;
 
 TEST(KeyFetcherLocal, Normal) {
   {
-    absl::SetFlag(&FLAGS_primary_private_key, "key1-1");
-    absl::SetFlag(&FLAGS_secondary_private_key, "key1-2");
+    absl::SetFlag(&FLAGS_primary_private_key, "6669727374");
+    absl::SetFlag(&FLAGS_secondary_private_key, "7365636f6e64");
     absl::SetFlag(&FLAGS_secret, "secret1");
     std::unique_ptr<KeyFetcher> key_fetcher = KeyFetcher::Create();
     EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(),
-                IsOkAndHolds(StrEq("key1-1")));
+                IsOkAndHolds(StrEq("first")));
     EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
-                IsOkAndHolds(StrEq("key1-2")));
+                IsOkAndHolds(StrEq("second")));
     EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
                 IsOkAndHolds(StrEq("secret1")));
   }
   {
-    absl::SetFlag(&FLAGS_primary_private_key, "key2-1");
-    absl::SetFlag(&FLAGS_secondary_private_key, "key2-2");
+    absl::SetFlag(&FLAGS_primary_private_key, "61");
+    absl::SetFlag(&FLAGS_secondary_private_key, "62");
     absl::SetFlag(&FLAGS_secret, "secret2");
     std::unique_ptr<KeyFetcher> key_fetcher = KeyFetcher::Create();
-    EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(),
-                IsOkAndHolds(StrEq("key2-1")));
+    EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(), IsOkAndHolds(StrEq("a")));
     EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
-                IsOkAndHolds(StrEq("key2-2")));
+                IsOkAndHolds(StrEq("b")));
     EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
                 IsOkAndHolds(StrEq("secret2")));
   }
+}
+
+TEST(KeyFetcherLocal, Error) {
+  absl::SetFlag(&FLAGS_primary_private_key, "zz");
+  absl::SetFlag(&FLAGS_secondary_private_key, "xx");
+  std::unique_ptr<KeyFetcher> key_fetcher = KeyFetcher::Create();
+  EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Failed to parse the primary private key")));
+  EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Failed to parse the secondary private key")));
 }
 
 }  // namespace

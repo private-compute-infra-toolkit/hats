@@ -22,6 +22,7 @@
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gmock/gmock.h"
@@ -176,12 +177,24 @@ constexpr absl::string_view kTvsPublicKey =
     "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
 constexpr absl::string_view kSecret = "SECRET";
 
+absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
+  std::string bytes;
+  if (!absl::HexStringToBytes(hex_string, &bytes)) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Failed to convert '", hex_string, "' to bytes."));
+  }
+  return bytes;
+}
+
 TEST(TvsServer, Successful) {
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
+  absl::StatusOr<std::string> tvs_private_key =
+      HexStringToBytes(kTvsPrivateKey);
+  ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(std::string(kTvsPrivateKey), std::string(kSecret),
+  TvsServer tvs_server(*tvs_private_key, std::string(kSecret),
                        *std::move(appraisal_policy));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
@@ -210,7 +223,11 @@ TEST(TvsServer, BadReportError) {
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
-  TvsServer tvs_server(std::string(kTvsPrivateKey), /*secret=*/"",
+  absl::StatusOr<std::string> tvs_private_key =
+      HexStringToBytes(kTvsPrivateKey);
+  ASSERT_TRUE(tvs_private_key.ok());
+
+  TvsServer tvs_server(*tvs_private_key, /*secret=*/"",
                        *std::move(appraisal_policy));
 
   std::unique_ptr<grpc::Server> server =
@@ -241,9 +258,13 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
+  absl::StatusOr<std::string> tvs_private_key =
+      HexStringToBytes(kTvsPrivateKey);
+  ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(std::string(kTvsPrivateKey), std::string(kSecret),
+  TvsServer tvs_server(*tvs_private_key, std::string(kSecret),
                        *std::move(appraisal_policy));
+
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
@@ -277,7 +298,11 @@ TEST(TvsServer, MalformedMessageError) {
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
 
-  TvsServer tvs_server(std::string(kTvsPrivateKey), /*secret=*/"",
+  absl::StatusOr<std::string> tvs_private_key =
+      HexStringToBytes(kTvsPrivateKey);
+  ASSERT_TRUE(tvs_private_key.ok());
+
+  TvsServer tvs_server(*tvs_private_key, /*secret=*/"",
                        *std::move(appraisal_policy));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();

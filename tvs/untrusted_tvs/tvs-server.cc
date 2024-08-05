@@ -23,7 +23,6 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
@@ -56,35 +55,18 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
     const std::string& primary_private_key,
     const std::string& secondary_private_key, const std::string& secret,
     const oak::attestation::v1::ReferenceValues& appraisal_policy) {
-  std::string primary_private_key_bytes;
-  if (!absl::HexStringToBytes(primary_private_key,
-                              &primary_private_key_bytes)) {
-    return absl::FailedPreconditionError(
-        "Failed to parse the primary private key. Private keys should be "
-        "formatted as hex "
-        "string.");
-  }
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
     if (secondary_private_key.empty()) {
       return new_trusted_tvs_service(
           absl::ToUnixMillis(absl::Now()),
-          StringToRustSlice(primary_private_key_bytes),
+          StringToRustSlice(primary_private_key),
           StringToRustSlice(appraisal_policy.SerializeAsString()), secret);
     }
-    std::string secondary_private_key_bytes;
-    if (!absl::HexStringToBytes(secondary_private_key,
-                                &secondary_private_key_bytes)) {
-      return absl::FailedPreconditionError(
-          "Failed to parse the secondary private key. Private keys should be "
-          "formatted as hex "
-          "string.");
-    }
     return new_trusted_tvs_service_with_second_key(
-        absl::ToUnixMillis(absl::Now()),
-        StringToRustSlice(primary_private_key_bytes),
-        StringToRustSlice(secondary_private_key_bytes),
+        absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
+        StringToRustSlice(secondary_private_key),
         StringToRustSlice(appraisal_policy.SerializeAsString()), secret);
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(

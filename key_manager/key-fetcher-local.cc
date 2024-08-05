@@ -17,6 +17,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "key_manager/key-fetcher.h"
 
 ABSL_FLAG(std::string, primary_private_key, "",
@@ -40,11 +41,28 @@ class KeyFetcherLocal : public KeyFetcher {
         secret_(secret) {}
 
   absl::StatusOr<std::string> GetPrimaryPrivateKey() override {
-    return primary_private_key_;
+    std::string primary_private_key_bytes;
+    if (!absl::HexStringToBytes(primary_private_key_,
+                                &primary_private_key_bytes)) {
+      return absl::InvalidArgumentError(
+          "Failed to parse the primary private key. Private keys should be "
+          "formatted as hex "
+          "string.");
+    }
+    return primary_private_key_bytes;
   }
 
   absl::StatusOr<std::string> GetSecondaryPrivateKey() override {
-    return secondary_private_key_;
+    if (secondary_private_key_.empty()) return secondary_private_key_;
+    std::string secondary_private_key_bytes;
+    if (!absl::HexStringToBytes(secondary_private_key_,
+                                &secondary_private_key_bytes)) {
+      return absl::InvalidArgumentError(
+          "Failed to parse the secondary private key. Private keys should be "
+          "formatted as hex "
+          "string.");
+    }
+    return secondary_private_key_bytes;
   }
 
   absl::StatusOr<std::string> GetSecret(const std::string& secret_id) override {
