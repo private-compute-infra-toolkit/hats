@@ -19,6 +19,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 
 namespace privacy_sandbox::key_manager {
 
@@ -28,7 +29,7 @@ class KeyFetcher {
   virtual absl::StatusOr<std::string> GetPrimaryPrivateKey() = 0;
   virtual absl::StatusOr<std::string> GetSecondaryPrivateKey() = 0;
   virtual absl::StatusOr<std::string> GetSecret(
-      const std::string& secret_id) = 0;
+      absl::string_view secret_id) = 0;
 };
 
 }  // namespace privacy_sandbox::key_manager

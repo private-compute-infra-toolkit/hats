@@ -25,14 +25,14 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/status.h"
 #include "key_manager/gcp-status.h"
 
 namespace privacy_sandbox::key_manager {
 
-absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(
-    const std::string& key_id) {
+absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(absl::string_view key_id) {
   google::cloud::kms::v1::GetPublicKeyRequest request;
   request.set_name(key_id);
   google::cloud::v2_25::StatusOr<google::cloud::kms::v1::PublicKey> result =
@@ -46,7 +46,7 @@ absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(
 }
 
 absl::StatusOr<CryptoKey> GcpKmsClient::CreateAsymmetricKey(
-    const std::string& parent, const std::string& key_id) {
+    absl::string_view parent, absl::string_view key_id) {
   google::cloud::kms::v1::CreateCryptoKeyRequest request;
   request.set_parent(parent);
   request.set_crypto_key_id(key_id);
@@ -68,7 +68,7 @@ absl::StatusOr<CryptoKey> GcpKmsClient::CreateAsymmetricKey(
 }
 
 absl::StatusOr<std::string> GcpKmsClient::EncryptData(
-    const std::string& key_id, const std::string& plaintext) {
+    absl::string_view key_id, absl::string_view plaintext) {
   google::cloud::kms::v1::EncryptRequest request;
   request.set_name(key_id);
   request.set_plaintext(plaintext);
@@ -84,7 +84,7 @@ absl::StatusOr<std::string> GcpKmsClient::EncryptData(
 }
 
 absl::StatusOr<std::string> GcpKmsClient::DecryptData(
-    const std::string& key_id, const std::string& ciphertext) {
+    absl::string_view key_id, absl::string_view ciphertext) {
   google::cloud::kms::v1::DecryptRequest request;
   request.set_name(key_id);
   request.set_ciphertext(ciphertext);

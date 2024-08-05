@@ -19,6 +19,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "key_manager/kms-client.h"
 
 // Defines an interface for interacting with a Key Management System (KMS)
@@ -45,16 +46,16 @@ class KmsClient {
  public:
   virtual ~KmsClient() = default;
 
-  virtual absl::StatusOr<PublicKey> GetPublicKey(std::string const& key_id) = 0;
+  virtual absl::StatusOr<PublicKey> GetPublicKey(absl::string_view key_id) = 0;
 
   virtual absl::StatusOr<CryptoKey> CreateAsymmetricKey(
-      std::string const& parent, std::string const& key_id) = 0;
+      absl::string_view parent, absl::string_view key_id) = 0;
 
   virtual absl::StatusOr<std::string> EncryptData(
-      std::string const& key_id, std::string const& plaintext) = 0;
+      absl::string_view key_id, absl::string_view plaintext) = 0;
 
   virtual absl::StatusOr<std::string> DecryptData(
-      std::string const& key_id, std::string const& ciphertext) = 0;
+      absl::string_view key_id, absl::string_view ciphertext) = 0;
 };
 
 }  // namespace privacy_sandbox::key_manager
