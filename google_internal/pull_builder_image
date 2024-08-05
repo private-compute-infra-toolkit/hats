@@ -57,6 +57,8 @@ USAGE
   exit ${exitval}
 }
 
+declare -a -r _extra_args
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --all-images)
@@ -69,7 +71,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --verbose)
       set -o xtrace
-      VERBOSE="--verbose"
+      _extra_args+=("--verbose")
       shift
       ;;
     --no-build)
@@ -110,7 +112,7 @@ function _pull_image() {
   _assert_is_image "${IMG}"
 
   printf "pulling image: [%s]\n" "${IMG}"
-  declare -r IMAGE_TAGGED="$("${WORKSPACE}"/builders/tools/get-builder-image-tagged "${VERBOSE}" --image "${IMG}" --no-build)"
+  declare -r IMAGE_TAGGED="$("${WORKSPACE}"/builders/tools/get-builder-image-tagged "${_extra_args[@]}" --image "${IMG}" --no-build)"
   declare -r REPO_IMAGE_TAGGED="${REPO}/${IMAGE_TAGGED}"
 
   # test connecting to GAR repo
@@ -123,7 +125,7 @@ function _pull_image() {
   if ! docker pull "${REPO_IMAGE_TAGGED}"; then
     if [[ ${BUILD_IMAGE_IF_NEEDED} -eq 1 ]]; then
       # push builder image, which will also build the image as it's not available
-      "${SCRIPT_DIR}"/push_builder_image "${VERBOSE}" --image "${IMG}" || printf "error: failed to push image %s" "${IMG}" &>/dev/stderr
+      "${SCRIPT_DIR}"/push_builder_image "${_extra_args[@]}" --image "${IMG}" || printf "error: failed to push image %s" "${IMG}" &>/dev/stderr
     else
       printf "image does not exist: %s\n" "${IMAGE_TAGGED}" &>/dev/stderr
       exit 1
