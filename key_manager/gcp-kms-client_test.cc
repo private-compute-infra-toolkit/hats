@@ -69,7 +69,7 @@ TEST(GcpKmsClientTest, GetPublicKeySuccess) {
 
   std::unique_ptr<GcpKmsClient> client =
       std::make_unique<GcpKmsClient>(std::move(mock_client));
-  EXPECT_THAT(client->GetPublicKey(std::string(kExpectedKeyName)),
+  EXPECT_THAT(client->GetPublicKey(kExpectedKeyName),
               IsOkAndHolds(AllOf(
                   Field(&PublicKey::pem_key, expected_public_key.pem()))));
 }
@@ -86,7 +86,7 @@ TEST(GcpKmsClientTest, GetPublicKeyFailure) {
   EXPECT_CALL(*mock_connection, GetPublicKey)
       .WillOnce(
           Return(StatusOr<google::cloud::kms::v1::PublicKey>(error_status)));
-  EXPECT_THAT(client->GetPublicKey(std::string(kExpectedKeyName)),
+  EXPECT_THAT(client->GetPublicKey(kExpectedKeyName),
               StatusIs(absl::StatusCode::kPermissionDenied));
 }
 
@@ -104,8 +104,7 @@ TEST(GcpKmsClientTest, CreateAsymmetricKeySuccess) {
           StatusOr<google::cloud::kms::v1::CryptoKey>(expected_crypto_key)));
 
   absl::StatusOr<privacy_sandbox::key_manager::CryptoKey> actual_crypto_key =
-      client->CreateAsymmetricKey(std::string(kExpectedParent),
-                                  std::string(kExpectedKeyName));
+      client->CreateAsymmetricKey(kExpectedParent, kExpectedKeyName);
   EXPECT_THAT(actual_crypto_key.value(),
               AllOf(Field(&privacy_sandbox::key_manager::CryptoKey::key_id,
                           "key-name")));
@@ -125,8 +124,7 @@ TEST(GcpKmsClientTest, CreateAsymmetricKeyFailure) {
   std::unique_ptr<GcpKmsClient> client =
       std::make_unique<GcpKmsClient>(std::move(mock_client));
   google::cloud::kms::v1::CryptoKey expected_crypto_key;
-  EXPECT_THAT(client->CreateAsymmetricKey(std::string(kExpectedParent),
-                                          std::string(kExpectedKeyName)),
+  EXPECT_THAT(client->CreateAsymmetricKey(kExpectedParent, kExpectedKeyName),
               StatusIs(absl::StatusCode::kPermissionDenied));
 }
 
@@ -139,14 +137,13 @@ TEST(GcpKmsClientTest, EncryptDataSuccess) {
   std::unique_ptr<GcpKmsClient> client =
       std::make_unique<GcpKmsClient>(std::move(mock_client));
   google::cloud::kms::v1::EncryptResponse expected_response;
-  expected_response.set_ciphertext(std::string(kExpectedCiphertext));
+  expected_response.set_ciphertext(kExpectedCiphertext);
 
   EXPECT_CALL(*mock_connection, Encrypt)
       .WillOnce(Return(StatusOr<google::cloud::kms::v1::EncryptResponse>(
           expected_response)));
 
-  EXPECT_THAT(client->EncryptData(std::string(kExpectedKeyName),
-                                  std::string(kExpectedPlaintext)),
+  EXPECT_THAT(client->EncryptData(kExpectedKeyName, kExpectedPlaintext),
               IsOkAndHolds("Encrypted data here"));
 }
 
@@ -165,8 +162,7 @@ TEST(GcpKmsClientTest, EncryptDataFailure_InvalidRequest) {
       .WillOnce(Return(
           StatusOr<google::cloud::kms::v1::EncryptResponse>(error_status)));
 
-  EXPECT_THAT(client->EncryptData(std::string(kExpectedKeyName),
-                                  std::string(kExpectedPlaintext)),
+  EXPECT_THAT(client->EncryptData(kExpectedKeyName, kExpectedPlaintext),
               StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
@@ -179,14 +175,13 @@ TEST(GcpKmsClientTest, DecryptDataSuccess) {
   std::unique_ptr<GcpKmsClient> client =
       std::make_unique<GcpKmsClient>(std::move(mock_client));
   google::cloud::kms::v1::DecryptResponse expected_response;
-  expected_response.set_plaintext(std::string(kExpectedPlaintext));
+  expected_response.set_plaintext(kExpectedPlaintext);
 
   EXPECT_CALL(*mock_connection, Decrypt)
       .WillOnce(Return(StatusOr<google::cloud::kms::v1::DecryptResponse>(
           expected_response)));
 
-  EXPECT_THAT(client->DecryptData(std::string(kExpectedKeyName),
-                                  std::string(kExpectedCiphertext)),
+  EXPECT_THAT(client->DecryptData(kExpectedKeyName, kExpectedCiphertext),
               IsOkAndHolds(kExpectedPlaintext));
 }
 
@@ -204,8 +199,7 @@ TEST(GcpKmsClientTest, DecryptDataFailure_AuthenticationError) {
       .WillOnce(Return(
           StatusOr<google::cloud::kms::v1::DecryptResponse>(error_status)));
 
-  EXPECT_THAT(client->DecryptData(std::string(kExpectedKeyName),
-                                  std::string(kExpectedCiphertext)),
+  EXPECT_THAT(client->DecryptData(kExpectedKeyName, kExpectedCiphertext),
               StatusIs(absl::StatusCode::kPermissionDenied));
 }
 

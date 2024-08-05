@@ -23,6 +23,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/string_view.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "key_manager/gcp-kms-client.h"
 #include "key_manager/key-fetcher.h"
@@ -41,18 +42,18 @@ class KeyFetcherGcp : public KeyFetcher {
  public:
   KeyFetcherGcp() = delete;
 
-  KeyFetcherGcp(const std::string& project_id, const std::string& location_id,
-                const std::string& key_ring_id,
-                const std::string& private_key_id, const std::string& secret_id,
-                const std::string& primary_private_key,
-                const std::string& secret);
+  KeyFetcherGcp(absl::string_view project_id, absl::string_view location_id,
+                absl::string_view key_ring_id, absl::string_view private_key_id,
+                absl::string_view secret_id,
+                absl::string_view primary_private_key,
+                absl::string_view secret);
 
   // For unit-tests only.
   KeyFetcherGcp(
-      const std::string& project_id, const std::string& location_id,
-      const std::string& key_ring_id, const std::string& private_key_id,
-      const std::string& secret_id, const std::string& primary_private_key,
-      const std::string& secret,
+      absl::string_view project_id, absl::string_view location_id,
+      absl::string_view key_ring_id, absl::string_view private_key_id,
+      absl::string_view secret_id, absl::string_view primary_private_key,
+      absl::string_view secret,
       google::cloud::kms_v1::v2_25::KeyManagementServiceClient client);
   // For unit-tests only.
   static std::unique_ptr<KeyFetcher> Create(
@@ -62,7 +63,7 @@ class KeyFetcherGcp : public KeyFetcher {
 
   absl::StatusOr<std::string> GetSecondaryPrivateKey() override;
 
-  absl::StatusOr<std::string> GetSecret(const std::string& secret_id) override;
+  absl::StatusOr<std::string> GetSecret(absl::string_view secret_id) override;
 
  private:
   const std::string project_id_;

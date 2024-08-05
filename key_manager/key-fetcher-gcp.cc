@@ -22,6 +22,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/string_view.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "key_manager/gcp-kms-client.h"
 #include "key_manager/key-fetcher.h"
@@ -38,13 +39,13 @@ ABSL_FLAG(std::string, secret, "",
 
 namespace privacy_sandbox::key_manager {
 
-KeyFetcherGcp::KeyFetcherGcp(const std::string& project_id,
-                             const std::string& location_id,
-                             const std::string& key_ring_id,
-                             const std::string& private_key_id,
-                             const std::string& secret_id,
-                             const std::string& primary_private_key,
-                             const std::string& secret)
+KeyFetcherGcp::KeyFetcherGcp(absl::string_view project_id,
+                             absl::string_view location_id,
+                             absl::string_view key_ring_id,
+                             absl::string_view private_key_id,
+                             absl::string_view secret_id,
+                             absl::string_view primary_private_key,
+                             absl::string_view secret)
     : project_id_(project_id),
       location_id_(location_id),
       key_ring_id_(key_ring_id),
@@ -56,10 +57,10 @@ KeyFetcherGcp::KeyFetcherGcp(const std::string& project_id,
           google::cloud::kms_v1::MakeKeyManagementServiceConnection())) {}
 
 KeyFetcherGcp::KeyFetcherGcp(
-    const std::string& project_id, const std::string& location_id,
-    const std::string& key_ring_id, const std::string& private_key_id,
-    const std::string& secret_id, const std::string& primary_private_key,
-    const std::string& secret,
+    absl::string_view project_id, absl::string_view location_id,
+    absl::string_view key_ring_id, absl::string_view private_key_id,
+    absl::string_view secret_id, absl::string_view primary_private_key,
+    absl::string_view secret,
     google::cloud::kms_v1::v2_25::KeyManagementServiceClient client)
     : project_id_(project_id),
       location_id_(location_id),
@@ -91,7 +92,7 @@ absl::StatusOr<std::string> KeyFetcherGcp::GetSecondaryPrivateKey() {
 
 // We are ignoring secret_id right now since we only support one secret.
 absl::StatusOr<std::string> KeyFetcherGcp::GetSecret(
-    const std::string& secret_id) {
+    absl::string_view secret_id) {
   std::string encrypted_secret;
   if (!absl::HexStringToBytes(secret_, &encrypted_secret)) {
     return absl::InvalidArgumentError(

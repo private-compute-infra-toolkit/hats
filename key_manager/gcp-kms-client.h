@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "key_manager/kms-client.h"
 
@@ -27,13 +28,13 @@ class GcpKmsClient : public KmsClient {
       google::cloud::kms_v1::v2_25::KeyManagementServiceClient client);
   GcpKmsClient() = delete;
 
-  absl::StatusOr<PublicKey> GetPublicKey(const std::string& key_id) override;
+  absl::StatusOr<PublicKey> GetPublicKey(absl::string_view key_id) override;
   absl::StatusOr<CryptoKey> CreateAsymmetricKey(
-      const std::string& parent, const std::string& key_id) override;
-  absl::StatusOr<std::string> EncryptData(
-      const std::string& key_id, const std::string& plaintext) override;
+      absl::string_view parent, absl::string_view key_id) override;
+  absl::StatusOr<std::string> EncryptData(absl::string_view key_id,
+                                          absl::string_view plaintext) override;
   absl::StatusOr<std::string> DecryptData(
-      const std::string& key_id, const std::string& ciphertext) override;
+      absl::string_view key_id, absl::string_view ciphertext) override;
 
  private:
   google::cloud::kms_v1::v2_25::KeyManagementServiceClient client_;

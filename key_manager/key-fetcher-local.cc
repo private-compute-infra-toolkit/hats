@@ -18,6 +18,7 @@
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/string_view.h"
 #include "key_manager/key-fetcher.h"
 
 ABSL_FLAG(std::string, primary_private_key, "",
@@ -33,9 +34,9 @@ class KeyFetcherLocal : public KeyFetcher {
  public:
   KeyFetcherLocal() = delete;
 
-  KeyFetcherLocal(const std::string& primary_private_key,
-                  const std::string& secondary_private_key,
-                  const std::string& secret)
+  KeyFetcherLocal(absl::string_view primary_private_key,
+                  absl::string_view secondary_private_key,
+                  absl::string_view secret)
       : primary_private_key_(primary_private_key),
         secondary_private_key_(secondary_private_key),
         secret_(secret) {}
@@ -65,7 +66,7 @@ class KeyFetcherLocal : public KeyFetcher {
     return secondary_private_key_bytes;
   }
 
-  absl::StatusOr<std::string> GetSecret(const std::string& secret_id) override {
+  absl::StatusOr<std::string> GetSecret(absl::string_view secret_id) override {
     return secret_;
   }
 
