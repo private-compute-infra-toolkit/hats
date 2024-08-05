@@ -44,7 +44,7 @@ pub struct TrustedTvs {
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
     appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
-    secret: String,
+    secret: Vec<u8>,
     terminated: bool,
 }
 
@@ -58,7 +58,7 @@ mod ffi {
             time_milis: i64,
             primary_private_key: &[u8],
             policy: &[u8],
-            secret: &str,
+            secret: &[u8],
         ) -> Result<Box<TrustedTvs>>;
 
         fn new_trusted_tvs_service_with_second_key(
@@ -66,7 +66,7 @@ mod ffi {
             primary_private_key: &[u8],
             secondary_private_key: &[u8],
             policy: &[u8],
-            secret: &str,
+            secret: &[u8],
         ) -> Result<Box<TrustedTvs>>;
 
         pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
@@ -78,7 +78,7 @@ pub fn new_trusted_tvs_service(
     time_milis: i64,
     primary_private_key: &[u8],
     policy: &[u8],
-    secret: &str,
+    secret: &[u8],
 ) -> Result<Box<TrustedTvs>, String> {
     let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
         format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
@@ -89,7 +89,7 @@ pub fn new_trusted_tvs_service(
         time_milis,
         primary_private_key_scalar,
         appraisal_policy,
-        secret.to_string(),
+        secret.to_vec(),
         None,
     )))
 }
@@ -99,7 +99,7 @@ fn new_trusted_tvs_service_with_second_key(
     primary_private_key: &[u8],
     secondary_private_key: &[u8],
     policy: &[u8],
-    secret: &str,
+    secret: &[u8],
 ) -> Result<Box<TrustedTvs>, String> {
     let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
         format!("Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
@@ -114,7 +114,7 @@ fn new_trusted_tvs_service_with_second_key(
         time_milis,
         primary_private_key_scalar,
         appraisal_policy,
-        secret.to_string(),
+        secret.to_vec(),
         Some(secondary_private_key_scalar),
     )))
 }
@@ -124,7 +124,7 @@ impl TrustedTvs {
         time_milis: i64,
         primary_private_key: P256Scalar,
         appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
-        secret: String,
+        secret: Vec<u8>,
         secondary_private_key: Option<P256Scalar>,
     ) -> Self {
         let secondary_public_key = match &secondary_private_key {
@@ -251,7 +251,7 @@ impl TrustedTvs {
             .crypter
             .as_mut()
             .unwrap()
-            .encrypt(self.secret.as_bytes())
+            .encrypt(self.secret.as_slice())
         {
             Ok(cipher_text) => Ok(cipher_text),
             Err(_) => Err("Failed to encrypt message.".to_string()),
@@ -400,7 +400,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            SECRET,
+            SECRET.as_bytes(),
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
@@ -486,7 +486,7 @@ mod tests {
             &primary_tvs_private_key.bytes(),
             &secondary_tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            SECRET,
+            SECRET.as_bytes(),
         )
         .unwrap();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
@@ -575,7 +575,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            SECRET,
+            SECRET.as_bytes(),
         )
         .unwrap();
 
@@ -673,7 +673,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            "secret",
+            b"secret",
         )
         .unwrap();
 
@@ -749,7 +749,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            "secret",
+            b"secret",
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
@@ -821,7 +821,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            "secret",
+            b"secret",
         )
         .unwrap();
 
@@ -844,7 +844,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &[1, 2, 3],
             default_appraisal_policy().as_slice(),
-            "test_secret",
+            b"test_secret",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(
@@ -857,7 +857,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &[b'f'; P256_SCALAR_LENGTH * 3],
             default_appraisal_policy().as_slice(),
-            "test_secret",
+            b"test_secret",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(
@@ -870,7 +870,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &P256Scalar::generate().bytes(),
             &[1, 2, 3],
-            "test_secret",
+            b"test_secret",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
@@ -884,7 +884,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            "test_secret",
+            b"test_secret",
         )
         .unwrap();
 
@@ -899,7 +899,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            "test_secret",
+            b"test_secret",
         )
         .unwrap();
         let client_handshake =
@@ -922,7 +922,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            "secret",
+            b"secret",
         )
         .unwrap();
         match trusted_tvs.do_verify_report(b"aaa") {

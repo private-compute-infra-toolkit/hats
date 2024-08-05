@@ -125,7 +125,7 @@ async fn main() -> anyhow::Result<()> {
     // Launch a process right now
     // TODO(alwabel): package the trusted app in a container.
     let mut cmd = tokio::process::Command::new("/usr/bin/launch-trusted-app.sh");
-    cmd.arg(token);
+    cmd.arg(hex::encode(token));
     let _ = cmd.spawn()?;
 
     // Request group keys.

@@ -17,7 +17,6 @@
 #include <cstdint>
 #include <exception>
 #include <string>
-#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -153,9 +152,10 @@ absl::StatusOr<std::string> TvsUntrustedClient::VerifyReportAndGetToken(
           absl::StrCat("Failed to write message to stream. ",
                        stream_->Finish().error_message()));
     }
-    std::string token(tvs_client_->process_response(
-        StringToRustSlice(opaque_message.binary_message())));
-    return token;
+
+    rust::Vec<uint8_t> secret = tvs_client_->process_response(
+        StringToRustSlice(opaque_message.binary_message()));
+    return std::string(secret.begin(), secret.end());
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to create trusted TVS client.", e.what()));

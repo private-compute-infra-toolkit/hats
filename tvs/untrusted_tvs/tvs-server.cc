@@ -62,12 +62,14 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
       return new_trusted_tvs_service(
           absl::ToUnixMillis(absl::Now()),
           StringToRustSlice(primary_private_key),
-          StringToRustSlice(appraisal_policy.SerializeAsString()), secret);
+          StringToRustSlice(appraisal_policy.SerializeAsString()),
+          StringToRustSlice(secret));
     }
     return new_trusted_tvs_service_with_second_key(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(secondary_private_key),
-        StringToRustSlice(appraisal_policy.SerializeAsString()), secret);
+        StringToRustSlice(appraisal_policy.SerializeAsString()),
+        StringToRustSlice(secret));
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
         absl::StrCat("Cannot create trusted TVS server. ", e.what()));

@@ -7,6 +7,7 @@ rust_binary(
     deps = [
         ":build",
         ":tvs-grpc-client",
+        "@hats_crate_index//:hex",
         "@oak//oak_containers_orchestrator:lib",
         "@oak_crates_index//:anyhow",
         "@oak_crates_index//:clap",
