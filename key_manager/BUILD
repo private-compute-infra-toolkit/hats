@@ -13,6 +13,7 @@ cc_library(
         "kms-client.h",
     ],
     deps = [
+        "//key_manager:gcp-status",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -101,5 +102,15 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@google_cloud_cpp//:kms",
+    ],
+)
+
+cc_library(
+    name = "gcp-status",
+    srcs = ["gcp-status.cc"],
+    hdrs = ["gcp-status.h"],
+    deps = [
+        "@com_google_absl//absl/status",
+        "@google_cloud_cpp//:common",
     ],
 )
