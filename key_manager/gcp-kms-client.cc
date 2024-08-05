@@ -27,28 +27,9 @@
 #include "absl/strings/str_cat.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/status.h"
+#include "key_manager/gcp-status.h"
 
 namespace privacy_sandbox::key_manager {
-namespace {
-
-absl::Status GcpStatusToAbslStatus(google::cloud::Status status) {
-  switch (status.code()) {
-    case google::cloud::StatusCode::kOk:
-      return absl::OkStatus();
-    case google::cloud::StatusCode::kNotFound:
-      return absl::NotFoundError(status.message());
-    case google::cloud::StatusCode::kPermissionDenied:
-      return absl::PermissionDeniedError(status.message());
-    case google::cloud::StatusCode::kInvalidArgument:
-      return absl::InvalidArgumentError(status.message());
-    case google::cloud::StatusCode::kCancelled:
-      return absl::CancelledError(status.message());
-    case google::cloud::StatusCode::kUnknown:
-      return absl::UnknownError(status.message());
-  }
-}
-
-}  // namespace
 
 absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(
     const std::string& key_id) {
@@ -57,7 +38,7 @@ absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(
   google::cloud::v2_25::StatusOr<google::cloud::kms::v1::PublicKey> result =
       client_.GetPublicKey(request);
   if (!result.ok()) {
-    return GcpStatusToAbslStatus(result.status());
+    return GcpToAbslStatus(result.status());
   }
   PublicKey custom_key;
   custom_key.pem_key = result->pem();
@@ -79,7 +60,7 @@ absl::StatusOr<CryptoKey> GcpKmsClient::CreateAsymmetricKey(
   google::cloud::v2_25::StatusOr<google::cloud::kms::v1::CryptoKey> result =
       client_.CreateCryptoKey(request);
   if (!result.ok()) {
-    return GcpStatusToAbslStatus(result.status());
+    return GcpToAbslStatus(result.status());
   }
   CryptoKey custom_key;
   custom_key.key_id = result->name();
@@ -96,7 +77,7 @@ absl::StatusOr<std::string> GcpKmsClient::EncryptData(
       result = client_.Encrypt(request);
 
   if (!result.ok()) {
-    return GcpStatusToAbslStatus(result.status());
+    return GcpToAbslStatus(result.status());
   }
 
   return result->ciphertext();
@@ -112,7 +93,7 @@ absl::StatusOr<std::string> GcpKmsClient::DecryptData(
       result = client_.Decrypt(request);
 
   if (!result.ok()) {
-    return GcpStatusToAbslStatus(result.status());
+    return GcpToAbslStatus(result.status());
   }
   return result->plaintext();
 }
