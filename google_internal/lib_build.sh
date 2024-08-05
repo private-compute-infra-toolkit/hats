@@ -84,7 +84,7 @@ function lib_build::set_rbe_flags() {
 # Optionally also set credentials
 #######################################
 function lib_build::get_docker_images() {
-  # lib_build::set_workspace
+  lib_build::set_workspace
   lib_build::configure_gcloud_access
 
   if [[ -n $1 ]]; then

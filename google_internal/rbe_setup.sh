@@ -32,6 +32,7 @@ SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 # shellcheck disable=1091
 . "${SCRIPT_DIR}"/lib_build.sh
 
+lib_build::set_workspace
 lib_build::configure_gcloud_access
 # shellcheck disable=2119
 lib_build::get_docker_images
