@@ -29,3 +29,31 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "aead-crypter",
+    srcs = ["aead-crypter.cc"],
+    hdrs = ["aead-crypter.h"],
+    deps = [
+        ":secret-data",
+        "@boringssl//:crypto",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "aead-crypter_test",
+    srcs = ["aead-crypter_test.cc"],
+    deps = [
+        ":aead-crypter",
+        ":secret-data",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
