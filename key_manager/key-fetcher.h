@@ -26,6 +26,7 @@ namespace privacy_sandbox::key_manager {
 class KeyFetcher {
  public:
   static std::unique_ptr<KeyFetcher> Create();
+  virtual ~KeyFetcher() = default;
   virtual absl::StatusOr<std::string> GetPrimaryPrivateKey() = 0;
   virtual absl::StatusOr<std::string> GetSecondaryPrivateKey() = 0;
   virtual absl::StatusOr<std::string> GetSecret(

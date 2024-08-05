@@ -14,15 +14,18 @@
 
 #include "key_manager/key-fetcher-gcp.h"
 
-#include <string>
 #include <utility>
 
-#include "absl/flags/flag.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
+#include "crypto/aead-crypter.h"
+#include "crypto/secret-data.h"
 #include "gmock/gmock.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/kms/v1/key_management_connection.h"
+#include "google/cloud/spanner/client.h"
+#include "google/cloud/spanner/mocks/mock_spanner_connection.h"
+#include "google/cloud/spanner/mocks/row.h"
 #include "gtest/gtest.h"
 
 namespace privacy_sandbox::key_manager {
@@ -31,66 +34,407 @@ namespace {
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
+using ::testing::Return;
 using ::testing::StrEq;
 
+// Emulate KMS service connection. The class takes an encryption key and
+// expected name (KMS resource name) and ciphertext. If the request matches the
+// name and ciphertext, the encryption key is returned; otherwise and error is
+// returned.
 class TestKeyManagementServiceConnection
     : public google::cloud::kms_v1::v2_25::KeyManagementServiceConnection {
+ public:
+  TestKeyManagementServiceConnection(absl::string_view expected_resource_name,
+                                     absl::string_view expected_ciphertext,
+                                     crypto::SecretData& dek)
+      : expected_resource_name_(expected_resource_name),
+        expected_ciphertext_(expected_ciphertext),
+        dek_(dek) {}
+
   google::cloud::v2_25::StatusOr<google::cloud::kms::v1::DecryptResponse>
   Decrypt(const google::cloud::kms::v1::DecryptRequest& request) override {
     google::cloud::kms::v1::DecryptResponse response;
-    if (request.name() ==
-        "projects/test-project/locations/location1/keyRings/keyring1/"
-        "cryptoKeys/key1") {
-      response.set_plaintext("primary_key");
-    } else if (request.name() ==
-               "projects/test-project/locations/location1/keyRings/keyring1/"
-               "cryptoKeys/secret1") {
-      response.set_plaintext("secret");
+    if (request.name() == expected_resource_name_ &&
+        absl::StrContains(request.ciphertext(), expected_ciphertext_)) {
+      response.set_plaintext(dek_.GetStringView());
+    } else {
+      return google::cloud::Status(google::cloud::StatusCode::kInternal,
+                                   "TestKeyManagementServiceConnection failed");
     }
     return response;
   }
+
+ private:
+  std::string expected_resource_name_;
+  std::string expected_ciphertext_;
+  crypto::SecretData dek_;
 };
 
-TEST(KeyFetcherGcp, Normal) {
-  absl::SetFlag(&FLAGS_project_id, "test-project");
-  absl::SetFlag(&FLAGS_location_id, "location1");
-  absl::SetFlag(&FLAGS_key_ring_id, "keyring1");
-  absl::SetFlag(&FLAGS_private_key_id, "key1");
-  absl::SetFlag(&FLAGS_secret_id, "secret1");
-  absl::SetFlag(&FLAGS_secret, "030201");
-  absl::SetFlag(&FLAGS_primary_private_key, "010203");
-  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>();
+// This test generates a DEK, pass it to the test KMS to return it to the
+// KeyFetcher. Encrypt some data with the DEK and have mock spanner return it.
+// The key fetcher should be able to decrypt the encrypted data.
+TEST(KeyFetcherGcp, GetPrimaryPrivateKey) {
+  crypto::SecretData dek = crypto::RandomAeadKey();
+  constexpr absl::string_view kResourceName = "test_kek_primary";
+  constexpr absl::string_view kCiphertext = "test_dek_primary";
+  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
+      kResourceName, kCiphertext, dek);
   google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
       test_connection);
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields: {
+        name: "PrivateKey",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "Dek",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "ResourceName",
+        type: { code: STRING }
+      }
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  crypto::SecretData data("data1");
+  absl::StatusOr<std::string> encrypted_data =
+      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd);
+  ASSERT_TRUE(encrypted_data.ok());
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
+          {{"PrivateKey", google::cloud::spanner::Value(
+                              google::cloud::spanner::Bytes(*encrypted_data))},
+           {"Dek", google::cloud::spanner::Value(
+                       google::cloud::spanner::Bytes((kCiphertext)))},
+           {"ResourceName",
+            google::cloud::spanner::Value(std::string(kResourceName))}})));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce(
+          [&mock_result_set_source](
+              const google::cloud::spanner::Connection::SqlParams& sql_params)
+              -> google::cloud::spanner::RowStream {
+            // Make sure the right parameter is specified in the code.
+            google::cloud::StatusOr<google::cloud::spanner::Value> parameter =
+                sql_params.statement.GetParameter("key_name");
+            if (!parameter.ok()) return {};
+            google::cloud::StatusOr<std::string> key_name =
+                parameter->get<std::string>();
+            if (!key_name.ok()) return {};
+            if (*key_name != "primary_key") return {};
+            return google::cloud::spanner::RowStream(
+                std::move(mock_result_set_source));
+          });
+
+  google::cloud::spanner::Client spanner_client(mock_connection);
   std::unique_ptr<KeyFetcher> key_fetcher =
-      KeyFetcherGcp::Create(std::move(test_client));
+      KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
+
+  // The actual test.
   EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(),
-              IsOkAndHolds(StrEq("primary_key")));
-  EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
-              StatusIs(absl::StatusCode::kUnimplemented));
-  EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
-              IsOkAndHolds(StrEq("secret")));
+              IsOkAndHolds(StrEq("data1")));
 }
 
-TEST(KeyFetcherGcp, Error) {
-  absl::SetFlag(&FLAGS_project_id, "test-project");
-  absl::SetFlag(&FLAGS_location_id, "location1");
-  absl::SetFlag(&FLAGS_key_ring_id, "keyring1");
-  absl::SetFlag(&FLAGS_private_key_id, "key1");
-  absl::SetFlag(&FLAGS_secret_id, "secret1");
-  absl::SetFlag(&FLAGS_secret, "secret");
-  absl::SetFlag(&FLAGS_primary_private_key, "private_key");
-  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>();
+// This test generates a DEK, pass it to the test KMS to return it to the
+// KeyFetcher. Encrypt some data with the DEK and have mock spanner return it.
+// The key fetcher should be able to decrypt the encrypted data.
+TEST(KeyFetcherGcp, GetSecondaryPrimaryKey) {
+  crypto::SecretData dek = crypto::RandomAeadKey();
+  constexpr absl::string_view kResourceName = "test_kek_secondary";
+  constexpr absl::string_view kCiphertext = "test_dek_secondary";
+  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
+      kResourceName, kCiphertext, dek);
   google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
       test_connection);
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields: {
+        name: "PrivateKey",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "Dek",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "ResourceName",
+        type: { code: STRING }
+      }
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  crypto::SecretData data("data2");
+  absl::StatusOr<std::string> encrypted_data =
+      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd);
+  ASSERT_TRUE(encrypted_data.ok());
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
+          {{"PrivateKey", google::cloud::spanner::Value(
+                              google::cloud::spanner::Bytes(*encrypted_data))},
+           {"Dek", google::cloud::spanner::Value(
+                       google::cloud::spanner::Bytes((kCiphertext)))},
+           {"ResourceName",
+            google::cloud::spanner::Value(std::string(kResourceName))}})));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce(
+          [&mock_result_set_source](
+              const google::cloud::spanner::Connection::SqlParams& sql_params)
+              -> google::cloud::spanner::RowStream {
+            // Make sure the right parameter is specified in the code.
+            google::cloud::StatusOr<google::cloud::spanner::Value> parameter =
+                sql_params.statement.GetParameter("key_name");
+            if (!parameter.ok()) return {};
+            google::cloud::StatusOr<std::string> key_name =
+                parameter->get<std::string>();
+            if (!key_name.ok()) return {};
+            if (*key_name != "secondary_key") return {};
+            return google::cloud::spanner::RowStream(
+                std::move(mock_result_set_source));
+          });
+
+  google::cloud::spanner::Client spanner_client(mock_connection);
   std::unique_ptr<KeyFetcher> key_fetcher =
-      KeyFetcherGcp::Create(std::move(test_client));
-  EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Failed to parse primary private key")));
+      KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
+
+  // The actual test.
+  EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
+              IsOkAndHolds(StrEq("data2")));
+}
+
+// This test generates a DEK, pass it to the test KMS to return it to the
+// KeyFetcher. Encrypt some data with the DEK and have mock spanner return it.
+// The key fetcher should be able to decrypt the encrypted data.
+TEST(KeyFetcherGcp, GetSecret) {
+  crypto::SecretData dek = crypto::RandomAeadKey();
+  constexpr absl::string_view kResourceName = "test_kek_secret";
+  constexpr absl::string_view kCiphertext = "test_dek_secret";
+  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
+      kResourceName, kCiphertext, dek);
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+      test_connection);
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields: {
+        name: "Secret",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "Dek",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "ResourceName",
+        type: { code: STRING }
+      }
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  crypto::SecretData data("data3");
+  absl::StatusOr<std::string> encrypted_data =
+      crypto::Encrypt(dek, data, crypto::kSecretAd);
+  ASSERT_TRUE(encrypted_data.ok());
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
+          {{"Secret", google::cloud::spanner::Value(
+                          google::cloud::spanner::Bytes(*encrypted_data))},
+           {"Dek", google::cloud::spanner::Value(
+                       google::cloud::spanner::Bytes((kCiphertext)))},
+           {"ResourceName",
+            google::cloud::spanner::Value(std::string(kResourceName))}})));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+
+  constexpr absl::string_view kSecretId = "test_secret";
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce(
+          [&mock_result_set_source, kSecretId](
+              const google::cloud::spanner::Connection::SqlParams& sql_params)
+              -> google::cloud::spanner::RowStream {
+            // Make sure the right parameter is specified in the code.
+            google::cloud::StatusOr<google::cloud::spanner::Value> parameter =
+                sql_params.statement.GetParameter("secret_id");
+            if (!parameter.ok()) return {};
+            google::cloud::StatusOr<std::string> key_name =
+                parameter->get<std::string>();
+            if (!key_name.ok()) return {};
+            if (*key_name != kSecretId) return {};
+            return google::cloud::spanner::RowStream(
+                std::move(mock_result_set_source));
+          });
+
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<KeyFetcher> key_fetcher =
+      KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
+
+  // The actual test.
+  EXPECT_THAT(key_fetcher->GetSecret(kSecretId), IsOkAndHolds(StrEq("data3")));
+}
+
+TEST(KeyFetcherGcp, KMSError) {
+  crypto::SecretData dek = crypto::RandomAeadKey();
+  constexpr absl::string_view kResourceName = "test_kek_secret";
+  constexpr absl::string_view kCiphertext = "test_dek_secret";
+  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
+      kResourceName, kCiphertext, dek);
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+      test_connection);
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields: {
+        name: "Secret",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "Dek",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "ResourceName",
+        type: { code: STRING }
+      }
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  crypto::SecretData data("data3");
+  absl::StatusOr<std::string> encrypted_data =
+      crypto::Encrypt(dek, data, crypto::kSecretAd);
+  ASSERT_TRUE(encrypted_data.ok());
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
+          {{"Secret", google::cloud::spanner::Value(
+                          google::cloud::spanner::Bytes(*encrypted_data))},
+           {"Dek", google::cloud::spanner::Value(
+                       google::cloud::spanner::Bytes((kCiphertext)))},
+           {"ResourceName", google::cloud::spanner::Value("")}})));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce([&mock_result_set_source](
+                    const google::cloud::spanner::Connection::SqlParams&)
+                    -> google::cloud::spanner::RowStream {
+        return google::cloud::spanner::RowStream(
+            std::move(mock_result_set_source));
+      });
+
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<KeyFetcher> key_fetcher =
+      KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
+
+  // The actual test.
   EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Failed to parse secret ke")));
+              StatusIs(absl::StatusCode::kInternal,
+                       HasSubstr("TestKeyManagementServiceConnection failed")));
+}
+
+TEST(KeyFetcherGcp, DecryptionError) {
+  crypto::SecretData dek = crypto::RandomAeadKey();
+  constexpr absl::string_view kResourceName = "test_kek_secret";
+  constexpr absl::string_view kCiphertext = "test_dek_secret";
+  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
+      kResourceName, kCiphertext, dek);
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+      test_connection);
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields: {
+        name: "Secret",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "Dek",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "ResourceName",
+        type: { code: STRING }
+      }
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  crypto::SecretData data("data3");
+  absl::StatusOr<std::string> encrypted_data =
+      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd);
+  ASSERT_TRUE(encrypted_data.ok());
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
+          {{"Secret", google::cloud::spanner::Value(
+                          google::cloud::spanner::Bytes(*encrypted_data))},
+           {"Dek", google::cloud::spanner::Value(
+                       google::cloud::spanner::Bytes((kCiphertext)))},
+           {"ResourceName",
+            google::cloud::spanner::Value(std::string(kResourceName))}})));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce([&mock_result_set_source](
+                    const google::cloud::spanner::Connection::SqlParams&)
+                    -> google::cloud::spanner::RowStream {
+        return google::cloud::spanner::RowStream(
+            std::move(mock_result_set_source));
+      });
+
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<KeyFetcher> key_fetcher =
+      KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
+
+  // The actual test.
+  EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("EVP_AEAD_CTX_open failed")));
 }
 
 }  // namespace

@@ -94,7 +94,8 @@ int main(int argc, char* argv[]) {
                  << secondary_private_key.status();
   }
 
-  absl::StatusOr<std::string> secret = key_fetcher->GetSecret(/*secret_id=*/"");
+  absl::StatusOr<std::string> secret =
+      key_fetcher->GetSecret(/*secret_id=*/"default");
   if (!secret.ok()) {
     LOG(ERROR) << "Failed to fetch secret: " << secret.status();
     return 1;

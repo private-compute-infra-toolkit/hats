@@ -23,6 +23,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/channel.h"
@@ -103,6 +104,13 @@ int main(int argc, char* argv[]) {
   if (!token.ok()) {
     std::cout << "TVS rejected the report: " << token.status() << std::endl;
   }
-  std::cout << "Token: " << *token << std::endl;
+
+  if (absl::StatusOr<std::string> token_hex = absl::BytesToHexString(*token);
+      token_hex.ok()) {
+    std::cout << "Token: " << token_hex << std::endl;
+  } else {
+    std::cout << "Failed to convert token to hex; token in bytes is: " << *token
+              << std::endl;
+  }
   return 0;
 }

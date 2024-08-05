@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "absl/flags/flag.h"
@@ -23,102 +24,166 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "crypto/aead-crypter.h"
+#include "crypto/secret-data.h"
 #include "google/cloud/kms/v1/key_management_client.h"
+#include "google/cloud/spanner/client.h"
 #include "key_manager/gcp-kms-client.h"
+#include "key_manager/gcp-status.h"
 #include "key_manager/key-fetcher.h"
 
-ABSL_FLAG(std::string, project_id, "", "Project ID.");
-ABSL_FLAG(std::string, location_id, "", "Location ID.");
-ABSL_FLAG(std::string, key_ring_id, "", "Key Ring ID.");
-ABSL_FLAG(std::string, private_key_id, "", "CryptoKey ID.");
-ABSL_FLAG(std::string, secret_id, "", "Secret ID.");
-ABSL_FLAG(std::string, primary_private_key, "",
-          "Primary private key for NK-Noise handshake protocol.");
-ABSL_FLAG(std::string, secret, "",
-          "A secret to be returned to client passing attestation validation.");
+ABSL_FLAG(std::string, project_id, "", "GCP Project ID.");
+ABSL_FLAG(std::string, instance_id, "", "Spanner instance ID.");
+ABSL_FLAG(std::string, database_id, "", "Spanner database ID.");
 
 namespace privacy_sandbox::key_manager {
 
-KeyFetcherGcp::KeyFetcherGcp(absl::string_view project_id,
-                             absl::string_view location_id,
-                             absl::string_view key_ring_id,
-                             absl::string_view private_key_id,
-                             absl::string_view secret_id,
-                             absl::string_view primary_private_key,
-                             absl::string_view secret)
-    : project_id_(project_id),
-      location_id_(location_id),
-      key_ring_id_(key_ring_id),
-      private_key_id_(private_key_id),
-      secret_id_(secret_id),
-      primary_private_key_(primary_private_key),
-      secret_(secret),
-      gcp_kms_client_(google::cloud::kms_v1::KeyManagementServiceClient(
-          google::cloud::kms_v1::MakeKeyManagementServiceConnection())) {}
+namespace {
+
+struct Keys {
+  std::string key;
+  std::string dek;
+  std::string kek;
+};
+
+absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
+    absl::string_view key_name, google::cloud::spanner::Client& client) {
+  google::cloud::spanner::SqlStatement select(
+      R"sql(
+      SELECT
+          PrivateKey, Dek, ResourceName
+      FROM
+          ECKeys, DataEncryptionKey, KeyEncryptionKey
+      WHERE
+          KeyEncryptionKey.KekId = DataEncryptionKey.KekId
+          AND EcKeys.DekId = DataEncryptionKey.DekId
+          AND ECKeys.KeyId = @key_name)sql",
+      {{"key_name", google::cloud::spanner::Value(std::string(key_name))}});
+  using RowType = std::tuple<google::cloud::spanner::Bytes,
+                             google::cloud::spanner::Bytes, std::string>;
+  auto rows = client.ExecuteQuery(std::move(select));
+  for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+    if (!row.ok()) {
+      return GcpToAbslStatus(row.status());
+    }
+    return Keys{
+        .key = std::get<0>(*row).get<std::string>(),
+        .dek = std::get<1>(*row).get<std::string>(),
+        .kek = std::get<2>(*row),
+    };
+  }
+  return absl::NotFoundError(absl::StrCat("Cannot find '", key_name, "'"));
+}
+
+absl::StatusOr<Keys> WrappedSecretFromSpanner(
+    absl::string_view secret_id, google::cloud::spanner::Client& client) {
+  google::cloud::spanner::SqlStatement select(
+      R"sql(
+      SELECT
+          Secret, Dek, ResourceName
+      FROM
+          Secrets, DataEncryptionKey, KeyEncryptionKey
+      WHERE
+          KeyEncryptionKey.KekId = DataEncryptionKey.KekId
+          AND Secrets.DekId = DataEncryptionKey.DekId
+          AND Secrets.SecretId = @secret_id)sql",
+      {{"secret_id", google::cloud::spanner::Value(std::string(secret_id))}});
+  using RowType = std::tuple<google::cloud::spanner::Bytes,
+                             google::cloud::spanner::Bytes, std::string>;
+  auto rows = client.ExecuteQuery(std::move(select));
+  for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+    if (!row.ok()) {
+      return GcpToAbslStatus(row.status());
+    }
+    return Keys{
+        .key = std::get<0>(*row).get<std::string>(),
+        .dek = std::get<1>(*row).get<std::string>(),
+        .kek = std::get<2>(*row),
+    };
+  }
+  return absl::NotFoundError("Cannot find secret");
+}
+
+absl::StatusOr<crypto::SecretData> UnwrapSecret(
+    absl::string_view associated_data,
+    privacy_sandbox::key_manager::GcpKmsClient& gcp_kms_client, Keys keys) {
+  absl::StatusOr<std::string> unwrapped_dek =
+      gcp_kms_client.DecryptData(keys.kek, keys.dek);
+  if (!unwrapped_dek.ok()) {
+    return unwrapped_dek.status();
+  }
+  return crypto::Decrypt(crypto::SecretData(*unwrapped_dek),
+                         crypto::SecretData(keys.key), associated_data);
+}
+
+}  // namespace
 
 KeyFetcherGcp::KeyFetcherGcp(
-    absl::string_view project_id, absl::string_view location_id,
-    absl::string_view key_ring_id, absl::string_view private_key_id,
-    absl::string_view secret_id, absl::string_view primary_private_key,
-    absl::string_view secret,
-    google::cloud::kms_v1::v2_25::KeyManagementServiceClient client)
-    : project_id_(project_id),
-      location_id_(location_id),
-      key_ring_id_(key_ring_id),
-      private_key_id_(private_key_id),
-      secret_id_(secret_id),
-      primary_private_key_(primary_private_key),
-      secret_(secret),
-      gcp_kms_client_(google::cloud::kms_v1::KeyManagementServiceClient(
-          std::move(client))) {}
+    google::cloud::kms_v1::v2_25::KeyManagementServiceClient gcp_kms_client,
+    google::cloud::spanner::Client spanner_client)
+    : gcp_kms_client_(google::cloud::kms_v1::KeyManagementServiceClient(
+          std::move(gcp_kms_client))),
+      spanner_client_(std::move(spanner_client)) {}
+
+KeyFetcherGcp::KeyFetcherGcp(absl::string_view project_id,
+                             absl::string_view instance_id,
+                             absl::string_view database_id)
+    : gcp_kms_client_(google::cloud::kms_v1::KeyManagementServiceClient(
+          google::cloud::kms_v1::MakeKeyManagementServiceConnection())),
+      spanner_client_(google::cloud::spanner::MakeConnection(
+          google::cloud::spanner::Database(std::string(project_id),
+                                           std::string(instance_id),
+                                           std::string(database_id)))) {}
 
 absl::StatusOr<std::string> KeyFetcherGcp::GetPrimaryPrivateKey() {
-  std::string encrypted_key;
-  if (!absl::HexStringToBytes(primary_private_key_, &encrypted_key)) {
-    return absl::InvalidArgumentError(
-        "Failed to parse primary private key. The key should be in hex "
-        "format");
+  absl::StatusOr<Keys> keys =
+      WrappedEcKeyFromSpanner("primary_key", spanner_client_);
+  if (!keys.ok()) return keys.status();
+  absl::StatusOr<crypto::SecretData> secret_data =
+      UnwrapSecret(crypto::kTvsPrivateKeyAd, gcp_kms_client_, *std::move(keys));
+  if (!secret_data.ok()) {
+    return secret_data.status();
   }
-
-  return gcp_kms_client_.DecryptData(
-      absl::StrCat("projects/", project_id_, "/locations/", location_id_,
-                   "/keyRings/", key_ring_id_, "/cryptoKeys/", private_key_id_),
-      encrypted_key);
+  return std::string(secret_data->GetStringView());
 }
 
 absl::StatusOr<std::string> KeyFetcherGcp::GetSecondaryPrivateKey() {
-  return absl::UnimplementedError("Unimplemented");
+  absl::StatusOr<Keys> keys =
+      WrappedEcKeyFromSpanner("secondary_key", spanner_client_);
+  if (!keys.ok()) return keys.status();
+  absl::StatusOr<crypto::SecretData> secret_data =
+      UnwrapSecret(crypto::kTvsPrivateKeyAd, gcp_kms_client_, *std::move(keys));
+  if (!secret_data.ok()) {
+    return secret_data.status();
+  }
+  return std::string(secret_data->GetStringView());
 }
 
-// We are ignoring secret_id right now since we only support one secret.
 absl::StatusOr<std::string> KeyFetcherGcp::GetSecret(
     absl::string_view secret_id) {
-  std::string encrypted_secret;
-  if (!absl::HexStringToBytes(secret_, &encrypted_secret)) {
-    return absl::InvalidArgumentError(
-        "Failed to parse secret key. The secret should be in hex format");
+  absl::StatusOr<Keys> keys =
+      WrappedSecretFromSpanner(secret_id, spanner_client_);
+  if (!keys.ok()) return keys.status();
+  absl::StatusOr<crypto::SecretData> secret_data =
+      UnwrapSecret(crypto::kSecretAd, gcp_kms_client_, *std::move(keys));
+  if (!secret_data.ok()) {
+    return secret_data.status();
   }
-  return gcp_kms_client_.DecryptData(
-      absl::StrCat("projects/", project_id_, "/locations/", location_id_,
-                   "/keyRings/", key_ring_id_, "/cryptoKeys/", secret_id_),
-      encrypted_secret);
+  return std::string(secret_data->GetStringView());
 }
 
 std::unique_ptr<KeyFetcher> KeyFetcherGcp::Create(
-    google::cloud::kms_v1::v2_25::KeyManagementServiceClient client) {
-  return std::make_unique<KeyFetcherGcp>(
-      absl::GetFlag(FLAGS_project_id), absl::GetFlag(FLAGS_location_id),
-      absl::GetFlag(FLAGS_key_ring_id), absl::GetFlag(FLAGS_private_key_id),
-      absl::GetFlag(FLAGS_secret_id), absl::GetFlag(FLAGS_primary_private_key),
-      absl::GetFlag(FLAGS_secret), std::move(client));
+    google::cloud::kms_v1::v2_25::KeyManagementServiceClient gcp_kms_client,
+    google::cloud::spanner::Client spanner_client) {
+  // The constructor is private so we use WrapUnique.
+  return absl::WrapUnique(
+      new KeyFetcherGcp(std::move(gcp_kms_client), std::move(spanner_client)));
 }
 
 std::unique_ptr<KeyFetcher> KeyFetcher::Create() {
-  return std::make_unique<KeyFetcherGcp>(
-      absl::GetFlag(FLAGS_project_id), absl::GetFlag(FLAGS_location_id),
-      absl::GetFlag(FLAGS_key_ring_id), absl::GetFlag(FLAGS_private_key_id),
-      absl::GetFlag(FLAGS_secret_id), absl::GetFlag(FLAGS_primary_private_key),
-      absl::GetFlag(FLAGS_secret));
+  return std::make_unique<KeyFetcherGcp>(absl::GetFlag(FLAGS_project_id),
+                                         absl::GetFlag(FLAGS_instance_id),
+                                         absl::GetFlag(FLAGS_database_id));
 }
 
 }  // namespace privacy_sandbox::key_manager

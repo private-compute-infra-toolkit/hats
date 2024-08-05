@@ -1,4 +1,3 @@
-// LOCAL_GOOGLE_HOME_ALWABEL_HATS_KEYS_HATS_KEY_MANAGER_KEY_FETCHER_GCP_H_
 // Copyright 2024 Google LLC.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,42 +21,28 @@
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "crypto/secret-data.h"
 #include "google/cloud/kms/v1/key_management_client.h"
+#include "google/cloud/spanner/client.h"
 #include "key_manager/gcp-kms-client.h"
 #include "key_manager/key-fetcher.h"
 
 ABSL_DECLARE_FLAG(std::string, project_id);
-ABSL_DECLARE_FLAG(std::string, location_id);
-ABSL_DECLARE_FLAG(std::string, key_ring_id);
-ABSL_DECLARE_FLAG(std::string, private_key_id);
-ABSL_DECLARE_FLAG(std::string, secret_id);
-ABSL_DECLARE_FLAG(std::string, primary_private_key);
-ABSL_DECLARE_FLAG(std::string, secret);
+ABSL_DECLARE_FLAG(std::string, instance_id);
+ABSL_DECLARE_FLAG(std::string, database_id);
 
 namespace privacy_sandbox::key_manager {
 
 class KeyFetcherGcp : public KeyFetcher {
  public:
   KeyFetcherGcp() = delete;
-
-  KeyFetcherGcp(absl::string_view project_id, absl::string_view location_id,
-                absl::string_view key_ring_id, absl::string_view private_key_id,
-                absl::string_view secret_id,
-                absl::string_view primary_private_key,
-                absl::string_view secret);
-
-  // For unit-tests only.
-  KeyFetcherGcp(
-      absl::string_view project_id, absl::string_view location_id,
-      absl::string_view key_ring_id, absl::string_view private_key_id,
-      absl::string_view secret_id, absl::string_view primary_private_key,
-      absl::string_view secret,
-      google::cloud::kms_v1::v2_25::KeyManagementServiceClient client);
   // For unit-tests only.
   static std::unique_ptr<KeyFetcher> Create(
-      google::cloud::kms_v1::v2_25::KeyManagementServiceClient client);
+      google::cloud::kms_v1::v2_25::KeyManagementServiceClient client,
+      google::cloud::spanner::Client spanner_client);
+  KeyFetcherGcp(absl::string_view project_id, absl::string_view instance_id,
+                absl::string_view database_id);
 
   absl::StatusOr<std::string> GetPrimaryPrivateKey() override;
 
@@ -66,14 +51,12 @@ class KeyFetcherGcp : public KeyFetcher {
   absl::StatusOr<std::string> GetSecret(absl::string_view secret_id) override;
 
  private:
-  const std::string project_id_;
-  const std::string location_id_;
-  const std::string key_ring_id_;
-  const std::string private_key_id_;
-  const std::string secret_id_;
-  const std::string primary_private_key_;
-  const std::string secret_;
+  // For unit-tests only.
+  KeyFetcherGcp(google::cloud::kms_v1::v2_25::KeyManagementServiceClient client,
+                google::cloud::spanner::Client spanner_client);
+
   privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client_;
+  google::cloud::spanner::Client spanner_client_;
 };
 
 }  // namespace privacy_sandbox::key_manager
