@@ -14,8 +14,14 @@
 
 #include "client/launcher/qemu.h"
 
+#include <signal.h>
+#include <spawn.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <iostream>
 #include <numeric>
 #include <random>
@@ -24,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -33,90 +40,102 @@
 
 namespace privacy_sandbox::launcher {
 
-// values from http://shortn/_ehIJXlZa2X
+// SLIRP assings 10.0.2.15 to the guest.
 constexpr char kVmLocalAddress[] = "10.0.2.15";
 constexpr char kLocalHost[] = "127.0.0.1";
 constexpr uint16_t kVmOrchestratorLocalPort = 4000;
 constexpr uint16_t kVmLocalPort = 8080;
-// value from tokio_vsock documentation http://shortn/_xWSQlEKHnR
+// Host always has address of *2*.
 constexpr uint32_t kVmAddrCidHost = 2;
 
 Qemu::Options Qemu::Options::Default() {
-  constexpr char kVmm_binary[] = "./qemu-system-x86_64";
-  constexpr char kStage0_binary[] = "stage0_bin";
-  constexpr char kKernel[] = "vanilla_bzImage";
-  constexpr char kInitrd[] = "./target/stage1.cpio";
   return {
-      kVmm_binary,
-      kStage0_binary,
-      kKernel,
-      kInitrd,
-      "8G",          // memory_size
-      2,             // num_cpus
-      3000000,       // ramdrive_size:
-      std::nullopt,  // virtio_guest_cid
-      "",            // pci_passthrough
-      VmType::kDefault,
+      .vmm_binary = "./qemu-system-x86_64",
+      .stage0_binary = "stage0_bin",
+      .kernel = "vanilla_bzImage",
+      .initrd = "./target/stage1.cpio",
+      .memory_size = "8G",
+      .num_cpus = 2,
+      .ramdrive_size = 3000000,
+      .virtio_guest_cid = std::nullopt,
+      .vm_type = VmType::kDefault,
   };
 }
 
-Qemu::Qemu(const Qemu::Options& options) {
-  // (TODO):open socket for console debugging
-  // command_str will be where we setup all options to run qemu
-  std::string command_str =
-      absl::StrCat(options.vmm_binary, " -enable-kvm -cpu host ");
+Qemu::Qemu(const Qemu::Options &options)
+    : binary_(options.vmm_binary), log_filename_(std::tmpnam(nullptr)) {
+  args_.push_back(binary_);
+  args_.push_back("-enable-kvm");
+  // Use the same CPU as the host otherwise the VMM might complains that CPUID
+  // info does not match the expected values.
+  args_.push_back("-cpu");
+  args_.push_back("host");
 
   // Needed to expose advanced CPU features. Specifically RDRAND which is
   // required for remote attestation.
-  absl::StrAppend(&command_str, "-m ", options.memory_size, " ");
+  args_.push_back("-m");
+  args_.push_back(options.memory_size);
+  args_.push_back("-smp");
+  args_.push_back(absl::StrCat(options.num_cpus));
 
-  absl::StrAppend(&command_str, "-smp ", options.num_cpus, " ");
   // Disable a bunch of hardware we don't need.
-  absl::StrAppend(&command_str, "-nodefaults -nographic ");
+  args_.push_back("-nodefaults");
+  args_.push_back("-nographic");
+
   // If the VM restarts, don't restart it (we're not expecting any restarts so
   // any restart should be treated as a failure)
-  absl::StrAppend(&command_str, "-no-reboot ");
+  args_.push_back("-no-reboot");
+
   // Use the `microvm` machine as the basis, and ensure ACPI and PCIe are
   // enabled.
-  constexpr char kMicrovm_common[] = "microvm,acpi=on,pcie=on";
+  constexpr char kMicroVmCommon[] = "microvm,acpi=on,pcie=on";
   // SEV, SEV-ES, SEV-SNP VMs need confidential guest support and private
   // memory.
-  constexpr char kSev_machine_suffix[] =
-      ",confidential-guest-support=sev0,memory-backend=ram1";
+  constexpr char kSevMachineSuffix[] =
+      ",memory-backend=ram1,confidential-guest-support=sev0";
   // Definition of the private memory.
   std::string sev_common_object =
       absl::StrCat("memory-backend-memfd,id=ram1,size=", options.memory_size,
                    ",share=true,reserve=false");
   // SEV's feature configuration.
-  constexpr char kSev_config_object[] =
+  constexpr const char kSevConfigObject[] =
       "id=sev0,cbitpos=51,reduced-phys-bits=1";
   // Generate the parameters and add them command line args
   switch (options.vm_type) {
     case VmType::kDefault:
-      absl::StrAppend(&command_str, "-machine ", kMicrovm_common, " ");
+      args_.push_back("-machine");
+      args_.push_back(kMicroVmCommon);
       break;
     case VmType::kSev:
-      absl::StrAppend(&command_str, "-machine ", kMicrovm_common, " ");
-      absl::StrAppend(&command_str, "-object ", sev_common_object, " ");
-      absl::StrAppend(&command_str, "-object ", "sev-guest,", sev_common_object,
-                      ",policy=0x1 ");
+      // TODO(alwabel): make this work.
+      args_.push_back("-machine");
+      args_.push_back(kMicroVmCommon);
+      args_.push_back("-machine");
+      args_.push_back(sev_common_object);
+      args_.push_back("-object");
+      args_.push_back(
+          absl::StrCat("sev-guest,", sev_common_object, ",policy=0x1"));
       break;
     case VmType::kSevEs:
-      absl::StrAppend(&command_str, "-machine ", kMicrovm_common,
-                      kSev_machine_suffix, " ");
-      absl::StrAppend(&command_str, "-object ", sev_common_object, " ");
-      absl::StrAppend(&command_str, "-object ", "sev-guest,", sev_common_object,
-                      ",policy=0x5 ");
+      // TODO(alwabel): make this work.
+      args_.push_back("-machine");
+      args_.push_back(kMicroVmCommon);
+      args_.push_back("-machine");
+      args_.push_back(sev_common_object);
+      args_.push_back("-object");
+      args_.push_back(
+          absl::StrCat("sev-guest,", sev_common_object, ",policy=0x1"));
       break;
     case VmType::kSevSnp:
-      absl::StrAppend(&command_str, "-machine ", kMicrovm_common,
-                      kSev_machine_suffix, " ");
-      absl::StrAppend(&command_str, "-object ", sev_common_object, " ");
-      absl::StrAppend(&command_str, "-object ", "sev-snp-guest,",
-                      kSev_config_object, ",id-auth= ");
+      args_.push_back("-machine");
+      args_.push_back(absl::StrCat(kMicroVmCommon, kSevMachineSuffix));
+      args_.push_back("-object");
+      args_.push_back(sev_common_object);
+      args_.push_back("-object");
+      args_.push_back(
+          absl::StrCat("sev-snp-guest,", kSevConfigObject, ",id-auth=1"));
       break;
   }
-  // (TODO) alexorozco: Implement qemu telnet console debugging
 
   // Set up the networking. `rombar=0` is so that QEMU wouldn't bother with the
   // `efi-virtio.rom` file, as we're not using EFI anyway.
@@ -125,68 +144,160 @@ Qemu::Qemu(const Qemu::Options& options) {
       absl::StrFormat("hostfwd=tcp:%s:%u-%s:%u", kLocalHost,
                       options.host_orchestrator_proxy_port, kVmLocalAddress,
                       kVmOrchestratorLocalPort);
-  absl::StrAppend(&command_str, "-netdev user,id=netdev,");
-  absl::StrAppend(
-      &command_str, std::move(host_fwd),
-      absl::StrFormat(",hostfwd=tcp:%s:%u-%s:%u", kLocalHost,
-                      options.host_proxy_port, kVmLocalAddress, kVmLocalPort),
-      " ");
-  absl::StrAppend(&command_str,
-                  "-device "
-                  "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
-                  "netdev,romfile= ");
+  args_.push_back("-netdev");
+  args_.push_back(absl::StrFormat(
+      "user,id=netdev,%s,hostfwd=tcp:%s:%u-%s:%u", std::move(host_fwd),
+      kLocalHost, options.host_proxy_port, kVmLocalAddress, kVmLocalPort));
+  args_.push_back("-device");
+  args_.push_back(
+      "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
+      "netdev,romfile=");
   // The CID needs to be globally unique, so we default to the current thread ID
   // (which should be unique on the system). This may have interesting
   // interactions with async code though: if you start two VMMs in the same
   // thread, it won't work. But we don't really have any other good sources of
   // globally unique identifiers available for us, and starting multiple VMMs in
   // one thread should be uncommon.
-  if (options.virtio_guest_cid.has_value()) {
-    absl::StrAppend(
-        &command_str,
-        absl::StrFormat("-device vhost-vsock-pci,guest-cid=%u,rombar=0",
-                        *options.virtio_guest_cid),
-        " ");
-  } else {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distrib(0, 1000000000);
-    size_t random_number = distrib(gen);
-    absl::StrAppend(&command_str,
-                    "-device vhost-vsock-pci,guest-cid=", random_number,
-                    ",rombar=0 ");
-  }
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> distrib(0, 1000000);
+  size_t random_number = distrib(gen);
+  args_.push_back("-device");
+  args_.push_back(absl::StrCat("vhost-vsock-pci,guest-cid=",
+                               options.virtio_guest_cid.has_value()
+                                   ? *options.virtio_guest_cid
+                                   : random_number,
+                               ",rombar=0"));
+
   // And yes, use stage0 as the BIOS.
-  absl::StrAppend(&command_str, "-bios ", options.stage0_binary, " ");
+  args_.push_back("-bios");
+  args_.push_back(options.stage0_binary);
   // stage0 accoutrements: the kernel, initrd and inital kernel cmdline.
-  absl::StrAppend(&command_str, "-kernel ", options.kernel, " ");
-  absl::StrAppend(&command_str, "-initrd ", options.initrd, " ");
+  args_.push_back("-kernel");
+  args_.push_back(options.kernel);
+  args_.push_back("-initrd");
+  args_.push_back(options.initrd);
 
-  absl::StrAppend(&command_str, "-append ");
-  // TODO(alexorozco): add debugging flag here
-  absl::StrAppend(&command_str, "console=\"ttyS0 ");
-  absl::StrAppend(&command_str, "panic=-1 ");
-  absl::StrAppend(&command_str, "brd.rd_nr=1 ");
-  absl::StrAppend(&command_str,
-                  absl::StrFormat("brd.rd_size=%u", options.ramdrive_size),
-                  " ");
-  absl::StrAppend(&command_str, "brd.max_part=1 ");
-  absl::StrAppend(
-      &command_str,
-      absl::StrFormat("ip=%s:::255.255.255.0::eth0:off", kVmLocalAddress), " ");
-  absl::StrAppend(&command_str, "quiet ");
-  absl::StrAppend(&command_str, "-- ");
-  absl::StrAppend(
-      &command_str,
-      absl::StrFormat("--launcher-addr=vsock://%u:%u\"", kVmAddrCidHost,
-                      options.launcher_service_port));
+  args_.push_back("-append");
+  std::string cmdline;
+  if (options.telnet_port.has_value()) {
+    cmdline = "debug ";
+  }
+  absl::StrAppend(&cmdline, " console=ttyS0 panic=-1 brd.rd_nr=1 ");
+  absl::StrAppend(&cmdline, "brd.rd_size=", options.ramdrive_size,
+                  " brd.max_part=1 ");
+  if (options.network_mode == kOutboundAllowed) {
+    absl::StrAppend(&cmdline, "ip=", kVmLocalAddress,
+                    "::10.0.2.2:255.255.255.0::enp0s1:off");
+  } else {
+    absl::StrAppend(&cmdline, "ip=", kVmLocalAddress,
+                    ":::255.255.255.0::enp0s1:off");
+  }
+  absl::StrAppend(&cmdline, " quiet -- ", "--launcher-addr=vsock://",
+                  kVmAddrCidHost, ":", options.launcher_service_port);
 
-  command_str_ = command_str;
+  args_.push_back(cmdline);
+
+  if (options.telnet_port.has_value()) {
+    args_.push_back("-serial");
+    args_.push_back(
+        absl::StrCat("telnet:localhost:", *options.telnet_port, ",server"));
+  }
 }
 
-std::string Qemu::GetCommand() const { return command_str_; }
+Qemu::~Qemu() {
+  if (log_file_ != nullptr) {
+    fclose(log_file_);
+  }
+}
+
+namespace {
+
+void ClosePosixObjects(posix_spawn_file_actions_t &file_actions,
+                       posix_spawnattr_t attr) {
+  posix_spawn_file_actions_destroy(&file_actions);
+  posix_spawnattr_destroy(&attr);
+}
+
+}  // namespace
 
 // This is a non-blocking op, you must make sure not to terminate your process
-void Qemu::Start() { std::system(command_str_.c_str()); }
+absl::Status Qemu::Start() {
+  absl::MutexLock lock(&mu_);
+  if (started_) {
+    return absl::FailedPreconditionError("Qemu was already started");
+  }
+
+  started_ = true;
+  // We don't use any of the C++ streams as there is no clean way of getting
+  // the file descriptor number out of them.
+  log_file_ = fopen(log_filename_.c_str(), "w");
+  int file_descriptor = fileno(log_file_);
+
+  posix_spawn_file_actions_t file_actions;
+  if (int r = posix_spawn_file_actions_init(&file_actions); r != 0) {
+    return absl::FailedPreconditionError(
+        "posix_spawn_file_actions_init() failed.");
+  }
+  posix_spawnattr_t attr;
+  if (int r = posix_spawnattr_init(&attr); r != 0) {
+    posix_spawn_file_actions_destroy(&file_actions);
+    return absl::FailedPreconditionError("posix_spawnattr_init() failed.");
+  }
+
+  // Redirect stdout and stderr to `log_filename_`.
+  // Also redirect stdin to the file, although the file is write only but we
+  // don't need stdin.
+  if (int r =
+          posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 1);
+      r != 0) {
+    ClosePosixObjects(file_actions, attr);
+    return absl::FailedPreconditionError(
+        "posix_spawn_file_actions_adddup2() failed.");
+  }
+  if (int r =
+          posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 2);
+      r != 0) {
+    ClosePosixObjects(file_actions, attr);
+    return absl::FailedPreconditionError(
+        "posix_spawn_file_actions_adddup2() failed.");
+  }
+  if (int r =
+          posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 0);
+      r != 0) {
+    ClosePosixObjects(file_actions, attr);
+    return absl::FailedPreconditionError(
+        "posix_spawn_file_actions_adddup2() failed.");
+  }
+  auto argv =
+      std::unique_ptr<const char *[]>(new const char *[args_.size() + 2]);
+  // posix_spawn , similar to execvp, expects all arguments including the binary
+  // name in an array of c-strings. The array is terminated with nullptr.
+  argv[args_.size() + 1] = nullptr;
+  argv[0] = binary_.c_str();
+  for (size_t i = 0; i < args_.size(); ++i) {
+    argv[i + 1] = (char *)args_[i].c_str();
+  }
+  if (int status = posix_spawn(&process_id_, binary_.c_str(), &file_actions,
+                               &attr, /*argv=*/const_cast<char **>(argv.get()),
+                               /*envp=*/nullptr);
+      status != 0) {
+    return absl::FailedPreconditionError("Failed to launch qemu");
+  }
+
+  ClosePosixObjects(file_actions, attr);
+  return absl::OkStatus();
+}
+
+std::string Qemu::GetCommand() const {
+  return absl::StrCat(binary_, " ", absl::StrJoin(args_, " "));
+}
+
+std::string Qemu::LogFilename() const { return log_filename_; }
+
+void Qemu::Wait() {
+  absl::MutexLock lock(&mu_);
+  waitpid(process_id_, /*wstatus=*/nullptr, 0);
+}
 
 }  // namespace privacy_sandbox::launcher

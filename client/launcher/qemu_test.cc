@@ -55,25 +55,24 @@ INSTANTIATE_TEST_SUITE_P(
                     .host_orchestrator_proxy_port = 1080,
                 },
             .expected_output =
-                "./qemu-system-x86_64 -enable-kvm -cpu host -m 8G -smp 1 "
-                "-nodefaults -nographic -no-reboot -machine "
-                "microvm,acpi=on,pcie=on,confidential-guest-support=sev0,"
-                "memory-backend=ram1 -object "
+                "./qemu-system-x86_64 ./qemu-system-x86_64 -enable-kvm -cpu "
+                "host -m 8G -smp 1 -nodefaults -nographic -no-reboot -machine "
+                "microvm,acpi=on,pcie=on,memory-backend=ram1,confidential-"
+                "guest-support=sev0 -object "
                 "memory-backend-memfd,id=ram1,size=8G,share=true,reserve=false "
                 "-object "
-                "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,id-auth= "
-                "-netdev "
+                "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,id-auth="
+                "1 -netdev "
                 "user,id=netdev,hostfwd=tcp:127.0.0.1:1080-10.0.2.15:4000,"
-                "hostfwd=tcp:"
-                "127.0.0.1:4000-10.0.2.15:8080 -device "
+                "hostfwd=tcp:127.0.0.1:4000-10.0.2.15:8080 -device "
                 "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
                 "netdev,romfile= -device vhost-vsock-pci,guest-cid=8,rombar=0 "
                 "-bios /home/user/hats_kv/hats_kv/prebuilt/stage0_bin -kernel "
                 "/home/user/hats_kv/hats_kv/prebuilt/vanilla_bzImage -initrd "
-                "/home/user/hats_kv/hats_kv/prebuilt/stage1.cpio -append "
-                "console=\"ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
-                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off quiet "
-                "-- --launcher-addr=vsock://2:36317\"",
+                "/home/user/hats_kv/hats_kv/prebuilt/stage1.cpio -append  "
+                "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
+                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
+                "-- --launcher-addr=vsock://2:36317",
         },
         {
             .test_name = "SuccessSevEs",
@@ -94,23 +93,21 @@ INSTANTIATE_TEST_SUITE_P(
                     .host_orchestrator_proxy_port = 1080,
                 },
             .expected_output =
-                "vmm_binary -enable-kvm -cpu host -m memory_size -smp 5 "
-                "-nodefaults -nographic -no-reboot -machine "
-                "microvm,acpi=on,pcie=on,confidential-guest-support=sev0,"
-                "memory-backend=ram1 -object "
+                "vmm_binary vmm_binary -enable-kvm -cpu host -m memory_size "
+                "-smp 5 -nodefaults -nographic -no-reboot -machine "
+                "microvm,acpi=on,pcie=on -machine "
                 "memory-backend-memfd,id=ram1,size=memory_size,share=true,"
                 "reserve=false -object "
-                "sev-guest,memory-backend-memfd,id=ram1,size=memory_size,"
-                "share=true,reserve=false,policy=0x5 -netdev "
+                "sev-guest,memory-backend-memfd,id=ram1,size=memory_size,share="
+                "true,reserve=false,policy=0x1 -netdev "
                 "user,id=netdev,hostfwd=tcp:127.0.0.1:1080-10.0.2.15:4000,"
-                "hostfwd=tcp:"
-                "127.0.0.1:4000-10.0.2.15:8080 -device "
+                "hostfwd=tcp:127.0.0.1:4000-10.0.2.15:8080 -device "
                 "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
                 "netdev,romfile= -device vhost-vsock-pci,guest-cid=8,rombar=0 "
-                "-bios stage0_binary -kernel kernel -initrd initrd -append "
-                "console=\"ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
-                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off quiet "
-                "-- --launcher-addr=vsock://2:8080\"",
+                "-bios stage0_binary -kernel kernel -initrd initrd -append  "
+                "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
+                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
+                "-- --launcher-addr=vsock://2:8080",
         },
         {
             .test_name = "SuccessVmTypeDefault",
@@ -131,19 +128,54 @@ INSTANTIATE_TEST_SUITE_P(
                     .host_orchestrator_proxy_port = 1080,
                 },
             .expected_output =
-                "vmm_binary -enable-kvm -cpu host -m memory_size -smp 5 "
-                "-nodefaults -nographic -no-reboot -machine "
+                "vmm_binary vmm_binary -enable-kvm -cpu host -m memory_size "
+                "-smp 5 -nodefaults -nographic -no-reboot -machine "
                 "microvm,acpi=on,pcie=on -netdev "
                 "user,id=netdev,hostfwd=tcp:127.0.0.1:1080-10.0.2.15:4000,"
-                "hostfwd=tcp:"
-                "127.0.0.1:4000-10.0.2.15:8080 -device "
+                "hostfwd=tcp:127.0.0.1:4000-10.0.2.15:8080 -device "
                 "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
                 "netdev,romfile= -device vhost-vsock-pci,guest-cid=8,rombar=0 "
-                "-bios stage0_binary -kernel kernel -initrd initrd -append "
-                "console=\"ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
-                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off quiet "
-                "-- --launcher-addr=vsock://2:8080\"",
+                "-bios stage0_binary -kernel kernel -initrd initrd -append  "
+                "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
+                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
+                "-- --launcher-addr=vsock://2:8080",
         },
+        {
+            .test_name = "TelnetPort",
+            .options =
+                {
+                    .vmm_binary = "vmm_binary",
+                    .stage0_binary = "_teststage0_binary",
+                    .kernel = "test_kernel",
+                    .initrd = "initrd",
+                    .memory_size = "100G",
+                    .num_cpus = 50,
+                    .ramdrive_size = 30,
+                    .virtio_guest_cid = 80,
+                    .vm_type = Qemu::VmType::kSevSnp,
+                    .launcher_service_port = 8080,
+                    .host_proxy_port = 4000,
+                    .host_orchestrator_proxy_port = 1080,
+                },
+            .expected_output =
+                "vmm_binary vmm_binary -enable-kvm -cpu host -m 100G -smp 50 "
+                "-nodefaults -nographic -no-reboot -machine "
+                "microvm,acpi=on,pcie=on,memory-backend=ram1,confidential-"
+                "guest-support=sev0 -object "
+                "memory-backend-memfd,id=ram1,size=100G,share=true,reserve="
+                "false -object "
+                "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,id-auth="
+                "1 -netdev "
+                "user,id=netdev,hostfwd=tcp:127.0.0.1:1080-10.0.2.15:4000,"
+                "hostfwd=tcp:127.0.0.1:4000-10.0.2.15:8080 -device "
+                "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
+                "netdev,romfile= -device vhost-vsock-pci,guest-cid=80,rombar=0 "
+                "-bios _teststage0_binary -kernel test_kernel -initrd initrd "
+                "-append  console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=30 "
+                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
+                "-- --launcher-addr=vsock://2:8080",
+        },
+
     }));
 
 TEST_P(QemuLauncherTest, Success) {
@@ -157,19 +189,20 @@ TEST_P(QemuLauncherTest, Success) {
 TEST(Qemu, SuccessDefaultOptions) {
   Qemu::Options options = Qemu::Options::Default();
   options.virtio_guest_cid = 2;
-  constexpr char kExpectedOutput[] =
-      "./qemu-system-x86_64 -enable-kvm -cpu host -m 8G -smp 2 -nodefaults "
-      "-nographic -no-reboot -machine microvm,acpi=on,pcie=on -netdev "
+  Qemu qemu = Qemu(options);
+  EXPECT_EQ(
+      qemu.GetCommand(),
+      "./qemu-system-x86_64 ./qemu-system-x86_64 -enable-kvm -cpu host -m 8G "
+      "-smp 2 -nodefaults -nographic -no-reboot -machine "
+      "microvm,acpi=on,pcie=on -netdev "
       "user,id=netdev,hostfwd=tcp:127.0.0.1:0-10.0.2.15:4000,hostfwd=tcp:127.0."
       "0.1:0-10.0.2.15:8080 -device "
       "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=netdev,"
       "romfile= -device vhost-vsock-pci,guest-cid=2,rombar=0 -bios stage0_bin "
-      "-kernel vanilla_bzImage -initrd ./target/stage1.cpio -append "
-      "console=\"ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=3000000 brd.max_part=1 "
-      "ip=10.0.2.15:::255.255.255.0::eth0:off quiet -- "
-      "--launcher-addr=vsock://2:0\"";
-  Qemu qemu = Qemu(options);
-  EXPECT_EQ(qemu.GetCommand(), kExpectedOutput);
+      "-kernel vanilla_bzImage -initrd ./target/stage1.cpio -append  "
+      "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=3000000 brd.max_part=1 "
+      "ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- "
+      "--launcher-addr=vsock://2:0");
 }
 
 }  // namespace privacy_sandbox::launcher

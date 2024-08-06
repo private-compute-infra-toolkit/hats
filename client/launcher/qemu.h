@@ -13,10 +13,14 @@
 // limitations under the License.
 
 #include <cstdint>
+#include <cstdio>
 #include <iostream>
 #include <optional>
 #include <string>
 #include <thread>
+#include <vector>
+
+#include "absl/status/status.h"
 
 #ifndef HATS_CLIENT_LAUNCHER_QEMU_H_
 #define HATS_CLIENT_LAUNCHER_QEMU_H_
@@ -35,6 +39,10 @@ class Qemu final {
     kSevSnp,
   };
 
+  enum NetworkMode {
+    kRestricted,
+    kOutboundAllowed,
+  };
   // Represents parameters used for launching VM instances.
   struct Options {
     // Path to the VMM binary to execute.
@@ -51,18 +59,18 @@ class Qemu final {
 
     // How much memory to give to the enclave binary, e.g., 256M (M stands for
     // Megabyte, G for Gigabyte).
-    std::string memory_size;
+    std::string memory_size = "8G";
 
     // How many CPUs to give to the VM.
-    size_t num_cpus;
+    size_t num_cpus = 1;
 
     // Size (in kilobytes) of the ramdrive used for the system root.
-    size_t ramdrive_size;
+    size_t ramdrive_size = 10000000;
 
     // Optional virtio guest CID for virtio-vsock. If not assigned, defaults to
     // the current thread ID.
     // Warning; This CID needs to be globally unique on the whole host!
-    std::optional<size_t> virtio_guest_cid;
+    std::optional<size_t> virtio_guest_cid = std::nullopt;
 
     // Pass the specified host PCI device through to the virtual machine using
     // VFIO.
@@ -80,20 +88,44 @@ class Qemu final {
 
     // Implements Options for root
     static Options Default();
+
+    // Specifies networking policies.
+    NetworkMode network_mode;
+    // If specified, the VM will start in debug mode and listens to a the port
+    // specified.
+    std::optional<uint16_t> telnet_port = std::nullopt;
   };
 
   Qemu() = delete;
-  Qemu(const Qemu&) = delete;
-  Qemu& operator=(const Qemu&) = delete;
+  Qemu(const Qemu &) = delete;
+  Qemu &operator=(const Qemu &) = delete;
+  Qemu(const Options &options);
+  ~Qemu();
 
-  void Start();
+  // This function should be called once and only once.
+  // The function returns an error if it was called multiple times.
+  absl::Status Start() ABSL_LOCKS_EXCLUDED(mu_);
 
+  // Exposed for unit test.
   std::string GetCommand() const;
 
-  Qemu(const Options& options);
+  // Return the file where VMM stderr and stdout are written.
+  std::string LogFilename() const;
+
+  // Wait until QEMU terminates.
+  void Wait() ABSL_LOCKS_EXCLUDED(mu_);
 
  private:
-  std::string command_str_;
+  const std::string binary_;
+  std::vector<std::string> args_;
+  const std::string log_filename_;
+  absl::Mutex mu_;
+  // Whether a QEMU was started or not.
+  bool started_ ABSL_GUARDED_BY(mu_) = false;
+  // File where VMM stdout and stderr are directed to.
+  FILE *log_file_ ABSL_GUARDED_BY(mu_) = nullptr;
+  // Process id of the QEMU process.
+  pid_t process_id_ ABSL_GUARDED_BY(mu_);
 };
 
 }  // namespace privacy_sandbox::launcher
