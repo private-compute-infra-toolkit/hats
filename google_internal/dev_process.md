@@ -86,7 +86,11 @@ This uses builders to run via a docker image.
 The first time may be slow to first set up the image, but should be the same as long as the config stays the same.
 Note that the image is also set up following the [rbe\_setup](#rbe).
 
-Alternatively, you can use a local version of pre-commit
+If you are committing from elsewhere (such as VSCode), then you may need to build the image first before it works with VSCode (committing in terminal or running `rbe_setup.sh`).
+Note also that failure messages this way may be different.
+
+Alternatively, you can use a local version of pre-commit.
+This may require you to download the tools yourself (such as `shellcheck`).
 
 ```shell
 sudo apt install pre-commit
@@ -102,10 +106,11 @@ git commit -no-verify
 ```
 
 To run the checks on all files without committing, use one of the following:
+This makes it easier to repeatedly call w/o add/commit.
 
 ```shell
 builders/tools/pre-commit     # This runs on the whole repo
-pre-commit run                # Only changed files by default, add `-a` to run on the whole repo
+pre-commit run -a             # Whole repo, without -a for just staged
 ```
 
 To disable the hook entirely, remove/rename `.git/hooks/pre-commit`

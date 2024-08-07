@@ -154,8 +154,8 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@using_cxx//:cxx_cc",
     ] + select({
-        "//conditions:default": ["//key_manager:key-fetcher-local"],
         "//:gcp": ["//key_manager:key-fetcher-gcp"],
+        "//conditions:default": ["//key_manager:key-fetcher-local"],
     }),
 )
 
@@ -163,7 +163,7 @@ rust_cxx_bridge(
     name = "bridge",
     src = "rust-key-fetcher.rs",
     deps = [":key-fetcher-wrapper"],
-)   
+)
 
 rust_library(
     name = "rust-key-fetcher",
