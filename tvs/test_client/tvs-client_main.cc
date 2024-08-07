@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
 
   if (absl::StatusOr<std::string> token_hex = absl::BytesToHexString(*token);
       token_hex.ok()) {
-    std::cout << "Token: " << token_hex << std::endl;
+    std::cout << "Token in hex format: " << token_hex << std::endl;
   } else {
     std::cout << "Failed to convert token to hex; token in bytes is: " << *token
               << std::endl;

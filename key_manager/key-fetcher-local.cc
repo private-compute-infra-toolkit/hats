@@ -23,11 +23,10 @@
 
 ABSL_FLAG(std::string, primary_private_key, "",
           "Primary private key for NK-Noise handshake protocol.");
-ABSL_FLAG(std::string, secret, "secret",
-          "A secret to be returned to client passing attestation validation.");
 ABSL_FLAG(std::string, secondary_private_key, "",
           "Secondary private key for NK-Noise handshake protocol.");
-
+ABSL_FLAG(std::string, secret, "736563726574",
+          "A secret to be returned to client passing attestation validation.");
 namespace privacy_sandbox::key_manager {
 
 class KeyFetcherLocal : public KeyFetcher {
@@ -67,7 +66,14 @@ class KeyFetcherLocal : public KeyFetcher {
   }
 
   absl::StatusOr<std::string> GetSecret(absl::string_view secret_id) override {
-    return secret_;
+    std::string secret_bytes;
+    if (!absl::HexStringToBytes(secret_, &secret_bytes)) {
+      return absl::InvalidArgumentError(
+          "Failed to parse the secret. Secrets should be "
+          "formatted as hex "
+          "string.");
+    }
+    return secret_bytes;
   }
 
  private:
