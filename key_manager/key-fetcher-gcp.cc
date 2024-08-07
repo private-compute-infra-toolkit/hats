@@ -40,6 +40,8 @@ namespace privacy_sandbox::key_manager {
 
 namespace {
 
+constexpr absl::string_view kAssociatedData = "HATS_SECRET";
+
 struct Keys {
   std::string key;
   std::string dek;
@@ -108,7 +110,7 @@ absl::StatusOr<crypto::SecretData> UnwrapSecret(
     absl::string_view associated_data,
     privacy_sandbox::key_manager::GcpKmsClient& gcp_kms_client, Keys keys) {
   absl::StatusOr<std::string> unwrapped_dek =
-      gcp_kms_client.DecryptData(keys.kek, keys.dek);
+      gcp_kms_client.DecryptData(keys.kek, keys.dek, kAssociatedData);
   if (!unwrapped_dek.ok()) {
     return unwrapped_dek.status();
   }
