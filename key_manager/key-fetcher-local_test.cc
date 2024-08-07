@@ -35,7 +35,7 @@ TEST(KeyFetcherLocal, Normal) {
   {
     absl::SetFlag(&FLAGS_primary_private_key, "6669727374");
     absl::SetFlag(&FLAGS_secondary_private_key, "7365636f6e64");
-    absl::SetFlag(&FLAGS_secret, "secret1");
+    absl::SetFlag(&FLAGS_secret, "73656372657431");
     std::unique_ptr<KeyFetcher> key_fetcher = KeyFetcher::Create();
     EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(),
                 IsOkAndHolds(StrEq("first")));
@@ -47,7 +47,7 @@ TEST(KeyFetcherLocal, Normal) {
   {
     absl::SetFlag(&FLAGS_primary_private_key, "61");
     absl::SetFlag(&FLAGS_secondary_private_key, "62");
-    absl::SetFlag(&FLAGS_secret, "secret2");
+    absl::SetFlag(&FLAGS_secret, "73656372657432");
     std::unique_ptr<KeyFetcher> key_fetcher = KeyFetcher::Create();
     EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(), IsOkAndHolds(StrEq("a")));
     EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
