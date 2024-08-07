@@ -15,13 +15,20 @@
 #include "client/launcher/qemu.h"
 
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <thread>
 
+#include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "gtest/gtest.h"
 
 namespace privacy_sandbox::launcher {
+namespace {
+
+using ::absl_testing::StatusIs;
+using ::testing::HasSubstr;
 
 struct QemuLauncherTestCase {
   std::string test_name;
@@ -175,12 +182,48 @@ INSTANTIATE_TEST_SUITE_P(
                 "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
                 "-- --launcher-addr=vsock://2:8080",
         },
+        {
+            .test_name = "OutboundNetwork",
+            .options =
+                {
+                    .vmm_binary = "vmm_binary",
+                    .stage0_binary = "_teststage0_binary",
+                    .kernel = "test_kernel",
+                    .initrd = "initrd",
+                    .ramdrive_size = 30,
+                    .virtio_guest_cid = 80,
+                    .vm_type = Qemu::VmType::kSevSnp,
+                    .launcher_service_port = 8080,
+                    .host_proxy_port = 4000,
+                    .host_orchestrator_proxy_port = 1080,
+                    .network_mode = Qemu::NetworkMode::kOutboundAllowed,
+                },
+            .expected_output =
+                "vmm_binary vmm_binary -enable-kvm -cpu host -m 8G -smp 1 "
+                "-nodefaults -nographic -no-reboot -machine "
+                "microvm,acpi=on,pcie=on,memory-backend=ram1,confidential-"
+                "guest-support=sev0 -object "
+                "memory-backend-memfd,id=ram1,size=8G,share=true,reserve=false "
+                "-object "
+                "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,id-auth="
+                "1 -netdev "
+                "user,id=netdev,hostfwd=tcp:127.0.0.1:1080-10.0.2.15:4000,"
+                "hostfwd=tcp:127.0.0.1:4000-10.0.2.15:8080 -device "
+                "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
+                "netdev,romfile= -device vhost-vsock-pci,guest-cid=80,rombar=0 "
+                "-bios _teststage0_binary -kernel test_kernel -initrd initrd "
+                "-append  console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=30 "
+                "brd.max_part=1 "
+                "ip=10.0.2.15::10.0.2.2:255.255.255.0::enp0s1:off quiet -- "
+                "--launcher-addr=vsock://2:8080",
+        },
     }));
 
 TEST_P(QemuLauncherTest, Success) {
   const QemuLauncherTestCase& test_case = GetParam();
-  Qemu qemu = Qemu(test_case.options);
-  EXPECT_EQ(qemu.GetCommand(), test_case.expected_output);
+  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(test_case.options);
+  ASSERT_TRUE(qemu.ok());
+  EXPECT_EQ((*qemu)->GetCommand(), test_case.expected_output);
 }
 
 // Separate test case for default options so we can fix the virtio_guest_cid
@@ -188,9 +231,10 @@ TEST_P(QemuLauncherTest, Success) {
 TEST(Qemu, SuccessDefaultOptions) {
   Qemu::Options options = Qemu::Options::Default();
   options.virtio_guest_cid = 2;
-  Qemu qemu = Qemu(options);
+  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(options);
+  ASSERT_TRUE(qemu.ok());
   EXPECT_EQ(
-      qemu.GetCommand(),
+      (*qemu)->GetCommand(),
       "./qemu-system-x86_64 ./qemu-system-x86_64 -enable-kvm -cpu host -m 8G "
       "-smp 2 -nodefaults -nographic -no-reboot -machine "
       "microvm,acpi=on,pcie=on -netdev "
@@ -204,4 +248,64 @@ TEST(Qemu, SuccessDefaultOptions) {
       "--launcher-addr=vsock://2:0");
 }
 
+TEST(Qemu, kRoutableIp) {
+  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create({
+      .vmm_binary = "vmm_binary",
+      .stage0_binary = "_teststage0_binary",
+      .kernel = "test_kernel",
+      .initrd = "initrd",
+      .virtio_guest_cid = 5,
+      .network_mode = Qemu::NetworkMode::kRoutableIp,
+      .virtual_bridge = "br0",
+      .vm_ip_address = "192.168.110.60",
+      .vm_gateway_address = "192.168.110.1",
+  });
+  ASSERT_TRUE(qemu.ok());
+  EXPECT_THAT(
+      (*qemu)->GetCommand(),
+      AllOf(HasSubstr("vmm_binary vmm_binary -enable-kvm -cpu host -m 8G -smp "
+                      "1 -nodefaults -nographic -no-reboot -machine "
+                      "microvm,acpi=on,pcie=on -netdev tap,id=tap"),
+            HasSubstr(",ifname="), HasSubstr(",script="),
+            HasSubstr("-device "
+                      "virtio-net-pci,disable-legacy=on,iommu_platform=true,"
+                      "netdev=netdev,romfile=,netdev=tap"),
+            HasSubstr("-device vhost-vsock-pci,guest-cid=5,rombar=0 -bios "
+                      "_teststage0_binary -kernel test_kernel -initrd initrd "
+                      "-append  console=ttyS0 panic=-1 brd.rd_nr=1 "
+                      "brd.rd_size=10000000 brd.max_part=1 "
+                      "ip=192.168.110.60::192.168.110.1:255.255.255.0::enp0s1:"
+                      "off quiet -- --launcher-addr=vsock://2:0")));
+}
+
+TEST(Qemu, CreationError) {
+  EXPECT_THAT(
+      Qemu::Create({
+          .network_mode = Qemu::NetworkMode::kRoutableIp,
+          .vm_ip_address = "192.168.110.60",
+          .vm_gateway_address = "192.168.110.1",
+      }),
+      StatusIs(
+          absl::StatusCode::kFailedPrecondition,
+          HasSubstr(
+              "virtual_bridge must be provided for a VM with routable IP")));
+
+  EXPECT_THAT(Qemu::Create({
+                  .network_mode = Qemu::NetworkMode::kRoutableIp,
+                  .virtual_bridge = "br0",
+                  .vm_gateway_address = "192.168.110.1",
+              }),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("An IP address must be provided")));
+
+  EXPECT_THAT(Qemu::Create({
+                  .network_mode = Qemu::NetworkMode::kRoutableIp,
+                  .virtual_bridge = "br0",
+                  .vm_ip_address = "192.168.110.60",
+              }),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("A gateway address must be provided")));
+}
+
+}  // namespace
 }  // namespace privacy_sandbox::launcher
