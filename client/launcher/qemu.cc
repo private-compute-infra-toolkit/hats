@@ -41,6 +41,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
+#include "absl/synchronization/mutex.h"
 
 // porting from oak qemu launcher: http://shortn/_LgMZgnCwOM
 // currently Start() is non-blocking, do not terminate process

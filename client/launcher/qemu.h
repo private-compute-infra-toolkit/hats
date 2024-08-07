@@ -23,6 +23,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/synchronization/mutex.h"
 
 #ifndef HATS_CLIENT_LAUNCHER_QEMU_H_
 #define HATS_CLIENT_LAUNCHER_QEMU_H_
