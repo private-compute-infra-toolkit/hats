@@ -63,8 +63,7 @@ Qemu::Options Qemu::Options::Default() {
   };
 }
 
-Qemu::Qemu(const Qemu::Options& options)
-    : binary_(options.vmm_binary), log_filename_(std::tmpnam(nullptr)) {
+Qemu::Qemu(const Qemu::Options& options) : binary_(options.vmm_binary) {
   args_.push_back(binary_);
   args_.push_back("-enable-kvm");
   // Use the same CPU as the host otherwise the VMM might complains that CPUID
@@ -206,12 +205,6 @@ Qemu::Qemu(const Qemu::Options& options)
   }
 }
 
-Qemu::~Qemu() {
-  if (log_file_ != nullptr) {
-    fclose(log_file_);
-  }
-}
-
 namespace {
 
 void ClosePosixObjects(posix_spawn_file_actions_t& file_actions,
@@ -230,10 +223,13 @@ absl::Status Qemu::Start() {
   }
 
   started_ = true;
-  // We don't use any of the C++ streams as there is no clean way of getting
-  // the file descriptor number out of them.
-  log_file_ = fopen(log_filename_.c_str(), "w");
-  int file_descriptor = fileno(log_file_);
+  char log_file_template[] = "/tmp/hatsXXXXXX";
+  int file_descriptor = mkstemp(log_file_template);
+  if (file_descriptor == -1) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("mkstemp() failed: ", strerror(errno)));
+  }
+  log_filename_ = log_file_template;
 
   posix_spawn_file_actions_t file_actions;
   if (int r = posix_spawn_file_actions_init(&file_actions); r != 0) {
@@ -247,8 +243,6 @@ absl::Status Qemu::Start() {
   }
 
   // Redirect stdout and stderr to `log_filename_`.
-  // Also redirect stdin to the file, although the file is write only but we
-  // don't need stdin.
   if (int r =
           posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 1);
       r != 0) {
@@ -293,7 +287,10 @@ std::string Qemu::GetCommand() const {
   return absl::StrCat(binary_, " ", absl::StrJoin(args_, " "));
 }
 
-std::string Qemu::LogFilename() const { return log_filename_; }
+std::string Qemu::LogFilename() const {
+  absl::MutexLock lock(&mu_);
+  return log_filename_;
+}
 
 void Qemu::Wait() {
   absl::MutexLock lock(&mu_);

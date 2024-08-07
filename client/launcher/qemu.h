@@ -100,7 +100,6 @@ class Qemu final {
   Qemu(const Qemu&) = delete;
   Qemu& operator=(const Qemu&) = delete;
   Qemu(const Options& options);
-  ~Qemu();
 
   // This function should be called once and only once.
   // The function returns an error if it was called multiple times.
@@ -110,7 +109,7 @@ class Qemu final {
   std::string GetCommand() const;
 
   // Return the file where VMM stderr and stdout are written.
-  std::string LogFilename() const;
+  std::string LogFilename() ABSL_LOCKS_EXCLUDED(mu_) const;
 
   // Wait until QEMU terminates.
   void Wait() ABSL_LOCKS_EXCLUDED(mu_);
@@ -118,14 +117,15 @@ class Qemu final {
  private:
   const std::string binary_;
   std::vector<std::string> args_;
-  const std::string log_filename_;
-  absl::Mutex mu_;
+  mutable absl::Mutex mu_;
   // Whether a QEMU was started or not.
   bool started_ ABSL_GUARDED_BY(mu_) = false;
   // File where VMM stdout and stderr are directed to.
   FILE* log_file_ ABSL_GUARDED_BY(mu_) = nullptr;
   // Process id of the QEMU process.
   pid_t process_id_ ABSL_GUARDED_BY(mu_);
+  // file name where qemu output is written to.
+  std::string log_filename_ ABSL_GUARDED_BY(mu_);
 };
 
 }  // namespace privacy_sandbox::launcher
