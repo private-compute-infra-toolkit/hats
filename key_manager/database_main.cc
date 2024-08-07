@@ -311,8 +311,8 @@ absl::StatusOr<Secrets> GenerateSecrets(
           google::cloud::kms_v1::MakeKeyManagementServiceConnection()));
 
   // Wrap DEK with KEK in KMS.
-  absl::StatusOr<std::string> wrapped_dek =
-      gcp_kms_client.EncryptData(kms_key_resource_name, dek.GetStringView());
+  absl::StatusOr<std::string> wrapped_dek = gcp_kms_client.EncryptData(
+      kms_key_resource_name, dek.GetStringView(), "HATS_SECRET");
   if (!wrapped_dek.ok()) return wrapped_dek.status();
 
   // Wrap EC

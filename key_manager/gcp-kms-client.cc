@@ -68,11 +68,12 @@ absl::StatusOr<CryptoKey> GcpKmsClient::CreateAsymmetricKey(
 }
 
 absl::StatusOr<std::string> GcpKmsClient::EncryptData(
-    absl::string_view key_id, absl::string_view plaintext) {
+    absl::string_view key_id, absl::string_view plaintext,
+    absl::string_view associated_data) {
   google::cloud::kms::v1::EncryptRequest request;
   request.set_name(key_id);
   request.set_plaintext(plaintext);
-
+  request.set_additional_authenticated_data(associated_data);
   google::cloud::v2_25::StatusOr<google::cloud::kms::v1::EncryptResponse>
       result = client_.Encrypt(request);
 
@@ -84,10 +85,12 @@ absl::StatusOr<std::string> GcpKmsClient::EncryptData(
 }
 
 absl::StatusOr<std::string> GcpKmsClient::DecryptData(
-    absl::string_view key_id, absl::string_view ciphertext) {
+    absl::string_view key_id, absl::string_view ciphertext,
+    absl::string_view associated_data) {
   google::cloud::kms::v1::DecryptRequest request;
   request.set_name(key_id);
   request.set_ciphertext(ciphertext);
+  request.set_additional_authenticated_data(associated_data);
 
   google::cloud::v2_25::StatusOr<google::cloud::kms::v1::DecryptResponse>
       result = client_.Decrypt(request);

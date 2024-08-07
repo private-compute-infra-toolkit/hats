@@ -136,15 +136,29 @@ TEST(GcpKmsClientTest, EncryptDataSuccess) {
 
   std::unique_ptr<GcpKmsClient> client =
       std::make_unique<GcpKmsClient>(std::move(mock_client));
-  google::cloud::kms::v1::EncryptResponse expected_response;
-  expected_response.set_ciphertext(kExpectedCiphertext);
 
+  constexpr absl::string_view kKeyId = "test_key_id1";
+  constexpr absl::string_view kPlaintext = "test_plaintext1";
+  constexpr absl::string_view kAssociatedData = "test_ad1";
   EXPECT_CALL(*mock_connection, Encrypt)
-      .WillOnce(Return(StatusOr<google::cloud::kms::v1::EncryptResponse>(
-          expected_response)));
+      .WillOnce([&](const google::cloud::kms::v1::EncryptRequest& request)
+                    -> google::cloud::StatusOr<
+                        google::cloud::kms::v1::EncryptResponse> {
+        // Return a valid result if and only if the request sent by GcpKmsClient
+        // matches the request we expect to be sent based on the arguments
+        // passed to `EncryptData()`.
+        if (request.name() == kKeyId && request.plaintext() == kPlaintext &&
+            request.additional_authenticated_data() == kAssociatedData) {
+          google::cloud::kms::v1::EncryptResponse response;
+          response.set_ciphertext(kExpectedCiphertext);
+          return response;
+        }
+        return google::cloud::Status(
+            google::cloud::StatusCode::kInvalidArgument, "Invalid request.");
+      });
 
-  EXPECT_THAT(client->EncryptData(kExpectedKeyName, kExpectedPlaintext),
-              IsOkAndHolds("Encrypted data here"));
+  EXPECT_THAT(client->EncryptData(kKeyId, kPlaintext, kAssociatedData),
+              IsOkAndHolds(kExpectedCiphertext));
 }
 
 TEST(GcpKmsClientTest, EncryptDataFailure_InvalidRequest) {
@@ -162,7 +176,8 @@ TEST(GcpKmsClientTest, EncryptDataFailure_InvalidRequest) {
       .WillOnce(Return(
           StatusOr<google::cloud::kms::v1::EncryptResponse>(error_status)));
 
-  EXPECT_THAT(client->EncryptData(kExpectedKeyName, kExpectedPlaintext),
+  EXPECT_THAT(client->EncryptData(kExpectedKeyName, kExpectedPlaintext,
+                                  "associated_data"),
               StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
@@ -177,11 +192,27 @@ TEST(GcpKmsClientTest, DecryptDataSuccess) {
   google::cloud::kms::v1::DecryptResponse expected_response;
   expected_response.set_plaintext(kExpectedPlaintext);
 
+  constexpr absl::string_view kKeyId = "test_key_id2";
+  constexpr absl::string_view kCiphertext = "secret_text2";
+  constexpr absl::string_view kAssociatedData = "test_ad2";
   EXPECT_CALL(*mock_connection, Decrypt)
-      .WillOnce(Return(StatusOr<google::cloud::kms::v1::DecryptResponse>(
-          expected_response)));
+      .WillOnce([&](const google::cloud::kms::v1::DecryptRequest& request)
+                    -> google::cloud::StatusOr<
+                        google::cloud::kms::v1::DecryptResponse> {
+        // Return a valid result if and only if the request sent by GcpKmsClient
+        // matches the request we expect to be sent based on the arguments
+        // passed to `DecryptData()`.
+        if (request.name() == kKeyId && request.ciphertext() == kCiphertext &&
+            request.additional_authenticated_data() == kAssociatedData) {
+          google::cloud::kms::v1::DecryptResponse response;
+          response.set_plaintext(kExpectedPlaintext);
+          return response;
+        }
+        return google::cloud::Status(
+            google::cloud::StatusCode::kInvalidArgument, "Invalid request.");
+      });
 
-  EXPECT_THAT(client->DecryptData(kExpectedKeyName, kExpectedCiphertext),
+  EXPECT_THAT(client->DecryptData(kKeyId, kCiphertext, kAssociatedData),
               IsOkAndHolds(kExpectedPlaintext));
 }
 
@@ -199,7 +230,8 @@ TEST(GcpKmsClientTest, DecryptDataFailure_AuthenticationError) {
       .WillOnce(Return(
           StatusOr<google::cloud::kms::v1::DecryptResponse>(error_status)));
 
-  EXPECT_THAT(client->DecryptData(kExpectedKeyName, kExpectedCiphertext),
+  EXPECT_THAT(client->DecryptData(kExpectedKeyName, kExpectedCiphertext,
+                                  "associated_data"),
               StatusIs(absl::StatusCode::kPermissionDenied));
 }
 

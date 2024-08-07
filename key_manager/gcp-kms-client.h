@@ -31,10 +31,12 @@ class GcpKmsClient : public KmsClient {
   absl::StatusOr<PublicKey> GetPublicKey(absl::string_view key_id) override;
   absl::StatusOr<CryptoKey> CreateAsymmetricKey(
       absl::string_view parent, absl::string_view key_id) override;
-  absl::StatusOr<std::string> EncryptData(absl::string_view key_id,
-                                          absl::string_view plaintext) override;
+  absl::StatusOr<std::string> EncryptData(
+      absl::string_view key_id, absl::string_view plaintext,
+      absl::string_view associated_data) override;
   absl::StatusOr<std::string> DecryptData(
-      absl::string_view key_id, absl::string_view ciphertext) override;
+      absl::string_view key_id, absl::string_view ciphertext,
+      absl::string_view associated_data) override;
 
  private:
   google::cloud::kms_v1::v2_25::KeyManagementServiceClient client_;

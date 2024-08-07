@@ -52,10 +52,12 @@ class KmsClient {
       absl::string_view parent, absl::string_view key_id) = 0;
 
   virtual absl::StatusOr<std::string> EncryptData(
-      absl::string_view key_id, absl::string_view plaintext) = 0;
+      absl::string_view key_id, absl::string_view plaintext,
+      absl::string_view associated_data) = 0;
 
   virtual absl::StatusOr<std::string> DecryptData(
-      absl::string_view key_id, absl::string_view ciphertext) = 0;
+      absl::string_view key_id, absl::string_view ciphertext,
+      absl::string_view associated_data) = 0;
 };
 
 }  // namespace privacy_sandbox::key_manager
