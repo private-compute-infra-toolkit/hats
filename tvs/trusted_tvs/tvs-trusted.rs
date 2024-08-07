@@ -335,31 +335,31 @@ mod tests {
 
     fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../../test_data/good_evidence.binarypb").as_slice(),
+            include_bytes!("../test_data/good_evidence.binarypb").as_slice(),
         )
         .expect("could not decode evidence")
     }
 
     fn get_bad_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../../test_data/bad_evidence.binarypb").as_slice(),
+            include_bytes!("../test_data/bad_evidence.binarypb").as_slice(),
         )
         .expect("could not decode evidence")
     }
 
     fn get_malformed_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../../test_data/malformed_evidence.binarypb").as_slice(),
+            include_bytes!("../test_data/malformed_evidence.binarypb").as_slice(),
         )
         .expect("could not decode evidence")
     }
 
     fn get_genoa_vcek() -> Vec<u8> {
-        include_bytes!("../../test_data/vcek_genoa.crt").to_vec()
+        include_bytes!("../test_data/vcek_genoa.crt").to_vec()
     }
 
     fn default_appraisal_policy() -> Vec<u8> {
-        include_bytes!("../../test_data/on-perm-reference.binarypb").to_vec()
+        include_bytes!("../test_data/on-perm-reference.binarypb").to_vec()
     }
 
     fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> Result<Vec<u8>, String> {

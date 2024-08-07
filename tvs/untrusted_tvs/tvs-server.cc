@@ -34,7 +34,7 @@
 #include "grpcpp/support/sync_stream.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/trusted_tvs/src/lib.rs.h"
+#include "tvs/trusted_tvs/tvs-trusted.rs.h"
 
 namespace privacy_sandbox::tvs {
 

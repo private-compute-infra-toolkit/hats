@@ -8,7 +8,7 @@ package(
 
 rust_library(
     name = "tvs-trusted",
-    srcs = ["src/lib.rs"],
+    srcs = ["tvs-trusted.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate_features = select({
         "//:gcp": ["gcp"],
@@ -34,7 +34,7 @@ rust_library(
 
 rust_test(
     name = "tvs-trusted_test",
-    srcs = ["src/lib.rs"],
+    srcs = ["tvs-trusted.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
         ":build",
@@ -62,7 +62,6 @@ cargo_build_script(
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
         "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
-    crate_features = ["bazel"],
     data = [
         "//tvs/proto:tvs_messages_proto",
         "@com_google_protobuf//:protoc",
@@ -76,7 +75,7 @@ cargo_build_script(
 
 rust_cxx_bridge(
     name = "bridge",
-    src = "src/lib.rs",
+    src = "tvs-trusted.rs",
     deps = [
         ":tvs-trusted",
     ],
