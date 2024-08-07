@@ -14,7 +14,9 @@
 
 #include "key_manager/key-fetcher-wrapper.h"
 
+#include <algorithm>
 #include <iostream>
+#include <memory>
 #include <string>
 
 #include "absl/log/log.h"
