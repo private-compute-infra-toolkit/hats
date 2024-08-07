@@ -15,12 +15,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 
 #ifndef HATS_CLIENT_LAUNCHER_QEMU_H_
 #define HATS_CLIENT_LAUNCHER_QEMU_H_
@@ -42,7 +44,12 @@ class Qemu final {
   enum NetworkMode {
     kRestricted,
     kOutboundAllowed,
+    // Assign a routable IP address to the CVM.
+    // We use taps here so the CVM is accessible from the host (and outside if
+    // the hosts enables IP forwarding).
+    kRoutableIp,
   };
+
   // Represents parameters used for launching VM instances.
   struct Options {
     // Path to the VMM binary to execute.
@@ -94,12 +101,22 @@ class Qemu final {
     // If specified, the VM will start in debug mode and listens to a the port
     // specified.
     std::optional<uint16_t> telnet_port = std::nullopt;
+
+    // The following parameters are only applicable if network_mode is
+    // kRoutableIp.
+
+    // Virtual bridge to add the TAP interface to.
+    std::string virtual_bridge;
+    // An IP address to be assigned to the CVM.
+    std::string vm_ip_address;
+    // A gateway for the CVM to forward outbound packets to.
+    std::string vm_gateway_address;
   };
 
   Qemu() = delete;
   Qemu(const Qemu&) = delete;
   Qemu& operator=(const Qemu&) = delete;
-  Qemu(const Options& options);
+  static absl::StatusOr<std::unique_ptr<Qemu>> Create(const Options& options);
 
   // This function should be called once and only once.
   // The function returns an error if it was called multiple times.
@@ -115,13 +132,13 @@ class Qemu final {
   void Wait() ABSL_LOCKS_EXCLUDED(mu_);
 
  private:
+  Qemu(std::string binary, std::vector<std::string> args);
+
   const std::string binary_;
   std::vector<std::string> args_;
   mutable absl::Mutex mu_;
   // Whether a QEMU was started or not.
   bool started_ ABSL_GUARDED_BY(mu_) = false;
-  // File where VMM stdout and stderr are directed to.
-  FILE* log_file_ ABSL_GUARDED_BY(mu_) = nullptr;
   // Process id of the QEMU process.
   pid_t process_id_ ABSL_GUARDED_BY(mu_);
   // file name where qemu output is written to.
