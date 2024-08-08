@@ -33,6 +33,7 @@
 #include "grpcpp/support/channel_arguments.h"
 #include "grpcpp/support/status.h"
 #include "gtest/gtest.h"
+#include "key_manager/key-fetcher-wrapper.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/proto/tvs_messages.pb.h"
@@ -174,7 +175,8 @@ constexpr absl::string_view kTvsPrivateKey =
 constexpr absl::string_view kTvsPublicKey =
     "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
     "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
-constexpr absl::string_view kSecret = "secret";
+
+constexpr absl::string_view kSecret = "default-secret";
 
 absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
   std::string bytes;
@@ -186,6 +188,7 @@ absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
 }
 
 TEST(ForwardingTvsServer, Successful) {
+  key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
@@ -194,8 +197,7 @@ TEST(ForwardingTvsServer, Successful) {
   ASSERT_TRUE(tvs_private_key.ok());
 
   // Real TVS server.
-  TvsServer tvs_service(*tvs_private_key, std::string(kSecret),
-                        *std::move(appraisal_policy));
+  TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policy));
 
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
@@ -230,6 +232,7 @@ TEST(ForwardingTvsServer, Successful) {
 }
 
 TEST(ForwardingTvsServer, BadReportError) {
+  key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());

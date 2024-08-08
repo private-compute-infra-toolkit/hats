@@ -95,6 +95,7 @@ cc_test(
     ],
     deps = [
         ":forwarding-tvs-server",
+        "//key_manager:key-fetcher-wrapper",
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/test_client:tvs-untrusted-client",
         "//tvs/untrusted_tvs:tvs-server",

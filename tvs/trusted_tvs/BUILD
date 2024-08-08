@@ -50,6 +50,7 @@ rust_test(
         "@oak//oak_attestation_verification",
         "@enclave//handshake",
         "@enclave//crypto",
+        "//key_manager:rust-key-fetcher",
     ],
 )
 

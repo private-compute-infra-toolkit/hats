@@ -44,7 +44,8 @@ pub struct TrustedTvs {
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
     appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
-    secret: Vec<u8>,
+    // Authenticated user if any.
+    user: String,
     terminated: bool,
 }
 
@@ -58,7 +59,7 @@ mod ffi {
             time_milis: i64,
             primary_private_key: &[u8],
             policy: &[u8],
-            secret: &[u8],
+            user: &str,
         ) -> Result<Box<TrustedTvs>>;
 
         fn new_trusted_tvs_service_with_second_key(
@@ -66,7 +67,7 @@ mod ffi {
             primary_private_key: &[u8],
             secondary_private_key: &[u8],
             policy: &[u8],
-            secret: &[u8],
+            user: &str,
         ) -> Result<Box<TrustedTvs>>;
 
         pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
@@ -78,7 +79,7 @@ pub fn new_trusted_tvs_service(
     time_milis: i64,
     primary_private_key: &[u8],
     policy: &[u8],
-    secret: &[u8],
+    user: &str,
 ) -> Result<Box<TrustedTvs>, String> {
     let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
         format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
@@ -89,7 +90,7 @@ pub fn new_trusted_tvs_service(
         time_milis,
         primary_private_key_scalar,
         appraisal_policy,
-        secret.to_vec(),
+        user.to_string(),
         None,
     )))
 }
@@ -99,7 +100,7 @@ fn new_trusted_tvs_service_with_second_key(
     primary_private_key: &[u8],
     secondary_private_key: &[u8],
     policy: &[u8],
-    secret: &[u8],
+    user: &str,
 ) -> Result<Box<TrustedTvs>, String> {
     let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
         format!("Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
@@ -114,7 +115,7 @@ fn new_trusted_tvs_service_with_second_key(
         time_milis,
         primary_private_key_scalar,
         appraisal_policy,
-        secret.to_vec(),
+        user.to_string(),
         Some(secondary_private_key_scalar),
     )))
 }
@@ -124,7 +125,7 @@ impl TrustedTvs {
         time_milis: i64,
         primary_private_key: P256Scalar,
         appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
-        secret: Vec<u8>,
+        user: String,
         secondary_private_key: Option<P256Scalar>,
     ) -> Self {
         let secondary_public_key = match &secondary_private_key {
@@ -141,7 +142,7 @@ impl TrustedTvs {
             appraisal_policy,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
-            secret,
+            user,
             terminated: false,
         }
     }
@@ -247,13 +248,11 @@ impl TrustedTvs {
             &self.appraisal_policy,
         )
         .map_err(|msg| format!("Failed to verify report. {}", msg))?;
-        let secret = &self.secret;
         // TODO(alwabel): change local mode to obtain secrets and keys from
         // `key_fetcher`, also pass in the secret_id or the authenticated client
         // id instead of `default`.
-        #[cfg(feature = "gcp")]
-        let secret = &key_fetcher::get_secret("default").map_err(|msg| format!("{}", msg))?;
-        match self.crypter.as_mut().unwrap().encrypt(secret) {
+        let secret = key_fetcher::ffi::get_secret(&self.user).map_err(|msg| format!("{}", msg))?;
+        match self.crypter.as_mut().unwrap().encrypt(&secret) {
             Ok(cipher_text) => Ok(cipher_text),
             Err(_) => Err("Failed to encrypt message.".to_string()),
         }
@@ -395,13 +394,13 @@ mod tests {
 
     #[test]
     fn verify_report_successful() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        const SECRET: &str = "some_secret1";
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            SECRET.as_bytes(),
+            "test_user1",
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
@@ -474,20 +473,20 @@ mod tests {
 
         let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
         let secret_text = std::str::from_utf8(secret.as_slice()).unwrap();
-        assert_eq!(secret_text, SECRET);
+        assert_eq!(secret_text, "test_user1-secret");
     }
 
     #[test]
     fn verify_report_with_seconary_key_successful() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
-        const SECRET: &str = "some_secret1";
         let mut trusted_tvs = new_trusted_tvs_service_with_second_key(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             &secondary_tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            SECRET.as_bytes(),
+            "test_user2",
         )
         .unwrap();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
@@ -563,20 +562,20 @@ mod tests {
 
         let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
         let secret_text = std::str::from_utf8(secret.as_slice()).unwrap();
-        assert_eq!(secret_text, SECRET);
+        assert_eq!(secret_text, "test_user2-secret");
     }
 
     // Test that the handshake session is terminated after the first
     // VerifyReportRequest regardless of the success status.
     #[test]
     fn verify_report_session_termination_on_successful_session() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        const SECRET: &str = "some_secret2";
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            SECRET.as_bytes(),
+            "test_user1",
         )
         .unwrap();
 
@@ -650,7 +649,7 @@ mod tests {
 
         let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
         let secret_text = std::str::from_utf8(secret.as_slice()).unwrap();
-        assert_eq!(secret_text, SECRET);
+        assert_eq!(secret_text, "test_user1-secret");
 
         match trusted_tvs.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
@@ -669,12 +668,13 @@ mod tests {
 
     #[test]
     fn verify_report_invalid_report_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            b"secret",
+            "test_user",
         )
         .unwrap();
 
@@ -745,12 +745,13 @@ mod tests {
 
     #[test]
     fn verify_report_system_layer_verification_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            b"secret",
+            "test_user",
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
@@ -815,6 +816,7 @@ mod tests {
 
     #[test]
     fn verify_report_unknown_public_key_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
@@ -822,7 +824,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            b"secret",
+            "test_user",
         )
         .unwrap();
 
@@ -841,11 +843,12 @@ mod tests {
 
     #[test]
     fn new_trusted_tvs_service_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         match new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &[1, 2, 3],
             default_appraisal_policy().as_slice(),
-            b"test_secret",
+            "test_user",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(
@@ -858,7 +861,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &[b'f'; P256_SCALAR_LENGTH * 3],
             default_appraisal_policy().as_slice(),
-            b"test_secret",
+            "test_user",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(
@@ -871,7 +874,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &P256Scalar::generate().bytes(),
             &[1, 2, 3],
-            b"test_secret",
+            "test_user",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
@@ -880,12 +883,13 @@ mod tests {
 
     #[test]
     fn handshake_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            b"test_secret",
+            "test_user",
         )
         .unwrap();
 
@@ -900,7 +904,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            b"test_secret",
+            "test_user",
         )
         .unwrap();
         let client_handshake =
@@ -918,12 +922,13 @@ mod tests {
 
     #[test]
     fn verify_report_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            b"secret",
+            "test_user",
         )
         .unwrap();
         match trusted_tvs.do_verify_report(b"aaa") {

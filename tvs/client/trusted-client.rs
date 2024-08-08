@@ -211,13 +211,13 @@ mod tests {
     // End to end testing: handshake, building and signing the report and decrypt the secret.
     #[test]
     fn verify_report_successful() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        const SECRET: &str = "some_secret2";
         let mut trusted_tvs_service = tvs_trusted::new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            SECRET.as_bytes(),
+            "test_user1",
         )
         .unwrap();
 
@@ -244,11 +244,12 @@ mod tests {
             .unwrap();
 
         let decrypted_secret = tvs_client.process_response(secret.as_slice()).unwrap();
-        assert_eq!(decrypted_secret, SECRET.as_bytes());
+        assert_eq!(decrypted_secret, "test_user1-secret".as_bytes());
     }
 
     #[test]
     fn process_handshake_response_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let mut tvs_client =
             new_tvs_client(&hex::encode(tvs_private_key.compute_public_key())).unwrap();
@@ -275,6 +276,7 @@ mod tests {
 
     #[test]
     fn process_response_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let mut tvs_client =
             new_tvs_client(&hex::encode(tvs_private_key.compute_public_key())).unwrap();
@@ -290,7 +292,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policy().as_slice(),
-            b"test_secret",
+            "test_user2",
         )
         .unwrap();
 
@@ -327,6 +329,7 @@ mod tests {
 
     #[test]
     fn new_tvs_client_error() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         match new_tvs_client("--") {
             Ok(_) => assert!(false, "new_tvs_client() should fail"),
             Err(e) => assert_eq!(

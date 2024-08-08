@@ -23,6 +23,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "key_manager/key-fetcher.h"
 #include "rust/cxx.h"
 
@@ -30,26 +32,41 @@ namespace privacy_sandbox::key_manager {
 
 namespace {
 
-absl::StatusOr<KeyFetcher*> GetKeyFetcher() {
-  // Create a key fetcher instance only once and return the same object if the
-  // function is called again.
-  static absl::StatusOr<std::unique_ptr<KeyFetcher>> key_fetcher = [&]() {
-    return KeyFetcher::Create();
-  }();
-  if (!key_fetcher.ok()) return key_fetcher.status();
-  return key_fetcher->get();
+absl::Mutex key_fetcher_registration_mu(absl::kConstInit);
+KeyFetcher* registered_key_fetcher
+    ABSL_GUARDED_BY(key_fetcher_registration_mu) = nullptr;
+
+// Return a registered KeyFetcher if there is any; otherwise, create
+// and return the default KeyFetcher.
+KeyFetcher* RegisteredKeyFetcherOrDefault() {
+  absl::MutexLock lock(&key_fetcher_registration_mu);
+  if (registered_key_fetcher == nullptr) {
+    // Create a key fetcher instance only once and return the same object if the
+    // function is called again.
+    registered_key_fetcher = KeyFetcher::Create().release();
+  }
+  return registered_key_fetcher;
 }
+
+class EchoKeyFetcher final : public KeyFetcher {
+ public:
+  absl::StatusOr<std::string> GetPrimaryPrivateKey() override {
+    return absl::UnimplementedError("unimplemented.");
+  }
+  absl::StatusOr<std::string> GetSecondaryPrivateKey() override {
+    return absl::UnimplementedError("unimplemented.");
+  }
+  absl::StatusOr<std::string> GetSecret(absl::string_view secret_id) override {
+    return absl::StrCat(secret_id, "-secret");
+  }
+};
 
 }  // namespace
 
 rust::Vec<uint8_t> GetSecret(rust::Str secret_id) {
-  absl::StatusOr<KeyFetcher*> key_fetcher = GetKeyFetcher();
-  if (!key_fetcher.ok()) {
-    throw std::runtime_error(
-        absl::StrCat("Failed to create key fetcher. ", key_fetcher.status()));
-  }
+  KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
   absl::StatusOr<std::string> secret =
-      (*key_fetcher)->GetSecret(std::string(secret_id));
+      key_fetcher->GetSecret(std::string(secret_id));
   if (!secret.ok()) {
     throw std::runtime_error(
         absl::StrCat("Failed to get secret: ", secret.status()));
@@ -57,6 +74,16 @@ rust::Vec<uint8_t> GetSecret(rust::Str secret_id) {
   rust::Vec<uint8_t> v;
   std::copy(secret->begin(), secret->end(), std::back_inserter(v));
   return v;
+}
+
+void RegisterEchoKeyFetcherForTest() {
+  absl::MutexLock lock(&key_fetcher_registration_mu);
+  if (registered_key_fetcher != nullptr) {
+    return;
+  }
+  // Yes, we create and release as we really do not like to use `new()`.
+  // Although this is effectively using `new()`.
+  registered_key_fetcher = std::make_unique<EchoKeyFetcher>().release();
 }
 
 }  // namespace privacy_sandbox::key_manager

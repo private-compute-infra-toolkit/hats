@@ -35,6 +35,7 @@
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
 #include "gtest/gtest.h"
+#include "key_manager/key-fetcher-wrapper.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/proto/tvs_messages.pb.h"
@@ -175,7 +176,7 @@ constexpr absl::string_view kTvsPrivateKey =
 constexpr absl::string_view kTvsPublicKey =
     "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
     "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
-constexpr absl::string_view kSecret = "SECRET";
+constexpr absl::string_view kSecret = "default-secret";
 
 absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
   std::string bytes;
@@ -187,6 +188,7 @@ absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
 }
 
 TEST(TvsServer, Successful) {
+  key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
@@ -194,8 +196,7 @@ TEST(TvsServer, Successful) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, std::string(kSecret),
-                       *std::move(appraisal_policy));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policy));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
@@ -220,6 +221,7 @@ TEST(TvsServer, Successful) {
 }
 
 TEST(TvsServer, BadReportError) {
+  key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
@@ -227,8 +229,7 @@ TEST(TvsServer, BadReportError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, /*secret=*/"",
-                       *std::move(appraisal_policy));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policy));
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
@@ -255,6 +256,7 @@ TEST(TvsServer, BadReportError) {
 }
 
 TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
+  key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
@@ -262,8 +264,7 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, std::string(kSecret),
-                       *std::move(appraisal_policy));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policy));
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
@@ -294,6 +295,7 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
 }
 
 TEST(TvsServer, MalformedMessageError) {
+  key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
@@ -302,8 +304,7 @@ TEST(TvsServer, MalformedMessageError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, /*secret=*/"",
-                       *std::move(appraisal_policy));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policy));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
   std::unique_ptr<TeeVerificationService::Stub> stub =
@@ -322,10 +323,11 @@ TEST(TvsServer, MalformedMessageError) {
 }
 
 TEST(TvsServer, CreatingTrustedTvsServerError) {
+  key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
       GetTestAppraisalPolicy();
   ASSERT_TRUE(appraisal_policy.ok());
-  TvsServer tvs_server("0000", /*secret=*/"", *std::move(appraisal_policy));
+  TvsServer tvs_server("0000", *std::move(appraisal_policy));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 

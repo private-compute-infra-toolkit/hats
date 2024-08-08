@@ -94,13 +94,6 @@ int main(int argc, char* argv[]) {
                  << secondary_private_key.status();
   }
 
-  absl::StatusOr<std::string> secret =
-      key_fetcher->GetSecret(/*secret_id=*/"default");
-  if (!secret.ok()) {
-    LOG(ERROR) << "Failed to fetch secret: " << secret.status();
-    return 1;
-  }
-
   absl::StatusOr<int> port = GetPort();
   if (!port.ok()) {
     LOG(ERROR) << "Cannot get server port " << port.status();
@@ -115,7 +108,6 @@ int main(int argc, char* argv[]) {
                                        ? *std::move(secondary_private_key)
                                        : "",
           .appraisal_policy = std::move(appraisal_policy),
-          .secret = *std::move(secret),
       });
   return 0;
 }

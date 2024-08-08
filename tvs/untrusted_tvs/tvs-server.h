@@ -40,11 +40,9 @@ class TvsServer final : public TeeVerificationService::Service {
  public:
   // Pass appraisal_policy by value as we expect the caller to use std::move().
   explicit TvsServer(const std::string& primary_private_key,
-                     const std::string& secret,
                      oak::attestation::v1::ReferenceValues appraisal_policy);
   explicit TvsServer(const std::string& primary_private_key,
                      const std::string& secondary_private_key,
-                     const std::string& secret,
                      oak::attestation::v1::ReferenceValues appraisal_policy);
 
   TvsServer() = delete;
@@ -55,7 +53,6 @@ class TvsServer final : public TeeVerificationService::Service {
  private:
   const std::string primary_private_key_;
   const std::string secondary_private_key_;
-  const std::string secret_;
   const oak::attestation::v1::ReferenceValues appraisal_policy_;
 };
 
@@ -65,7 +62,6 @@ struct TvsServerOptions {
   std::string primary_private_key;
   std::string secondary_private_key;
   oak::attestation::v1::ReferenceValues appraisal_policy;
-  std::string secret;
 };
 
 // Starts a server and blocks forever.

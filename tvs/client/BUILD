@@ -60,6 +60,7 @@ rust_test(
         "@enclave//crypto",
         "@enclave//handshake",
         "@oak//oak_proto_rust",
+        "//key_manager:rust-key-fetcher",
     ],
 )
 

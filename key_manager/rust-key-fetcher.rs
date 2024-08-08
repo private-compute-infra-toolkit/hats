@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cxx::bridge(namespace = "privacy_sandbox::key_manager")]
+// Define foreign function interface (FFI) to use the C++ KeyFetcherWrapper in
+// Rust.
 
-mod ffi {
+#[cxx::bridge(namespace = "privacy_sandbox::key_manager")]
+pub mod ffi {
     unsafe extern "C++" {
         include!("key_manager/key-fetcher-wrapper.h");
+        #[rust_name = "get_secret"]
         fn GetSecret(secret_id: &str) -> Result<Vec<u8>>;
+        #[rust_name = "register_echo_key_fetcher_for_test"]
+        fn RegisterEchoKeyFetcherForTest();
     }
-}
-
-pub fn get_secret(secret_id: &str) -> Result<Vec<u8>, String> {
-    ffi::GetSecret(secret_id).map_err(|err| format!("error {}", err))
 }

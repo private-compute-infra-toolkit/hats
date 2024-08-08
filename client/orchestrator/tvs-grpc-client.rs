@@ -178,8 +178,6 @@ mod tests {
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::Response;
 
-    const SECRET: &str = "test_secret";
-
     struct TestService {
         pub tvs_private_key: [u8; P256_SCALAR_LENGTH],
     }
@@ -206,7 +204,7 @@ mod tests {
                 NOW_UTC_MILLIS,
                 &self.tvs_private_key,
                 default_appraisal_policy().as_slice(),
-                SECRET.as_bytes(),
+                "test_user",
             ) else {
                 return Err(tonic::Status::internal("Error creating TVS Server"));
             };
@@ -253,6 +251,7 @@ mod tests {
     const NOW_UTC_MILLIS: i64 = 1698829200000;
     #[tokio::test]
     async fn verify_report_successful() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let test_service = TestService {
             tvs_private_key: tvs_private_key.bytes(),
@@ -297,11 +296,12 @@ mod tests {
 
         let _ = shutdown_tx.send(());
         let _ = server.await;
-        assert_eq!(secret.unwrap().unwrap(), SECRET.as_bytes());
+        assert_eq!(secret.unwrap().unwrap(), "test_user-secret".as_bytes());
     }
 
     #[tokio::test]
     async fn fetch_tee_certificate_successful() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let test_service = TestService {
             tvs_private_key: tvs_private_key.bytes(),
