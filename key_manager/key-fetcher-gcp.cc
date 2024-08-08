@@ -26,15 +26,12 @@
 #include "absl/strings/string_view.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
+#include "gcp_common/flags.h"
+#include "gcp_common/gcp-status.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/spanner/client.h"
 #include "key_manager/gcp-kms-client.h"
-#include "key_manager/gcp-status.h"
 #include "key_manager/key-fetcher.h"
-
-ABSL_FLAG(std::string, project_id, "", "GCP Project ID.");
-ABSL_FLAG(std::string, instance_id, "", "Spanner instance ID.");
-ABSL_FLAG(std::string, database_id, "", "Spanner database ID.");
 
 namespace privacy_sandbox::key_manager {
 
@@ -66,7 +63,7 @@ absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
   auto rows = client.ExecuteQuery(std::move(select));
   for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
     if (!row.ok()) {
-      return GcpToAbslStatus(row.status());
+      return gcp_common::GcpToAbslStatus(row.status());
     }
     return Keys{
         .key = std::get<0>(*row).get<std::string>(),
@@ -95,7 +92,7 @@ absl::StatusOr<Keys> WrappedSecretFromSpanner(
   auto rows = client.ExecuteQuery(std::move(select));
   for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
     if (!row.ok()) {
-      return GcpToAbslStatus(row.status());
+      return gcp_common::GcpToAbslStatus(row.status());
     }
     return Keys{
         .key = std::get<0>(*row).get<std::string>(),

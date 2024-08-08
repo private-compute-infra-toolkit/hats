@@ -26,9 +26,9 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "gcp_common/gcp-status.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/status.h"
-#include "key_manager/gcp-status.h"
 
 namespace privacy_sandbox::key_manager {
 
@@ -38,7 +38,7 @@ absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(absl::string_view key_id) {
   google::cloud::v2_25::StatusOr<google::cloud::kms::v1::PublicKey> result =
       client_.GetPublicKey(request);
   if (!result.ok()) {
-    return GcpToAbslStatus(result.status());
+    return gcp_common::GcpToAbslStatus(result.status());
   }
   PublicKey custom_key;
   custom_key.pem_key = result->pem();
@@ -60,7 +60,7 @@ absl::StatusOr<CryptoKey> GcpKmsClient::CreateAsymmetricKey(
   google::cloud::v2_25::StatusOr<google::cloud::kms::v1::CryptoKey> result =
       client_.CreateCryptoKey(request);
   if (!result.ok()) {
-    return GcpToAbslStatus(result.status());
+    return gcp_common::GcpToAbslStatus(result.status());
   }
   CryptoKey custom_key;
   custom_key.key_id = result->name();
@@ -78,7 +78,7 @@ absl::StatusOr<std::string> GcpKmsClient::EncryptData(
       result = client_.Encrypt(request);
 
   if (!result.ok()) {
-    return GcpToAbslStatus(result.status());
+    return gcp_common::GcpToAbslStatus(result.status());
   }
 
   return result->ciphertext();
@@ -96,7 +96,7 @@ absl::StatusOr<std::string> GcpKmsClient::DecryptData(
       result = client_.Decrypt(request);
 
   if (!result.ok()) {
-    return GcpToAbslStatus(result.status());
+    return gcp_common::GcpToAbslStatus(result.status());
   }
   return result->plaintext();
 }

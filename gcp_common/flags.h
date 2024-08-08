@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HATS_KEY_MANAGER_GCP_STATUS_H_
-#define HATS_KEY_MANAGER_GCP_STATUS_H_
+#ifndef HATS_GCP_COMMON_FLAGS_H_
+#define HATS_GCP_COMMON_FLAGS_H_
 
-#include "absl/status/status.h"
-#include "google/cloud/status.h"
+#include <string>
 
-namespace privacy_sandbox::key_manager {
+#include "absl/flags/declare.h"
+#include "absl/flags/flag.h"
 
-absl::Status GcpToAbslStatus(const google::cloud::Status& status);
+ABSL_DECLARE_FLAG(std::string, project_id);
+ABSL_DECLARE_FLAG(std::string, instance_id);
+ABSL_DECLARE_FLAG(std::string, database_id);
 
-}  // namespace privacy_sandbox::key_manager
-
-#endif  // HATS_KEY_MANAGER_GCP_STATUS_H_
+#endif  // HATS_GCP_COMMON_FLAGS_H_

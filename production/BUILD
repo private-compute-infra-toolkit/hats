@@ -10,8 +10,8 @@ cc_binary(
     deps = [
         "//crypto:aead-crypter",
         "//crypto:secret-data",
+        "//gcp_common:gcp-status",
         "//key_manager:gcp-kms-client",
-        "//key_manager:gcp-status",
         "@boringssl//:crypto",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",

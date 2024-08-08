@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
@@ -14,7 +14,7 @@ cc_library(
         "kms-client.h",
     ],
     deps = [
-        "//key_manager:gcp-status",
+        "//gcp_common:gcp-status",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -86,8 +86,9 @@ cc_library(
     deps = [
         "//crypto:aead-crypter",
         "//crypto:secret-data",
+        "//gcp_common:flags",
+        "//gcp_common:gcp-status",
         "//key_manager:gcp-kms-client",
-        "//key_manager:gcp-status",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -115,16 +116,6 @@ cc_test(
 )
 
 cc_library(
-    name = "gcp-status",
-    srcs = ["gcp-status.cc"],
-    hdrs = ["gcp-status.h"],
-    deps = [
-        "@com_google_absl//absl/status",
-        "@google_cloud_cpp//:common",
-    ],
-)
-
-cc_library(
     name = "key-fetcher-wrapper",
     srcs = ["key-fetcher-wrapper.cc"],
     hdrs = ["key-fetcher-wrapper.h"],
@@ -133,6 +124,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
         "@using_cxx//:cxx_cc",
     ] + select({
         "//:gcp": ["//key_manager:key-fetcher-gcp"],

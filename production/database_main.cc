@@ -35,10 +35,10 @@
 #include "absl/strings/string_view.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
+#include "gcp_common/gcp-status.h"
 #include "google/cloud/spanner/admin/database_admin_client.h"
 #include "google/cloud/spanner/client.h"
 #include "key_manager/gcp-kms-client.h"
-#include "key_manager/gcp-status.h"
 #include "openssl/aead.h"
 #include "openssl/bn.h"
 #include "openssl/ec_key.h"
@@ -134,7 +134,7 @@ absl::Status CreateDatabase(absl::string_view project_id,
           google::spanner::admin::database::v1::Database>
           database = client.CreateDatabase(request).get();
       !database.ok()) {
-    return privacy_sandbox::key_manager::GcpToAbslStatus(database.status());
+    return privacy_sandbox::gcp_common::GcpToAbslStatus(database.status());
   }
 
   return absl::OkStatus();
@@ -422,7 +422,7 @@ absl::Status PopulateDatabase(absl::string_view project_id,
       });
 
   if (!commit.ok()) {
-    return privacy_sandbox::key_manager::GcpToAbslStatus(commit.status());
+    return privacy_sandbox::gcp_common::GcpToAbslStatus(commit.status());
   }
 
   std::cout << "Primary TVS Public Key: " << secrets->primary_ec_public_key

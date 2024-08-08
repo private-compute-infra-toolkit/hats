@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "key_manager/gcp-status.h"
+#include "gcp_common/gcp-status.h"
 
 #include "absl/status/status.h"
 #include "google/cloud/status.h"
 
-namespace privacy_sandbox::key_manager {
+namespace privacy_sandbox::gcp_common {
 
 // Not casting since there is no guarantee of values being synced
 absl::Status GcpToAbslStatus(const google::cloud::Status& status) {
@@ -62,4 +62,4 @@ absl::Status GcpToAbslStatus(const google::cloud::Status& status) {
   return absl::UnknownError(status.message());
 }
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace privacy_sandbox::gcp_common

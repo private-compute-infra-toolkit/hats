@@ -17,7 +17,6 @@
 #include <memory>
 #include <string>
 
-#include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -27,10 +26,6 @@
 #include "google/cloud/spanner/client.h"
 #include "key_manager/gcp-kms-client.h"
 #include "key_manager/key-fetcher.h"
-
-ABSL_DECLARE_FLAG(std::string, project_id);
-ABSL_DECLARE_FLAG(std::string, instance_id);
-ABSL_DECLARE_FLAG(std::string, database_id);
 
 namespace privacy_sandbox::key_manager {
 
