@@ -81,7 +81,6 @@ cargo_build_script(
     },
     data = [
         "//client/proto:launcher.proto",
-        "//client/proto:launcher_proto",
         "//tvs/proto:tvs_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
@@ -108,7 +107,6 @@ cargo_build_script(
     },
     data = [
         "//client/proto:launcher.proto",
-        "//client/proto:launcher_proto",
         "//tvs/proto:tvs_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
