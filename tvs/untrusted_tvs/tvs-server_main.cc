@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <cstdlib>
-#include <fstream>
 #include <optional>
 #include <string>
 #include <utility>
@@ -26,15 +25,12 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
-#include "google/protobuf/text_format.h"
 #include "key_manager/key-fetcher.h"
 #include "proto/attestation/reference_value.pb.h"
+#include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/untrusted_tvs/tvs-server.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
-ABSL_FLAG(std::string, appraisal_policy_file, "",
-          "Policy that defines acceptable evidence.");
 
 namespace {
 
@@ -63,17 +59,18 @@ int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
 
-  const std::string appraisal_policy_file =
-      absl::GetFlag(FLAGS_appraisal_policy_file);
-  if (appraisal_policy_file.empty()) {
-    LOG(ERROR) << "--appraisal_policy_file cannot be empty.";
+  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher>>
+      policy_fetcher = privacy_sandbox::tvs::PolicyFetcher::Create();
+  if (!policy_fetcher.ok()) {
+    LOG(ERROR) << "Failed to create a policy fetcher: "
+               << policy_fetcher.status();
     return 1;
   }
-  std::ifstream if_stream(appraisal_policy_file);
-  google::protobuf::io::IstreamInputStream istream(&if_stream);
-  oak::attestation::v1::ReferenceValues appraisal_policy;
-  if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policy)) {
-    LOG(ERROR) << "Failed to parse " << appraisal_policy_file;
+  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
+      (*policy_fetcher)->GetPolicy(/*policy_id=*/"default");
+  if (!appraisal_policy.ok()) {
+    LOG(ERROR) << "Failed to get appraisal policy: "
+               << appraisal_policy.status();
     return 1;
   }
 
@@ -107,7 +104,7 @@ int main(int argc, char* argv[]) {
           .secondary_private_key = secondary_private_key.ok()
                                        ? *std::move(secondary_private_key)
                                        : "",
-          .appraisal_policy = std::move(appraisal_policy),
+          .appraisal_policy = *std::move(appraisal_policy),
       });
   return 0;
 }

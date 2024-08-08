@@ -17,12 +17,16 @@ cc_binary(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_protobuf//:protobuf",
-        "@com_google_protobuf//src/google/protobuf/io",
         "@oak//proto/attestation:reference_value_cc_proto",
     ] + select({
-        "//:gcp": ["//key_manager:key-fetcher-gcp"],
-        "//conditions:default": ["//key_manager:key-fetcher-local"],
+        "//:gcp": [
+            "//key_manager:key-fetcher-gcp",
+            "//tvs/appraisal_policies:policy-fetcher-gcp",
+        ],
+        "//conditions:default": [
+            "//key_manager:key-fetcher-local",
+            "//tvs/appraisal_policies:policy-fetcher-local",
+        ],
     }),
 )
 

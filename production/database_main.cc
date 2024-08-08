@@ -22,6 +22,8 @@
 //    database. Wrap the TVS keys with the DEK and store them.
 // 2. Create a database that stores that TVS keys, DEKs, and KEKs metadata. User
 // can use the `gcloud` CLI instead.
+
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -38,12 +40,15 @@
 #include "gcp_common/gcp-status.h"
 #include "google/cloud/spanner/admin/database_admin_client.h"
 #include "google/cloud/spanner/client.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "google/protobuf/text_format.h"
 #include "key_manager/gcp-kms-client.h"
 #include "openssl/aead.h"
 #include "openssl/bn.h"
 #include "openssl/ec_key.h"
 #include "openssl/hpke.h"
 #include "openssl/nid.h"
+#include "proto/attestation/reference_value.pb.h"
 
 ABSL_FLAG(std::string, operation, "create_database",
           "Describe the operation to be done. Valid values are: "
@@ -52,6 +57,8 @@ ABSL_FLAG(std::string, database_name, "", "Database name");
 ABSL_FLAG(std::string, instance_id, "", "Instance ID");
 ABSL_FLAG(std::string, project_id, "", "Project ID");
 ABSL_FLAG(std::string, key_resource_name, "", "Key resource name.");
+ABSL_FLAG(std::string, appraisal_policy_path, "",
+          "Path to an appraisal policy file");
 
 namespace {
 
@@ -127,6 +134,16 @@ absl::Status CreateDatabase(absl::string_view project_id,
           DekId    INT64 NOT NULL,
           Secret   BYTES(MAX)
       ) PRIMARY KEY (SecretId))sql");
+
+  // Table storing appraisal policies used to validate attestation report
+  // against. columns:
+  // * PolicyId: a string used to identify the appraisal policy.
+  // * Secret: a secret wrapped with DekId.
+  request.add_extra_statements(R"sql(
+      CREATE TABLE AppraisalPolicies(
+          PolicyId STRING(1024),
+          Policy   BYTES(MAX)
+      ) PRIMARY KEY (PolicyId))sql");
 
   google::cloud::spanner_admin::DatabaseAdminClient client(
       google::cloud::spanner_admin::MakeDatabaseAdminConnection());
@@ -329,10 +346,31 @@ absl::StatusOr<Secrets> GenerateSecrets(
   };
 }
 
+absl::StatusOr<oak::attestation::v1::ReferenceValues> ReadAppraisalPolicy(
+    absl::string_view filename) {
+  std::ifstream if_stream({std::string(filename)});
+  if (!if_stream.is_open()) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("Failed to open: ", filename));
+  }
+  google::protobuf::io::IstreamInputStream istream(&if_stream);
+  oak::attestation::v1::ReferenceValues appraisal_policy;
+  if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policy)) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("Failed to parse: ", filename));
+  }
+  return appraisal_policy;
+}
+
 absl::Status PopulateDatabase(absl::string_view project_id,
                               absl::string_view instance_id,
                               absl::string_view database_id,
-                              absl::string_view kms_key_resource_name) {
+                              absl::string_view kms_key_resource_name,
+                              absl::string_view appraisal_policy_path) {
+  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
+      ReadAppraisalPolicy(appraisal_policy_path);
+  if (!appraisal_policy.ok()) return appraisal_policy.status();
+
   // Spanner client.
   google::cloud::spanner::Client spanner_client(
       google::cloud::spanner::MakeConnection(google::cloud::spanner::Database(
@@ -344,8 +382,9 @@ absl::Status PopulateDatabase(absl::string_view project_id,
   // Stash all inserts in the same transaction so we only commit if all inserts
   // succeed.
   auto commit = spanner_client.Commit(
-      [&spanner_client, &kms_key_resource_name,
-       &secrets = *secrets](google::cloud::spanner::Transaction transaction)
+      [&spanner_client, &kms_key_resource_name, &secrets = *secrets,
+       &appraisal_policy =
+           *appraisal_policy](google::cloud::spanner::Transaction transaction)
           -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
         // Insert Key-encryption-key (KEK) metadata.
         int64_t kek_id;
@@ -402,7 +441,7 @@ absl::Status PopulateDatabase(absl::string_view project_id,
           }
         }
 
-        // Insert the wrapped secret
+        // Insert the wrapped secret.
         {
           google::cloud::spanner::SqlStatement sql(
               R"sql(INSERT INTO  Secrets(SecretId, DekId, Secret)
@@ -411,6 +450,21 @@ absl::Status PopulateDatabase(absl::string_view project_id,
                {"secret",
                 google::cloud::spanner::Value(
                     google::cloud::spanner::Bytes(secrets.wrapped_secret))}});
+          auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
+          using RowType = std::tuple<std::string, int64_t, std::string>;
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+          }
+        }
+
+        // Insert the appraisal policy.
+        {
+          google::cloud::spanner::SqlStatement sql(
+              R"sql(INSERT INTO  AppraisalPolicies(PolicyId, Policy)
+              VALUES ("default", @policy))sql",
+              {{"policy",
+                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                    appraisal_policy.SerializeAsString()))}});
           auto rows = spanner_client.ExecuteQuery(std::move(transaction),
                                                   std::move(sql));
           using RowType = std::tuple<std::string, int64_t, std::string>;
@@ -451,7 +505,8 @@ int main(int argc, char* argv[]) {
     if (absl::Status status = PopulateDatabase(
             absl::GetFlag(FLAGS_project_id), absl::GetFlag(FLAGS_instance_id),
             absl::GetFlag(FLAGS_database_name),
-            absl::GetFlag(FLAGS_key_resource_name));
+            absl::GetFlag(FLAGS_key_resource_name),
+            absl::GetFlag(FLAGS_appraisal_policy_path));
         !status.ok()) {
       LOG(ERROR) << "Failed to populate database; " << status;
       return 1;

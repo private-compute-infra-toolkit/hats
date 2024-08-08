@@ -1,9 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
-package(
-    default_visibility = ["//visibility:public"],
-)
-
 cc_binary(
     name = "database_main",
     srcs = ["database_main.cc"],
@@ -19,6 +15,9 @@ cc_binary(
         "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
+        "@com_google_protobuf//:protobuf",
+        "@com_google_protobuf//src/google/protobuf/io",
         "@google_cloud_cpp//:spanner",
+        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )

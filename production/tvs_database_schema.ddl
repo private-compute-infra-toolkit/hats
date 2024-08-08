@@ -12,8 +12,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- A schema for a database used to store TVS secrets. key-fetcher-gcp.cc uses
--- this database to read the secrets.
+-- A schema for a database used to store TVS secrets and appraisal policies.
+
 CREATE SEQUENCE DekIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
@@ -21,6 +21,11 @@ CREATE SEQUENCE DekIdSequence OPTIONS (
 CREATE SEQUENCE KekIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
+
+CREATE TABLE AppraisalPolicies (
+  PolicyId STRING(1024),
+  Policy BYTES(MAX),
+) PRIMARY KEY(PolicyId);
 
 CREATE TABLE DataEncryptionKey (
   DekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE DekIdSequence)),
