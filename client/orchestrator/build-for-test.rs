@@ -25,7 +25,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .replace("google/protobuf/descriptor.proto", "");
 
     generate_grpc_code(
-        &["../../client/proto/launcher.proto"],
+        &[
+            "../../client/proto/launcher.proto",
+            "../../client/proto/orchestrator.proto",
+        ],
         &["../", "../..", include_path, protobuf_include_path],
         CodegenOptions {
             build_client: true,

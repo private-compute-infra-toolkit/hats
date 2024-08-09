@@ -125,7 +125,7 @@ async fn main() -> anyhow::Result<()> {
     // Launch a process right now
     // TODO(alwabel): package the trusted app in a container.
     let mut cmd = tokio::process::Command::new("/usr/bin/launch-trusted-app.sh");
-    cmd.arg(hex::encode(token));
+    cmd.arg(hex::encode(token.clone()));
     let _ = cmd.spawn()?;
 
     // Request group keys.
@@ -150,16 +150,6 @@ async fn main() -> anyhow::Result<()> {
         .context(format!("user `{}` not found", args.runtime_user))?;
     let cancellation_token = CancellationToken::new();
     tokio::try_join!(
-        oak_containers_orchestrator::ipc_server::create(
-            &args.ipc_socket_path,
-            instance_keys,
-            group_keys
-                .clone()
-                .context("group keys were not provisioned")?,
-            application_config,
-            launcher_client,
-            cancellation_token.clone(),
-        ),
         oak_containers_orchestrator::key_provisioning::create(
             &args.orchestrator_addr,
             group_keys.context("group keys were not provisioned")?,
@@ -171,8 +161,9 @@ async fn main() -> anyhow::Result<()> {
             user.uid,
             user.gid,
             &args.ipc_socket_path,
-            cancellation_token,
+            cancellation_token.clone(),
         ),
+        hats_server::create(&args.ipc_socket_path, &token, cancellation_token),
     )?;
 
     Ok(())

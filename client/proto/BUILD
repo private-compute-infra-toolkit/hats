@@ -27,3 +27,24 @@ cc_grpc_library(
     tags = ["grpc"],
     deps = [":launcher_cc_proto"],
 )
+
+proto_library(
+    name = "orchestrator_proto",
+    srcs = ["orchestrator.proto"],
+    deps = [
+        "@com_google_protobuf//:empty_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "orchestrator_cc_proto",
+    deps = ["orchestrator_proto"],
+)
+
+cc_grpc_library(
+    name = "orchestrator_cc_grpc",
+    srcs = [":orchestrator_proto"],
+    grpc_only = True,
+    tags = ["grpc"],
+    deps = [":orchestrator_cc_proto"],
+)

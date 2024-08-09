@@ -25,10 +25,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .replace("google/protobuf/descriptor.proto", "");
 
     generate_grpc_code(
-        &["../../client/proto/launcher.proto"],
+        &[
+            "../../client/proto/launcher.proto",
+            "../../client/proto/orchestrator.proto",
+        ],
         &["../", "../..", oak_include_path, protobuf_include_path],
         CodegenOptions {
             build_client: true,
+            build_server: true,
             extern_paths: vec![ExternPath::new(
                 ".oak.attestation.v1",
                 "::oak_proto_rust::oak::attestation::v1",

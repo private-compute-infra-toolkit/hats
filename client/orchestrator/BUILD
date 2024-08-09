@@ -5,7 +5,7 @@ rust_binary(
     name = "orchestrator_main",
     srcs = ["orchestrator_main.rs"],
     deps = [
-        ":build",
+        ":hats-server",
         ":tvs-grpc-client",
         "@hats_crate_index//:hex",
         "@oak//oak_containers_orchestrator:lib",
@@ -44,7 +44,7 @@ rust_test(
     srcs = ["tvs-grpc-client.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
-        ":build-for-test",
+        ":build",
         "//key_manager:rust-key-fetcher",
         "//tvs/client:trusted-client-noffi",
         "//tvs/trusted_tvs:tvs-trusted",
@@ -81,6 +81,7 @@ cargo_build_script(
     },
     data = [
         "//client/proto:launcher.proto",
+        "//client/proto:orchestrator_proto",
         "//tvs/proto:tvs_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
@@ -107,6 +108,7 @@ cargo_build_script(
     },
     data = [
         "//client/proto:launcher.proto",
+        "//client/proto:orchestrator_proto",
         "//tvs/proto:tvs_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
@@ -118,5 +120,39 @@ cargo_build_script(
     deps = [
         "@oak//oak_grpc_utils",
         "@oak_crates_index//:prost-build",
+    ],
+)
+
+rust_library(
+    name = "hats-server",
+    srcs = ["hats-server.rs"],
+    deps = [
+        ":build",
+        "@oak//oak_proto_rust",
+        "@oak_crates_index//:anyhow",
+        "@oak_crates_index//:prost",
+        "@oak_crates_index//:prost-types",
+        "@oak_crates_index//:tokio",
+        "@oak_crates_index//:tokio-stream",
+        "@oak_crates_index//:tokio-util",
+        "@oak_crates_index//:tonic",
+    ],
+)
+
+rust_test(
+    name = "hats-server_test",
+    srcs = ["hats-server.rs"],
+    deps = [
+        ":build-for-test",
+        ":hats-server",
+        "@oak//oak_proto_rust",
+        "@oak_crates_index//:anyhow",
+        "@oak_crates_index//:futures",
+        "@oak_crates_index//:prost",
+        "@oak_crates_index//:prost-types",
+        "@oak_crates_index//:tokio",
+        "@oak_crates_index//:tokio-stream",
+        "@oak_crates_index//:tokio-util",
+        "@oak_crates_index//:tonic",
     ],
 )
