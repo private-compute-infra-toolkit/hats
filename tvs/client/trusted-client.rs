@@ -19,7 +19,7 @@ use crate::proto::privacy_sandbox::tvs::{
 };
 
 use crypto::{P256_X962_LENGTH, SHA256_OUTPUT_LEN};
-use handshake::{test_client::HandshakeInitiator, Crypter};
+use handshake::{client::HandshakeInitiator, noise::HandshakeType, Crypter};
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 
@@ -75,7 +75,7 @@ pub struct TvsClient {
 impl TvsClient {
     fn new(peer_public_key: [u8; P256_X962_LENGTH]) -> Self {
         Self {
-            handshake: HandshakeInitiator::new(&peer_public_key),
+            handshake: HandshakeInitiator::new(HandshakeType::Nk, &peer_public_key, None),
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
             peer_public_key,
@@ -87,7 +87,10 @@ impl TvsClient {
         AttestReportRequest {
             request: Some(attest_report_request::Request::InitSessionRequest(
                 InitSessionRequest {
-                    client_message: self.handshake.build_initial_message(),
+                    client_message: self
+                        .handshake
+                        .build_initial_message()
+                        .map_err(|_| "Invalid Initialization of Handshake")?,
                     tvs_public_key: self.peer_public_key.to_vec(),
                 },
             )),
@@ -110,7 +113,8 @@ impl TvsClient {
         };
         let (handshake_hash, crypter) = self
             .handshake
-            .process_response(handshake_response.as_slice());
+            .process_response(handshake_response.as_slice())
+            .map_err(|_| "Handshake Failed")?;
         self.crypter = Some(crypter);
         self.handshake_hash = handshake_hash;
         Ok(())

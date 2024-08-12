@@ -21,12 +21,12 @@ extern crate crypto;
 extern crate static_assertions;
 
 mod error;
-mod noise;
+pub mod noise;
 
 use crate::error::Error;
 use crate::noise::{HandshakeType, Noise};
 use alloc::vec::Vec;
-use crypto::{P256Scalar, NONCE_LEN, P256_X962_LENGTH};
+use crypto::{P256Scalar, NONCE_LEN, P256_SCALAR_LENGTH, P256_X962_LENGTH};
 
 // This is assumed to be vastly larger than any connection will ever reach.
 const MAX_SEQUENCE: u32 = 1u32 << 24;
@@ -128,30 +128,55 @@ pub struct Response {
 /// reduce per-transaction computation.
 /// See https://noiseexplorer.com/patterns/NK/
 pub fn respond(
-    identity_scalar: &P256Scalar,
+    handshake_type: HandshakeType,
+    // responder e
+    identity_priv: &P256Scalar,
+    // responder s
     identity_pub: &[u8],
+    // initiator s [not used for Nk]
+    initiator_static_pub: Option<&[u8]>,
+    // e, es, (ss for Kk only)
     in_data: &[u8],
+    // responder's s, (and initiator's s for Kk only)
     prologue: &[u8],
 ) -> Result<Response, Error> {
     if in_data.len() < P256_X962_LENGTH {
         return Err(Error::InvalidHandshake);
     }
 
-    let mut noise = Noise::new(HandshakeType::Nk);
+    let mut noise = Noise::new(handshake_type);
     noise.mix_hash(prologue);
+    noise.mix_hash_point(prologue);
 
-    noise.mix_hash_point(identity_pub);
-
-    // unwrap: we know that `in_data` is `P256_X962_LENGTH` bytes long.
-    let peer_pub: [u8; P256_X962_LENGTH] = (&in_data[..P256_X962_LENGTH])
+    let initiator_pub: [u8; P256_X962_LENGTH] = (&in_data[..P256_X962_LENGTH])
         .try_into()
-        .map_err(|_| Error::InvalidPrivateKey)?;
-    noise.mix_hash(peer_pub.as_slice());
-    noise.mix_key(peer_pub.as_slice());
+        .map_err(|_| Error::InvalidPublicKey)?;
+    noise.mix_hash(initiator_pub.as_slice());
+    noise.mix_key(initiator_pub.as_slice());
 
-    let es_ecdh_bytes = crypto::p256_scalar_mult(&identity_scalar, &peer_pub)
+    let initiator_static_pub_bytes: [u8; P256_X962_LENGTH];
+    if handshake_type == HandshakeType::Kk {
+        // Must provide a client static public key for noise Kk
+        if let Some(client_static_pub_key) = initiator_static_pub {
+            // Static public key must be `P256_X962_LENGTH` bytes long
+            initiator_static_pub_bytes = client_static_pub_key
+                .try_into()
+                .map_err(|_| Error::InvalidPublicKey)?;
+        } else {
+            return Err(Error::MustProvideClientStaticForKk);
+        }
+    } else {
+        initiator_static_pub_bytes = [0u8; P256_X962_LENGTH];
+    }
+
+    let es_ecdh_bytes = crypto::p256_scalar_mult(&identity_priv, &initiator_pub)
         .map_err(|_| Error::InvalidHandshake)?;
     noise.mix_key(es_ecdh_bytes.as_slice());
+
+    if handshake_type == HandshakeType::Kk {
+        let ss_ecdh_bytes = crypto::sha256_two_part(&initiator_static_pub_bytes, &identity_pub);
+        noise.mix_key(&ss_ecdh_bytes);
+    }
 
     let plaintext = noise.decrypt_and_hash(&in_data[P256_X962_LENGTH..])?;
     if !plaintext.is_empty() {
@@ -163,10 +188,15 @@ pub fn respond(
     let ephemeral_pub_key_bytes = ephemeral_priv.compute_public_key();
     noise.mix_hash(ephemeral_pub_key_bytes.as_slice());
     noise.mix_key(ephemeral_pub_key_bytes.as_slice());
-    let ee_ecdh_bytes = crypto::p256_scalar_mult(&ephemeral_priv, &peer_pub)
+    let ee_ecdh_bytes = crypto::p256_scalar_mult(&ephemeral_priv, &initiator_pub)
         .map_err(|_| Error::InvalidHandshake)?;
     noise.mix_key(ee_ecdh_bytes.as_slice());
 
+    if handshake_type == HandshakeType::Kk {
+        let se_ecdh_bytes = crypto::p256_scalar_mult(&identity_priv, &initiator_static_pub_bytes)
+            .map_err(|_| Error::InvalidHandshake)?;
+        noise.mix_key(&se_ecdh_bytes);
+    }
     let response_ciphertext = noise.encrypt_and_hash(&[]);
 
     let keys = noise.traffic_keys();
@@ -177,90 +207,222 @@ pub fn respond(
     })
 }
 
-pub mod test_client {
+pub mod client {
     use super::*;
 
     pub struct HandshakeInitiator {
+        handshake_type: HandshakeType,
         noise: Noise,
-        identity_pub_key: [u8; P256_X962_LENGTH],
+        // responder s
+        identity_pub_key_bytes: [u8; P256_X962_LENGTH],
+        // initiator e [Kk Only, used for ss, and se]
+        self_static_priv_key_bytes: Option<[u8; P256_SCALAR_LENGTH]>,
+        // initiator e
         ephemeral_priv_key: P256Scalar,
     }
 
     impl HandshakeInitiator {
-        pub fn new(peer_public_key: &[u8; P256_X962_LENGTH]) -> Self {
+        pub fn new(
+            handshake_type: HandshakeType,
+            //responder s
+            identity_pub_bytes: &[u8; P256_X962_LENGTH],
+            // initiator e [Kk only, used for ss, se]
+            static_priv_key_bytes: Option<[u8; P256_SCALAR_LENGTH]>,
+        ) -> Self {
             Self {
-                noise: Noise::new(HandshakeType::Nk),
-                identity_pub_key: *peer_public_key,
+                handshake_type: handshake_type,
+                noise: Noise::new(handshake_type),
+                // responder s
+                identity_pub_key_bytes: *identity_pub_bytes,
+                // initiator e
+                self_static_priv_key_bytes: static_priv_key_bytes,
+                // initiator e
                 ephemeral_priv_key: P256Scalar::generate(),
             }
         }
 
-        pub fn build_initial_message(&mut self) -> Vec<u8> {
-            // Use peer_public_key as a prologue.
-            self.noise.mix_hash(&self.identity_pub_key);
-            self.noise.mix_hash_point(self.identity_pub_key.as_slice());
+        pub fn build_initial_message(&mut self) -> Result<Vec<u8>, Error> {
+            // Use ss as a prologue for kk.
+            if self.handshake_type == HandshakeType::Kk {
+                // must provide secondary private key for Kk
+                if let Some(static_priv_key_bytes) = self.self_static_priv_key_bytes {
+                    let priv_key = crypto::P256Scalar::try_from(&static_priv_key_bytes)
+                        .map_err(|_| Error::InvalidPrivateKey)?;
+                    let self_static_pub_key = priv_key.compute_public_key();
+                    let prologue = [self.identity_pub_key_bytes, self_static_pub_key].concat();
+                    self.noise.mix_hash(&prologue);
+                    self.noise.mix_hash_point(&prologue);
+                } else {
+                    return Err(Error::MustHaveSecondaryPrivKeyForKk);
+                }
+            // Use s (only authenticator's s) for other types
+            } else {
+                self.noise.mix_hash(&self.identity_pub_key_bytes);
+                self.noise
+                    .mix_hash_point(self.identity_pub_key_bytes.as_slice());
+            }
+
             let ephemeral_pub_key = self.ephemeral_priv_key.compute_public_key();
             let ephemeral_pub_key_bytes = ephemeral_pub_key.as_ref();
 
             self.noise.mix_hash(ephemeral_pub_key_bytes);
             self.noise.mix_key(ephemeral_pub_key_bytes);
             let es_ecdh_bytes =
-                crypto::p256_scalar_mult(&self.ephemeral_priv_key, &self.identity_pub_key).unwrap();
+                crypto::p256_scalar_mult(&self.ephemeral_priv_key, &self.identity_pub_key_bytes)
+                    .map_err(|_| Error::InvalidHandshake)?;
             self.noise.mix_key(&es_ecdh_bytes);
-
+            if self.handshake_type == HandshakeType::Kk {
+                if let Some(static_priv_key_bytes) = self.self_static_priv_key_bytes {
+                    let priv_key = crypto::P256Scalar::try_from(&static_priv_key_bytes)
+                        .map_err(|_| Error::InvalidPrivateKey)?;
+                    let self_static_pub_key = priv_key.compute_public_key();
+                    let ss_ecdh_bytes =
+                        crypto::sha256_two_part(&self_static_pub_key, &self.identity_pub_key_bytes);
+                    self.noise.mix_key(&ss_ecdh_bytes);
+                } else {
+                    return Err(Error::MustHaveSecondaryPrivKeyForKk);
+                }
+            }
             let ciphertext = self.noise.encrypt_and_hash(&[]);
-            [ephemeral_pub_key_bytes, &ciphertext].concat()
+            Ok([ephemeral_pub_key_bytes, &ciphertext].concat())
         }
 
-        pub fn process_response(&mut self, handshake_response: &[u8]) -> ([u8; 32], Crypter) {
+        pub fn process_response(
+            &mut self,
+            handshake_response: &[u8],
+        ) -> Result<([u8; 32], Crypter), Error> {
             let peer_public_key_bytes = &handshake_response[..P256_X962_LENGTH];
             let ciphertext = &handshake_response[P256_X962_LENGTH..];
 
             let ee_ecdh_bytes = crypto::p256_scalar_mult(
                 &self.ephemeral_priv_key,
-                peer_public_key_bytes.try_into().unwrap(),
+                peer_public_key_bytes
+                    .try_into()
+                    .map_err(|_| Error::InvalidPublicKey)?,
             )
-            .unwrap();
+            .map_err(|_| Error::InvalidHandshake)?;
             self.noise.mix_hash(peer_public_key_bytes);
             self.noise.mix_key(peer_public_key_bytes);
             self.noise.mix_key(&ee_ecdh_bytes);
-
-            let plaintext = self.noise.decrypt_and_hash(ciphertext).unwrap();
+            if self.handshake_type == HandshakeType::Kk {
+                if let Some(static_priv_key_bytes) = self.self_static_priv_key_bytes {
+                    let priv_key = crypto::P256Scalar::try_from(&static_priv_key_bytes)
+                        .map_err(|_| Error::InvalidPrivateKey)?;
+                    let se_ecdh_bytes =
+                        crypto::p256_scalar_mult(&priv_key, &self.identity_pub_key_bytes)
+                            .map_err(|_| Error::InvalidHandshake)?;
+                    self.noise.mix_key(&se_ecdh_bytes);
+                } else {
+                    return Err(Error::MustHaveSecondaryPrivKeyForKk);
+                }
+            }
+            let plaintext = self
+                .noise
+                .decrypt_and_hash(ciphertext)
+                .map_err(|_| Error::DecryptFailed)?;
             assert_eq!(plaintext.len(), 0);
             let (write_key, read_key) = self.noise.traffic_keys();
-            (
+            Ok((
                 self.noise.handshake_hash(),
                 Crypter::new(&read_key, &write_key),
-            )
+            ))
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::test_client::HandshakeInitiator;
+    use super::client::HandshakeInitiator;
     use super::*;
 
     #[test]
-    fn process_handshake() {
-        let test_messages = vec![vec![1u8, 2u8, 3u8, 4u8], vec![4u8, 3u8, 2u8, 1u8], vec![]];
-        let identity_priv = P256Scalar::generate();
-        let identity_pub_bytes = identity_priv.compute_public_key();
-        let mut initiator = HandshakeInitiator::new(&identity_pub_bytes);
+    fn process_nk_handshake() {
+        // responder e
+        let identity_static_priv = P256Scalar::generate();
+        // responder s
+        let identity_pub_bytes = identity_static_priv.compute_public_key();
+        // initiate with tvs's static public key (s)
+        let mut initiator = HandshakeInitiator::new(HandshakeType::Nk, &identity_pub_bytes, None);
         let message = initiator.build_initial_message();
         let handshake_response = respond(
-            &identity_priv,
+            HandshakeType::Nk,
+            // responder e
+            &identity_static_priv,
+            // responder s
             &identity_pub_bytes,
-            &message,
+            // initiator s [not needed for Nk]
+            None,
+            // client e, es (client e, initiator s)
+            &message.unwrap(),
+            // Prologue
             &identity_pub_bytes,
         )
         .unwrap();
         let mut enclave_crypter = handshake_response.crypter;
 
-        let (client_hash, mut client_crypter) =
-            initiator.process_response(&handshake_response.response);
+        let (client_hash, mut client_crypter) = initiator
+            .process_response(&handshake_response.response)
+            .unwrap();
         assert_eq!(&client_hash, &handshake_response.handshake_hash);
 
+        let test_messages = vec![vec![1u8, 2u8, 3u8, 4u8], vec![4u8, 3u8, 2u8, 1u8], vec![]];
+        // Client -> Enclave encrypt+decrypt
+        for message in &test_messages {
+            let ciphertext = client_crypter.encrypt(message).unwrap();
+            let plaintext = enclave_crypter.decrypt(&ciphertext).unwrap();
+            assert_eq!(message, &plaintext);
+        }
+
+        // Enclave -> Client encrypt+decrypt
+        for message in &test_messages {
+            let ciphertext = enclave_crypter.encrypt(message).unwrap();
+            let plaintext = client_crypter.decrypt(&ciphertext).unwrap();
+            assert_eq!(message, &plaintext);
+        }
+    }
+
+    #[test]
+    fn process_kk_handshake() {
+        // initiator e
+        let initiator_priv_key = P256Scalar::generate();
+        let initiator_priv_key_bytes = initiator_priv_key.bytes();
+        // initiator s
+        let initiator_pub_key_bytes = initiator_priv_key.compute_public_key();
+        // responder e
+        let identity_static_priv = P256Scalar::generate();
+        // responder s
+        let identity_pub_bytes = identity_static_priv.compute_public_key();
+        let mut initiator = HandshakeInitiator::new(
+            HandshakeType::Kk,
+            // responder s
+            &identity_pub_bytes,
+            // initiator s [Kk only]
+            Some(initiator_priv_key_bytes),
+        );
+        let message = initiator.build_initial_message();
+        let handshake_response = respond(
+            HandshakeType::Kk,
+            // responder e
+            &identity_static_priv,
+            // responder s
+            &identity_pub_bytes,
+            // initiator_static_pub
+            Some(&initiator_pub_key_bytes),
+            // initial message
+            &message.unwrap(),
+            // Prologue
+            &[identity_pub_bytes, initiator_pub_key_bytes].concat(),
+        )
+        .unwrap();
+        // tvs's encryptor
+        let mut enclave_crypter = handshake_response.crypter;
+
+        let (client_hash, mut client_crypter) = initiator
+            .process_response(&handshake_response.response)
+            .unwrap();
+        assert_eq!(&client_hash, &handshake_response.handshake_hash);
+
+        let test_messages = vec![vec![1u8, 2u8, 3u8, 4u8], vec![4u8, 3u8, 2u8, 1u8], vec![]];
         // Client -> Enclave encrypt+decrypt
         for message in &test_messages {
             let ciphertext = client_crypter.encrypt(message).unwrap();

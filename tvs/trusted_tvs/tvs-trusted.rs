@@ -23,6 +23,7 @@ use crate::proto::privacy_sandbox::tvs::{
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
+use handshake::noise::HandshakeType;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use prost::Message;
@@ -224,9 +225,15 @@ impl TrustedTvs {
         }
 
         let private_key = self.private_key_to_use(public_key)?;
-        let handshake_response =
-            handshake::respond(&private_key, public_key, handshake_request, public_key)
-                .map_err(|_| "Invalid handshake.".to_string())?;
+        let handshake_response = handshake::respond(
+            HandshakeType::Nk,
+            &private_key,
+            public_key,
+            None,
+            handshake_request,
+            public_key,
+        )
+        .map_err(|_| "Invalid handshake.".to_string())?;
         self.crypter = Some(handshake_response.crypter);
         self.handshake_hash = handshake_response.handshake_hash;
         Ok(handshake_response.response)
@@ -404,14 +411,20 @@ mod tests {
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let mut client = handshake::test_client::HandshakeInitiator::new(&tvs_public_key);
-
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Nk,
+            &tvs_private_key.compute_public_key(),
+            None,
+        );
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
-                create_attest_report_request(client.build_initial_message(), &tvs_public_key)
-                    .unwrap()
-                    .as_slice(),
+                create_attest_report_request(
+                    client.build_initial_message().unwrap(),
+                    &tvs_public_key,
+                )
+                .unwrap()
+                .as_slice(),
             )
             .unwrap();
 
@@ -424,8 +437,9 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let (handshake_hash, mut client_crypter) =
-            client.process_response(handshake_response.as_slice());
+        let (handshake_hash, mut client_crypter) = client
+            .process_response(handshake_response.as_slice())
+            .unwrap();
 
         // Test report verification.
         let signing_key =
@@ -490,13 +504,17 @@ mod tests {
         )
         .unwrap();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
-        let mut client = handshake::test_client::HandshakeInitiator::new(&secondary_tvs_public_key);
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Nk,
+            &secondary_tvs_public_key,
+            None,
+        );
 
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
                 create_attest_report_request(
-                    client.build_initial_message(),
+                    client.build_initial_message().unwrap(),
                     &secondary_tvs_public_key,
                 )
                 .unwrap()
@@ -513,8 +531,9 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let (handshake_hash, mut client_crypter) =
-            client.process_response(handshake_response.as_slice());
+        let (handshake_hash, mut client_crypter) = client
+            .process_response(handshake_response.as_slice())
+            .unwrap();
 
         // Test report verification.
         let signing_key =
@@ -580,14 +599,18 @@ mod tests {
         .unwrap();
 
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let mut client = handshake::test_client::HandshakeInitiator::new(&tvs_public_key);
+        let mut client =
+            handshake::client::HandshakeInitiator::new(HandshakeType::Nk, &tvs_public_key, None);
 
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
-                create_attest_report_request(client.build_initial_message(), &tvs_public_key)
-                    .unwrap()
-                    .as_slice(),
+                create_attest_report_request(
+                    client.build_initial_message().unwrap(),
+                    &tvs_public_key,
+                )
+                .unwrap()
+                .as_slice(),
             )
             .unwrap();
 
@@ -600,8 +623,9 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let (handshake_hash, mut client_crypter) =
-            client.process_response(handshake_response.as_slice());
+        let (handshake_hash, mut client_crypter) = client
+            .process_response(handshake_response.as_slice())
+            .unwrap();
 
         // Test report verification.
         let signing_key =
@@ -657,7 +681,7 @@ mod tests {
         }
 
         match trusted_tvs.verify_report(
-            create_attest_report_request(client.build_initial_message(), &tvs_public_key)
+            create_attest_report_request(client.build_initial_message().unwrap(), &tvs_public_key)
                 .unwrap()
                 .as_slice(),
         ) {
@@ -679,14 +703,17 @@ mod tests {
         .unwrap();
 
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let mut client = handshake::test_client::HandshakeInitiator::new(&tvs_public_key);
-
+        let mut client =
+            handshake::client::HandshakeInitiator::new(HandshakeType::Nk, &tvs_public_key, None);
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
-                create_attest_report_request(client.build_initial_message(), &tvs_public_key)
-                    .unwrap()
-                    .as_slice(),
+                create_attest_report_request(
+                    client.build_initial_message().unwrap(),
+                    &tvs_public_key,
+                )
+                .unwrap()
+                .as_slice(),
             )
             .unwrap();
 
@@ -699,8 +726,9 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let (handshake_hash, mut client_crypter) =
-            client.process_response(handshake_response.as_slice());
+        let (handshake_hash, mut client_crypter) = client
+            .process_response(handshake_response.as_slice())
+            .unwrap();
         // Test report verification.
         let signing_key =
             hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
@@ -755,14 +783,17 @@ mod tests {
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let mut client = handshake::test_client::HandshakeInitiator::new(&tvs_public_key);
-
+        let mut client =
+            handshake::client::HandshakeInitiator::new(HandshakeType::Nk, &tvs_public_key, None);
         // Ask TVS to do its handshake part
         let handshake_bin = trusted_tvs
             .verify_report(
-                create_attest_report_request(client.build_initial_message(), &tvs_public_key)
-                    .unwrap()
-                    .as_slice(),
+                create_attest_report_request(
+                    client.build_initial_message().unwrap(),
+                    &tvs_public_key,
+                )
+                .unwrap()
+                .as_slice(),
             )
             .unwrap();
 
@@ -775,8 +806,9 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let (handshake_hash, mut client_crypter) =
-            client.process_response(handshake_response.as_slice());
+        let (handshake_hash, mut client_crypter) = client
+            .process_response(handshake_response.as_slice())
+            .unwrap();
         // Test report verification.
         let signing_key =
             hex::decode("df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759")
@@ -829,12 +861,19 @@ mod tests {
         .unwrap();
 
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
-        let mut client = handshake::test_client::HandshakeInitiator::new(&secondary_tvs_public_key);
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Nk,
+            &secondary_tvs_public_key,
+            None,
+        );
 
         match trusted_tvs.verify_report(
-            create_attest_report_request(client.build_initial_message(), &secondary_tvs_public_key)
-                .unwrap()
-                .as_slice(),
+            create_attest_report_request(
+                client.build_initial_message().unwrap(),
+                &secondary_tvs_public_key,
+            )
+            .unwrap()
+            .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
             Err(e) => assert_eq!(e, "Unknown public key"),
@@ -907,9 +946,13 @@ mod tests {
             "test_user",
         )
         .unwrap();
-        let client_handshake =
-            handshake::test_client::HandshakeInitiator::new(&tvs_private_key.compute_public_key())
-                .build_initial_message();
+        let client_handshake = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Nk,
+            &tvs_private_key.compute_public_key(),
+            None,
+        )
+        .build_initial_message()
+        .unwrap();
         assert!(trusted_tvs
             .do_init_session(client_handshake.as_slice(), &tvs_public_key)
             .is_ok());
