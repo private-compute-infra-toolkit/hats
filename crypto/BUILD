@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -9,8 +10,14 @@ rust_library(
     name = "secret-sharing",
     srcs = ["secret-sharing.rs"],
     deps = [
+        "@boringssl//rust/bssl-crypto",
+        "@enclave//crypto",
         "@hats_crate_index//:num-bigint",
         "@hats_crate_index//:rand",
+        "@hats_crate_index//:serde",
+        "@hats_crate_index//:serde_json",
+        "@oak_crates_index//:anyhow",
+        "@using_cxx//:cxx",
     ],
 )
 
@@ -18,8 +25,14 @@ rust_test(
     name = "secret-sharing_test",
     srcs = ["secret-sharing.rs"],
     deps = [
+        "@boringssl//rust/bssl-crypto",
+        "@enclave//crypto",
         "@hats_crate_index//:num-bigint",
         "@hats_crate_index//:rand",
+        "@hats_crate_index//:serde",
+        "@hats_crate_index//:serde_json",
+        "@oak_crates_index//:anyhow",
+        "@using_cxx//:cxx",
     ],
 )
 
@@ -74,5 +87,13 @@ cc_test(
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+rust_cxx_bridge(
+    name = "bridge",
+    src = "secret-sharing.rs",
+    deps = [
+        ":secret-sharing",
     ],
 )

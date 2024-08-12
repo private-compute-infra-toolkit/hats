@@ -90,7 +90,10 @@ crates_repository(
         "hex": crate.spec(version = "*"),
         "hpke": crate.spec(version = "*"),
         "num-bigint": crate.spec(
-            features = ["rand"],
+            features = [
+                "rand",
+                "serde",
+            ],
             version = "*",
         ),
         "p256": crate.spec(version = "*"),
@@ -108,6 +111,8 @@ crates_repository(
             ],
             version = "*",
         ),
+        "serde": crate.spec(version = "*"),
+        "serde_json": crate.spec(version = "*"),
         "sev": crate.spec(
             version = "*",
         ),
