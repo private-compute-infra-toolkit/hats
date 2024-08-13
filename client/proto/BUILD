@@ -15,17 +15,27 @@ proto_library(
     ],
 )
 
-cc_proto_library(
-    name = "launcher_cc_proto",
-    deps = ["launcher_proto"],
-)
-
 cc_grpc_library(
     name = "launcher_cc_grpc",
     srcs = [":launcher_proto"],
     grpc_only = True,
     tags = ["grpc"],
     deps = [":launcher_cc_proto"],
+)
+
+cc_proto_library(
+    name = "launcher_cc_proto",
+    deps = ["launcher_proto"],
+)
+
+proto_library(
+    name = "launcher_config_proto",
+    srcs = ["launcher_config.proto"],
+)
+
+cc_proto_library(
+    name = "launcher_config_cc_proto",
+    deps = ["launcher_config_proto"],
 )
 
 proto_library(

@@ -1,0 +1,110 @@
+// Copyright 2024 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package privacy_sandbox.client;
+
+message LauncherConfig {
+  // Port for providing Launcher services to the CVMs.
+  uint32 launcher_service_port = 1;
+  // Address to talk to Tee Verification Service ( TVS ).
+  string tvs_address = 2;
+  CVMConfig cvm_config = 3;
+}
+
+// Type of the machine the VM runs on.
+enum CVMType {
+  // Default is used for testing only. Production must run in confidential
+  // guest.
+  CVMTYPE_DEFAULT = 0;
+  CVMTYPE_SEV = 1;
+  CVMTYPE_SEVES = 2;
+  CVMTYPE_SEVSNP = 3;
+  CVMTYPE_TDX = 4;
+}
+
+// Configuration for the CVM hosted by the launcher through QEMU.
+// TODO(sidachen): We may need to separate out the proto representing the CVM
+// workload.
+message CVMConfig {
+  // CVM Type supported by the current host launcher runs on.
+  CVMType cvm_type = 1;
+  // Following represents a CVM configuration:
+  // runc runtime bundle must be a tar file consisting of a rootfs/ and
+  // config.json.
+  string runc_runtime_bundle = 2;
+  // Base system for the full oak stack for verification purposes.
+  string oak_system_bundle = 3;
+  // Number of CPUs required for the CVM.
+  int64 num_cpus = 4;
+  // Ramdrive size for the system root file system in kb.
+  int64 ramdrive_size_kb = 5;
+  // Ram reserved for the CVM.
+  int64 ram_size_kb = 6;
+  // Allow opening a telnet port for debugging purposes.
+  uint32 debug_telnet_port = 7;
+
+  // Path to the vmm binary used to launch CVMs.
+  string vmm_binary = 8;
+  // Configuration for CVM networking.
+  NetworkConfig network_config = 9;
+
+  // Optional virtio guest CID for virtio-vsock. If not assigned, defaults to
+  // the current thread ID.
+  // Warning; This CID needs to be globally unique on the whole host!
+  optional uint32 virtio_guest_cid = 10;
+
+  // Pass the specified host PCI device through to the virtual machine using
+  // VFIO.
+  string pci_passthrough = 11;
+}
+
+message NetworkConfig {
+  oneof mode {
+    // No outbound network from the Enclave application.
+    // Port forwarding is setup to allow host to orchestrator and enclave app
+    // communication.
+    // CVM runs at address 10.0.2.15 in QEMU SLIRP network but no gateway is
+    // configured to prevent outbound traffic.
+    HostPortFowardingConfig inbound_only = 1;
+    // Allow outbound network from the Enclave application.
+    // Port forwarding is setup to allow host to orchestrator and enclave app
+    // communication.
+    // CVM runs at address 10.0.2.15 in QEMU SLIRP network with gateway
+    // 10.0.2.2.
+    HostPortFowardingConfig inbound_and_outbound = 2;
+    // Allow connecting to a bridge network on the host with an IP address
+    // assigned.
+    // CVM IP address and gateway are defined by the bridge.
+    HostVirtualBridgeConfig virtual_bridge = 4;
+  }
+}
+
+message HostVirtualBridgeConfig {
+  // Device name for the virtual bridge.
+  string virtual_bridge_device = 1;
+  // Address for the CVM within the bridge.
+  string cvm_ip_addr = 2;
+  // Address for gateway of the virtual bridge.
+  string cvm_gateway_addr = 3;
+}
+
+message HostPortFowardingConfig {
+  // Forward certain ports from the host.
+  // Forwarding port from host to orchestrator port at 4000 running inside CVM.
+  uint32 host_orchestrator_proxy_port = 1;
+  // Forwarding port from host to enclave app port at 8080 running inside CVM.
+  uint32 host_enclave_app_proxy_port = 2;
+}
