@@ -65,7 +65,8 @@ class KeyFetcherLocal : public KeyFetcher {
     return secondary_private_key_bytes;
   }
 
-  absl::StatusOr<std::string> GetSecret(absl::string_view secret_id) override {
+  absl::StatusOr<std::string> GetSecret(absl::string_view username) override {
+    // Return the same secret since we have one user only in the local mode.
     std::string secret_bytes;
     if (!absl::HexStringToBytes(secret_, &secret_bytes)) {
       return absl::InvalidArgumentError(

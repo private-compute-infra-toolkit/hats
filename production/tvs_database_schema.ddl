@@ -22,30 +22,59 @@ CREATE SEQUENCE KekIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
 
+CREATE SEQUENCE UserIdSequence OPTIONS (
+  sequence_kind = 'bit_reversed_positive'
+);
+
 CREATE TABLE AppraisalPolicies (
   PolicyId STRING(1024),
   Policy BYTES(MAX),
 ) PRIMARY KEY(PolicyId);
 
-CREATE TABLE DataEncryptionKey (
+CREATE TABLE DataEncryptionKeys (
   DekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE DekIdSequence)),
   KekId INT64 NOT NULL,
   Dek BYTES(MAX),
 ) PRIMARY KEY(DekId);
 
-CREATE TABLE ECKeys (
+CREATE TABLE KeyEncryptionKeys (
+  KekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE KekIdSequence)),
+  ResourceName STRING(1024) NOT NULL,
+) PRIMARY KEY(KekId);
+
+CREATE UNIQUE INDEX KekResourceNameIndex ON KeyEncryptionKeys(ResourceName);
+
+CREATE TABLE Secrets (
+  UserId INT64 NOT NULL,
+  DekId INT64 NOT NULL,
+  Secret BYTES(MAX),
+) PRIMARY KEY(UserId);
+
+CREATE TABLE TVSPrivateKeys (
   KeyId STRING(1024),
   DekId INT64 NOT NULL,
   PrivateKey BYTES(MAX),
 ) PRIMARY KEY(KeyId);
 
-CREATE TABLE KeyEncryptionKey (
-  KekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE KekIdSequence)),
-  ResourceName STRING(1024),
-) PRIMARY KEY(KekId);
+CREATE TABLE TVSPublicKeys (
+  KeyId STRING(1024),
+  PublicKey STRING(MAX),
+) PRIMARY KEY(KeyId);
 
-CREATE TABLE Secrets (
-  SecretId STRING(1024),
-  DekId INT64 NOT NULL,
-  Secret BYTES(MAX),
-) PRIMARY KEY(SecretId);
+CREATE TABLE UserAuthenticationKeys (
+  UserId INT64 NOT NULL,
+  PublicKey BYTES(MAX),
+) PRIMARY KEY(UserId, PublicKey);
+
+CREATE TABLE UserPublicKeys (
+  UserId INT64 NOT NULL,
+  PublicKey STRING(1024),
+) PRIMARY KEY(UserId);
+
+CREATE TABLE Users (
+  UserId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
+  Name STRING(1024) NOT NULL,
+  Origin STRING(1024),
+) PRIMARY KEY(UserId);
+
+CREATE UNIQUE INDEX UserNameIndex ON Users(Name);
