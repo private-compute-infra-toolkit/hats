@@ -269,12 +269,13 @@ TEST(ForwardingTvsServer, BadReportError) {
 
   constexpr absl::string_view kApplicationSigningKey =
       "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759";
-  EXPECT_THAT((*tvs_client)
-                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
-                                            *verify_report_request),
-              StatusIs(absl::StatusCode::kUnknown,
-                       AllOf(HasSubstr("Failed to verify report"),
-                             HasSubstr("system layer verification failed"))));
+  EXPECT_THAT(
+      (*tvs_client)
+          ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
+                                    *verify_report_request),
+      StatusIs(absl::StatusCode::kUnknown,
+               AllOf(HasSubstr("Failed to verify report"),
+                     HasSubstr("comparing expected values to evidence"))));
 }
 
 }  // namespace

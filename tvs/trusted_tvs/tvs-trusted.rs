@@ -762,7 +762,7 @@ mod tests {
 
         match trusted_tvs.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
-            Err(e) => assert!(e.contains("Failed to verify report. chip id differs")),
+            Err(e) => assert!(e.contains("Failed to verify report. verifying root signature")),
         }
 
         match trusted_tvs.verify_report(message_bin.as_slice()) {
@@ -841,7 +841,7 @@ mod tests {
         match trusted_tvs.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => {
-                assert!(e.contains("Failed to verify report. system layer verification failed"))
+                assert!(e.contains("Failed to verify report. comparing expected values to evidence"))
             }
         }
     }

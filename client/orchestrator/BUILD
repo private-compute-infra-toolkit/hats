@@ -9,6 +9,7 @@ rust_binary(
         ":tvs-grpc-client",
         "@hats_crate_index//:hex",
         "@oak//oak_containers_orchestrator:lib",
+        "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",
         "@oak_crates_index//:clap",
         "@oak_crates_index//:nix",

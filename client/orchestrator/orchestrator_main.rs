@@ -16,8 +16,8 @@ use anyhow::{anyhow, Context};
 use clap::Parser;
 use oak_containers_orchestrator::{
     crypto::generate_instance_keys, launcher_client::LauncherClient,
-    proto::oak::containers::v1::KeyProvisioningRole,
 };
+use oak_proto_rust::oak::containers::v1::KeyProvisioningRole;
 use std::{path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 
