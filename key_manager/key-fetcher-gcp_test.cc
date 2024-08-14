@@ -33,6 +33,7 @@ namespace {
 
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
+using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::Return;
 using ::testing::StrEq;
@@ -288,10 +289,10 @@ TEST(KeyFetcherGcp, GetSecret) {
             google::cloud::StatusOr<google::cloud::spanner::Value> parameter =
                 sql_params.statement.GetParameter("username");
             if (!parameter.ok()) return {};
-            google::cloud::StatusOr<std::string> key_name =
+            google::cloud::StatusOr<std::string> user_name =
                 parameter->get<std::string>();
-            if (!key_name.ok()) return {};
-            if (*key_name != kUserName) return {};
+            if (!user_name.ok()) return {};
+            if (*user_name != kUserName) return {};
             return google::cloud::spanner::RowStream(
                 std::move(mock_result_set_source));
           });
@@ -302,6 +303,140 @@ TEST(KeyFetcherGcp, GetSecret) {
 
   // The actual test.
   EXPECT_THAT(key_fetcher->GetSecret(kUserName), IsOkAndHolds(StrEq("data3")));
+}
+
+TEST(KeyFetcherGcp, UserIdForAuthenticationKey) {
+  crypto::SecretData dek(5);
+  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
+      /*expected_resource_name=*/"", /*expected_ciphertext=*/"", dek);
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+      test_connection);
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields: {
+        name: "UserId",
+        type: { code: INT64 }
+      }
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  constexpr int64_t kUserId = 104;
+  constexpr absl::string_view kPublicKey = "test_public_key";
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
+          {{"UserId", google::cloud::spanner::Value(kUserId)}})));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce(
+          [&mock_result_set_source, &kPublicKey](
+              const google::cloud::spanner::Connection::SqlParams& sql_params)
+              -> google::cloud::spanner::RowStream {
+            // Make sure the right parameter is specified in the code.
+            google::cloud::StatusOr<google::cloud::spanner::Value> parameter =
+                sql_params.statement.GetParameter("public_key");
+            if (!parameter.ok()) return {};
+            google::cloud::StatusOr<google::cloud::spanner::Bytes> public_key =
+                parameter->get<google::cloud::spanner::Bytes>();
+            if (!public_key.ok()) return {};
+            if (public_key->get<std::string>() != kPublicKey) return {};
+            return google::cloud::spanner::RowStream(
+                std::move(mock_result_set_source));
+          });
+
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<KeyFetcher> key_fetcher =
+      KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
+
+  // The actual test.
+  EXPECT_THAT(key_fetcher->UserIdForAuthenticationKey(kPublicKey),
+              IsOkAndHolds(Eq(kUserId)));
+}
+
+// This test generates a DEK, pass it to the test KMS to return it to the
+// KeyFetcher. Encrypt some data with the DEK and have mock spanner return it.
+// The key fetcher should be able to decrypt the encrypted data.
+TEST(KeyFetcherGcp, GetSecretForUserId) {
+  crypto::SecretData dek = crypto::RandomAeadKey();
+  constexpr absl::string_view kResourceName = "test_kek_secret";
+  constexpr absl::string_view kCiphertext = "test_dek_secret";
+  auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
+      kResourceName, kCiphertext, dek);
+  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+      test_connection);
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields: {
+        name: "Secret",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "Dek",
+        type: { code: BYTES }
+      }
+      fields: {
+        name: "ResourceName",
+        type: { code: STRING }
+      }
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  crypto::SecretData data("data3");
+  absl::StatusOr<std::string> encrypted_data =
+      crypto::Encrypt(dek, data, crypto::kSecretAd);
+  ASSERT_TRUE(encrypted_data.ok());
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
+          {{"Secret", google::cloud::spanner::Value(
+                          google::cloud::spanner::Bytes(*encrypted_data))},
+           {"Dek", google::cloud::spanner::Value(
+                       google::cloud::spanner::Bytes((kCiphertext)))},
+           {"ResourceName",
+            google::cloud::spanner::Value(std::string(kResourceName))}})));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+
+  constexpr int64_t kUserId = 1234;
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce([&mock_result_set_source, &kUserId](
+                    const google::cloud::spanner::Connection::SqlParams&
+                        sql_params) -> google::cloud::spanner::RowStream {
+        // Make sure the right parameter is specified in the code.
+        google::cloud::StatusOr<google::cloud::spanner::Value> parameter =
+            sql_params.statement.GetParameter("user_id");
+        if (!parameter.ok()) return {};
+        google::cloud::StatusOr<int64_t> user_id = parameter->get<int64_t>();
+        if (!user_id.ok()) return {};
+        if (*user_id != kUserId) return {};
+        return google::cloud::spanner::RowStream(
+            std::move(mock_result_set_source));
+      });
+
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<KeyFetcher> key_fetcher =
+      KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
+
+  // The actual test.
+  EXPECT_THAT(key_fetcher->GetSecretForUserId(kUserId),
+              IsOkAndHolds(StrEq("data3")));
 }
 
 TEST(KeyFetcherGcp, KMSError) {

@@ -77,6 +77,24 @@ class KeyFetcherLocal : public KeyFetcher {
     return secret_bytes;
   }
 
+  absl::StatusOr<int64_t> UserIdForAuthenticationKey(
+      absl::string_view public_key) override {
+    // Always return 0 because we only have one user.
+    return 0;
+  }
+
+  absl::StatusOr<std::string> GetSecretForUserId(int64_t user_id) override {
+    // Return the same secret since we have one user only in the local mode.
+    std::string secret_bytes;
+    if (!absl::HexStringToBytes(secret_, &secret_bytes)) {
+      return absl::InvalidArgumentError(
+          "Failed to parse the secret. Secrets should be "
+          "formatted as hex "
+          "string.");
+    }
+    return secret_bytes;
+  }
+
  private:
   const std::string primary_private_key_;
   const std::string secondary_private_key_;

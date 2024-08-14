@@ -45,6 +45,11 @@ class KeyFetcherGcp : public KeyFetcher {
 
   absl::StatusOr<std::string> GetSecret(absl::string_view username) override;
 
+  absl::StatusOr<int64_t> UserIdForAuthenticationKey(
+      absl::string_view public_key) override;
+
+  absl::StatusOr<std::string> GetSecretForUserId(int64_t user_id) override;
+
  private:
   // For unit-tests only.
   KeyFetcherGcp(google::cloud::kms_v1::v2_25::KeyManagementServiceClient client,
