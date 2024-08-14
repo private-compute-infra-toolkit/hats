@@ -155,7 +155,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
       CREATE TABLE DataEncryptionKeys(
           DekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE DekIdSequence)),
           KekId INT64 NOT NULL,
-          Dek  BYTES(MAX),
+          Dek  BYTES(MAX) NOT NULL,
       ) PRIMARY KEY (DekId))sql");
 
   // Table storing wrapped TVS private EC keys. The keys are used in the noise
@@ -167,7 +167,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
       CREATE TABLE TVSPrivateKeys(
           KeyId STRING(1024),
           DekId INT64 NOT NULL,
-          PrivateKey BYTES(MAX),
+          PrivateKey BYTES(MAX) NOT NULL,
       ) PRIMARY KEY (KeyId))sql");
 
   // Table storing TVS public keys. The public keys are stored in a separate
@@ -175,7 +175,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   request.add_extra_statements(R"sql(
       CREATE TABLE TVSPublicKeys(
           KeyId STRING(1024),
-          PublicKey String(MAX),
+          PublicKey String(MAX) NOT NULL,
       ) PRIMARY KEY (KeyId))sql");
 
   // A sequence to generate user IDs.
@@ -209,7 +209,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   request.add_extra_statements(R"sql(
       CREATE TABLE UserAuthenticationKeys(
           UserId INT64 NOT NULL,
-          PublicKey BYTES(MAX),
+          PublicKey BYTES(MAX) NOT NULL,
       ) PRIMARY KEY (UserId, PublicKey))sql");
 
   // Table storing secrets to be returned to entities passing TVS attestation.
@@ -224,7 +224,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
       CREATE TABLE Secrets(
           UserId   INT64 NOT NULL,
           DekId    INT64 NOT NULL,
-          Secret   BYTES(MAX)
+          Secret   BYTES(MAX) NOT NULL,
       ) PRIMARY KEY (UserId))sql");
 
   // Table storing public keys of the users. Right now we allow the user
@@ -232,7 +232,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   request.add_extra_statements(R"sql(
       CREATE TABLE UserPublicKeys(
           UserId   INT64 NOT NULL,
-          PublicKey STRING(1024),
+          PublicKey STRING(1024) NOT NULL,
       ) PRIMARY KEY (UserId))sql");
 
   // A sequence to generate policy IDs.
@@ -248,7 +248,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
       CREATE TABLE AppraisalPolicies(
           PolicyId          INT64 DEFAULT
                             (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
-          Policy   BYTES(MAX),
+          Policy   BYTES(MAX) NOT NULL,
           UpdateTimestamp   TIMESTAMP NOT NULL,
       ) PRIMARY KEY (PolicyId))sql");
 
