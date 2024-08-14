@@ -9,6 +9,7 @@ cc_binary(
     srcs = ["tvs-server_main.cc"],
     deps = [
         ":tvs-server",
+        "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/trusted_tvs:bridge",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -17,7 +18,6 @@ cc_binary(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@oak//proto/attestation:reference_value_cc_proto",
     ] + select({
         "//:gcp": [
             "//key_manager:key-fetcher-gcp",
@@ -35,6 +35,7 @@ cc_library(
     srcs = ["tvs-server.cc"],
     hdrs = ["tvs-server.h"],
     deps = [
+        "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/trusted_tvs:bridge",
@@ -45,7 +46,6 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
-        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )
 
@@ -58,6 +58,7 @@ cc_test(
     deps = [
         ":tvs-server",
         "//key_manager:key-fetcher-wrapper",
+        "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/test_client:tvs-untrusted-client",
         "@bazel_tools//tools/cpp/runfiles",
@@ -70,6 +71,5 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf_headers",
         "@com_google_protobuf//src/google/protobuf/io",
-        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )

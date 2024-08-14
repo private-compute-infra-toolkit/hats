@@ -22,6 +22,7 @@
 #include "google/cloud/spanner/client.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 
 namespace privacy_sandbox::tvs {
 
@@ -34,8 +35,7 @@ class PolicyFetcherGcp final : public PolicyFetcher {
   static std::unique_ptr<PolicyFetcher> Create(
       google::cloud::spanner::Client spanner_client);
 
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> GetPolicy(
-      absl::string_view policy_id) override;
+  absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) override;
 
  private:
   // For unit-tests only.

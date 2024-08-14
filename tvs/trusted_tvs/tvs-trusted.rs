@@ -19,12 +19,12 @@ extern crate handshake;
 extern crate hex;
 
 use crate::proto::privacy_sandbox::tvs::{
-    attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
-    InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
+    attest_report_request, attest_report_response, AppraisalPolicies, AttestReportRequest,
+    AttestReportResponse, InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
-use oak_proto_rust::oak::attestation::v1::Evidence;
+use oak_proto_rust::oak::attestation::v1::{Endorsements, Evidence};
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use prost::Message;
 
@@ -44,7 +44,7 @@ pub struct TrustedTvs {
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
-    appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
+    appraisal_policies: AppraisalPolicies,
     // Authenticated user if any.
     user: String,
     terminated: bool,
@@ -79,18 +79,18 @@ mod ffi {
 pub fn new_trusted_tvs_service(
     time_milis: i64,
     primary_private_key: &[u8],
-    policy: &[u8],
+    policies: &[u8],
     user: &str,
 ) -> Result<Box<TrustedTvs>, String> {
     let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
         format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
     })?;
-    let appraisal_policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(policy)
+    let appraisal_policies = AppraisalPolicies::decode(policies)
         .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
     Ok(Box::new(TrustedTvs::new(
         time_milis,
         primary_private_key_scalar,
-        appraisal_policy,
+        appraisal_policies,
         user.to_string(),
         None,
     )))
@@ -100,7 +100,7 @@ fn new_trusted_tvs_service_with_second_key(
     time_milis: i64,
     primary_private_key: &[u8],
     secondary_private_key: &[u8],
-    policy: &[u8],
+    policies: &[u8],
     user: &str,
 ) -> Result<Box<TrustedTvs>, String> {
     let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
@@ -110,12 +110,12 @@ fn new_trusted_tvs_service_with_second_key(
         secondary_private_key.try_into().map_err(|_| {
             format!("Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
         })?;
-    let appraisal_policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(policy)
+    let appraisal_policies = AppraisalPolicies::decode(policies)
         .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
     Ok(Box::new(TrustedTvs::new(
         time_milis,
         primary_private_key_scalar,
-        appraisal_policy,
+        appraisal_policies,
         user.to_string(),
         Some(secondary_private_key_scalar),
     )))
@@ -125,7 +125,7 @@ impl TrustedTvs {
     fn new(
         time_milis: i64,
         primary_private_key: P256Scalar,
-        appraisal_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues,
+        appraisal_policies: AppraisalPolicies,
         user: String,
         secondary_private_key: Option<P256Scalar>,
     ) -> Self {
@@ -140,7 +140,7 @@ impl TrustedTvs {
             primary_private_key,
             secondary_private_key: secondary_private_key,
             secondary_public_key: secondary_public_key,
-            appraisal_policy,
+            appraisal_policies,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
             user,
@@ -248,13 +248,8 @@ impl TrustedTvs {
         };
         self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
         let endorsement = create_endorsements(verify_report_request.tee_certificate);
-        let _ = oak_attestation_verification::verifier::verify(
-            self.time_milis,
-            &evidence,
-            &endorsement,
-            &self.appraisal_policy,
-        )
-        .map_err(|msg| format!("Failed to verify report. {}", msg))?;
+        self.check_evidence(evidence, endorsement)?;
+
         // TODO(alwabel): change local mode to obtain secrets and keys from
         // `key_fetcher`, also pass in the user_id or the authenticated client
         // id instead of `default`.
@@ -300,6 +295,22 @@ impl TrustedTvs {
         verifying_key
             .verify(&self.handshake_hash, &signature)
             .map_err(|msg| format!("Signature does not match. {}", msg))
+    }
+
+    // Check evidence against the appraisal policies.
+    fn check_evidence(&self, evidence: Evidence, endorsement: Endorsements) -> Result<(), String> {
+        for policy in &self.appraisal_policies.policy {
+            match oak_attestation_verification::verifier::verify(
+                self.time_milis,
+                &evidence,
+                &endorsement,
+                &policy,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(_) => continue,
+            };
+        }
+        Err("Failed to verify report. No matching appraisal policy found".to_string())
     }
 
     // Drop crypter and handshake hash to force clients to re-initiate the session.
@@ -364,8 +375,17 @@ mod tests {
         include_bytes!("../test_data/vcek_genoa.crt").to_vec()
     }
 
-    fn default_appraisal_policy() -> Vec<u8> {
-        include_bytes!("../test_data/on-perm-reference.binarypb").to_vec()
+    fn default_appraisal_policicies() -> Vec<u8> {
+        let policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(
+            &include_bytes!("../test_data/on-perm-reference.binarypb")[..],
+        )
+        .unwrap();
+        let policies = AppraisalPolicies {
+            policy: vec![policy],
+        };
+        let mut buf: Vec<u8> = Vec::with_capacity(1024);
+        policies.encode(&mut buf).unwrap();
+        buf
     }
 
     fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> Result<Vec<u8>, String> {
@@ -406,7 +426,7 @@ mod tests {
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user1",
         )
         .unwrap();
@@ -499,7 +519,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             &secondary_tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user2",
         )
         .unwrap();
@@ -593,7 +613,7 @@ mod tests {
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user1",
         )
         .unwrap();
@@ -697,7 +717,7 @@ mod tests {
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user",
         )
         .unwrap();
@@ -762,7 +782,9 @@ mod tests {
 
         match trusted_tvs.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
-            Err(e) => assert!(e.contains("Failed to verify report. verifying root signature")),
+            Err(e) => {
+                assert!(e.contains("Failed to verify report. No matching appraisal policy found"))
+            }
         }
 
         match trusted_tvs.verify_report(message_bin.as_slice()) {
@@ -778,7 +800,7 @@ mod tests {
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user",
         )
         .unwrap();
@@ -841,7 +863,7 @@ mod tests {
         match trusted_tvs.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => {
-                assert!(e.contains("Failed to verify report. comparing expected values to evidence"))
+                assert!(e.contains("Failed to verify report. No matching appraisal policy found"))
             }
         }
     }
@@ -852,10 +874,9 @@ mod tests {
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
-            // _with_second_key(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user",
         )
         .unwrap();
@@ -886,7 +907,7 @@ mod tests {
         match new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &[1, 2, 3],
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
@@ -899,7 +920,7 @@ mod tests {
         match new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &[b'f'; P256_SCALAR_LENGTH * 3],
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user",
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
@@ -927,7 +948,7 @@ mod tests {
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user",
         )
         .unwrap();
@@ -942,7 +963,7 @@ mod tests {
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user",
         )
         .unwrap();
@@ -970,7 +991,7 @@ mod tests {
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policicies().as_slice(),
             "test_user",
         )
         .unwrap();

@@ -32,7 +32,7 @@
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
-#include "proto/attestation/reference_value.pb.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/trusted_tvs/tvs-trusted.rs.h"
 
@@ -54,7 +54,7 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
 absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
     const std::string& primary_private_key,
     const std::string& secondary_private_key,
-    const oak::attestation::v1::ReferenceValues& appraisal_policy) {
+    const AppraisalPolicies& appraisal_policies) {
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
@@ -62,13 +62,13 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
       return new_trusted_tvs_service(
           absl::ToUnixMillis(absl::Now()),
           StringToRustSlice(primary_private_key),
-          StringToRustSlice(appraisal_policy.SerializeAsString()),
+          StringToRustSlice(appraisal_policies.SerializeAsString()),
           /*user=*/"default");
     }
     return new_trusted_tvs_service_with_second_key(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(secondary_private_key),
-        StringToRustSlice(appraisal_policy.SerializeAsString()),
+        StringToRustSlice(appraisal_policies.SerializeAsString()),
         /*user=*/"default");
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
@@ -77,22 +77,22 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
 }
 
 TvsServer::TvsServer(const std::string& primary_private_key,
-                     oak::attestation::v1::ReferenceValues appraisal_policy)
+                     AppraisalPolicies appraisal_policies)
     : primary_private_key_(primary_private_key),
-      appraisal_policy_(std::move(appraisal_policy)) {}
+      appraisal_policies_(std::move(appraisal_policies)) {}
 
 TvsServer::TvsServer(const std::string& primary_private_key,
                      const std::string& secondary_private_key,
-                     oak::attestation::v1::ReferenceValues appraisal_policy)
+                     AppraisalPolicies appraisal_policies)
     : primary_private_key_(primary_private_key),
       secondary_private_key_(secondary_private_key),
-      appraisal_policy_(std::move(appraisal_policy)) {}
+      appraisal_policies_(std::move(appraisal_policies)) {}
 
 grpc::Status TvsServer::VerifyReport(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) {
   absl::StatusOr<rust::Box<TrustedTvs>> trusted_tvs = CreateTrustedTvsService(
-      primary_private_key_, secondary_private_key_, appraisal_policy_);
+      primary_private_key_, secondary_private_key_, appraisal_policies_);
   if (!trusted_tvs.ok()) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         trusted_tvs.status().ToString());
@@ -125,7 +125,7 @@ void CreateAndStartTvsServer(TvsServerOptions options) {
   const std::string server_address = absl::StrCat("0.0.0.0:", options.port);
   TvsServer tvs_server(options.primary_private_key,
                        options.secondary_private_key,
-                       std::move(options.appraisal_policy));
+                       std::move(options.appraisal_policies));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()
           .AddListeningPort(server_address, grpc::InsecureServerCredentials())

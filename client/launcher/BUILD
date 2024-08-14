@@ -96,6 +96,7 @@ cc_test(
     deps = [
         ":forwarding-tvs-server",
         "//key_manager:key-fetcher-wrapper",
+        "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/test_client:tvs-untrusted-client",
         "//tvs/untrusted_tvs:tvs-server",
@@ -109,7 +110,6 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf_headers",
         "@com_google_protobuf//src/google/protobuf/io",
-        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )
 

@@ -64,9 +64,13 @@ cargo_build_script(
         "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
+        "//tvs/proto:appraisal_policies_proto",
         "//tvs/proto:tvs_messages_proto",
         "@com_google_protobuf//:protoc",
+        "@oak//proto:digest.proto",
         "@oak//proto/attestation:evidence.proto",
+        "@oak//proto/attestation:reference_value.proto",
+        "@oak//proto/attestation:tcb_version.proto",
     ],
     deps = [
         "@oak//micro_rpc_build",

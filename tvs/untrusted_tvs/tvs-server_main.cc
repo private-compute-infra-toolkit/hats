@@ -26,8 +26,8 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "key_manager/key-fetcher.h"
-#include "proto/attestation/reference_value.pb.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/untrusted_tvs/tvs-server.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
@@ -59,21 +59,6 @@ int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
 
-  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher>>
-      policy_fetcher = privacy_sandbox::tvs::PolicyFetcher::Create();
-  if (!policy_fetcher.ok()) {
-    LOG(ERROR) << "Failed to create a policy fetcher: "
-               << policy_fetcher.status();
-    return 1;
-  }
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
-      (*policy_fetcher)->GetPolicy(/*policy_id=*/"default");
-  if (!appraisal_policy.ok()) {
-    LOG(ERROR) << "Failed to get appraisal policy: "
-               << appraisal_policy.status();
-    return 1;
-  }
-
   std::unique_ptr<privacy_sandbox::key_manager::KeyFetcher> key_fetcher =
       privacy_sandbox::key_manager::KeyFetcher::Create();
   absl::StatusOr<std::string> primary_private_key =
@@ -96,6 +81,22 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "Cannot get server port " << port.status();
   }
 
+  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher>>
+      policy_fetcher = privacy_sandbox::tvs::PolicyFetcher::Create();
+  if (!policy_fetcher.ok()) {
+    LOG(ERROR) << "Failed to create a policy fetcher: "
+               << policy_fetcher.status();
+    return 1;
+  }
+
+  absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies> appraisal_policies =
+      (*policy_fetcher)->GetLatestNPolicies(/*n=*/5);
+  if (!appraisal_policies.ok()) {
+    LOG(ERROR) << "Failed to get appraisal policies: "
+               << appraisal_policies.status();
+    return 1;
+  }
+
   LOG(INFO) << "Starting TVS server on port " << port;
   privacy_sandbox::tvs::CreateAndStartTvsServer(
       privacy_sandbox::tvs::TvsServerOptions{
@@ -104,7 +105,7 @@ int main(int argc, char* argv[]) {
           .secondary_private_key = secondary_private_key.ok()
                                        ? *std::move(secondary_private_key)
                                        : "",
-          .appraisal_policy = *std::move(appraisal_policy),
+          .appraisal_policies = *std::move(appraisal_policies),
       });
   return 0;
 }
