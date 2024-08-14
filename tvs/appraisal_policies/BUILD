@@ -9,6 +9,7 @@ cc_library(
     srcs = ["policy-fetcher-local.cc"],
     hdrs = ["policy-fetcher.h"],
     deps = [
+        "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -23,6 +24,7 @@ cc_test(
     srcs = [":policy-fetcher-local_test.cc"],
     deps = [
         ":policy-fetcher-local",
+        "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
@@ -45,6 +47,7 @@ cc_library(
     deps = [
         "//gcp_common:flags",
         "//gcp_common:gcp-status",
+        "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -58,12 +61,12 @@ cc_test(
     srcs = [":policy-fetcher-gcp_test.cc"],
     deps = [
         ":policy-fetcher-gcp",
+        "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@google_cloud_cpp//:spanner",
         "@google_cloud_cpp//:spanner_mocks",
-        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )

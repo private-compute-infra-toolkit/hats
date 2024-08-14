@@ -197,13 +197,23 @@ fn hash_and_sign_evidence(
 mod tests {
     use super::*;
     use crypto::P256Scalar;
+    use tvs_trusted::proto::privacy_sandbox::tvs::AppraisalPolicies;
 
     fn get_genoa_vcek() -> Vec<u8> {
         include_bytes!("../test_data/vcek_genoa.crt").to_vec()
     }
 
-    fn default_appraisal_policy() -> Vec<u8> {
-        include_bytes!("../test_data/on-perm-reference.binarypb").to_vec()
+    fn default_appraisal_policies() -> Vec<u8> {
+        let policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(
+            &include_bytes!("../../tvs/test_data/on-perm-reference.binarypb")[..],
+        )
+        .unwrap();
+        let policies = AppraisalPolicies {
+            policy: vec![policy],
+        };
+        let mut buf: Vec<u8> = Vec::with_capacity(1024);
+        policies.encode(&mut buf).unwrap();
+        buf
     }
 
     fn get_good_evidence() -> Vec<u8> {
@@ -220,7 +230,7 @@ mod tests {
         let mut trusted_tvs_service = tvs_trusted::new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user1",
         )
         .unwrap();
@@ -295,7 +305,7 @@ mod tests {
         let mut trusted_tvs_service = tvs_trusted::new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
-            default_appraisal_policy().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user2",
         )
         .unwrap();

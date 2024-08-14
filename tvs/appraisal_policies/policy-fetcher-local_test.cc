@@ -25,6 +25,7 @@
 #include "gtest/gtest.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 
 ABSL_DECLARE_FLAG(std::string, appraisal_policy_file);
 
@@ -122,29 +123,32 @@ absl::StatusOr<std::string> WriteTestPolicyToFile() {
   return test_file;
 }
 
-absl::StatusOr<oak::attestation::v1::ReferenceValues> GetTestAppraisalPolicy() {
+absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
   oak::attestation::v1::ReferenceValues appraisal_policy;
   if (!google::protobuf::TextFormat::ParseFromString(kTestAppraisalPolicy,
                                                      &appraisal_policy)) {
     return absl::UnknownError("Cannot parse test appraisal policy");
   }
-  return appraisal_policy;
+  AppraisalPolicies appraisal_policies;
+  *appraisal_policies.add_policy() = appraisal_policy;
+  return appraisal_policies;
 }
 
 TEST(PolicyFetcherLocal, Normal) {
   absl::StatusOr<std::string> policy_file = WriteTestPolicyToFile();
   ASSERT_TRUE(policy_file.ok());
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> expected_policy =
-      GetTestAppraisalPolicy();
-  ASSERT_TRUE(expected_policy.ok());
+  absl::StatusOr<AppraisalPolicies> expected_policies =
+      GetTestAppraisalPolicies();
+  ASSERT_TRUE(expected_policies.ok());
   absl::SetFlag(&FLAGS_appraisal_policy_file, *policy_file);
   absl::StatusOr<std::unique_ptr<PolicyFetcher>> policy_fetcher =
       PolicyFetcher::Create();
   ASSERT_TRUE(policy_fetcher.ok());
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> policy =
-      (*policy_fetcher)->GetPolicy(/*policy_id=*/"");
-  ASSERT_TRUE(policy.ok());
-  EXPECT_EQ(policy->SerializeAsString(), expected_policy->SerializeAsString());
+  absl::StatusOr<AppraisalPolicies> policies =
+      (*policy_fetcher)->GetLatestNPolicies(/*n=*/1);
+  ASSERT_TRUE(policies.ok());
+  EXPECT_EQ(policies->SerializeAsString(),
+            expected_policies->SerializeAsString());
 }
 
 TEST(PolicyFetcherLocal, CreateError) {

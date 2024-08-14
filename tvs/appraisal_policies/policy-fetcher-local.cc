@@ -21,6 +21,7 @@
 #include "google/protobuf/text_format.h"
 #include "proto/attestation/reference_value.pb.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
@@ -53,10 +54,11 @@ class PolicyFetcherLocal final : public PolicyFetcher {
   PolicyFetcherLocal(oak::attestation::v1::ReferenceValues policy)
       : policy_(std::move(policy)) {}
 
-  // Always return the same policy.
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> GetPolicy(
-      absl::string_view policy_id) override {
-    return policy_;
+  // Always return one same policy.
+  absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) {
+    AppraisalPolicies appraisal_policies;
+    *appraisal_policies.add_policy() = policy_;
+    return appraisal_policies;
   }
 
  private:

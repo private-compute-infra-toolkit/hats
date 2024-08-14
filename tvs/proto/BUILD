@@ -37,3 +37,16 @@ cc_grpc_library(
     tags = ["grpc"],
     deps = [":tvs_cc_proto"],
 )
+
+proto_library(
+    name = "appraisal_policies_proto",
+    srcs = ["appraisal_policies.proto"],
+    deps = [
+        "@oak//proto/attestation:reference_value_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "appraisal_policies_cc_proto",
+    deps = [":appraisal_policies_proto"],
+)

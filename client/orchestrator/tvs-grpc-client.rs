@@ -177,6 +177,7 @@ mod tests {
     use tokio_stream::wrappers::TcpListenerStream;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::Response;
+    use tvs_trusted::proto::privacy_sandbox::tvs::AppraisalPolicies;
 
     struct TestService {
         pub tvs_private_key: [u8; P256_SCALAR_LENGTH],
@@ -203,7 +204,7 @@ mod tests {
             let Ok(mut trusted_tvs) = tvs_trusted::new_trusted_tvs_service(
                 NOW_UTC_MILLIS,
                 &self.tvs_private_key,
-                default_appraisal_policy().as_slice(),
+                default_appraisal_policies().as_slice(),
                 "test_user",
             ) else {
                 return Err(tonic::Status::internal("Error creating TVS Server"));
@@ -238,9 +239,19 @@ mod tests {
         }
     }
 
-    fn default_appraisal_policy() -> Vec<u8> {
-        include_bytes!("../../tvs/test_data/on-perm-reference.binarypb").to_vec()
+    fn default_appraisal_policies() -> Vec<u8> {
+        let policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(
+            &include_bytes!("../../tvs/test_data/on-perm-reference.binarypb")[..],
+        )
+        .unwrap();
+        let policies = AppraisalPolicies {
+            policy: vec![policy],
+        };
+        let mut buf: Vec<u8> = Vec::with_capacity(1024);
+        policies.encode(&mut buf).unwrap();
+        buf
     }
+
     pub fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
             include_bytes!("../../tvs/test_data/good_evidence.binarypb").as_slice(),

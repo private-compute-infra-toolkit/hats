@@ -17,10 +17,10 @@
 
 #include <string>
 
-#include "external/oak/proto/attestation/reference_value.pb.h"
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
@@ -40,10 +40,10 @@ class TvsServer final : public TeeVerificationService::Service {
  public:
   // Pass appraisal_policy by value as we expect the caller to use std::move().
   explicit TvsServer(const std::string& primary_private_key,
-                     oak::attestation::v1::ReferenceValues appraisal_policy);
+                     const AppraisalPolicies appraisal_policies);
   explicit TvsServer(const std::string& primary_private_key,
                      const std::string& secondary_private_key,
-                     oak::attestation::v1::ReferenceValues appraisal_policy);
+                     AppraisalPolicies appraisal_policies);
 
   TvsServer() = delete;
   grpc::Status VerifyReport(
@@ -53,7 +53,7 @@ class TvsServer final : public TeeVerificationService::Service {
  private:
   const std::string primary_private_key_;
   const std::string secondary_private_key_;
-  const oak::attestation::v1::ReferenceValues appraisal_policy_;
+  const AppraisalPolicies appraisal_policies_;
 };
 
 struct TvsServerOptions {
@@ -61,7 +61,7 @@ struct TvsServerOptions {
   // TODO(alwabel): implement a better key provisioning.
   std::string primary_private_key;
   std::string secondary_private_key;
-  oak::attestation::v1::ReferenceValues appraisal_policy;
+  AppraisalPolicies appraisal_policies;
 };
 
 // Starts a server and blocks forever.

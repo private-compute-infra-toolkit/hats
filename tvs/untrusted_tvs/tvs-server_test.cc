@@ -36,8 +36,8 @@
 #include "grpcpp/support/sync_stream.h"
 #include "gtest/gtest.h"
 #include "key_manager/key-fetcher-wrapper.h"
-#include "proto/attestation/reference_value.pb.h"
 #include "tools/cpp/runfiles/runfiles.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
 
@@ -86,89 +86,91 @@ absl::StatusOr<VerifyReportRequest> GetBadReportRequest() {
       "_main/tvs/test_data/bad_verify_request_report.prototext"));
 }
 
-absl::StatusOr<oak::attestation::v1::ReferenceValues> GetTestAppraisalPolicy() {
-  oak::attestation::v1::ReferenceValues appraisal_policy;
+absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
+  AppraisalPolicies appraisal_policies;
   if (!google::protobuf::TextFormat::ParseFromString(
           R"pb(
-            oak_containers {
-              root_layer {
-                amd_sev {
-                  stage0 { skip {} }
-                  min_tcb_version { boot_loader: 7 snp: 15 microcode: 62 }
+            policy {
+              oak_containers {
+                root_layer {
+                  amd_sev {
+                    stage0 { skip {} }
+                    min_tcb_version { boot_loader: 7 snp: 15 microcode: 62 }
+                  }
                 }
-              }
-              kernel_layer {
-                kernel {
-                  digests {
-                    image {
-                      digests {
-                        sha2_256: "D*6\221>.)\235\242\265\026\201D\203\266\254\357\021\266>\003\3675a\003A\250V\0223\367\277"
+                kernel_layer {
+                  kernel {
+                    digests {
+                      image {
+                        digests {
+                          sha2_256: "D*6\221>.)\235\242\265\026\201D\203\266\254\357\021\266>\003\3675a\003A\250V\0223\367\277"
+                        }
+                      }
+                      setup_data {
+                        digests {
+                          sha2_256: "h\313Bj\372\242\224e\367\307\037&\324\371\253Z\202\302\341\222b6d\213\354\"j\201\224C\035\271"
+                        }
                       }
                     }
-                    setup_data {
+                  }
+                  init_ram_fs {
+                    digests {
                       digests {
-                        sha2_256: "h\313Bj\372\242\224e\367\307\037&\324\371\253Z\202\302\341\222b6d\213\354\"j\201\224C\035\271"
+                        sha2_256: ";0y=\1778\210t*\326?\023\353\346\240\003\274\233v4\231,dx\246\020\037\236\363#\265\256"
+                      }
+                    }
+                  }
+                  memory_map {
+                    digests {
+                      digests {
+                        sha2_256: "L\230T(\375\306\020\034q\314&\335\303\023\315\202!\274\274TG\031\221\3549\261\276\002m\016\034("
+                      }
+                    }
+                  }
+                  acpi {
+                    digests {
+                      digests {
+                        sha2_256: "\244\337\235\212d\334\271\247\023\316\300(\327\r+\025\231\372\357\007\314\320\320\341\201i1IkH\230\310"
+                      }
+                    }
+                  }
+                  kernel_cmd_line_text {
+                    string_literals {
+                      value: " console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off"
+                    }
+                  }
+                }
+                system_layer {
+                  system_image {
+                    digests {
+                      digests {
+                        sha2_256: "\343\336\331\347\317\331S\264\356cs\373\213A*v\276\020*n\335N\005\252\177\211p\342\013\374K\315"
                       }
                     }
                   }
                 }
-                init_ram_fs {
-                  digests {
+                container_layer {
+                  binary {
                     digests {
-                      sha2_256: ";0y=\1778\210t*\326?\023\353\346\240\003\274\233v4\231,dx\246\020\037\236\363#\265\256"
+                      digests {
+                        sha2_256: "\277\027=\204ld\345\312\364\221\336\233^\242\337\2544\234\376\"\245\346\360:\330\004\213\270\n\336C\014"
+                      }
                     }
                   }
-                }
-                memory_map {
-                  digests {
+                  configuration {
                     digests {
-                      sha2_256: "L\230T(\375\306\020\034q\314&\335\303\023\315\202!\274\274TG\031\221\3549\261\276\002m\016\034("
-                    }
-                  }
-                }
-                acpi {
-                  digests {
-                    digests {
-                      sha2_256: "\244\337\235\212d\334\271\247\023\316\300(\327\r+\025\231\372\357\007\314\320\320\341\201i1IkH\230\310"
-                    }
-                  }
-                }
-                kernel_cmd_line_text {
-                  string_literals {
-                    value: " console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off"
-                  }
-                }
-              }
-              system_layer {
-                system_image {
-                  digests {
-                    digests {
-                      sha2_256: "\343\336\331\347\317\331S\264\356cs\373\213A*v\276\020*n\335N\005\252\177\211p\342\013\374K\315"
-                    }
-                  }
-                }
-              }
-              container_layer {
-                binary {
-                  digests {
-                    digests {
-                      sha2_256: "\277\027=\204ld\345\312\364\221\336\233^\242\337\2544\234\376\"\245\346\360:\330\004\213\270\n\336C\014"
-                    }
-                  }
-                }
-                configuration {
-                  digests {
-                    digests {
-                      sha2_256: "\343\260\304B\230\374\034\024\232\373\364\310\231o\271$\'\256A\344d\233\223L\244\225\231\033xR\270U"
+                      digests {
+                        sha2_256: "\343\260\304B\230\374\034\024\232\373\364\310\231o\271$\'\256A\344d\233\223L\244\225\231\033xR\270U"
+                      }
                     }
                   }
                 }
               }
             })pb",
-          &appraisal_policy)) {
+          &appraisal_policies)) {
     return absl::UnknownError("Cannot parse test appraisal policy");
   }
-  return appraisal_policy;
+  return appraisal_policies;
 }
 
 constexpr absl::string_view kTvsPrivateKey =
@@ -189,14 +191,14 @@ absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
 
 TEST(TvsServer, Successful) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
-      GetTestAppraisalPolicy();
-  ASSERT_TRUE(appraisal_policy.ok());
+  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+      GetTestAppraisalPolicies();
+  ASSERT_TRUE(appraisal_policies.ok());
   absl::StatusOr<std::string> tvs_private_key =
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policy));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
@@ -222,14 +224,14 @@ TEST(TvsServer, Successful) {
 
 TEST(TvsServer, BadReportError) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
-      GetTestAppraisalPolicy();
-  ASSERT_TRUE(appraisal_policy.ok());
+  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+      GetTestAppraisalPolicies();
+  ASSERT_TRUE(appraisal_policies.ok());
   absl::StatusOr<std::string> tvs_private_key =
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policy));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
@@ -247,25 +249,24 @@ TEST(TvsServer, BadReportError) {
 
   const absl::string_view kApplicationSigningKey =
       "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759";
-  EXPECT_THAT(
-      (*tvs_client)
-          ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
-                                    *verify_report_request),
-      StatusIs(absl::StatusCode::kUnknown,
-               AllOf(HasSubstr("Failed to verify report"),
-                     HasSubstr("comparing expected values to evidence"))));
+  EXPECT_THAT((*tvs_client)
+                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
+                                            *verify_report_request),
+              StatusIs(absl::StatusCode::kUnknown,
+                       AllOf(HasSubstr("Failed to verify report"),
+                             HasSubstr("No matching appraisal policy found"))));
 }
 
 TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
-      GetTestAppraisalPolicy();
-  ASSERT_TRUE(appraisal_policy.ok());
+  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+      GetTestAppraisalPolicies();
+  ASSERT_TRUE(appraisal_policies.ok());
   absl::StatusOr<std::string> tvs_private_key =
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policy));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
@@ -297,15 +298,15 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
 
 TEST(TvsServer, MalformedMessageError) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
-      GetTestAppraisalPolicy();
-  ASSERT_TRUE(appraisal_policy.ok());
+  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+      GetTestAppraisalPolicies();
+  ASSERT_TRUE(appraisal_policies.ok());
 
   absl::StatusOr<std::string> tvs_private_key =
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policy));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
   std::unique_ptr<TeeVerificationService::Stub> stub =
@@ -325,10 +326,10 @@ TEST(TvsServer, MalformedMessageError) {
 
 TEST(TvsServer, CreatingTrustedTvsServerError) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
-      GetTestAppraisalPolicy();
-  ASSERT_TRUE(appraisal_policy.ok());
-  TvsServer tvs_server("0000", *std::move(appraisal_policy));
+  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+      GetTestAppraisalPolicies();
+  ASSERT_TRUE(appraisal_policies.ok());
+  TvsServer tvs_server("0000", *std::move(appraisal_policies));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 

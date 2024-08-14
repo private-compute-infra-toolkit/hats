@@ -26,6 +26,7 @@
 #include "gcp_common/gcp-status.h"
 #include "google/cloud/spanner/client.h"
 #include "proto/attestation/reference_value.pb.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 
 namespace privacy_sandbox::tvs {
 
@@ -41,17 +42,17 @@ PolicyFetcherGcp::PolicyFetcherGcp(absl::string_view project_id,
                                            std::string(instance_id),
                                            std::string(database_id)))) {}
 
-absl::StatusOr<oak::attestation::v1::ReferenceValues>
-PolicyFetcherGcp::GetPolicy(absl::string_view policy_id) {
+absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPolicies(int n) {
+  AppraisalPolicies appraisal_policies;
   google::cloud::spanner::SqlStatement select(
       R"sql(
       SELECT
           Policy
       FROM
           AppraisalPolicies
-      WHERE
-          PolicyId = @policy_id)sql",
-      {{"policy_id", google::cloud::spanner::Value(std::string(policy_id))}});
+      ORDER BY UpdateTimestamp DESC
+      LIMIT @limit)sql",
+      {{"limit", google::cloud::spanner::Value(n)}});
   using RowType = std::tuple<google::cloud::spanner::Bytes>;
   auto rows = spanner_client_.ExecuteQuery(std::move(select));
   for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
@@ -61,12 +62,14 @@ PolicyFetcherGcp::GetPolicy(absl::string_view policy_id) {
     oak::attestation::v1::ReferenceValues appraisal_policy;
     if (!appraisal_policy.ParseFromString(
             std::get<0>(*row).get<std::string>())) {
-      return absl::FailedPreconditionError(
-          absl::StrCat("Failed to parse: '", policy_id, "'"));
+      return absl::FailedPreconditionError("Failed to parse a policy");
     }
-    return appraisal_policy;
+    *appraisal_policies.add_policy() = appraisal_policy;
   }
-  return absl::NotFoundError(absl::StrCat("Cannot find '", policy_id, "'"));
+  if (appraisal_policies.policy_size() == 0) {
+    return absl::NotFoundError("No policies found");
+  }
+  return appraisal_policies;
 }
 
 std::unique_ptr<PolicyFetcher> PolicyFetcherGcp::Create(

@@ -19,7 +19,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "proto/attestation/reference_value.pb.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 
 namespace privacy_sandbox::tvs {
 
@@ -28,8 +28,7 @@ class PolicyFetcher {
   static absl::StatusOr<std::unique_ptr<PolicyFetcher>> Create();
   virtual ~PolicyFetcher() = default;
 
-  virtual absl::StatusOr<oak::attestation::v1::ReferenceValues> GetPolicy(
-      absl::string_view policy_id) = 0;
+  virtual absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) = 0;
 };
 
 }  // namespace privacy_sandbox::tvs

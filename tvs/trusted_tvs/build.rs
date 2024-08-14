@@ -18,7 +18,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let include_path =
         &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
     micro_rpc_build::compile(
-        &["../proto/tvs_messages.proto"],
+        &[
+            "../proto/tvs_messages.proto",
+            "../proto/appraisal_policies.proto",
+        ],
         &["../", include_path],
         micro_rpc_build::CompileOptions {
             extern_paths: vec![micro_rpc_build::ExternPath::new(

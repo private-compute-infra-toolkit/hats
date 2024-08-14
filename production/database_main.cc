@@ -235,14 +235,21 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
           PublicKey STRING(1024),
       ) PRIMARY KEY (UserId))sql");
 
+  // A sequence to generate policy IDs.
+  request.add_extra_statements(R"sql(
+      CREATE SEQUENCE PolicyIdSequence OPTIONS (
+      sequence_kind="bit_reversed_positive"))sql");
   // Table storing appraisal policies used to validate attestation report
   // against. columns:
   // * PolicyId: a string used to identify the appraisal policy.
+  // * UpdateTimestamp: timestamp of the last update to the row.
   // * Policy: binary representation of the appraisal policy proto.
   request.add_extra_statements(R"sql(
       CREATE TABLE AppraisalPolicies(
-          PolicyId STRING(1024),
-          Policy   BYTES(MAX)
+          PolicyId          INT64 DEFAULT
+                            (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
+          Policy   BYTES(MAX),
+          UpdateTimestamp   TIMESTAMP NOT NULL,
       ) PRIMARY KEY (PolicyId))sql");
 
   google::cloud::spanner_admin::DatabaseAdminClient client(
@@ -535,8 +542,8 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
         // Insert the appraisal policy.
         {
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  AppraisalPolicies(PolicyId, Policy)
-              VALUES ("default", @policy))sql",
+              R"sql(INSERT INTO  AppraisalPolicies(UpdateTimestamp, Policy)
+              VALUES (CURRENT_TIMESTAMP(), @policy))sql",
               {{"policy",
                 google::cloud::spanner::Value(google::cloud::spanner::Bytes(
                     appraisal_policy.SerializeAsString()))}});
