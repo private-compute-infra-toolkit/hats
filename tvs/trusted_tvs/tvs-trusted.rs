@@ -256,7 +256,7 @@ impl TrustedTvs {
         )
         .map_err(|msg| format!("Failed to verify report. {}", msg))?;
         // TODO(alwabel): change local mode to obtain secrets and keys from
-        // `key_fetcher`, also pass in the secret_id or the authenticated client
+        // `key_fetcher`, also pass in the user_id or the authenticated client
         // id instead of `default`.
         let secret = key_fetcher::ffi::get_secret(&self.user).map_err(|msg| format!("{}", msg))?;
         match self.crypter.as_mut().unwrap().encrypt(&secret) {

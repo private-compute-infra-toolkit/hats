@@ -14,14 +14,39 @@
  * limitations under the License.
  */
 
-// A helper CLI to create and populate a database holding TVS keys and shares.
-// The CLI performs the following:
-// 1. Generate keys for TVS - keys for handshake and HPKE keys to be returned to
-// clients passing the attestation verification.
-//    The CLI generates a DEK wrap it with a KEK in KMS and store it in the
-//    database. Wrap the TVS keys with the DEK and store them.
-// 2. Create a database that stores that TVS keys, DEKs, and KEKs metadata. User
-// can use the `gcloud` CLI instead.
+/*
+ * A helper CLI to create and update a database for TVS keys, shares and
+ *  policies.
+ * The CLI performs the following:
+ * 1. Create a database that stores that TVS keys, DEKs, KEKs metadata, and
+ *    policies. Users can use the `gcloud` CLI instead.
+ * To create a database run the following:
+ * database_main --operation=create_database \
+ *               --spanner_database=<project>/<instance>/<database_id> \
+ *               --key_resource_name=<kms_key_resource>
+ * 2. Generate keys for TVS - keys for handshake.
+ *    The CLI generates a DEK wrap it with a KEK in KMS and store it in the
+ *    database. Wrap the TVS keys with the DEK and store them.
+ * To generate TVS keys run the following:
+ * database_main --operation=create_tvs_keys \
+ *               --spanner_database=<project>/<instance>/<database_id>
+ *               --key_resource_name=<kms_key_resource>
+ * 3. Insert an appraisal policy from a file to the spanner database.
+ * To insert an appraisal policy run the following:
+ * database_main --operation=insert_appraisal_policy \
+ *               --spanner_database=<project>/<instance>/<database_id> \
+ *               --key_resource_name=<kms_key_resource> \
+ *               --appraisal_policy_path=<path_to_appraisal_policy>
+ * 4. Register a user. The CLI generates an HPKE for the user, and generate a
+ *    DEK. The CLI wraps the HPKE private key with the DEK, wrap DEK with KEK
+ *    and store them.
+ * To register a user run the following.
+ * database_main --operation=register_user \
+ * --spanner_database=<project>/<instance>/<database_id>
+ * --key_resource_name=<kms_key_resource
+ * --user_public_key=<user_public_key_in_hex_for_authentication>
+ * --user_name=default --user_origin="http://example.com"
+ */
 
 #include <fstream>
 #include <string>
@@ -34,6 +59,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
@@ -53,28 +79,46 @@
 ABSL_FLAG(std::string, operation, "create_database",
           "Describe the operation to be done. Valid values are: "
           "create_database, and populate_database");
-ABSL_FLAG(std::string, database_name, "", "Database name");
-ABSL_FLAG(std::string, instance_id, "", "Instance ID");
-ABSL_FLAG(std::string, project_id, "", "Project ID");
+ABSL_FLAG(std::string, spanner_database, "",
+          "Spanner database to use in the following format "
+          "<project_id>/<instance_id>/<database_id>");
 ABSL_FLAG(std::string, key_resource_name, "", "Key resource name.");
 ABSL_FLAG(std::string, appraisal_policy_path, "",
           "Path to an appraisal policy file");
+ABSL_FLAG(std::string, user_public_key, "",
+          "User public key for authentication. Uncompressed secp128r1 public "
+          "key in hex format.");
+ABSL_FLAG(std::string, user_name, "", "Name of the user.");
+ABSL_FLAG(std::string, user_origin, "", "Origin of the user.");
 
 namespace {
 
 using ::privacy_sandbox::crypto::SecretData;
 
+absl::StatusOr<google::cloud::spanner::Database> CreateSpannerDatabase(
+    absl::string_view spanner_database) {
+  std::vector<std::string> parts = absl::StrSplit(spanner_database, "/");
+  if (parts.size() != 3) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid database name '", spanner_database,
+                     "'. database name should be in the following format: "
+                     "<project_id>/<instance_id>/<database_id>"));
+  }
+  return google::cloud::spanner::Database(/*project_id=*/parts[0],
+                                          /*instance_Id=*/parts[1],
+                                          /*database_id=*/parts[2]);
+}
+
 // Create a spanner database used to store TVS secrets.
-absl::Status CreateDatabase(absl::string_view project_id,
-                            absl::string_view instance_id,
-                            absl::string_view database_id) {
-  google::cloud::spanner::Database database({std::string(project_id),
-                                             std::string(instance_id),
-                                             std::string(database_id)});
+absl::Status CreateDatabase(absl::string_view spanner_database) {
+  absl::StatusOr<google::cloud::spanner::Database> database =
+      CreateSpannerDatabase(spanner_database);
+  if (!database.ok()) return database.status();
+
   google::spanner::admin::database::v1::CreateDatabaseRequest request;
-  request.set_parent(database.instance().FullName());
+  request.set_parent(database->instance().FullName());
   request.set_create_statement(
-      absl::StrCat("CREATE DATABASE `", database.database_id(), "`"));
+      absl::StrCat("CREATE DATABASE `", database->database_id(), "`"));
 
   // A sequence to generate key encryption key (KEK) IDs.
   request.add_extra_statements(R"sql(
@@ -87,10 +131,15 @@ absl::Status CreateDatabase(absl::string_view project_id,
   // * ResourceName: KMS key resource name in the following format
   //   projects/<project_name>/location/<location>/KeyRings/<key_ring_name>/cryptoKeys/<key_name>.
   request.add_extra_statements(R"sql(
-      CREATE TABLE KeyEncryptionKey(
+      CREATE TABLE KeyEncryptionKeys(
           KekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE KekIdSequence)),
-          ResourceName STRING(1024),
+          ResourceName STRING(1024) NOT NULL,
       ) PRIMARY KEY (KekId))sql");
+
+  // Make sure that resource name is unique.
+  request.add_extra_statements(R"sql(
+      CREATE UNIQUE INDEX KekResourceNameIndex ON KeyEncryptionKeys
+          (ResourceName))sql");
 
   // A sequence to generate data encryption key (DEK) IDs.
   request.add_extra_statements(R"sql(
@@ -103,7 +152,7 @@ absl::Status CreateDatabase(absl::string_view project_id,
   // * KekId: specifies the KEK used to wrap the DEK.
   // * Dek: a DEK encrypted with KekId.
   request.add_extra_statements(R"sql(
-      CREATE TABLE DataEncryptionKey(
+      CREATE TABLE DataEncryptionKeys(
           DekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE DekIdSequence)),
           KekId INT64 NOT NULL,
           Dek  BYTES(MAX),
@@ -115,30 +164,81 @@ absl::Status CreateDatabase(absl::string_view project_id,
   // * DekId: specifies the DEK used to wrap the TVS key.
   // * PrivateKey: a TVS private key encrypted with DekId.
   request.add_extra_statements(R"sql(
-      CREATE TABLE ECKeys(
+      CREATE TABLE TVSPrivateKeys(
           KeyId STRING(1024),
           DekId INT64 NOT NULL,
           PrivateKey BYTES(MAX),
       ) PRIMARY KEY (KeyId))sql");
 
+  // Table storing TVS public keys. The public keys are stored in a separate
+  // tables so that we can relax the ACLs on it.
+  request.add_extra_statements(R"sql(
+      CREATE TABLE TVSPublicKeys(
+          KeyId STRING(1024),
+          PublicKey String(MAX),
+      ) PRIMARY KEY (KeyId))sql");
+
+  // A sequence to generate user IDs.
+  request.add_extra_statements(R"sql(
+      CREATE SEQUENCE UserIdSequence OPTIONS (
+      sequence_kind="bit_reversed_positive"))sql");
+
+  // Table storing information about the registered users. Registered users
+  // are the one allowed to use TVS. The table contains the following columns:
+  // * UserId: a unique identifier for the user.
+  // * Name: a name to identify the user.
+  // * Origin: protocol, hostname, and port (in essence the URL used by the
+  // user).
+  request.add_extra_statements(R"sql(
+      CREATE TABLE Users(
+          UserId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
+          Name   STRING(1024) NOT NULL,
+          Origin STRING(1024),
+      ) PRIMARY KEY (UserId))sql");
+
+  request.add_extra_statements(R"sql(
+      CREATE UNIQUE INDEX UserNameIndex ON Users
+          (Name))sql");
+
+  // Table storing public keys used by a particular user. The table contains
+  // the following columns:
+  // * UserId: the ID of the user owning the private part of the given public
+  //           key.
+  // * PublicKey: the public part of the key that the user uses when
+  //              authentcating with the TVS.
+  request.add_extra_statements(R"sql(
+      CREATE TABLE UserAuthenticationKeys(
+          UserId INT64 NOT NULL,
+          PublicKey BYTES(MAX),
+      ) PRIMARY KEY (UserId, PublicKey))sql");
+
   // Table storing secrets to be returned to entities passing TVS attestation.
   // Secret could be full or partial HPKE keys or any arbitrary strings. The
   // stored secrets are wrapped with a DEK. The table contains the following
   // columns:
-  // * SecretId: a string used to identify the secret e.g. client name.
+  // * UserId: the ID of the user owning the secret.
   // * DekId: specifies the DEK used to wrap the secret.
   // * Secret: a secret wrapped with DekId.
+  // Right now we allow the user to have one secret.
   request.add_extra_statements(R"sql(
       CREATE TABLE Secrets(
-          SecretId STRING(1024),
+          UserId   INT64 NOT NULL,
           DekId    INT64 NOT NULL,
           Secret   BYTES(MAX)
-      ) PRIMARY KEY (SecretId))sql");
+      ) PRIMARY KEY (UserId))sql");
+
+  // Table storing public keys of the users. Right now we allow the user
+  // to have only one secret and one public key.
+  request.add_extra_statements(R"sql(
+      CREATE TABLE UserPublicKeys(
+          UserId   INT64 NOT NULL,
+          PublicKey STRING(1024),
+      ) PRIMARY KEY (UserId))sql");
 
   // Table storing appraisal policies used to validate attestation report
   // against. columns:
   // * PolicyId: a string used to identify the appraisal policy.
-  // * Secret: a secret wrapped with DekId.
+  // * Policy: binary representation of the appraisal policy proto.
   request.add_extra_statements(R"sql(
       CREATE TABLE AppraisalPolicies(
           PolicyId STRING(1024),
@@ -209,6 +309,254 @@ class ECKey final {
   EC_KEY* ec_key_;
 };
 
+struct TvsSecrets {
+  std::string primary_ec_public_key;
+  std::string secondary_ec_public_key;
+  std::string wrapped_primary_ec_private_key;
+  std::string wrapped_secondary_ec_private_key;
+  std::string wrapped_dek;
+};
+
+// Generates secrets to be used in populating TVS database.
+absl::StatusOr<TvsSecrets> GenerateTvsSecrets(
+    absl::string_view kms_key_resource_name) {
+  // Create EC Keys for TVS handshake.
+  absl::StatusOr<std::unique_ptr<ECKey>> primary_ec_key = ECKey::Create();
+  if (!primary_ec_key.ok()) {
+    return primary_ec_key.status();
+  }
+
+  absl::StatusOr<std::unique_ptr<ECKey>> secondary_ec_key = ECKey::Create();
+  if (!secondary_ec_key.ok()) {
+    return secondary_ec_key.status();
+  }
+
+  // Get TVS public keys.
+  absl::StatusOr<std::string> primary_ec_public_key =
+      (*primary_ec_key)->GetPublicKeyInHex();
+  if (!primary_ec_public_key.ok()) return primary_ec_public_key.status();
+
+  absl::StatusOr<std::string> secondary_ec_public_key =
+      (*secondary_ec_key)->GetPublicKeyInHex();
+  if (!secondary_ec_public_key.ok()) return secondary_ec_public_key.status();
+
+  // Generate data encryption key (DEK) to wrap keys.
+  SecretData dek = privacy_sandbox::crypto::RandomAeadKey();
+
+  // Wrap EC private keys with `dek`.
+  absl::StatusOr<std::string> wrapped_primary_ec_private_key =
+      (*primary_ec_key)->WrapPrivateKey(dek);
+  if (!wrapped_primary_ec_private_key.ok())
+    return wrapped_primary_ec_private_key.status();
+
+  absl::StatusOr<std::string> wrapped_secondary_ec_private_key =
+      (*secondary_ec_key)->WrapPrivateKey(dek);
+  if (!wrapped_secondary_ec_private_key.ok())
+    return wrapped_secondary_ec_private_key.status();
+
+  // GCP KMS client.
+  privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client(
+      google::cloud::kms_v1::KeyManagementServiceClient(
+          google::cloud::kms_v1::MakeKeyManagementServiceConnection()));
+
+  // Wrap DEK with KEK in KMS.
+  absl::StatusOr<std::string> wrapped_dek = gcp_kms_client.EncryptData(
+      kms_key_resource_name, dek.GetStringView(), "HATS_SECRET");
+  if (!wrapped_dek.ok()) return wrapped_dek.status();
+
+  // Wrap EC
+  return TvsSecrets{
+      .primary_ec_public_key = *std::move(primary_ec_public_key),
+      .secondary_ec_public_key = *std::move(secondary_ec_public_key),
+      .wrapped_primary_ec_private_key =
+          *std::move(wrapped_primary_ec_private_key),
+      .wrapped_secondary_ec_private_key =
+          *std::move(wrapped_secondary_ec_private_key),
+      .wrapped_dek = *std::move(wrapped_dek),
+  };
+}
+
+absl::Status CreateTvsKeys(absl::string_view spanner_database,
+                           absl::string_view kms_key_resource_name) {
+  absl::StatusOr<google::cloud::spanner::Database> database =
+      CreateSpannerDatabase(spanner_database);
+  if (!database.ok()) return database.status();
+  // Spanner client.
+  google::cloud::spanner::Client spanner_client(
+      google::cloud::spanner::MakeConnection(*database));
+  absl::StatusOr<TvsSecrets> tvs_secrets =
+      GenerateTvsSecrets(kms_key_resource_name);
+  if (!tvs_secrets.ok()) return tvs_secrets.status();
+
+  // Stash all inserts in the same transaction so we only commit if all inserts
+  // succeed.
+  auto commit = spanner_client.Commit(
+      [&spanner_client, &kms_key_resource_name, &tvs_secrets = *tvs_secrets](
+          google::cloud::spanner::Transaction transaction)
+          -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
+        std::optional<int64_t> kek_id;
+        {
+          // Check if the KMS key (KEK) is inserted.
+          google::cloud::spanner::SqlStatement select(
+              R"sql(
+              SELECT
+                  KekId
+              FROM
+                  KeyEncryptionKeys
+              WHERE
+                ResourceName = @resource_name)sql",
+              {{"resource_name", google::cloud::spanner::Value(
+                                     std::string(kms_key_resource_name))}});
+          using RowType = std::tuple<int64_t>;
+          auto rows =
+              spanner_client.ExecuteQuery(transaction, std::move(select));
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+            kek_id.emplace(std::get<0>(*row));
+            break;
+          }
+        }
+        if (!kek_id.has_value()) {
+          // Insert Key-encryption-key (KEK) metadata, if not inserted
+          google::cloud::spanner::SqlStatement sql(
+              R"sql(INSERT INTO  KeyEncryptionKeys (ResourceName)
+              VALUES (@resource_name)
+              THEN RETURN KekId)sql",
+              {{"resource_name", google::cloud::spanner::Value(
+                                     std::string(kms_key_resource_name))}});
+          using RowType = std::tuple<int64_t>;
+          auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+            *kek_id = std::get<0>(*row);
+          }
+        }
+        // Insert the wrapped dek.
+        int64_t dek_id;
+        {
+          google::cloud::spanner::SqlStatement sql(
+              R"sql(INSERT INTO  DataEncryptionKeys (KekId, Dek)
+              VALUES (@kek_id, @dek)
+              THEN RETURN DekId)sql",
+              {{"kek_id", google::cloud::spanner::Value(*kek_id)},
+               {"dek",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(tvs_secrets.wrapped_dek))}});
+          using RowType = std::tuple<int64_t>;
+          auto rows = spanner_client.ExecuteQuery(transaction, sql);
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+            dek_id = std::get<0>(*row);
+          }
+        }
+        // Insert the wrapped TVS EC private keys.
+        {
+          google::cloud::spanner::SqlStatement sql(
+              R"sql(INSERT INTO  TVSPrivateKeys(KeyId, DekId, PrivateKey)
+              VALUES ("primary_key", @dek_id, @primary_key),
+              ("secondary_key", @dek_id, @secondary_key))sql",
+              {{"dek_id", google::cloud::spanner::Value(dek_id)},
+               {"primary_key",
+                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                    tvs_secrets.wrapped_primary_ec_private_key))},
+               {"secondary_key",
+                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                    tvs_secrets.wrapped_secondary_ec_private_key))}});
+          auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
+          using RowType = std::tuple<std::string, int64_t, std::string>;
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+          }
+        }
+        // Insert the TVS public keys in hex format for ease of querying.
+        {
+          google::cloud::spanner::SqlStatement sql(
+              R"sql(INSERT INTO  TVSPublicKeys(KeyId, PublicKey)
+              VALUES ("primary_key", @primary_key),
+              ("secondary_key", @secondary_key))sql",
+              {{"primary_key", google::cloud::spanner::Value(
+                                   tvs_secrets.primary_ec_public_key)},
+               {"secondary_key", google::cloud::spanner::Value(
+                                     tvs_secrets.secondary_ec_public_key)}});
+          auto rows = spanner_client.ExecuteQuery(std::move(transaction),
+                                                  std::move(sql));
+          using RowType = std::tuple<std::string, int64_t, std::string>;
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+          }
+        }
+        return google::cloud::spanner::Mutations{};
+      });
+
+  if (!commit.ok()) {
+    return privacy_sandbox::gcp_common::GcpToAbslStatus(commit.status());
+  }
+
+  std::cout << "Primary TVS Public Key: " << tvs_secrets->primary_ec_public_key
+            << std::endl;
+  std::cout << "Secondary TVS Public Key: "
+            << tvs_secrets->secondary_ec_public_key << std::endl;
+  return absl::OkStatus();
+}
+
+absl::StatusOr<oak::attestation::v1::ReferenceValues> ReadAppraisalPolicy(
+    absl::string_view filename) {
+  std::ifstream if_stream({std::string(filename)});
+  if (!if_stream.is_open()) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("Failed to open: ", filename));
+  }
+  google::protobuf::io::IstreamInputStream istream(&if_stream);
+  oak::attestation::v1::ReferenceValues appraisal_policy;
+  if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policy)) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("Failed to parse: ", filename));
+  }
+  return appraisal_policy;
+}
+
+absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
+                                   absl::string_view appraisal_policy_path) {
+  absl::StatusOr<google::cloud::spanner::Database> database =
+      CreateSpannerDatabase(spanner_database);
+  if (!database.ok()) return database.status();
+  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
+      ReadAppraisalPolicy(appraisal_policy_path);
+  if (!appraisal_policy.ok()) return appraisal_policy.status();
+
+  // Spanner client.
+  google::cloud::spanner::Client spanner_client(
+      google::cloud::spanner::MakeConnection(*database));
+
+  auto commit = spanner_client.Commit(
+      [&spanner_client, &appraisal_policy = *appraisal_policy](
+          google::cloud::spanner::Transaction transaction)
+          -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
+        // Insert the appraisal policy.
+        {
+          google::cloud::spanner::SqlStatement sql(
+              R"sql(INSERT INTO  AppraisalPolicies(PolicyId, Policy)
+              VALUES ("default", @policy))sql",
+              {{"policy",
+                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                    appraisal_policy.SerializeAsString()))}});
+          auto rows = spanner_client.ExecuteQuery(std::move(transaction),
+                                                  std::move(sql));
+          using RowType = std::tuple<std::string, int64_t, std::string>;
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+          }
+        }
+        return google::cloud::spanner::Mutations{};
+      });
+
+  if (!commit.ok()) {
+    return privacy_sandbox::gcp_common::GcpToAbslStatus(commit.status());
+  }
+
+  return absl::OkStatus();
+}
+
 // Helper class to generate HPKE key pairs.
 class HPKEKey {
  public:
@@ -266,61 +614,27 @@ class HPKEKey {
   bssl::ScopedEVP_HPKE_KEY key_;
 };
 
-struct Secrets {
-  std::string primary_ec_public_key;
-  std::string secondary_ec_public_key;
-  std::string wrapped_primary_ec_private_key;
-  std::string wrapped_secondary_ec_private_key;
-  std::string wrapped_secret;
-  std::string secret_public;
+struct UserSecrets {
+  std::string wrapped_user_secret;
+  std::string user_public_key;
   std::string wrapped_dek;
 };
 
-// Generates secrets to be used in populating TVS database.
-absl::StatusOr<Secrets> GenerateSecrets(
+// Generates user secrets.
+absl::StatusOr<UserSecrets> GenerateUserSecrets(
     absl::string_view kms_key_resource_name) {
-  // Create EC Keys for TVS handshake.
-  absl::StatusOr<std::unique_ptr<ECKey>> primary_ec_key = ECKey::Create();
-  if (!primary_ec_key.ok()) {
-    return primary_ec_key.status();
-  }
-
-  absl::StatusOr<std::unique_ptr<ECKey>> secondary_ec_key = ECKey::Create();
-  if (!secondary_ec_key.ok()) {
-    return secondary_ec_key.status();
-  }
-
-  // Get TVS public keys.
-  absl::StatusOr<std::string> primary_ec_public_key =
-      (*primary_ec_key)->GetPublicKeyInHex();
-  if (!primary_ec_public_key.ok()) return primary_ec_public_key.status();
-
-  absl::StatusOr<std::string> secondary_ec_public_key =
-      (*secondary_ec_key)->GetPublicKeyInHex();
-  if (!secondary_ec_public_key.ok()) return secondary_ec_public_key.status();
-
   // Generate data encryption key (DEK) to wrap keys and secrets.
   SecretData dek = privacy_sandbox::crypto::RandomAeadKey();
-
-  // Wrap EC private keys with `dek`.
-  absl::StatusOr<std::string> wrapped_primary_ec_private_key =
-      (*primary_ec_key)->WrapPrivateKey(dek);
-  if (!wrapped_primary_ec_private_key.ok())
-    return wrapped_primary_ec_private_key.status();
-
-  absl::StatusOr<std::string> wrapped_secondary_ec_private_key =
-      (*secondary_ec_key)->WrapPrivateKey(dek);
-  if (!wrapped_secondary_ec_private_key.ok())
-    return wrapped_secondary_ec_private_key.status();
-
-  // Wrap secret - returned by TVS after successful attestation verification -
-  // with DEK.
   absl::StatusOr<std::unique_ptr<HPKEKey>> hpke_key = HPKEKey::Create();
   if (!hpke_key.ok()) return hpke_key.status();
-  absl::StatusOr<std::string> wrapped_secret = (*hpke_key)->WrapPrivateKey(dek);
-  if (!wrapped_secret.ok()) return wrapped_secret.status();
-  absl::StatusOr<std::string> secret_public = (*hpke_key)->GetPublicKeyInHex();
-  if (!secret_public.ok()) return secret_public.status();
+  // Wrap secret - returned by TVS after successful attestation verification -
+  // with DEK.
+  absl::StatusOr<std::string> wrapped_user_secret =
+      (*hpke_key)->WrapPrivateKey(dek);
+  if (!wrapped_user_secret.ok()) return wrapped_user_secret.status();
+  absl::StatusOr<std::string> user_public_key =
+      (*hpke_key)->GetPublicKeyInHex();
+  if (!user_public_key.ok()) return user_public_key.status();
 
   // GCP KMS client.
   privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client(
@@ -332,65 +646,67 @@ absl::StatusOr<Secrets> GenerateSecrets(
       kms_key_resource_name, dek.GetStringView(), "HATS_SECRET");
   if (!wrapped_dek.ok()) return wrapped_dek.status();
 
-  // Wrap EC
-  return Secrets{
-      .primary_ec_public_key = *std::move(primary_ec_public_key),
-      .secondary_ec_public_key = *std::move(secondary_ec_public_key),
-      .wrapped_primary_ec_private_key =
-          *std::move(wrapped_primary_ec_private_key),
-      .wrapped_secondary_ec_private_key =
-          *std::move(wrapped_secondary_ec_private_key),
-      .wrapped_secret = *std::move(wrapped_secret),
-      .secret_public = *std::move(secret_public),
+  return UserSecrets{
+      .wrapped_user_secret = *std::move(wrapped_user_secret),
+      .user_public_key = *std::move(user_public_key),
       .wrapped_dek = *std::move(wrapped_dek),
   };
 }
 
-absl::StatusOr<oak::attestation::v1::ReferenceValues> ReadAppraisalPolicy(
-    absl::string_view filename) {
-  std::ifstream if_stream({std::string(filename)});
-  if (!if_stream.is_open()) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("Failed to open: ", filename));
+absl::Status RegisterUser(absl::string_view spanner_database,
+                          absl::string_view kms_key_resource_name,
+                          absl::string_view user_public_key,
+                          absl::string_view user_name,
+                          absl::string_view user_origin) {
+  std::string public_key_hex;
+  if (!absl::HexStringToBytes(user_public_key, &public_key_hex)) {
+    return absl::InvalidArgumentError(
+        "Failed to parse user public key. The key should be in formatted as "
+        "hex string.");
   }
-  google::protobuf::io::IstreamInputStream istream(&if_stream);
-  oak::attestation::v1::ReferenceValues appraisal_policy;
-  if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policy)) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("Failed to parse: ", filename));
-  }
-  return appraisal_policy;
-}
-
-absl::Status PopulateDatabase(absl::string_view project_id,
-                              absl::string_view instance_id,
-                              absl::string_view database_id,
-                              absl::string_view kms_key_resource_name,
-                              absl::string_view appraisal_policy_path) {
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
-      ReadAppraisalPolicy(appraisal_policy_path);
-  if (!appraisal_policy.ok()) return appraisal_policy.status();
-
+  absl::StatusOr<google::cloud::spanner::Database> database =
+      CreateSpannerDatabase(spanner_database);
+  if (!database.ok()) return database.status();
   // Spanner client.
   google::cloud::spanner::Client spanner_client(
-      google::cloud::spanner::MakeConnection(google::cloud::spanner::Database(
-          std::string(project_id), std::string(instance_id),
-          std::string(database_id))));
-  absl::StatusOr<Secrets> secrets = GenerateSecrets(kms_key_resource_name);
-  if (!secrets.ok()) return secrets.status();
+      google::cloud::spanner::MakeConnection(*database));
+  absl::StatusOr<UserSecrets> user_secrets =
+      GenerateUserSecrets(kms_key_resource_name);
+  if (!user_secrets.ok()) return user_secrets.status();
 
   // Stash all inserts in the same transaction so we only commit if all inserts
   // succeed.
   auto commit = spanner_client.Commit(
-      [&spanner_client, &kms_key_resource_name, &secrets = *secrets,
-       &appraisal_policy =
-           *appraisal_policy](google::cloud::spanner::Transaction transaction)
+      [&public_key_hex, &user_name, &user_origin, &spanner_client,
+       &kms_key_resource_name, &user_secrets = *user_secrets](
+          google::cloud::spanner::Transaction transaction)
           -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
-        // Insert Key-encryption-key (KEK) metadata.
-        int64_t kek_id;
+        std::optional<int64_t> kek_id;
         {
+          // Check if the KMS key (KEK) is inserted.
+          google::cloud::spanner::SqlStatement select(
+              R"sql(
+              SELECT
+                  KekId
+              FROM
+                  KeyEncryptionKeys
+              WHERE
+                ResourceName = @resource_name)sql",
+              {{"resource_name", google::cloud::spanner::Value(
+                                     std::string(kms_key_resource_name))}});
+          using RowType = std::tuple<int64_t>;
+          auto rows =
+              spanner_client.ExecuteQuery(transaction, std::move(select));
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+            kek_id.emplace(std::get<0>(*row));
+            break;
+          }
+        }
+        if (!kek_id.has_value()) {
+          // Insert Key-encryption-key (KEK) metadata, if not inserted
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  KeyEncryptionKey (ResourceName)
+              R"sql(INSERT INTO  KeyEncryptionKeys (ResourceName)
               VALUES (@resource_name)
               THEN RETURN KekId)sql",
               {{"resource_name", google::cloud::spanner::Value(
@@ -399,20 +715,20 @@ absl::Status PopulateDatabase(absl::string_view project_id,
           auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
           for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
             if (!row.ok()) return row.status();
-            kek_id = std::get<0>(*row);
+            *kek_id = std::get<0>(*row);
           }
         }
         // Insert the wrapped dek.
         int64_t dek_id;
         {
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  DataEncryptionKey (KekId, Dek)
+              R"sql(INSERT INTO  DataEncryptionKeys (KekId, Dek)
               VALUES (@kek_id, @dek)
               THEN RETURN DekId)sql",
-              {{"kek_id", google::cloud::spanner::Value(kek_id)},
+              {{"kek_id", google::cloud::spanner::Value(*kek_id)},
                {"dek",
                 google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(secrets.wrapped_dek))}});
+                    google::cloud::spanner::Bytes(user_secrets.wrapped_dek))}});
           using RowType = std::tuple<int64_t>;
           auto rows = spanner_client.ExecuteQuery(transaction, sql);
           for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
@@ -420,51 +736,62 @@ absl::Status PopulateDatabase(absl::string_view project_id,
             dek_id = std::get<0>(*row);
           }
         }
-
+        // Insert user info.
+        int64_t user_id;
         {
-          // Insert the wrapped EC private keys.
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  ECKeys(KeyId, DekId, PrivateKey)
-              VALUES ("primary_key", @dek_id, @primary_key),
-              ("secondary_key", @dek_id, @secondary_key))sql",
-              {{"dek_id", google::cloud::spanner::Value(dek_id)},
-               {"primary_key",
-                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                    secrets.wrapped_primary_ec_private_key))},
-               {"secondary_key",
-                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                    secrets.wrapped_secondary_ec_private_key))}});
+              R"sql(INSERT INTO  Users(Name, Origin)
+              VALUES (@name, @origin)
+              THEN RETURN UserId)sql",
+              {{"name", google::cloud::spanner::Value(std::string(user_name))},
+               {"origin",
+                google::cloud::spanner::Value(std::string(user_origin))}});
+          using RowType = std::tuple<int64_t>;
+          auto rows = spanner_client.ExecuteQuery(transaction, sql);
+          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+            if (!row.ok()) return row.status();
+            user_id = std::get<0>(*row);
+          }
+        }
+        // Insert the user's public key.
+        {
+          google::cloud::spanner::SqlStatement sql(
+              R"sql(INSERT INTO  UserAuthenticationKeys(UserId, PublicKey)
+              VALUES (@user_id, @public_key))sql",
+              {{"user_id", google::cloud::spanner::Value(user_id)},
+               {"public_key",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(public_key_hex))}});
           auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
           using RowType = std::tuple<std::string, int64_t, std::string>;
           for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
             if (!row.ok()) return row.status();
           }
         }
-
         // Insert the wrapped secret.
         {
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  Secrets(SecretId, DekId, Secret)
-              VALUES ("default", @dek_id, @secret))sql",
-              {{"dek_id", google::cloud::spanner::Value(dek_id)},
+              R"sql(INSERT INTO  Secrets(UserId, DekId, Secret)
+              VALUES (@user_id, @dek_id, @secret))sql",
+              {{"user_id", google::cloud::spanner::Value(user_id)},
+               {"dek_id", google::cloud::spanner::Value(dek_id)},
                {"secret",
-                google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(secrets.wrapped_secret))}});
+                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                    user_secrets.wrapped_user_secret))}});
           auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
           using RowType = std::tuple<std::string, int64_t, std::string>;
           for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
             if (!row.ok()) return row.status();
           }
         }
-
-        // Insert the appraisal policy.
+        // Insert the public key part of the secret.
         {
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  AppraisalPolicies(PolicyId, Policy)
-              VALUES ("default", @policy))sql",
-              {{"policy",
-                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                    appraisal_policy.SerializeAsString()))}});
+              R"sql(INSERT INTO  UserPublicKeys(UserId, PublicKey)
+              VALUES (@user_id, @public_key))sql",
+              {{"user_id", google::cloud::spanner::Value(user_id)},
+               {"public_key",
+                google::cloud::spanner::Value(user_secrets.user_public_key)}});
           auto rows = spanner_client.ExecuteQuery(std::move(transaction),
                                                   std::move(sql));
           using RowType = std::tuple<std::string, int64_t, std::string>;
@@ -479,11 +806,8 @@ absl::Status PopulateDatabase(absl::string_view project_id,
     return privacy_sandbox::gcp_common::GcpToAbslStatus(commit.status());
   }
 
-  std::cout << "Primary TVS Public Key: " << secrets->primary_ec_public_key
-            << std::endl;
-  std::cout << "Secondary TVS Public Key: " << secrets->secondary_ec_public_key
-            << std::endl;
-  std::cout << "Public portion of secret: " << secrets->secret_public << "\n";
+  std::cout << "Public portion of secret: " << user_secrets->user_public_key
+            << "\n";
   return absl::OkStatus();
 }
 
@@ -493,22 +817,39 @@ int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
 
-  if (absl::GetFlag(FLAGS_operation) == "create_database") {
-    if (absl::Status status = CreateDatabase(
-            absl::GetFlag(FLAGS_project_id), absl::GetFlag(FLAGS_instance_id),
-            absl::GetFlag(FLAGS_database_name));
+  std::string operation = absl::GetFlag(FLAGS_operation);
+  if (operation == "create_database") {
+    if (absl::Status status =
+            CreateDatabase(absl::GetFlag(FLAGS_spanner_database));
         !status.ok()) {
       LOG(ERROR) << "Failed to create database: " << status;
       return 1;
     }
-  } else if (absl::GetFlag(FLAGS_operation) == "populate_database") {
-    if (absl::Status status = PopulateDatabase(
-            absl::GetFlag(FLAGS_project_id), absl::GetFlag(FLAGS_instance_id),
-            absl::GetFlag(FLAGS_database_name),
-            absl::GetFlag(FLAGS_key_resource_name),
-            absl::GetFlag(FLAGS_appraisal_policy_path));
+  } else if (operation == "create_tvs_keys") {
+    if (absl::Status status =
+            CreateTvsKeys(absl::GetFlag(FLAGS_spanner_database),
+                          absl::GetFlag(FLAGS_key_resource_name));
         !status.ok()) {
-      LOG(ERROR) << "Failed to populate database; " << status;
+      LOG(ERROR) << "Failed to populate database: " << status;
+      return 1;
+    }
+  } else if (operation == "insert_appraisal_policy") {
+    if (absl::Status status =
+            InsertAppraisalPolicy(absl::GetFlag(FLAGS_spanner_database),
+                                  absl::GetFlag(FLAGS_appraisal_policy_path));
+        !status.ok()) {
+      LOG(ERROR) << "Failed to insert an appraisal policy: " << status;
+      return 1;
+    }
+
+  } else if (operation == "register_user") {
+    if (absl::Status status = RegisterUser(
+            absl::GetFlag(FLAGS_spanner_database),
+            absl::GetFlag(FLAGS_key_resource_name),
+            absl::GetFlag(FLAGS_user_public_key),
+            absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin));
+        !status.ok()) {
+      LOG(ERROR) << "Failed to register user: " << status;
       return 1;
     }
   }

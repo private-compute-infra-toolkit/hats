@@ -56,17 +56,17 @@ class EchoKeyFetcher final : public KeyFetcher {
   absl::StatusOr<std::string> GetSecondaryPrivateKey() override {
     return absl::UnimplementedError("unimplemented.");
   }
-  absl::StatusOr<std::string> GetSecret(absl::string_view secret_id) override {
-    return absl::StrCat(secret_id, "-secret");
+  absl::StatusOr<std::string> GetSecret(absl::string_view user_name) override {
+    return absl::StrCat(user_name, "-secret");
   }
 };
 
 }  // namespace
 
-rust::Vec<uint8_t> GetSecret(rust::Str secret_id) {
+rust::Vec<uint8_t> GetSecret(rust::Str username) {
   KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
   absl::StatusOr<std::string> secret =
-      key_fetcher->GetSecret(std::string(secret_id));
+      key_fetcher->GetSecret(std::string(username));
   if (!secret.ok()) {
     throw std::runtime_error(
         absl::StrCat("Failed to get secret: ", secret.status()));

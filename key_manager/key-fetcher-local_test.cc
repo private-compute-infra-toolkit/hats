@@ -41,7 +41,7 @@ TEST(KeyFetcherLocal, Normal) {
                 IsOkAndHolds(StrEq("first")));
     EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
                 IsOkAndHolds(StrEq("second")));
-    EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
+    EXPECT_THAT(key_fetcher->GetSecret(/*username=*/""),
                 IsOkAndHolds(StrEq("secret1")));
   }
   {
@@ -52,7 +52,7 @@ TEST(KeyFetcherLocal, Normal) {
     EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(), IsOkAndHolds(StrEq("a")));
     EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
                 IsOkAndHolds(StrEq("b")));
-    EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
+    EXPECT_THAT(key_fetcher->GetSecret(/*username=*/""),
                 IsOkAndHolds(StrEq("secret2")));
   }
 }

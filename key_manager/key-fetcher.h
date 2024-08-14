@@ -29,8 +29,7 @@ class KeyFetcher {
   virtual ~KeyFetcher() = default;
   virtual absl::StatusOr<std::string> GetPrimaryPrivateKey() = 0;
   virtual absl::StatusOr<std::string> GetSecondaryPrivateKey() = 0;
-  virtual absl::StatusOr<std::string> GetSecret(
-      absl::string_view secret_id) = 0;
+  virtual absl::StatusOr<std::string> GetSecret(absl::string_view username) = 0;
 };
 
 }  // namespace privacy_sandbox::key_manager

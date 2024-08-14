@@ -20,7 +20,7 @@ pub mod ffi {
     unsafe extern "C++" {
         include!("key_manager/key-fetcher-wrapper.h");
         #[rust_name = "get_secret"]
-        fn GetSecret(secret_id: &str) -> Result<Vec<u8>>;
+        fn GetSecret(secret_name: &str) -> Result<Vec<u8>>;
         #[rust_name = "register_echo_key_fetcher_for_test"]
         fn RegisterEchoKeyFetcherForTest();
     }

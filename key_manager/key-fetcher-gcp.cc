@@ -52,11 +52,11 @@ absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
       SELECT
           PrivateKey, Dek, ResourceName
       FROM
-          ECKeys, DataEncryptionKey, KeyEncryptionKey
+          TVSPrivateKeys, DataEncryptionKeys, KeyEncryptionKeys
       WHERE
-          KeyEncryptionKey.KekId = DataEncryptionKey.KekId
-          AND EcKeys.DekId = DataEncryptionKey.DekId
-          AND ECKeys.KeyId = @key_name)sql",
+          KeyEncryptionKeys.KekId = DataEncryptionKeys.KekId
+          AND TVSPrivateKeys.DekId = DataEncryptionKeys.DekId
+          AND TVSPrivateKeys.KeyId = @key_name)sql",
       {{"key_name", google::cloud::spanner::Value(std::string(key_name))}});
   using RowType = std::tuple<google::cloud::spanner::Bytes,
                              google::cloud::spanner::Bytes, std::string>;
@@ -75,18 +75,19 @@ absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
 }
 
 absl::StatusOr<Keys> WrappedSecretFromSpanner(
-    absl::string_view secret_id, google::cloud::spanner::Client& client) {
+    absl::string_view username, google::cloud::spanner::Client& client) {
   google::cloud::spanner::SqlStatement select(
       R"sql(
       SELECT
           Secret, Dek, ResourceName
       FROM
-          Secrets, DataEncryptionKey, KeyEncryptionKey
+          Secrets, DataEncryptionKeys, KeyEncryptionKeys, Users
       WHERE
-          KeyEncryptionKey.KekId = DataEncryptionKey.KekId
-          AND Secrets.DekId = DataEncryptionKey.DekId
-          AND Secrets.SecretId = @secret_id)sql",
-      {{"secret_id", google::cloud::spanner::Value(std::string(secret_id))}});
+          KeyEncryptionKeys.KekId = DataEncryptionKeys.KekId
+          AND Secrets.DekId = DataEncryptionKeys.DekId
+          AND Users.UserId = Secrets.UserId
+          AND Users.Name = @username)sql",
+      {{"username", google::cloud::spanner::Value(std::string(username))}});
   using RowType = std::tuple<google::cloud::spanner::Bytes,
                              google::cloud::spanner::Bytes, std::string>;
   auto rows = client.ExecuteQuery(std::move(select));
@@ -159,9 +160,9 @@ absl::StatusOr<std::string> KeyFetcherGcp::GetSecondaryPrivateKey() {
 }
 
 absl::StatusOr<std::string> KeyFetcherGcp::GetSecret(
-    absl::string_view secret_id) {
+    absl::string_view username) {
   absl::StatusOr<Keys> keys =
-      WrappedSecretFromSpanner(secret_id, spanner_client_);
+      WrappedSecretFromSpanner(username, spanner_client_);
   if (!keys.ok()) return keys.status();
   absl::StatusOr<crypto::SecretData> secret_data =
       UnwrapSecret(crypto::kSecretAd, gcp_kms_client_, *std::move(keys));

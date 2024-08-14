@@ -278,20 +278,20 @@ TEST(KeyFetcherGcp, GetSecret) {
   auto mock_connection =
       std::make_shared<google::cloud::spanner_mocks::MockConnection>();
 
-  constexpr absl::string_view kSecretId = "test_secret";
+  constexpr absl::string_view kUserName = "test_secret";
   EXPECT_CALL(*mock_connection, ExecuteQuery)
       .WillOnce(
-          [&mock_result_set_source, kSecretId](
+          [&mock_result_set_source, kUserName](
               const google::cloud::spanner::Connection::SqlParams& sql_params)
               -> google::cloud::spanner::RowStream {
             // Make sure the right parameter is specified in the code.
             google::cloud::StatusOr<google::cloud::spanner::Value> parameter =
-                sql_params.statement.GetParameter("secret_id");
+                sql_params.statement.GetParameter("username");
             if (!parameter.ok()) return {};
             google::cloud::StatusOr<std::string> key_name =
                 parameter->get<std::string>();
             if (!key_name.ok()) return {};
-            if (*key_name != kSecretId) return {};
+            if (*key_name != kUserName) return {};
             return google::cloud::spanner::RowStream(
                 std::move(mock_result_set_source));
           });
@@ -301,7 +301,7 @@ TEST(KeyFetcherGcp, GetSecret) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->GetSecret(kSecretId), IsOkAndHolds(StrEq("data3")));
+  EXPECT_THAT(key_fetcher->GetSecret(kUserName), IsOkAndHolds(StrEq("data3")));
 }
 
 TEST(KeyFetcherGcp, KMSError) {
@@ -365,7 +365,7 @@ TEST(KeyFetcherGcp, KMSError) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
+  EXPECT_THAT(key_fetcher->GetSecret(/*username=*/""),
               StatusIs(absl::StatusCode::kInternal,
                        HasSubstr("TestKeyManagementServiceConnection failed")));
 }
@@ -432,7 +432,7 @@ TEST(KeyFetcherGcp, DecryptionError) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->GetSecret(/*secret_id=*/""),
+  EXPECT_THAT(key_fetcher->GetSecret(/*username=*/""),
               StatusIs(absl::StatusCode::kFailedPrecondition,
                        HasSubstr("EVP_AEAD_CTX_open failed")));
 }
