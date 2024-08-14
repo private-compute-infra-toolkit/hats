@@ -21,6 +21,10 @@ pub mod ffi {
         include!("key_manager/key-fetcher-wrapper.h");
         #[rust_name = "get_secret"]
         fn GetSecret(secret_name: &str) -> Result<Vec<u8>>;
+        #[rust_name = "user_id_for_authentication_key"]
+        fn UserIdForAuthenticationKey(public_key: &[u8]) -> Result<i64>;
+        #[rust_name = "get_secret_for_user_id"]
+        fn GetSecretForUserId(user_id: i64) -> Result<Vec<u8>>;
         #[rust_name = "register_echo_key_fetcher_for_test"]
         fn RegisterEchoKeyFetcherForTest();
     }

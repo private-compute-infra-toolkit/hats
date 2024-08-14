@@ -104,6 +104,34 @@ absl::StatusOr<Keys> WrappedSecretFromSpanner(
   return absl::NotFoundError("Cannot find secret");
 }
 
+absl::StatusOr<Keys> WrappedSecretByUserIdFromSpanner(
+    int64_t user_id, google::cloud::spanner::Client& client) {
+  google::cloud::spanner::SqlStatement select(
+      R"sql(
+      SELECT
+          Secret, Dek, ResourceName
+      FROM
+          Secrets, DataEncryptionKeys, KeyEncryptionKeys
+      WHERE
+          KeyEncryptionKeys.KekId = DataEncryptionKeys.KekId
+          AND Secrets.DekId = DataEncryptionKeys.DekId
+          AND Secrets.UserId = @user_id)sql",
+      {{"user_id", google::cloud::spanner::Value(user_id)}});
+  using RowType = std::tuple<google::cloud::spanner::Bytes,
+                             google::cloud::spanner::Bytes, std::string>;
+  auto rows = client.ExecuteQuery(std::move(select));
+  for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+    if (!row.ok()) {
+      return gcp_common::GcpToAbslStatus(row.status());
+    }
+    return Keys{
+        .key = std::get<0>(*row).get<std::string>(),
+        .dek = std::get<1>(*row).get<std::string>(),
+        .kek = std::get<2>(*row),
+    };
+  }
+  return absl::NotFoundError("Cannot find secret");
+}
 absl::StatusOr<crypto::SecretData> UnwrapSecret(
     absl::string_view associated_data,
     privacy_sandbox::key_manager::GcpKmsClient& gcp_kms_client, Keys keys) {
@@ -163,6 +191,41 @@ absl::StatusOr<std::string> KeyFetcherGcp::GetSecret(
     absl::string_view username) {
   absl::StatusOr<Keys> keys =
       WrappedSecretFromSpanner(username, spanner_client_);
+  if (!keys.ok()) return keys.status();
+  absl::StatusOr<crypto::SecretData> secret_data =
+      UnwrapSecret(crypto::kSecretAd, gcp_kms_client_, *std::move(keys));
+  if (!secret_data.ok()) {
+    return secret_data.status();
+  }
+  return std::string(secret_data->GetStringView());
+}
+
+absl::StatusOr<int64_t> KeyFetcherGcp::UserIdForAuthenticationKey(
+    absl::string_view public_key) {
+  google::cloud::spanner::SqlStatement select(
+      R"sql(
+      SELECT
+          UserId
+      FROM
+          UserAuthenticationKeys
+      WHERE
+          PublicKey = @public_key)sql",
+      {{"public_key", google::cloud::spanner::Value(
+                          google::cloud::spanner::Bytes(public_key))}});
+  auto rows = spanner_client_.ExecuteQuery(std::move(select));
+  for (auto& row :
+       google::cloud::spanner::StreamOf<std::tuple<int64_t>>(rows)) {
+    if (!row.ok()) {
+      return gcp_common::GcpToAbslStatus(row.status());
+    }
+    return std::get<0>(*row);
+  }
+  return absl::NotFoundError("Cannot find user");
+}
+
+absl::StatusOr<std::string> KeyFetcherGcp::GetSecretForUserId(int64_t user_id) {
+  absl::StatusOr<Keys> keys =
+      WrappedSecretByUserIdFromSpanner(user_id, spanner_client_);
   if (!keys.ok()) return keys.status();
   absl::StatusOr<crypto::SecretData> secret_data =
       UnwrapSecret(crypto::kSecretAd, gcp_kms_client_, *std::move(keys));

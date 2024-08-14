@@ -22,6 +22,8 @@ namespace privacy_sandbox::key_manager {
 
 // Wrapper functions around `KeyFetcher` methods to make it usable to Rust code
 rust::Vec<uint8_t> GetSecret(rust::Str username);
+int64_t UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key);
+rust::Vec<uint8_t> GetSecretForUserId(int64_t user_id);
 
 // Allow registration of a KeyFetcher to be used in test.
 // The registered KeyFetcher echos back the `username` as the secret.
