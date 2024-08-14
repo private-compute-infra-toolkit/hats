@@ -36,6 +36,15 @@ rust_test(
     ],
 )
 
+rust_library(
+    name = "crypto-provider",
+    srcs = ["crypto-provider.rs"],
+    deps = [
+        "@hats_crate_index//:rand_core",
+        "@hats_crate_index//:thiserror",
+    ],
+)
+
 cc_library(
     name = "secret-data",
     srcs = ["secret-data.cc"],

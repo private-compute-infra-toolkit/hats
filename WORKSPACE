@@ -103,6 +103,7 @@ crates_repository(
             version = "*",
         ),
         "rand": crate.spec(version = "*"),
+        "rand_core": crate.spec(version = "*"),
         "reqwest": crate.spec(
             default_features = False,
             features = [
@@ -114,6 +115,9 @@ crates_repository(
         "serde": crate.spec(version = "*"),
         "serde_json": crate.spec(version = "*"),
         "sev": crate.spec(
+            version = "*",
+        ),
+        "thiserror": crate.spec(
             version = "*",
         ),
     },

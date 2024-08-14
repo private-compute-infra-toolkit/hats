@@ -311,10 +311,12 @@ dependencies = [
  "p256",
  "prost",
  "rand",
+ "rand_core",
  "reqwest",
  "serde",
  "serde_json",
  "sev",
+ "thiserror",
 ]
 
 [[package]]

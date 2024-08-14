@@ -1,5 +1,5 @@
 {
-  "checksum": "1e0fd6791bc1fdaff90e0f6273857d1fece0375a11f8b622161fbc346640d967",
+  "checksum": "0ed316af58de3fd4cae97f89d3de4fdefeed970da869db15677622fc323d1731",
   "crates": {
     "addr2line 0.22.0": {
       "name": "addr2line",
@@ -1950,6 +1950,10 @@
               "target": "rand"
             },
             {
+              "id": "rand_core 0.6.4",
+              "target": "rand_core"
+            },
+            {
               "id": "reqwest 0.12.5",
               "target": "reqwest"
             },
@@ -1964,6 +1968,10 @@
             {
               "id": "sev 3.2.0",
               "target": "sev"
+            },
+            {
+              "id": "thiserror 1.0.61",
+              "target": "thiserror"
             }
           ],
           "selects": {}
@@ -13800,10 +13808,12 @@
     "p256 0.13.2",
     "prost 0.12.6",
     "rand 0.8.5",
+    "rand_core 0.6.4",
     "reqwest 0.12.5",
     "serde 1.0.203",
     "serde_json 1.0.117",
-    "sev 3.2.0"
+    "sev 3.2.0",
+    "thiserror 1.0.61"
   ],
   "direct_dev_deps": []
 }
