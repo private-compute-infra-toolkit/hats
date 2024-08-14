@@ -31,6 +31,7 @@
 #include "tvs/untrusted_tvs/tvs-server.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
+ABSL_FLAG(std::string, handshake, "NK", "KK or NK");
 
 namespace {
 
@@ -97,6 +98,11 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  if (!absl::GetFlag(FLAGS_handshake).empty()) {
+    LOG(ERROR) << "Failed to get handshake type";
+    return 1;
+  }
+  absl::StatusOr<std::string> handshake = absl::GetFlag(FLAGS_handshake);
   LOG(INFO) << "Starting TVS server on port " << port;
   privacy_sandbox::tvs::CreateAndStartTvsServer(
       privacy_sandbox::tvs::TvsServerOptions{
@@ -106,6 +112,7 @@ int main(int argc, char* argv[]) {
                                        ? *std::move(secondary_private_key)
                                        : "",
           .appraisal_policies = *std::move(appraisal_policies),
+          .handshake = *std::move(handshake),
       });
   return 0;
 }

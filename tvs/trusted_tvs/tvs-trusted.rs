@@ -47,6 +47,8 @@ pub struct TrustedTvs {
     appraisal_policies: AppraisalPolicies,
     // Authenticated user if any.
     user: String,
+    user_id: Option<i64>,
+    enable_authentication: bool,
     terminated: bool,
 }
 
@@ -61,6 +63,7 @@ mod ffi {
             primary_private_key: &[u8],
             policy: &[u8],
             user: &str,
+            enable_authentication: bool,
         ) -> Result<Box<TrustedTvs>>;
 
         fn new_trusted_tvs_service_with_second_key(
@@ -69,6 +72,7 @@ mod ffi {
             secondary_private_key: &[u8],
             policy: &[u8],
             user: &str,
+            enable_authentication: bool,
         ) -> Result<Box<TrustedTvs>>;
 
         pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
@@ -81,6 +85,7 @@ pub fn new_trusted_tvs_service(
     primary_private_key: &[u8],
     policies: &[u8],
     user: &str,
+    enable_authentication: bool,
 ) -> Result<Box<TrustedTvs>, String> {
     let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
         format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
@@ -93,6 +98,7 @@ pub fn new_trusted_tvs_service(
         appraisal_policies,
         user.to_string(),
         None,
+        enable_authentication,
     )))
 }
 
@@ -102,6 +108,7 @@ fn new_trusted_tvs_service_with_second_key(
     secondary_private_key: &[u8],
     policies: &[u8],
     user: &str,
+    enable_authentication: bool,
 ) -> Result<Box<TrustedTvs>, String> {
     let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
         format!("Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
@@ -118,6 +125,7 @@ fn new_trusted_tvs_service_with_second_key(
         appraisal_policies,
         user.to_string(),
         Some(secondary_private_key_scalar),
+        enable_authentication,
     )))
 }
 
@@ -128,6 +136,7 @@ impl TrustedTvs {
         appraisal_policies: AppraisalPolicies,
         user: String,
         secondary_private_key: Option<P256Scalar>,
+        enable_authentication: bool,
     ) -> Self {
         let secondary_public_key = match &secondary_private_key {
             Some(secondary_private_key) => Some(secondary_private_key.compute_public_key()),
@@ -144,6 +153,8 @@ impl TrustedTvs {
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
             user,
+            user_id: Some(0),
+            enable_authentication,
             terminated: false,
         }
     }
@@ -171,6 +182,7 @@ impl TrustedTvs {
                 let ephemeral_pubkey = self.do_init_session(
                     init_session.client_message.as_slice(),
                     init_session.tvs_public_key.as_slice(),
+                    init_session.client_public_key.as_slice(),
                 )?;
                 Ok(AttestReportResponse {
                     response: Some(attest_report_response::Response::InitSessionResponse(
@@ -219,21 +231,45 @@ impl TrustedTvs {
         &mut self,
         handshake_request: &[u8],
         public_key: &[u8],
+        client_public_key: &[u8],
     ) -> Result<Vec<u8>, String> {
         if let Some(_) = &self.crypter {
             return Err("Handshake has already been made.".to_string());
         }
 
         let private_key = self.private_key_to_use(public_key)?;
-        let handshake_response = handshake::respond(
-            HandshakeType::Nk,
-            &private_key,
-            public_key,
-            None,
-            handshake_request,
-            public_key,
-        )
-        .map_err(|_| "Invalid handshake.".to_string())?;
+        let user_id = if self.enable_authentication {
+            Some(
+                key_fetcher::ffi::user_id_for_authentication_key(client_public_key)
+                    .map_err(|e| e.to_string())?,
+            )
+        } else {
+            None
+        };
+        let handshake_response = if self.enable_authentication {
+            handshake::respond(
+                HandshakeType::Kk,
+                &private_key,
+                public_key,
+                None,
+                handshake_request,
+                public_key,
+            )
+            .map_err(|_| "Invalid handshake.".to_string())?
+        } else {
+            handshake::respond(
+                HandshakeType::Nk,
+                &private_key,
+                public_key,
+                None,
+                handshake_request,
+                public_key,
+            )
+            .map_err(|_| "Invalid handshake.".to_string())?
+        };
+        if let Some(user_id) = user_id {
+            self.user_id = Some(user_id);
+        }
         self.crypter = Some(handshake_response.crypter);
         self.handshake_hash = handshake_response.handshake_hash;
         Ok(handshake_response.response)
@@ -253,7 +289,17 @@ impl TrustedTvs {
         // TODO(alwabel): change local mode to obtain secrets and keys from
         // `key_fetcher`, also pass in the user_id or the authenticated client
         // id instead of `default`.
-        let secret = key_fetcher::ffi::get_secret(&self.user).map_err(|msg| format!("{}", msg))?;
+        let secret = if self.enable_authentication {
+            match key_fetcher::ffi::get_secret_for_user_id(self.user_id.unwrap()) {
+                Ok(secret) => secret,
+                Err(e) => return Err(format!("Failed to get secret for user ID: {}", e)),
+            }
+        } else {
+            match key_fetcher::ffi::get_secret(&self.user) {
+                Ok(secret) => secret,
+                Err(e) => return Err(format!("Failed to get secret: {}", e)),
+            }
+        };
         match self.crypter.as_mut().unwrap().encrypt(&secret) {
             Ok(cipher_text) => Ok(cipher_text),
             Err(_) => Err("Failed to encrypt message.".to_string()),
@@ -400,6 +446,7 @@ mod tests {
     fn create_attest_report_request(
         handshake: Vec<u8>,
         tvs_public_key: &[u8],
+        client_public_key: &[u8],
     ) -> Result<Vec<u8>, String> {
         // Test initial handshake.
         let message = AttestReportRequest {
@@ -408,6 +455,7 @@ mod tests {
                     InitSessionRequest {
                         client_message: handshake,
                         tvs_public_key: tvs_public_key.to_vec(),
+                        client_public_key: client_public_key.to_vec(),
                     },
                 ),
             ),
@@ -435,14 +483,17 @@ mod tests {
     fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user1",
+            false,
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
+        let client_public_key = client_private_key.compute_public_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Nk,
             &tvs_private_key.compute_public_key(),
@@ -454,6 +505,7 @@ mod tests {
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
                     &tvs_public_key,
+                    &client_public_key,
                 )
                 .unwrap()
                 .as_slice(),
@@ -527,15 +579,18 @@ mod tests {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service_with_second_key(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             &secondary_tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user2",
+            false,
         )
         .unwrap();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
+        let client_public_key = client_private_key.compute_public_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Nk,
             &secondary_tvs_public_key,
@@ -548,6 +603,7 @@ mod tests {
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
                     &secondary_tvs_public_key,
+                    &client_public_key,
                 )
                 .unwrap()
                 .as_slice(),
@@ -622,15 +678,17 @@ mod tests {
     fn verify_report_session_termination_on_successful_session() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user1",
+            false,
         )
         .unwrap();
-
         let tvs_public_key = tvs_private_key.compute_public_key();
+        let client_public_key = client_private_key.compute_public_key();
         let mut client =
             handshake::client::HandshakeInitiator::new(HandshakeType::Nk, &tvs_public_key, None);
 
@@ -640,6 +698,7 @@ mod tests {
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
                     &tvs_public_key,
+                    &client_public_key,
                 )
                 .unwrap()
                 .as_slice(),
@@ -713,9 +772,13 @@ mod tests {
         }
 
         match trusted_tvs.verify_report(
-            create_attest_report_request(client.build_initial_message().unwrap(), &tvs_public_key)
-                .unwrap()
-                .as_slice(),
+            create_attest_report_request(
+                client.build_initial_message().unwrap(),
+                &tvs_public_key,
+                &client_public_key,
+            )
+            .unwrap()
+            .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => assert!(e.contains("The session is terminated.")),
@@ -726,15 +789,18 @@ mod tests {
     fn verify_report_invalid_report_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user",
+            false,
         )
         .unwrap();
 
         let tvs_public_key = tvs_private_key.compute_public_key();
+        let client_public_key = client_private_key.compute_public_key();
         let mut client =
             handshake::client::HandshakeInitiator::new(HandshakeType::Nk, &tvs_public_key, None);
         // Ask TVS to do its handshake part
@@ -743,6 +809,7 @@ mod tests {
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
                     &tvs_public_key,
+                    &client_public_key,
                 )
                 .unwrap()
                 .as_slice(),
@@ -809,14 +876,17 @@ mod tests {
     fn verify_report_system_layer_verification_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user",
+            false,
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
+        let client_public_key = client_private_key.compute_public_key();
         let mut client =
             handshake::client::HandshakeInitiator::new(HandshakeType::Nk, &tvs_public_key, None);
         // Ask TVS to do its handshake part
@@ -825,6 +895,7 @@ mod tests {
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
                     &tvs_public_key,
+                    &client_public_key,
                 )
                 .unwrap()
                 .as_slice(),
@@ -885,15 +956,18 @@ mod tests {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user",
+            false,
         )
         .unwrap();
 
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
+        let client_public_key = client_private_key.compute_public_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Nk,
             &secondary_tvs_public_key,
@@ -904,6 +978,7 @@ mod tests {
             create_attest_report_request(
                 client.build_initial_message().unwrap(),
                 &secondary_tvs_public_key,
+                &client_public_key,
             )
             .unwrap()
             .as_slice(),
@@ -921,6 +996,7 @@ mod tests {
             &[1, 2, 3],
             default_appraisal_policicies().as_slice(),
             "test_user",
+            false,
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(
@@ -934,6 +1010,7 @@ mod tests {
             &[b'f'; P256_SCALAR_LENGTH * 3],
             default_appraisal_policicies().as_slice(),
             "test_user",
+            false,
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(
@@ -947,6 +1024,7 @@ mod tests {
             &P256Scalar::generate().bytes(),
             &[1, 2, 3],
             "test_user",
+            false,
         ) {
             Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
             Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
@@ -957,17 +1035,20 @@ mod tests {
     fn handshake_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
         let mut trusted_tvs = new_trusted_tvs_service(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user",
+            false,
         )
         .unwrap();
 
         let tvs_public_key = tvs_private_key.compute_public_key();
+        let client_public_key = client_private_key.compute_public_key();
         // Test invalid initiator handshake error.
-        match trusted_tvs.do_init_session(b"ab", &tvs_public_key) {
+        match trusted_tvs.do_init_session(b"ab", &tvs_public_key, &client_public_key) {
             Ok(_) => assert!(false, "do_init_session() should fail."),
             Err(e) => assert_eq!(e, "Invalid handshake.".to_string()),
         }
@@ -977,6 +1058,7 @@ mod tests {
             &tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user",
+            false,
         )
         .unwrap();
         let client_handshake = handshake::client::HandshakeInitiator::new(
@@ -987,10 +1069,18 @@ mod tests {
         .build_initial_message()
         .unwrap();
         assert!(trusted_tvs
-            .do_init_session(client_handshake.as_slice(), &tvs_public_key)
+            .do_init_session(
+                client_handshake.as_slice(),
+                &tvs_public_key,
+                &client_public_key
+            )
             .is_ok());
         // Test duplicate initiator handshake error.
-        match trusted_tvs.do_init_session(client_handshake.as_slice(), &tvs_public_key) {
+        match trusted_tvs.do_init_session(
+            client_handshake.as_slice(),
+            &tvs_public_key,
+            &client_public_key,
+        ) {
             Ok(_) => assert!(false, "do_init_session() should fail."),
             Err(e) => assert_eq!(e, "Handshake has already been made.".to_string()),
         }
@@ -1005,6 +1095,7 @@ mod tests {
             &tvs_private_key.bytes(),
             default_appraisal_policicies().as_slice(),
             "test_user",
+            false,
         )
         .unwrap();
         match trusted_tvs.do_verify_report(b"aaa") {

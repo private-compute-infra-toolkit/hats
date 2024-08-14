@@ -24,6 +24,7 @@ message InitSessionRequest {
   // Contains the TVS public key the client intends to use. In some cases,
   // the server might have a number of active keys.
   bytes tvs_public_key = 2;
+  bytes client_public_key = 3;
 }
 
 message VerifyReportRequest {

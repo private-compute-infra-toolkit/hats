@@ -214,6 +214,7 @@ mod tests {
                 &self.tvs_private_key,
                 default_appraisal_policies().as_slice(),
                 "test_user",
+                false,
             ) else {
                 return Err(tonic::Status::internal("Error creating TVS Server"));
             };

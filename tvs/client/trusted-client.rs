@@ -92,6 +92,7 @@ impl TvsClient {
                         .build_initial_message()
                         .map_err(|_| "Invalid Initialization of Handshake")?,
                     tvs_public_key: self.peer_public_key.to_vec(),
+                    client_public_key: vec![],
                 },
             )),
         }
@@ -244,6 +245,7 @@ mod tests {
             &tvs_private_key.bytes(),
             default_appraisal_policies().as_slice(),
             "test_user1",
+            false,
         )
         .unwrap();
 
@@ -320,6 +322,7 @@ mod tests {
             &tvs_private_key.bytes(),
             default_appraisal_policies().as_slice(),
             "test_user2",
+            false,
         )
         .unwrap();
 
