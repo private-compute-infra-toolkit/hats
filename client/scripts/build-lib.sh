@@ -111,6 +111,7 @@ function build_oak_kv_container_bundle_tar() {
 
   # Export the container as an OCI Image.
   # Ref: https://docs.docker.com/build/exporters/oci-docker/
+  # shellcheck disable=2155
   readonly BUILDER="$(docker buildx create --driver docker-container)"
   docker buildx \
       --builder="${BUILDER}" \
@@ -120,6 +121,7 @@ function build_oak_kv_container_bundle_tar() {
       --output="type=oci,dest=${OCI_IMAGE_FILE}" \
       .
 
+  # shellcheck disable=2155
   readonly WORK_DIR="$(mktemp --directory)"
   readonly OUTPUT_OCI_BUNDLE_TAR="${BUILD_DIR}/oak_containers_kv_filesystem_bundle.tar"
 
