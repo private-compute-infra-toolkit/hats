@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "client/launcher/forwarding-tvs-server.h"
+#include "client/launcher/launcher-server.h"
 
 #include <cstdint>
 #include <exception>
@@ -34,7 +34,7 @@
 #include "rust/cxx.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace privacy_sandbox::client {
 
 namespace {
 
@@ -44,16 +44,17 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
 
 }  // namespace
 
-ForwardingTvsServer::ForwardingTvsServer(std::shared_ptr<grpc::Channel> channel)
-    : stub_(TeeVerificationService::NewStub(channel)) {}
+LauncherServer::LauncherServer(std::shared_ptr<grpc::Channel> channel)
+    : stub_(tvs::TeeVerificationService::NewStub(channel)) {}
 
-grpc::Status ForwardingTvsServer::VerifyReport(
+grpc::Status LauncherServer::VerifyReport(
     grpc::ServerContext* context,
-    grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) {
+    grpc::ServerReaderWriter<tvs::OpaqueMessage, tvs::OpaqueMessage>* stream) {
   auto remote_context = std::make_unique<grpc::ClientContext>();
-  std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
+  std::unique_ptr<
+      grpc::ClientReaderWriter<tvs::OpaqueMessage, tvs::OpaqueMessage>>
       remote_stream = stub_->VerifyReport(remote_context.get());
-  OpaqueMessage opaque_message;
+  tvs::OpaqueMessage opaque_message;
   while (stream->Read((&opaque_message))) {
     if (!remote_stream->Write(opaque_message)) {
       return grpc::Status(
@@ -76,7 +77,7 @@ grpc::Status ForwardingTvsServer::VerifyReport(
   return grpc::Status::OK;
 }
 
-grpc::Status ForwardingTvsServer::FetchOrchestratorMetadata(
+grpc::Status LauncherServer::FetchOrchestratorMetadata(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply) {
   try {
@@ -88,10 +89,10 @@ grpc::Status ForwardingTvsServer::FetchOrchestratorMetadata(
   }
 }
 
-void CreateAndStartForwardingTvsServer(int port,
-                                       std::shared_ptr<grpc::Channel> channel) {
+void CreateAndStartLauncherServer(int port,
+                                  std::shared_ptr<grpc::Channel> channel) {
   const std::string server_address = absl::StrCat("0.0.0.0:", port);
-  ForwardingTvsServer forwarding_tvs_server(channel);
+  LauncherServer forwarding_tvs_server(channel);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()
           .AddListeningPort(server_address, grpc::InsecureServerCredentials())
@@ -101,4 +102,4 @@ void CreateAndStartForwardingTvsServer(int port,
   server->Wait();
 }
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace privacy_sandbox::client

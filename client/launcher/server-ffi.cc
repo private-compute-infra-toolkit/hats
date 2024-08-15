@@ -24,7 +24,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "client/launcher/forwarding-tvs-server.h"
+#include "client/launcher/launcher-server.h"
 #include "external/google_privacysandbox_servers_common/src/parc/servers/local/parameters.h"
 #include "external/google_privacysandbox_servers_common/src/parc/servers/local/parc_server.h"
 #include "grpcpp/channel.h"
@@ -77,12 +77,12 @@ void CreateAndStartServers(const LauncherServerOptions& options) {
       return channel.status();
     }
 
-    auto forwarding_tvs_server =
-        std::make_unique<tvs::ForwardingTvsServer>(std::move(channel).value());
+    auto launcher_server =
+        std::make_unique<client::LauncherServer>(std::move(channel).value());
     grpc::ServerBuilder server_builder;
     server_builder
         .AddListeningPort(server_address, grpc::InsecureServerCredentials())
-        .RegisterService(forwarding_tvs_server.get());
+        .RegisterService(launcher_server.get());
 
     LOG(INFO) << "Server listening on " << server_address;
     if (options.enable_parc) {
@@ -104,7 +104,7 @@ void CreateAndStartServers(const LauncherServerOptions& options) {
     // pointer are not allowed since pointer cannot be sent safely between
     // threads.
     server.release();
-    forwarding_tvs_server.release();
+    launcher_server.release();
     return absl::OkStatus();
   }();
 

@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
@@ -50,26 +50,10 @@ rust_cxx_bridge(
     ],
 )
 
-cc_binary(
-    name = "forwarding-tvs-server_main",
-    srcs = ["forwarding-tvs-server_main.cc"],
-    deps = [
-        ":forwarding-tvs-server",
-        "//tvs/credentials",
-        "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/log:initialize",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-    ],
-)
-
 cc_library(
-    name = "forwarding-tvs-server",
-    srcs = ["forwarding-tvs-server.cc"],
-    hdrs = ["forwarding-tvs-server.h"],
+    name = "launcher-server",
+    srcs = ["launcher-server.cc"],
+    hdrs = ["launcher-server.h"],
     deps = [
         "//client/launcher:certificates_bridge",
         "//client/launcher:certificates_bridge/include",
@@ -88,13 +72,13 @@ cc_library(
 )
 
 cc_test(
-    name = "forwarding-tvs-server_test",
-    srcs = ["forwarding-tvs-server_test.cc"],
+    name = "launcher-server_test",
+    srcs = ["launcher-server_test.cc"],
     data = [
         "//tvs/test_data:tvs_test_data",
     ],
     deps = [
-        ":forwarding-tvs-server",
+        ":launcher-server",
         "//key_manager:key-fetcher-wrapper",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_messages_cc_proto",
@@ -118,7 +102,7 @@ cc_library(
     srcs = ["server-ffi.cc"],
     hdrs = ["server-ffi.h"],
     deps = [
-        ":forwarding-tvs-server",
+        ":launcher-server",
         "//tvs/credentials",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",

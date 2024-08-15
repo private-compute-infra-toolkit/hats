@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HATS_CLIENT_LAUNCHER_FORWARDING_TVS_SERVER_
-#define HATS_CLIENT_LAUNCHER_FORWARDING_TVS_SERVER_
+#ifndef HATS_CLIENT_LAUNCHER_LAUNCHER_SERVER_
+#define HATS_CLIENT_LAUNCHER_LAUNCHER_SERVER_
 
 #include <memory>
 
@@ -24,19 +24,18 @@
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace privacy_sandbox::client {
 
-// Grpc server that pipes messages between the client and the server.
-// The server is used to proxy communication between the orchestrator
-// and Tvs.
-// TODO(sidachen): Rename to LauncherService.
-class ForwardingTvsServer final
+class LauncherServer final
     : public privacy_sandbox::client::LauncherService::Service {
  public:
-  ForwardingTvsServer(std::shared_ptr<grpc::Channel> channel);
+  LauncherServer(std::shared_ptr<grpc::Channel> channel);
+  // Pipes messages between the client and the server.
+  // This used to proxy communication between the orchestrator and Tvs.
   grpc::Status VerifyReport(
       grpc::ServerContext* context,
-      grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) override;
+      grpc::ServerReaderWriter<tvs::OpaqueMessage, tvs::OpaqueMessage>* stream)
+      override;
 
   grpc::Status FetchOrchestratorMetadata(
       grpc::ServerContext* context, const google::protobuf::Empty* request,
@@ -44,13 +43,13 @@ class ForwardingTvsServer final
       override;
 
  private:
-  std::unique_ptr<TeeVerificationService::Stub> stub_;
+  std::unique_ptr<tvs::TeeVerificationService::Stub> stub_;
 };
 
 // Starts a server and blocks forever.
-void CreateAndStartForwardingTvsServer(int port,
-                                       std::shared_ptr<grpc::Channel> channel);
+void CreateAndStartLauncherServer(int port,
+                                  std::shared_ptr<grpc::Channel> channel);
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace privacy_sandbox::client
 
-#endif  // HATS_CLIENT_LAUNCHER_FORWARDING_TVS_SERVER_
+#endif  // HATS_CLIENT_LAUNCHER_LAUNCHER_SERVER_

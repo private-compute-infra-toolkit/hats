@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "client/launcher/forwarding-tvs-server.h"
+#include "client/launcher/launcher-server.h"
 
 #include <fstream>
 #include <memory>
@@ -40,7 +40,7 @@
 #include "tvs/test_client/tvs-untrusted-client.h"
 #include "tvs/untrusted_tvs/tvs-server.h"
 
-namespace privacy_sandbox::tvs {
+namespace privacy_sandbox::client {
 namespace {
 
 using ::absl_testing::IsOkAndHolds;
@@ -49,9 +49,9 @@ using ::testing::AllOf;
 using ::testing::HasSubstr;
 using ::testing::StrEq;
 
-absl::StatusOr<VerifyReportRequest> VerifyReportRequestFromFile(
+absl::StatusOr<tvs::VerifyReportRequest> VerifyReportRequestFromFile(
     const std::string& file_path) {
-  VerifyReportRequest verify_report_request;
+  tvs::VerifyReportRequest verify_report_request;
   std::ifstream if_stream(file_path);
   google::protobuf::io::IstreamInputStream istream(&if_stream);
   if (!google::protobuf::TextFormat::Parse(&istream, &verify_report_request)) {
@@ -61,7 +61,7 @@ absl::StatusOr<VerifyReportRequest> VerifyReportRequestFromFile(
   return verify_report_request;
 }
 
-absl::StatusOr<VerifyReportRequest> GetGoodReportRequest() {
+absl::StatusOr<tvs::VerifyReportRequest> GetGoodReportRequest() {
   std::string runfiles_error;
   auto runfiles =
       bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&runfiles_error);
@@ -73,7 +73,7 @@ absl::StatusOr<VerifyReportRequest> GetGoodReportRequest() {
       "_main/tvs/test_data/good_verify_request_report.prototext"));
 }
 
-absl::StatusOr<VerifyReportRequest> GetBadReportRequest() {
+absl::StatusOr<tvs::VerifyReportRequest> GetBadReportRequest() {
   std::string runfiles_error;
   auto runfiles =
       bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&runfiles_error);
@@ -85,9 +85,9 @@ absl::StatusOr<VerifyReportRequest> GetBadReportRequest() {
       "_main/tvs/test_data/bad_verify_request_report.prototext"));
 }
 
-absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
+absl::StatusOr<tvs::AppraisalPolicies> GetTestAppraisalPolicies() {
   oak::attestation::v1::ReferenceValues appraisal_policy;
-  AppraisalPolicies appraisal_policies;
+  tvs::AppraisalPolicies appraisal_policies;
   if (!google::protobuf::TextFormat::ParseFromString(
           R"pb(
             policy {
@@ -190,9 +190,9 @@ absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
   return bytes;
 }
 
-TEST(ForwardingTvsServer, Successful) {
+TEST(LauncherServer, Successful) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+  absl::StatusOr<tvs::AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
   ASSERT_TRUE(appraisal_policies.ok());
   absl::StatusOr<std::string> tvs_private_key =
@@ -200,31 +200,29 @@ TEST(ForwardingTvsServer, Successful) {
   ASSERT_TRUE(tvs_private_key.ok());
 
   // Real TVS server.
-  TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policies));
+  tvs::TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policies));
 
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   // Forwarding TVS server.
-  ForwardingTvsServer forwarding_tvs_service(
+  LauncherServer launcher_service(
       tvs_server->InProcessChannel(grpc::ChannelArguments()));
-  std::unique_ptr<grpc::Server> forwarding_tvs_server =
-      grpc::ServerBuilder()
-          .RegisterService(&forwarding_tvs_service)
-          .BuildAndStart();
+  std::unique_ptr<grpc::Server> launcher_server =
+      grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
       "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
 
-  absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
-      TvsUntrustedClient::CreateClient({
+  absl::StatusOr<std::unique_ptr<tvs::TvsUntrustedClient>> tvs_client =
+      tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kTvsPublicKey),
           .channel =
-              forwarding_tvs_server->InProcessChannel(grpc::ChannelArguments()),
+              launcher_server->InProcessChannel(grpc::ChannelArguments()),
           .use_launcher_forwarding = true,
       });
   ASSERT_TRUE(tvs_client.ok());
 
-  absl::StatusOr<VerifyReportRequest> verify_report_request =
+  absl::StatusOr<tvs::VerifyReportRequest> verify_report_request =
       GetGoodReportRequest();
   ASSERT_TRUE(verify_report_request.ok());
 
@@ -234,9 +232,9 @@ TEST(ForwardingTvsServer, Successful) {
               IsOkAndHolds(StrEq(kSecret)));
 }
 
-TEST(ForwardingTvsServer, BadReportError) {
+TEST(LauncherServer, BadReportError) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+  absl::StatusOr<tvs::AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
   ASSERT_TRUE(appraisal_policies.ok());
 
@@ -244,29 +242,27 @@ TEST(ForwardingTvsServer, BadReportError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
   // Real TVS server.
-  TvsServer tvs_service(*tvs_private_key, /*secret=*/"",
-                        *std::move(appraisal_policies));
+  tvs::TvsServer tvs_service(*tvs_private_key, /*secret=*/"",
+                             *std::move(appraisal_policies));
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   // Forwarding TVS server.
-  ForwardingTvsServer forwarding_tvs_service(
+  LauncherServer launcher_service(
       tvs_server->InProcessChannel(grpc::ChannelArguments()));
-  std::unique_ptr<grpc::Server> forwarding_tvs_server =
-      grpc::ServerBuilder()
-          .RegisterService(&forwarding_tvs_service)
-          .BuildAndStart();
+  std::unique_ptr<grpc::Server> launcher_server =
+      grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
 
-  absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
-      TvsUntrustedClient::CreateClient({
+  absl::StatusOr<std::unique_ptr<tvs::TvsUntrustedClient>> tvs_client =
+      tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kTvsPublicKey),
           .channel =
-              forwarding_tvs_server->InProcessChannel(grpc::ChannelArguments()),
+              launcher_server->InProcessChannel(grpc::ChannelArguments()),
           .use_launcher_forwarding = true,
       });
   ASSERT_TRUE(tvs_client.ok());
 
-  absl::StatusOr<VerifyReportRequest> verify_report_request =
+  absl::StatusOr<tvs::VerifyReportRequest> verify_report_request =
       GetBadReportRequest();
   ASSERT_TRUE(verify_report_request.ok());
 
@@ -282,4 +278,4 @@ TEST(ForwardingTvsServer, BadReportError) {
 
 }  // namespace
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace privacy_sandbox::client
