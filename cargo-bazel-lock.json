@@ -1,5 +1,5 @@
 {
-  "checksum": "074c8d657e1bc0f3734875a99bb3f66ff56689f0b582fe828e698ca2a3aeacb4",
+  "checksum": "1e0fd6791bc1fdaff90e0f6273857d1fece0375a11f8b622161fbc346640d967",
   "crates": {
     "addr2line 0.22.0": {
       "name": "addr2line",
@@ -1952,6 +1952,14 @@
             {
               "id": "reqwest 0.12.5",
               "target": "reqwest"
+            },
+            {
+              "id": "serde 1.0.203",
+              "target": "serde"
+            },
+            {
+              "id": "serde_json 1.0.117",
+              "target": "serde_json"
             },
             {
               "id": "sev 3.2.0",
@@ -4824,6 +4832,7 @@
           "common": [
             "default",
             "rand",
+            "serde",
             "std"
           ],
           "selects": {}
@@ -4841,6 +4850,10 @@
             {
               "id": "rand 0.8.5",
               "target": "rand"
+            },
+            {
+              "id": "serde 1.0.203",
+              "target": "serde"
             }
           ],
           "selects": {}
@@ -13788,6 +13801,8 @@
     "prost 0.12.6",
     "rand 0.8.5",
     "reqwest 0.12.5",
+    "serde 1.0.203",
+    "serde_json 1.0.117",
     "sev 3.2.0"
   ],
   "direct_dev_deps": []

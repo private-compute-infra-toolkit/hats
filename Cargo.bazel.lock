@@ -312,6 +312,8 @@ dependencies = [
  "prost",
  "rand",
  "reqwest",
+ "serde",
+ "serde_json",
  "sev",
 ]
 
@@ -774,6 +776,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rand",
+ "serde",
 ]
 
 [[package]]
