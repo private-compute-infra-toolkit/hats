@@ -76,11 +76,11 @@ grpc::Status ForwardingTvsServer::VerifyReport(
   return grpc::Status::OK;
 }
 
-grpc::Status ForwardingTvsServer::FetchTeeCertificate(
+grpc::Status ForwardingTvsServer::FetchOrchestratorMetadata(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
-    privacy_sandbox::client::FetchTeeCertificateResponse* reply) {
+    privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply) {
   try {
-    reply->set_signature(
+    reply->set_tee_certificate_signature(
         RustVecToString(privacy_sandbox::launcher::get_vcek()));
     return grpc::Status::OK;
   } catch (rust::Error& error) {

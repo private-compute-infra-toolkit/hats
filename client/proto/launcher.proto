@@ -19,15 +19,15 @@ package privacy_sandbox.client;
 import "tvs/proto/tvs_messages.proto";
 import "google/protobuf/empty.proto";
 
-message FetchTeeCertificateResponse {
-  bytes signature = 1;
+message FetchOrchestratorMetadataResponse {
+  bytes tee_certificate_signature = 1;
 }
 
 service LauncherService {
   // Provides chip endorsement key for DICE verification purpose to
   // orchestrator.
-  rpc FetchTeeCertificate(google.protobuf.Empty)
-      returns (FetchTeeCertificateResponse);
+  rpc FetchOrchestratorMetadata(google.protobuf.Empty)
+      returns (FetchOrchestratorMetadataResponse);
   // Proxies messages between the orchestrator and a TVS service.
   rpc VerifyReport(stream privacy_sandbox.tvs.OpaqueMessage)
       returns (stream privacy_sandbox.tvs.OpaqueMessage);

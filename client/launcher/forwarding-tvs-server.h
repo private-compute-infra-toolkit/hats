@@ -38,9 +38,10 @@ class ForwardingTvsServer final
       grpc::ServerContext* context,
       grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) override;
 
-  grpc::Status FetchTeeCertificate(
+  grpc::Status FetchOrchestratorMetadata(
       grpc::ServerContext* context, const google::protobuf::Empty* request,
-      privacy_sandbox::client::FetchTeeCertificateResponse* reply) override;
+      privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply)
+      override;
 
  private:
   std::unique_ptr<TeeVerificationService::Stub> stub_;

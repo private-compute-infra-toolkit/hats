@@ -112,10 +112,11 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow!("couldn't send attestation evidence: {:?}", error))?;
 
-    let cert = client
-        .fetch_tee_certificate()
+    let orchestrator_metadata = client
+        .fetch_orchestrator_metadata()
         .await
         .map_err(|error| anyhow!("couldn't find tee certificate: {:?}", error))?;
+    let cert = orchestrator_metadata.tee_certificate_signature;
 
     let token = client
         .send_evidence(evidence, instance_keys.signing_key.clone(), cert)

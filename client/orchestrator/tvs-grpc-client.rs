@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::proto::privacy_sandbox::client::launcher_service_client;
+use crate::proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse;
 use crate::proto::privacy_sandbox::tvs::OpaqueMessage;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
@@ -58,14 +59,16 @@ impl TvsGrpcClient {
             tvs_public_key,
         })
     }
-    pub async fn fetch_tee_certificate(&self) -> Result<Vec<u8>, String> {
+    pub async fn fetch_orchestrator_metadata(
+        &self,
+    ) -> Result<FetchOrchestratorMetadataResponse, String> {
         let response = self
             .inner
             .clone()
-            .fetch_tee_certificate(Request::new({}))
+            .fetch_orchestrator_metadata(Request::new({}))
             .await
             .map_err(|error| format!("error from launcher server: {}", error))?;
-        Ok(response.into_inner().signature)
+        Ok(response.into_inner())
     }
     pub async fn send_evidence(
         &self,
@@ -166,7 +169,7 @@ impl TvsGrpcClient {
 mod tests {
     use super::*;
     use crate::proto::privacy_sandbox::client::launcher_service_server;
-    use crate::proto::privacy_sandbox::client::FetchTeeCertificateResponse;
+    use crate::proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse;
     use crate::tests::launcher_service_server::LauncherService;
     use crate::tests::launcher_service_server::LauncherServiceServer;
     use crypto::{P256Scalar, P256_SCALAR_LENGTH};
@@ -187,12 +190,13 @@ mod tests {
     impl LauncherService for TestService {
         type VerifyReportStream =
             Pin<Box<dyn tokio_stream::Stream<Item = Result<OpaqueMessage, tonic::Status>> + Send>>;
-        async fn fetch_tee_certificate(
+        async fn fetch_orchestrator_metadata(
             &self,
             _request: tonic::Request<()>,
-        ) -> Result<tonic::Response<FetchTeeCertificateResponse>, tonic::Status> {
-            Ok(Response::new(FetchTeeCertificateResponse {
-                signature: include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec(),
+        ) -> Result<tonic::Response<FetchOrchestratorMetadataResponse>, tonic::Status> {
+            Ok(Response::new(FetchOrchestratorMetadataResponse {
+                tee_certificate_signature: include_bytes!("../../tvs/test_data/vcek_genoa.crt")
+                    .to_vec(),
             }))
         }
 
@@ -299,7 +303,11 @@ mod tests {
                         .unwrap(),
                     )
                     .unwrap(),
-                    tvs_client.fetch_tee_certificate().await.unwrap(),
+                    tvs_client
+                        .fetch_orchestrator_metadata()
+                        .await
+                        .unwrap()
+                        .tee_certificate_signature,
                 )
                 .await
         })
@@ -339,13 +347,18 @@ mod tests {
             )
             .await
             .unwrap();
-            tvs_client.fetch_tee_certificate().await
+            tvs_client.fetch_orchestrator_metadata().await
         })
         .await;
 
         let _ = shutdown_tx.send(());
         let _ = server.await;
         let want = include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec();
-        assert_eq!(cert.unwrap().unwrap(), want)
+        assert_eq!(
+            cert.unwrap().unwrap(),
+            proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse {
+                tee_certificate_signature: want
+            }
+        )
     }
 }
