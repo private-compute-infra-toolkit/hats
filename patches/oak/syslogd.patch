@@ -1,0 +1,23 @@
+diff --git oak_containers_syslogd/BUILD oak_containers_syslogd/BUILD
+index 6d16b4bc89..3f070430b7 100644
+--- oak_containers_syslogd/BUILD
++++ oak_containers_syslogd/BUILD
+@@ -27,7 +27,6 @@ rust_binary(
+     crate_features = ["bazel"],
+     # TODO: b/335717840 - Fix systemd linker issue and remove this tag.
+     tags = ["noci"],
+-    target_compatible_with = ["@platforms//:incompatible"],
+     deps = [
+         "//oak_containers_orchestrator:lib",
+         "@oak_crates_index//:anyhow",
+@@ -41,6 +40,9 @@ rust_binary(
+         "@oak_crates_index//:signal-hook-tokio",
+         "@oak_crates_index//:tokio",
+         "@oak_crates_index//:tokio-stream",
+-        "@systemd",
++    ],
++    rustc_flags = [
++        "-L/usr/lib/x86_64-linux-gnu",
++        "-ldylib=systemd",
+     ],
+ )

@@ -127,6 +127,7 @@ http_archive(
     name = "oak",
     patches = [
         "//patches/oak:launcher.patch",
+        "//patches/oak:syslogd.patch",
     ],
     sha256 = "995df9aefaca30f242d765626d6b37af69bd27170e17c7554a4673f661080b2d",
     strip_prefix = "oak-dc9ebbc93bacf3c7f79ad4b9c8a637646abadee4",
@@ -280,6 +281,38 @@ parc_dep1()
 load("@google_privacysandbox_servers_common//third_party:deps2.bzl", parc_dep2 = "deps2")
 
 parc_dep2()
+
+# Bazel rules for building OCI images and runtime bundles.
+http_archive(
+    name = "rules_oci",
+    sha256 = "56d5499025d67a6b86b2e6ebae5232c72104ae682b5a21287770bd3bf0661abf",
+    strip_prefix = "rules_oci-1.7.5",
+    url = "https://github.com/bazel-contrib/rules_oci/releases/download/v1.7.5/rules_oci-v1.7.5.tar.gz",
+)
+
+load("@rules_oci//oci:dependencies.bzl", "rules_oci_dependencies")
+
+rules_oci_dependencies()
+
+load("@rules_oci//oci:repositories.bzl", "LATEST_CRANE_VERSION", "LATEST_ZOT_VERSION", "oci_register_toolchains")
+
+oci_register_toolchains(
+    name = "oci",
+    crane_version = LATEST_CRANE_VERSION,
+    zot_version = LATEST_ZOT_VERSION,
+)
+
+load("@rules_oci//oci:pull.bzl", "oci_pull")
+
+oci_pull(
+    name = "oak_containers_sysimage_base",
+    digest = "sha256:9c88d3bed17cb49e4754de5b0ac7ed5cae3a7d033268278510c08c46b366f5d7",
+    image = "europe-west2-docker.pkg.dev/oak-ci/oak-containers-sysimage-base/oak-containers-sysimage-base",
+)
+
+load("@oak//bazel:repositories.bzl", "oak_toolchain_repositories")
+
+oak_toolchain_repositories()
 
 # Declare submodules as local repository so that `build //...` doesn't try to build them.
 local_repository(
