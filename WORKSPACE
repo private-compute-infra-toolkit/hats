@@ -141,6 +141,36 @@ load("@oak//bazel/crates:crates.bzl", "load_oak_crate_repositories")
 
 load_oak_crate_repositories()
 
+# For untarring the oak image bundle.
+http_archive(
+    name = "rules_foreign_cc",
+    sha256 = "51ad9c3893346e5a6c2d59a5f575344768d89873bfa32089a5947b369c4f3ef4",
+    strip_prefix = "rules_foreign_cc-51152aac9d6d8b887802a47ec08a1a37ef2c4885",
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/51152aac9d6d8b887802a47ec08a1a37ef2c4885.tar.gz",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
+_ALL_CONTENT = """\
+filegroup(
+    name = "all_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//visibility:public"],
+)
+"""
+
+http_archive(
+    name = "libarchive",
+    build_file_content = _ALL_CONTENT,
+    sha256 = "7875d49596286055b52439ed42f044bd8ad426aa4cc5aabd96bfe7abb971d5e8",
+    strip_prefix = "libarchive-3.7.4",
+    urls = [
+        "https://github.com/libarchive/libarchive/releases/download/v3.7.4/libarchive-3.7.4.tar.gz",
+    ],
+)
+
 # CXX bridge setup.
 # Mostly copied from https://github.com/bazelbuild/rules_rust/blob/df80ce61e418ea1c45c5bd51f88a440a7fb9ebc9/examples/crate_universe/WORKSPACE.bazel#L502
 
