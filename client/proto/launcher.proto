@@ -21,6 +21,9 @@ import "google/protobuf/empty.proto";
 
 message FetchOrchestratorMetadataResponse {
   bytes tee_certificate_signature = 1;
+  // Optional private key to enable noise KK. By default, communication to TVS
+  // is done through noise NK, which doesn't require the private key.
+  optional bytes noise_kk_private_key = 2;
 }
 
 service LauncherService {

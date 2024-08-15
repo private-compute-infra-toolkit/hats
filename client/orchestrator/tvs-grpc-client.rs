@@ -197,6 +197,7 @@ mod tests {
             Ok(Response::new(FetchOrchestratorMetadataResponse {
                 tee_certificate_signature: include_bytes!("../../tvs/test_data/vcek_genoa.crt")
                     .to_vec(),
+                noise_kk_private_key: None,
             }))
         }
 
@@ -357,7 +358,8 @@ mod tests {
         assert_eq!(
             cert.unwrap().unwrap(),
             proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse {
-                tee_certificate_signature: want
+                tee_certificate_signature: want,
+                noise_kk_private_key: None,
             }
         )
     }
