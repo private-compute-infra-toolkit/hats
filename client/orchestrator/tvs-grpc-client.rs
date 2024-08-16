@@ -174,13 +174,16 @@ mod tests {
     use crate::tests::launcher_service_server::LauncherServiceServer;
     use crypto::{P256Scalar, P256_SCALAR_LENGTH};
     use futures::FutureExt;
+    use std::collections::VecDeque;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::pin::Pin;
     use tokio::net::TcpListener;
     use tokio_stream::wrappers::TcpListenerStream;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::Response;
-    use tvs_trusted::proto::privacy_sandbox::tvs::AppraisalPolicies;
+    use tvs_trusted::proto::privacy_sandbox::tvs::{
+        AppraisalPolicies, Secret, VerifyReportResponse,
+    };
 
     struct TestService {
         pub tvs_private_key: [u8; P256_SCALAR_LENGTH],
@@ -263,7 +266,18 @@ mod tests {
         .expect("could not decode evidence")
     }
 
+    fn expected_verify_report_response(username: &str) -> VerifyReportResponse {
+        VerifyReportResponse {
+            secrets: vec![Secret {
+                key_id: 64,
+                public_key: format!("{username}-public-key").into(),
+                private_key: format!("{username}-secret").into(),
+            }],
+        }
+    }
+
     const NOW_UTC_MILLIS: i64 = 1698829200000;
+
     #[tokio::test]
     async fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
@@ -315,7 +329,9 @@ mod tests {
 
         let _ = shutdown_tx.send(());
         let _ = server.await;
-        assert_eq!(secret.unwrap().unwrap(), "test_user-secret".as_bytes());
+        let response =
+            VerifyReportResponse::decode(VecDeque::from(secret.unwrap().unwrap())).unwrap();
+        assert_eq!(response, expected_verify_report_response("test_user"));
     }
 
     #[tokio::test]

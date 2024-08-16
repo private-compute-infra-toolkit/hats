@@ -16,6 +16,8 @@
 
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -85,15 +87,19 @@ HatsLightweightClient::HatsLightweightClient(
     std::shared_ptr<grpc::Channel> channel)
     : hats_stub_(HatsOrchestrator::NewStub(channel)) {}
 
-absl::StatusOr<std::string> HatsLightweightClient::GetHpkeKey() const {
+absl::StatusOr<std::vector<Key>> HatsLightweightClient::GetKeys() const {
   grpc::ClientContext context;
   context.set_authority("[::]:0");
-  privacy_sandbox::client::GetHpkeKeyResponse response;
-  if (grpc::Status status = hats_stub_->GetHpkeKey(&context, {}, &response);
+  privacy_sandbox::client::GetKeysResponse response;
+  if (grpc::Status status = hats_stub_->GetKeys(&context, {}, &response);
       !status.ok()) {
     return GrpcToAbslStatus(status);
   }
-  return response.private_key();
+  std::vector<Key> keys;
+  for (Key& key : *response.mutable_keys()) {
+    keys.push_back(std::move(key));
+  }
+  return keys;
 }
 
 }  // namespace privacy_sandbox::client

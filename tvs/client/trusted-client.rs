@@ -197,7 +197,9 @@ fn hash_and_sign_evidence(
 mod tests {
     use super::*;
     use crypto::P256Scalar;
-    use tvs_trusted::proto::privacy_sandbox::tvs::AppraisalPolicies;
+    use tvs_trusted::proto::privacy_sandbox::tvs::{
+        AppraisalPolicies, Secret, VerifyReportResponse,
+    };
 
     fn get_genoa_vcek() -> Vec<u8> {
         include_bytes!("../test_data/vcek_genoa.crt").to_vec()
@@ -218,6 +220,16 @@ mod tests {
 
     fn get_good_evidence() -> Vec<u8> {
         include_bytes!("../test_data/good_evidence.binarypb").to_vec()
+    }
+
+    fn expected_verify_report_response(username: &str) -> VerifyReportResponse {
+        VerifyReportResponse {
+            secrets: vec![Secret {
+                key_id: 64,
+                public_key: format!("{username}-public-key").into(),
+                private_key: format!("{username}-secret").into(),
+            }],
+        }
     }
 
     const NOW_UTC_MILLIS: i64 = 1698829200000;
@@ -258,7 +270,8 @@ mod tests {
             .unwrap();
 
         let decrypted_secret = tvs_client.process_response(secret.as_slice()).unwrap();
-        assert_eq!(decrypted_secret, "test_user1-secret".as_bytes());
+        let response = VerifyReportResponse::decode(decrypted_secret.as_slice()).unwrap();
+        assert_eq!(response, expected_verify_report_response("test_user1"));
     }
 
     #[test]

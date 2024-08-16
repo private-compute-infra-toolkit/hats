@@ -25,8 +25,13 @@ ABSL_FLAG(std::string, primary_private_key, "",
           "Primary private key for NK-Noise handshake protocol.");
 ABSL_FLAG(std::string, secondary_private_key, "",
           "Secondary private key for NK-Noise handshake protocol.");
+ABSL_FLAG(int64_t, user_key_id, 64,
+          "ID for the secret, which is a full or partial private HPKEY key.");
+ABSL_FLAG(std::string, secret_public_key, "some public key",
+          "Public part of the secret.");
 ABSL_FLAG(std::string, secret, "736563726574",
           "A secret to be returned to client passing attestation validation.");
+
 namespace privacy_sandbox::key_manager {
 
 class KeyFetcherLocal : public KeyFetcher {
@@ -65,7 +70,8 @@ class KeyFetcherLocal : public KeyFetcher {
     return secondary_private_key_bytes;
   }
 
-  absl::StatusOr<std::string> GetSecret(absl::string_view username) override {
+  absl::StatusOr<std::vector<Secret>> GetSecrets(
+      absl::string_view username) override {
     // Return the same secret since we have one user only in the local mode.
     std::string secret_bytes;
     if (!absl::HexStringToBytes(secret_, &secret_bytes)) {
@@ -74,7 +80,11 @@ class KeyFetcherLocal : public KeyFetcher {
           "formatted as hex "
           "string.");
     }
-    return secret_bytes;
+    return std::vector<Secret>{{
+        .key_id = absl::GetFlag(FLAGS_user_key_id),
+        .public_key = absl::GetFlag(FLAGS_secret_public_key),
+        .private_key = std::move(secret_bytes),
+    }};
   }
 
   absl::StatusOr<int64_t> UserIdForAuthenticationKey(
@@ -83,7 +93,8 @@ class KeyFetcherLocal : public KeyFetcher {
     return 0;
   }
 
-  absl::StatusOr<std::string> GetSecretForUserId(int64_t user_id) override {
+  absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
+      int64_t user_id) override {
     // Return the same secret since we have one user only in the local mode.
     std::string secret_bytes;
     if (!absl::HexStringToBytes(secret_, &secret_bytes)) {
@@ -92,7 +103,11 @@ class KeyFetcherLocal : public KeyFetcher {
           "formatted as hex "
           "string.");
     }
-    return secret_bytes;
+    return std::vector<Secret>{{
+        .key_id = absl::GetFlag(FLAGS_user_key_id),
+        .public_key = absl::GetFlag(FLAGS_secret_public_key),
+        .private_key = std::move(secret_bytes),
+    }};
   }
 
  private:

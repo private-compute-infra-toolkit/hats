@@ -36,6 +36,7 @@
 #include "grpcpp/support/sync_stream.h"
 #include "gtest/gtest.h"
 #include "key_manager/key-fetcher-wrapper.h"
+#include "src/google/protobuf/test_textproto.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
@@ -46,9 +47,9 @@ namespace {
 
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
+using ::google::protobuf::EqualsProto;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
-using ::testing::StrEq;
 
 absl::StatusOr<VerifyReportRequest> VerifyReportRequestFromFile(
     const std::string& file_path) {
@@ -178,7 +179,6 @@ constexpr absl::string_view kTvsPrivateKey =
 constexpr absl::string_view kTvsPublicKey =
     "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
     "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
-constexpr absl::string_view kSecret = "default-secret";
 
 absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
   std::string bytes;
@@ -216,10 +216,17 @@ TEST(TvsServer, Successful) {
   constexpr absl::string_view kApplicationSigningKey =
       "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
 
-  EXPECT_THAT((*tvs_client)
-                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
-                                            *verify_report_request),
-              IsOkAndHolds(StrEq(kSecret)));
+  EXPECT_THAT(
+      (*tvs_client)
+          ->VerifyReportAndGetSecrets(std::string(kApplicationSigningKey),
+                                      *verify_report_request),
+      IsOkAndHolds(EqualsProto(
+          R"pb(
+            secrets {
+              key_id: 64
+              public_key: "default-public-key"
+              private_key: "default-secret"
+            })pb")));
 }
 
 TEST(TvsServer, BadReportError) {
@@ -249,12 +256,13 @@ TEST(TvsServer, BadReportError) {
 
   const absl::string_view kApplicationSigningKey =
       "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759";
-  EXPECT_THAT((*tvs_client)
-                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
-                                            *verify_report_request),
-              StatusIs(absl::StatusCode::kUnknown,
-                       AllOf(HasSubstr("Failed to verify report"),
-                             HasSubstr("No matching appraisal policy found"))));
+  EXPECT_THAT(
+      (*tvs_client)
+          ->VerifyReportAndGetSecrets(std::string(kApplicationSigningKey),
+                                      *verify_report_request),
+      StatusIs(absl::StatusCode::kUnknown,
+               AllOf(HasSubstr("Failed to verify report"),
+                     HasSubstr("No matching appraisal policy found"))));
 }
 
 TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
@@ -284,16 +292,25 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
 
   constexpr absl::string_view kApplicationSigningKey =
       "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
-  ASSERT_THAT((*tvs_client)
-                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
-                                            *verify_report_request),
-              IsOkAndHolds(StrEq(kSecret)));
 
-  EXPECT_THAT((*tvs_client)
-                  ->VerifyReportAndGetToken(std::string(kApplicationSigningKey),
-                                            *verify_report_request),
-              StatusIs(absl::StatusCode::kUnknown,
-                       HasSubstr("Failed to write message to stream.")));
+  ASSERT_THAT(
+      (*tvs_client)
+          ->VerifyReportAndGetSecrets(std::string(kApplicationSigningKey),
+                                      *verify_report_request),
+      IsOkAndHolds(EqualsProto(
+          R"pb(
+            secrets {
+              key_id: 64
+              public_key: "default-public-key"
+              private_key: "default-secret"
+            })pb")));
+
+  EXPECT_THAT(
+      (*tvs_client)
+          ->VerifyReportAndGetSecrets(std::string(kApplicationSigningKey),
+                                      *verify_report_request),
+      StatusIs(absl::StatusCode::kUnknown,
+               HasSubstr("Failed to write message to stream.")));
 }
 
 TEST(TvsServer, MalformedMessageError) {

@@ -15,8 +15,10 @@
 use crate::proto::privacy_sandbox::client::hats_orchestrator_server::{
     HatsOrchestrator, HatsOrchestratorServer,
 };
-use crate::proto::privacy_sandbox::client::GetHpkeKeyResponse;
+use crate::proto::privacy_sandbox::client::{GetKeysResponse, Key};
+use crate::proto::privacy_sandbox::tvs::VerifyReportResponse;
 use anyhow::Context;
+use prost::Message;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -37,34 +39,39 @@ pub mod proto {
 }
 
 struct HatsServer {
-    private_key: Vec<u8>,
+    response: VerifyReportResponse,
 }
 
 #[tonic::async_trait]
 impl HatsOrchestrator for HatsServer {
-    async fn get_hpke_key(
+    async fn get_keys(
         &self,
         _request: Request<()>,
-    ) -> Result<Response<GetHpkeKeyResponse>, tonic::Status> {
-        Ok(tonic::Response::new(GetHpkeKeyResponse {
-            private_key: self.private_key.clone(),
-        }))
+    ) -> Result<Response<GetKeysResponse>, tonic::Status> {
+        let mut keys = vec![];
+        for secret in &self.response.secrets {
+            keys.push(Key {
+                key_id: secret.key_id,
+                public_key: secret.public_key.clone(),
+                private_key: secret.private_key.clone(),
+            });
+        }
+        Ok(tonic::Response::new(GetKeysResponse { keys: keys }))
     }
 }
 
 pub async fn create(
     path: &PathBuf,
-    hpke_private_key: &[u8],
+    secrets: &[u8],
     cancellation_token: CancellationToken,
 ) -> Result<(), anyhow::Error> {
     // TODO(alwabel): export oak crypto service.
     let uds = UnixListener::bind(path.clone()).context("failed to bind uds")?;
     let uds_stream = UnixListenerStream::new(uds);
     set_permissions(path, Permissions::from_mode(0o666)).await?;
-
-    let hat_server = HatsServer {
-        private_key: hpke_private_key.to_vec(),
-    };
+    // Decode TVS response.
+    let response = VerifyReportResponse::decode(secrets)?;
+    let hat_server = HatsServer { response: response };
 
     Server::builder()
         .add_service(HatsOrchestratorServer::new(hat_server))
@@ -78,6 +85,7 @@ pub async fn create(
 mod tests {
     use super::*;
     use crate::proto::privacy_sandbox::client::hats_orchestrator_client::HatsOrchestratorClient;
+    use crate::proto::privacy_sandbox::tvs::Secret;
     use futures::FutureExt;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use tokio::net::TcpListener;
@@ -85,7 +93,7 @@ mod tests {
     use tonic::transport::Channel;
 
     #[tokio::test]
-    async fn get_hpke_key_successful() {
+    async fn get_key_successful() {
         tokio::fs::create_dir_all("/tmp/ipc").await.unwrap();
         let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let listener = TcpListener::bind(sockaddr).await.unwrap();
@@ -93,7 +101,20 @@ mod tests {
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
         let _ = tokio::spawn(async move {
             let hat_server = HatsServer {
-                private_key: vec![0x68, 0x61, 0x74, 0x73],
+                response: VerifyReportResponse {
+                    secrets: vec![
+                        Secret {
+                            key_id: 501,
+                            public_key: "test-public-key1".to_string(),
+                            private_key: vec![0xaf, 0xbe, 0x01],
+                        },
+                        Secret {
+                            key_id: 502,
+                            public_key: "test-public-key2".to_string(),
+                            private_key: vec![0xaf, 0xbe, 0x02],
+                        },
+                    ],
+                },
             };
             tonic::transport::Server::builder()
                 .add_service(HatsOrchestratorServer::new(hat_server))
@@ -110,8 +131,8 @@ mod tests {
                 .await
                 .unwrap();
             let mut client = HatsOrchestratorClient::new(channel);
-            let result: GetHpkeKeyResponse = client
-                .get_hpke_key(tonic::Request::new(()))
+            let result: GetKeysResponse = client
+                .get_keys(tonic::Request::new(()))
                 .await
                 .unwrap()
                 .into_inner();
@@ -119,6 +140,22 @@ mod tests {
         })
         .await;
         let _ = shutdown_tx.send(());
-        assert_eq!(secret.unwrap().private_key, "hats".as_bytes());
+        assert_eq!(
+            secret.unwrap(),
+            GetKeysResponse {
+                keys: vec![
+                    Key {
+                        key_id: 501,
+                        public_key: "test-public-key1".to_string(),
+                        private_key: vec![0xaf, 0xbe, 0x01],
+                    },
+                    Key {
+                        key_id: 502,
+                        public_key: "test-public-key2".to_string(),
+                        private_key: vec![0xaf, 0xbe, 0x02],
+                    },
+                ],
+            }
+        );
     }
 }

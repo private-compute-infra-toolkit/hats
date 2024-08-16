@@ -129,7 +129,8 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   // never leaves. The table contains the following columns:
   // * KekId: a unique identifier for a KEK.
   // * ResourceName: KMS key resource name in the following format
-  //   projects/<project_name>/location/<location>/KeyRings/<key_ring_name>/cryptoKeys/<key_name>.
+  //   projects/<project_name>/location/<location>/KeyRings/<key_ring_name>/
+  //   cryptoKeys/<key_name>.
   request.add_extra_statements(R"sql(
       CREATE TABLE KeyEncryptionKeys(
           KekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE KekIdSequence)),
@@ -191,7 +192,8 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   // user).
   request.add_extra_statements(R"sql(
       CREATE TABLE Users(
-          UserId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
+          UserId INT64 DEFAULT
+                (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
           Name   STRING(1024) NOT NULL,
           Origin STRING(1024),
       ) PRIMARY KEY (UserId))sql");
@@ -212,28 +214,37 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
           PublicKey BYTES(MAX) NOT NULL,
       ) PRIMARY KEY (UserId, PublicKey))sql");
 
+  // A sequence to generate secret IDs.
+  request.add_extra_statements(R"sql(
+      CREATE SEQUENCE SecretIdSequence OPTIONS (
+      sequence_kind="bit_reversed_positive"))sql");
   // Table storing secrets to be returned to entities passing TVS attestation.
   // Secret could be full or partial HPKE keys or any arbitrary strings. The
   // stored secrets are wrapped with a DEK. The table contains the following
   // columns:
+  // * SecretId: a unique identifier for secrets.
   // * UserId: the ID of the user owning the secret.
   // * DekId: specifies the DEK used to wrap the secret.
   // * Secret: a secret wrapped with DekId.
-  // Right now we allow the user to have one secret.
+  // * UpdateTimestamp: timestamp of the last update to the row.
   request.add_extra_statements(R"sql(
       CREATE TABLE Secrets(
+          SecretId INT64 DEFAULT
+                        (GET_NEXT_SEQUENCE_VALUE(SEQUENCE SecretIdSequence)),
           UserId   INT64 NOT NULL,
           DekId    INT64 NOT NULL,
           Secret   BYTES(MAX) NOT NULL,
-      ) PRIMARY KEY (UserId))sql");
+          UpdateTimestamp   TIMESTAMP NOT NULL,
+      ) PRIMARY KEY (SecretId))sql");
 
   // Table storing public keys of the users. Right now we allow the user
   // to have only one secret and one public key.
   request.add_extra_statements(R"sql(
       CREATE TABLE UserPublicKeys(
+          SecretId INT64 NOT NULL,
           UserId   INT64 NOT NULL,
           PublicKey STRING(1024) NOT NULL,
-      ) PRIMARY KEY (UserId))sql");
+      ) PRIMARY KEY (SecretId))sql");
 
   // A sequence to generate policy IDs.
   request.add_extra_statements(R"sql(
@@ -248,7 +259,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
       CREATE TABLE AppraisalPolicies(
           PolicyId          INT64 DEFAULT
                             (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
-          Policy   BYTES(MAX) NOT NULL,
+          Policy            BYTES(MAX) NOT NULL,
           UpdateTimestamp   TIMESTAMP NOT NULL,
       ) PRIMARY KEY (PolicyId))sql");
 
@@ -469,10 +480,10 @@ absl::Status CreateTvsKeys(absl::string_view spanner_database,
                {"secondary_key",
                 google::cloud::spanner::Value(google::cloud::spanner::Bytes(
                     tvs_secrets.wrapped_secondary_ec_private_key))}});
-          auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
-          using RowType = std::tuple<std::string, int64_t, std::string>;
-          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            if (!row.ok()) return row.status();
+          if (auto inserted =
+                  spanner_client.ExecuteDml(transaction, std::move(sql));
+              !inserted.ok()) {
+            return inserted.status();
           }
         }
         // Insert the TVS public keys in hex format for ease of querying.
@@ -485,11 +496,10 @@ absl::Status CreateTvsKeys(absl::string_view spanner_database,
                                    tvs_secrets.primary_ec_public_key)},
                {"secondary_key", google::cloud::spanner::Value(
                                      tvs_secrets.secondary_ec_public_key)}});
-          auto rows = spanner_client.ExecuteQuery(std::move(transaction),
-                                                  std::move(sql));
-          using RowType = std::tuple<std::string, int64_t, std::string>;
-          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            if (!row.ok()) return row.status();
+          if (auto inserted = spanner_client.ExecuteDml(std::move(transaction),
+                                                        std::move(sql));
+              !inserted.ok()) {
+            return inserted.status();
           }
         }
         return google::cloud::spanner::Mutations{};
@@ -547,11 +557,10 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
               {{"policy",
                 google::cloud::spanner::Value(google::cloud::spanner::Bytes(
                     appraisal_policy.SerializeAsString()))}});
-          auto rows = spanner_client.ExecuteQuery(std::move(transaction),
-                                                  std::move(sql));
-          using RowType = std::tuple<std::string, int64_t, std::string>;
-          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            if (!row.ok()) return row.status();
+          if (auto inserted = spanner_client.ExecuteDml(std::move(transaction),
+                                                        std::move(sql));
+              !inserted.ok()) {
+            return inserted.status();
           }
         }
         return google::cloud::spanner::Mutations{};
@@ -769,41 +778,44 @@ absl::Status RegisterUser(absl::string_view spanner_database,
                {"public_key",
                 google::cloud::spanner::Value(
                     google::cloud::spanner::Bytes(public_key_hex))}});
-          auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
-          using RowType = std::tuple<std::string, int64_t, std::string>;
-          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            if (!row.ok()) return row.status();
+          if (auto inserted =
+                  spanner_client.ExecuteDml(transaction, std::move(sql));
+              !inserted.ok()) {
+            return inserted.status();
           }
         }
+        int64_t secret_id;
         // Insert the wrapped secret.
         {
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  Secrets(UserId, DekId, Secret)
-              VALUES (@user_id, @dek_id, @secret))sql",
+              R"sql(INSERT INTO  Secrets(UserId, DekId, Secret, UpdateTimestamp)
+              VALUES (@user_id, @dek_id, @secret, CURRENT_TIMESTAMP())
+              THEN RETURN SecretId)sql",
               {{"user_id", google::cloud::spanner::Value(user_id)},
                {"dek_id", google::cloud::spanner::Value(dek_id)},
                {"secret",
                 google::cloud::spanner::Value(google::cloud::spanner::Bytes(
                     user_secrets.wrapped_user_secret))}});
           auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
-          using RowType = std::tuple<std::string, int64_t, std::string>;
+          using RowType = std::tuple<int64_t>;
           for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
             if (!row.ok()) return row.status();
+            secret_id = std::get<0>(*row);
           }
         }
         // Insert the public key part of the secret.
         {
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  UserPublicKeys(UserId, PublicKey)
-              VALUES (@user_id, @public_key))sql",
-              {{"user_id", google::cloud::spanner::Value(user_id)},
+              R"sql(INSERT INTO  UserPublicKeys(SecretId, UserId, PublicKey)
+              VALUES (@secret_id, @user_id, @public_key))sql",
+              {{"secret_id", google::cloud::spanner::Value(secret_id)},
+               {"user_id", google::cloud::spanner::Value(user_id)},
                {"public_key",
                 google::cloud::spanner::Value(user_secrets.user_public_key)}});
-          auto rows = spanner_client.ExecuteQuery(std::move(transaction),
-                                                  std::move(sql));
-          using RowType = std::tuple<std::string, int64_t, std::string>;
-          for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            if (!row.ok()) return row.status();
+          if (auto inserted = spanner_client.ExecuteDml(std::move(transaction),
+                                                        std::move(sql));
+              !inserted.ok()) {
+            return inserted.status();
           }
         }
         return google::cloud::spanner::Mutations{};

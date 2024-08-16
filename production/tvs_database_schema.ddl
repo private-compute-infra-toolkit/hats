@@ -26,6 +26,10 @@ CREATE SEQUENCE PolicyIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
 
+CREATE SEQUENCE SecretIdSequence OPTIONS (
+  sequence_kind = 'bit_reversed_positive'
+);
+
 CREATE SEQUENCE UserIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
@@ -50,10 +54,12 @@ CREATE TABLE KeyEncryptionKeys (
 CREATE UNIQUE INDEX KekResourceNameIndex ON KeyEncryptionKeys(ResourceName);
 
 CREATE TABLE Secrets (
+  SecretId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE SecretIdSequence)),
   UserId INT64 NOT NULL,
   DekId INT64 NOT NULL,
   Secret BYTES(MAX) NOT NULL,
-) PRIMARY KEY(UserId);
+  UpdateTimestamp TIMESTAMP NOT NULL,
+) PRIMARY KEY(SecretId);
 
 CREATE TABLE TVSPrivateKeys (
   KeyId STRING(1024),
@@ -72,9 +78,10 @@ CREATE TABLE UserAuthenticationKeys (
 ) PRIMARY KEY(UserId, PublicKey);
 
 CREATE TABLE UserPublicKeys (
+  SecretId INT64 NOT NULL,
   UserId INT64 NOT NULL,
   PublicKey STRING(1024) NOT NULL,
-) PRIMARY KEY(UserId);
+) PRIMARY KEY(SecretId);
 
 CREATE TABLE Users (
   UserId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),

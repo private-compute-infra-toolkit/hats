@@ -28,6 +28,7 @@
 #include "google/protobuf/text_format.h"
 #include "grpcpp/channel.h"
 #include "tvs/credentials/credentials.h"
+#include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
 
 ABSL_FLAG(std::string, tvs_address, "localhost:8081", "TVS server address.");
@@ -97,20 +98,25 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "Couldn't create TVS client: " << tvs_client.status();
     return 1;
   }
-  absl::StatusOr<std::string> token =
+  absl::StatusOr<privacy_sandbox::tvs::VerifyReportResponse> response =
       (*tvs_client)
-          ->VerifyReportAndGetToken(application_signing_key,
-                                    verify_report_request);
-  if (!token.ok()) {
-    std::cout << "TVS rejected the report: " << token.status() << std::endl;
+          ->VerifyReportAndGetSecrets(application_signing_key,
+                                      verify_report_request);
+  if (!response.ok()) {
+    std::cout << "TVS rejected the report: " << response.status() << std::endl;
   }
 
-  if (absl::StatusOr<std::string> token_hex = absl::BytesToHexString(*token);
-      token_hex.ok()) {
-    std::cout << "Token in hex format: " << token_hex << std::endl;
-  } else {
-    std::cout << "Failed to convert token to hex; token in bytes is: " << *token
-              << std::endl;
+  for (const privacy_sandbox::tvs::Secret& secret : response->secrets()) {
+    std::cout << "Key id: " << secret.key_id() << std::endl;
+    std::cout << "Public key: " << secret.public_key() << std::endl;
+    if (absl::StatusOr<std::string> private_key_hex =
+            absl::BytesToHexString(secret.private_key());
+        private_key_hex.ok()) {
+      std::cout << "Prvate key in hex format: " << private_key_hex << std::endl;
+    } else {
+      std::cout << "Failed to convert private key to hex; token in bytes is: "
+                << secret.private_key() << std::endl;
+    }
   }
   return 0;
 }

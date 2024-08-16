@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 

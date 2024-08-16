@@ -1,7 +1,6 @@
 load("@oak//bazel:defs.bzl", "oci_runtime_bundle")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 # Change oak-orchestrator.service to load hats orchestrator
 # and bake the TVS public key in the file.

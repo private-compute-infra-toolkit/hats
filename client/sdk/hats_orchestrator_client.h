@@ -17,9 +17,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "client/proto/orchestrator.grpc.pb.h"
+#include "client/proto/orchestrator.pb.h"
 #include "external/oak/cc/containers/sdk/orchestrator_client.h"
 #include "grpcpp/channel.h"
 
@@ -32,7 +34,7 @@ class HatsOrchestratorClient final
   HatsOrchestratorClient();
   HatsOrchestratorClient(std::shared_ptr<grpc::Channel> channel);
 
-  absl::StatusOr<std::string> GetHpkeKey() const;
+  absl::StatusOr<std::vector<Key>> GetKeys() const;
 
  private:
   std::unique_ptr<HatsOrchestrator::Stub> hats_stub_;

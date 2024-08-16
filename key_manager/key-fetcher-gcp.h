@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
@@ -43,12 +44,14 @@ class KeyFetcherGcp : public KeyFetcher {
 
   absl::StatusOr<std::string> GetSecondaryPrivateKey() override;
 
-  absl::StatusOr<std::string> GetSecret(absl::string_view username) override;
+  absl::StatusOr<std::vector<Secret>> GetSecrets(
+      absl::string_view username) override;
 
   absl::StatusOr<int64_t> UserIdForAuthenticationKey(
       absl::string_view public_key) override;
 
-  absl::StatusOr<std::string> GetSecretForUserId(int64_t user_id) override;
+  absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
+      int64_t user_id) override;
 
  private:
   // For unit-tests only.

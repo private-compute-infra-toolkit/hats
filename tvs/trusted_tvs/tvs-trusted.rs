@@ -346,7 +346,9 @@ fn create_endorsements(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::privacy_sandbox::tvs::{InitSessionRequest, VerifyReportRequestEncrypted};
+    use crate::proto::privacy_sandbox::tvs::{
+        InitSessionRequest, Secret, VerifyReportRequestEncrypted, VerifyReportResponse,
+    };
     use crypto::P256Scalar;
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 
@@ -415,6 +417,16 @@ mod tests {
             .encode(&mut message_bin)
             .map_err(|error| format!("Failed to serialize AttestReportRequest. {}", error))?;
         Ok(message_bin)
+    }
+
+    fn expected_verify_report_response(username: &str) -> VerifyReportResponse {
+        VerifyReportResponse {
+            secrets: vec![Secret {
+                key_id: 64,
+                public_key: format!("{username}-public-key").into(),
+                private_key: format!("{username}-secret").into(),
+            }],
+        }
     }
 
     const NOW_UTC_MILLIS: i64 = 1698829200000;
@@ -506,8 +518,8 @@ mod tests {
         };
 
         let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
-        let secret_text = std::str::from_utf8(secret.as_slice()).unwrap();
-        assert_eq!(secret_text, "test_user1-secret");
+        let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
+        assert_eq!(response, expected_verify_report_response("test_user1"));
     }
 
     #[test]
@@ -600,8 +612,8 @@ mod tests {
         };
 
         let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
-        let secret_text = std::str::from_utf8(secret.as_slice()).unwrap();
-        assert_eq!(secret_text, "test_user2-secret");
+        let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
+        assert_eq!(response, expected_verify_report_response("test_user2"));
     }
 
     // Test that the handshake session is terminated after the first
@@ -692,8 +704,8 @@ mod tests {
         };
 
         let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
-        let secret_text = std::str::from_utf8(secret.as_slice()).unwrap();
-        assert_eq!(secret_text, "test_user1-secret");
+        let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
+        assert_eq!(response, expected_verify_report_response("test_user1"));
 
         match trusted_tvs.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),

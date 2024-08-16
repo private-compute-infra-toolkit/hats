@@ -15,8 +15,12 @@
 #ifndef HATS_CLIENT_LAUNCHER_LAUNCHER_H_
 #define HATS_CLIENT_LAUNCHER_LAUNCHER_H_
 
+#include <memory>
+#include <string>
+
 #include "absl/strings/string_view.h"
 #include "client/proto/launcher_config.pb.h"
+
 namespace privacy_sandbox::client {
 
 // HatsLauncher untars the hats bundle into a hosted location:

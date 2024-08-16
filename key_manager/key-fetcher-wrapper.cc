@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -28,6 +29,7 @@
 #include "absl/synchronization/mutex.h"
 #include "key_manager/key-fetcher.h"
 #include "rust/cxx.h"
+#include "tvs/proto/tvs_messages.pb.h"
 
 namespace privacy_sandbox::key_manager {
 
@@ -57,15 +59,25 @@ class EchoKeyFetcher final : public KeyFetcher {
   absl::StatusOr<std::string> GetSecondaryPrivateKey() override {
     return absl::UnimplementedError("unimplemented.");
   }
-  absl::StatusOr<std::string> GetSecret(absl::string_view user_name) override {
-    return absl::StrCat(user_name, "-secret");
+  absl::StatusOr<std::vector<Secret>> GetSecrets(
+      absl::string_view user_name) override {
+    return std::vector<Secret>{{
+        .key_id = 64,
+        .public_key = absl::StrCat(user_name, "-public-key"),
+        .private_key = absl::StrCat(user_name, "-secret"),
+    }};
   }
   absl::StatusOr<int64_t> UserIdForAuthenticationKey(
       absl::string_view public_key) override {
     return 0;
   }
-  absl::StatusOr<std::string> GetSecretForUserId(int64_t user_id) override {
-    return absl::StrCat(user_id, "-secret");
+  absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
+      int64_t user_id) override {
+    return std::vector<Secret>{{
+        .key_id = 64,
+        .public_key = absl::StrCat(user_id, "-public-key"),
+        .private_key = absl::StrCat(user_id, "-secret"),
+    }};
   }
 };
 
@@ -73,14 +85,27 @@ class EchoKeyFetcher final : public KeyFetcher {
 
 rust::Vec<uint8_t> GetSecret(rust::Str username) {
   KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
-  absl::StatusOr<std::string> secret =
-      key_fetcher->GetSecret(std::string(username));
-  if (!secret.ok()) {
+  absl::StatusOr<std::vector<Secret>> secrets =
+      key_fetcher->GetSecrets(std::string(username));
+  if (!secrets.ok()) {
     throw std::runtime_error(
-        absl::StrCat("Failed to get secret: ", secret.status()));
+        absl::StrCat("Failed to get secret: ", secrets.status()));
+  }
+  std::string serialized_response;
+  {
+    tvs::VerifyReportResponse response;
+    // Use non-const to enable effective use of std::move().
+    for (Secret& secret : *secrets) {
+      tvs::Secret& tvs_secret = *response.add_secrets();
+      tvs_secret.set_key_id(secret.key_id);
+      *tvs_secret.mutable_public_key() = std::move(secret.public_key);
+      *tvs_secret.mutable_private_key() = std::move(secret.private_key);
+    }
+    serialized_response = response.SerializeAsString();
   }
   rust::Vec<uint8_t> v;
-  std::copy(secret->begin(), secret->end(), std::back_inserter(v));
+  std::copy(serialized_response.begin(), serialized_response.end(),
+            std::back_inserter(v));
   return v;
 }
 
@@ -98,13 +123,27 @@ int64_t UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key) {
 
 rust::Vec<uint8_t> GetSecretForUserId(int64_t user_id) {
   KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
-  absl::StatusOr<std::string> secret = key_fetcher->GetSecretForUserId(user_id);
-  if (!secret.ok()) {
+  absl::StatusOr<std::vector<Secret>> secrets =
+      key_fetcher->GetSecretsForUserId(user_id);
+  if (!secrets.ok()) {
     throw std::runtime_error(
-        absl::StrCat("Failed to get secret: ", secret.status()));
+        absl::StrCat("Failed to get secret: ", secrets.status()));
+  }
+  std::string serialized_response;
+  {
+    tvs::VerifyReportResponse response;
+    // Use non-const to enable effective use of std::move().
+    for (Secret& secret : *secrets) {
+      tvs::Secret& tvs_secret = *response.add_secrets();
+      tvs_secret.set_key_id(secret.key_id);
+      *tvs_secret.mutable_public_key() = std::move(secret.public_key);
+      *tvs_secret.mutable_private_key() = std::move(secret.private_key);
+    }
+    serialized_response = response.SerializeAsString();
   }
   rust::Vec<uint8_t> v;
-  std::copy(secret->begin(), secret->end(), std::back_inserter(v));
+  std::copy(serialized_response.begin(), serialized_response.end(),
+            std::back_inserter(v));
   return v;
 }
 

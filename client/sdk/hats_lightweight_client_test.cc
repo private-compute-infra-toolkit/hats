@@ -22,29 +22,32 @@
 #include "grpcpp/server_builder.h"
 #include "grpcpp/support/channel_arguments.h"
 #include "gtest/gtest.h"
+#include "src/google/protobuf/test_textproto.h"
 
 namespace privacy_sandbox::client {
 namespace {
 
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
+using ::google::protobuf::EqualsProto;
 using ::testing::HasSubstr;
-using ::testing::StrEq;
-
-constexpr absl::string_view kTestKey = "private_key";
+using ::testing::UnorderedElementsAre;
 
 class TestHatsOrchestratorService final : public HatsOrchestrator::Service {
  public:
   TestHatsOrchestratorService(bool return_error)
       : return_error_(return_error) {}
-  grpc::Status GetHpkeKey(grpc::ServerContext* context,
-                          const google::protobuf::Empty* request,
-                          GetHpkeKeyResponse* response) {
+  grpc::Status GetKeys(grpc::ServerContext* context,
+                       const google::protobuf::Empty* request,
+                       GetKeysResponse* response) {
     if (return_error_) {
       return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                           "Invalid argument");
     }
-    response->set_private_key(kTestKey);
+    Key& key = *response->add_keys();
+    key.set_key_id(100);
+    key.set_public_key("test-public-key");
+    key.set_private_key("test-private-key");
     return grpc::Status::OK;
   }
 
@@ -58,8 +61,14 @@ TEST(HatsLightweightClient, Success) {
       grpc::ServerBuilder().RegisterService(&test_service).BuildAndStart();
   HatsLightweightClient hats_lightweight_client(
       server->InProcessChannel(grpc::ChannelArguments()));
-  EXPECT_THAT(hats_lightweight_client.GetHpkeKey(),
-              IsOkAndHolds(StrEq(kTestKey)));
+
+  EXPECT_THAT(hats_lightweight_client.GetKeys(),
+              IsOkAndHolds(UnorderedElementsAre(EqualsProto(
+                  R"pb(
+                    key_id: 100
+                    public_key: "test-public-key"
+                    private_key: "test-private-key"
+                  )pb"))));
 }
 
 TEST(HatsLightweightClient, Error) {
@@ -68,7 +77,7 @@ TEST(HatsLightweightClient, Error) {
       grpc::ServerBuilder().RegisterService(&test_service).BuildAndStart();
   HatsLightweightClient hats_lightweight_client(
       server->InProcessChannel(grpc::ChannelArguments()));
-  EXPECT_THAT(hats_lightweight_client.GetHpkeKey(),
+  EXPECT_THAT(hats_lightweight_client.GetKeys(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Invalid argument")));
 }

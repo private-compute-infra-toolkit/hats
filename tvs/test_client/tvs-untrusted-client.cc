@@ -29,6 +29,7 @@
 #include "grpcpp/support/sync_stream.h"
 #include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/tvs.grpc.pb.h"
+#include "tvs/proto/tvs_messages.pb.h"
 
 namespace privacy_sandbox::tvs {
 
@@ -127,7 +128,8 @@ TvsUntrustedClient::CreateClient(const Options& options) {
   }
 }
 
-absl::StatusOr<std::string> TvsUntrustedClient::VerifyReportAndGetToken(
+absl::StatusOr<VerifyReportResponse>
+TvsUntrustedClient::VerifyReportAndGetSecrets(
     const std::string& application_signing_key,
     const VerifyReportRequest& verify_report_request) {
   // try/catch is to handle errors from rust code.
@@ -156,7 +158,11 @@ absl::StatusOr<std::string> TvsUntrustedClient::VerifyReportAndGetToken(
 
     rust::Vec<uint8_t> secret = tvs_client_->process_response(
         StringToRustSlice(opaque_message.binary_message()));
-    return std::string(secret.begin(), secret.end());
+    VerifyReportResponse response;
+    if (!response.ParseFromArray(secret.data(), secret.size())) {
+      return absl::UnknownError("Cannot parse result into proto");
+    }
+    return response;
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to create trusted TVS client.", e.what()));

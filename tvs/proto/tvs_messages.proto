@@ -52,7 +52,16 @@ message InitSessionResponse {
   bytes response_for_client = 1;
 }
 
-// TODO(alwabel): define the unencrypted version.
+message Secret {
+  int64 key_id = 1;
+  string public_key = 2;
+  bytes private_key = 3;
+};
+
+message VerifyReportResponse {
+  repeated Secret secrets = 1;
+}
+
 // Encrypted version of VerifyReportRequest
 message VerifyReportResponseEncrypted {
   bytes response_for_client = 1;

@@ -50,8 +50,8 @@ class TvsUntrustedClient final {
   static absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> CreateClient(
       const Options& options);
 
-  // Get JWT token from TVS server.
-  absl::StatusOr<std::string> VerifyReportAndGetToken(
+  // Get secrets from TVS server.
+  absl::StatusOr<VerifyReportResponse> VerifyReportAndGetSecrets(
       const std::string& application_signing_key,
       const VerifyReportRequest& verify_report_request);
 

@@ -17,11 +17,18 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 
 namespace privacy_sandbox::key_manager {
+
+struct Secret {
+  int64_t key_id;
+  std::string public_key;
+  std::string private_key;
+};
 
 class KeyFetcher {
  public:
@@ -31,14 +38,16 @@ class KeyFetcher {
   virtual absl::StatusOr<std::string> GetPrimaryPrivateKey() = 0;
   // The secondary private key used for the noise protocol.
   virtual absl::StatusOr<std::string> GetSecondaryPrivateKey() = 0;
-  // Get secret for `username` (and unwrap the secret if encrypted).
+  // Get secrets for `username` (and unwrap the secret if encrypted).
   // TODO(b/359951785): remove after authentication is implemented.
-  virtual absl::StatusOr<std::string> GetSecret(absl::string_view username) = 0;
+  virtual absl::StatusOr<std::vector<Secret>> GetSecrets(
+      absl::string_view username) = 0;
   // Find the user id owning the authentication key.
   virtual absl::StatusOr<int64_t> UserIdForAuthenticationKey(
       absl::string_view public_key) = 0;
-  // Find secret for `user_id`.
-  virtual absl::StatusOr<std::string> GetSecretForUserId(int64_t user_id) = 0;
+  // Find secrets for `user_id`.
+  virtual absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
+      int64_t user_id) = 0;
 };
 
 }  // namespace privacy_sandbox::key_manager
