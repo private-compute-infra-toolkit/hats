@@ -15,16 +15,15 @@ extern crate alloc;
 
 use anyhow::Result;
 use bssl_crypto::hpke;
-use num_bigint::{BigInt, RandBigInt};
+use num_bigint::{BigInt, RandBigInt, Sign};
 use serde::Deserialize;
 use serde_json::json;
-
-pub const HPKE_PRIVATE_KEY_LENGTH: usize = 32;
 
 #[derive(Clone)]
 pub struct SecretSharing {
     pub threshold: usize,
     pub numshares: usize,
+    pub prime: BigInt,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -50,107 +49,102 @@ mod ffi {
     }
     extern "Rust" {
         pub fn split_wrap(
-            secret_bytes: &[u8; 32],
+            secret_bytes: &Vec<u8>,
             numshares: usize,
             threshold: usize,
         ) -> Result<Vec<String>>;
         pub fn recover_wrap(
-            shares1: &Vec<String>,
+            shares_vec: &Vec<String>,
             numshares: usize,
             threshold: usize,
-        ) -> Result<[u8; 32]>;
-        pub fn get_valid_private_key() -> [u8; 32];
+        ) -> Result<Vec<u8>>;
+        pub fn get_valid_private_key() -> Vec<u8>;
     }
 }
 
 pub fn split_wrap(
-    secret_bytes: &[u8; HPKE_PRIVATE_KEY_LENGTH],
+    secret_bytes: &Vec<u8>,
     numshares: usize,
     threshold: usize,
 ) -> Result<Vec<String>, String> {
     let mut sham = SecretSharing {
         numshares: numshares,
         threshold: threshold,
+        prime: get_prime(),
     };
     let shares = sham.split(secret_bytes).unwrap();
-    let mut shares1: Vec<String> = Vec::new();
+    let mut serialized_shares: Vec<String> = Vec::new();
     for share in shares {
         let serialized_share = json!({
             "value": share.value,
             "index": share.index,
         });
-        shares1.push(serialized_share.to_string());
+        serialized_shares.push(serialized_share.to_string());
     }
-    Ok(shares1)
+    Ok(serialized_shares)
 }
 
 pub fn recover_wrap(
-    shares1: &Vec<String>,
+    shares_vec: &Vec<String>,
     numshares: usize,
     threshold: usize,
-) -> Result<[u8; HPKE_PRIVATE_KEY_LENGTH], String> {
+) -> Result<Vec<u8>, String> {
     let mut sham = SecretSharing {
         numshares: numshares,
         threshold: threshold,
+        prime: get_prime(),
     };
 
     let mut shares: Vec<Share> = Vec::new();
-    for ser_share1 in shares1 {
-        let share1: Share =
-            serde_json::from_value(serde_json::from_str(ser_share1).unwrap()).unwrap();
-        shares.push(share1);
+    for ser_share in shares_vec {
+        let share: Share =
+            serde_json::from_value(serde_json::from_str(ser_share).unwrap()).unwrap();
+        shares.push(share);
     }
     let key = sham.recover(&shares).unwrap();
     Ok(key)
 }
 
-pub fn get_valid_private_key() -> [u8; HPKE_PRIVATE_KEY_LENGTH] {
+pub fn get_valid_private_key() -> Vec<u8> {
     let kem = hpke::Kem::X25519HkdfSha256;
-    let (mut private, _) = kem.generate_keypair();
-    let mut bi_priv = BigInt::from_signed_bytes_be(&private);
-    while not_in_range_prime(&bi_priv) {
-        (private, _) = kem.generate_keypair();
-        bi_priv = BigInt::from_signed_bytes_be(&private);
-    }
-    private.try_into().unwrap()
+    let (private, _) = kem.generate_keypair();
+    private.to_vec()
 }
 
-fn eval(poly: Vec<BigInt>, x: usize) -> BigInt {
-    let prime = get_prime();
+fn eval(poly: Vec<BigInt>, x: usize, prime: &BigInt) -> BigInt {
     let x_b: BigInt = BigInt::from(x);
     let mut total: BigInt = BigInt::from(0u32);
     for coeff in poly.into_iter().rev() {
         total *= &x_b;
         total += coeff;
-        total %= &prime;
+        total %= prime;
     }
     total
 }
 
-fn interpolate(indices: Vec<BigInt>, shares: Vec<BigInt>) -> BigInt {
+fn interpolate(indices: Vec<BigInt>, shares: Vec<BigInt>, prime: &BigInt) -> BigInt {
     let x = BigInt::from(0);
-    let prime = get_prime();
     let mut sum = BigInt::from(0);
     for i in 0..shares.len() {
         let mut num = BigInt::from(1);
         let mut denom = BigInt::from(1);
         for j in 0..shares.len() {
             if i != j {
-                num = num * (&x - &indices[j]) % &prime;
-                denom = denom * (&indices[i] - &indices[j]) % &prime;
+                num = num * (&x - &indices[j]) % prime;
+                denom = denom * (&indices[i] - &indices[j]) % prime;
             }
         }
-        denom = ((denom % &prime) + &prime) % &prime;
-        denom = mod_inv(denom);
-        sum = (sum + num * denom * &shares[i]) % &prime;
+        denom = ((denom % prime) + prime) % prime;
+        denom = mod_inv(denom, prime.clone());
+        sum = (sum + num * denom * &shares[i]) % prime;
     }
     sum
 }
 
 // extended euclidean algorithm for finding the modular inverse
-fn mod_inv(num: BigInt) -> BigInt {
+fn mod_inv(num: BigInt, prime: BigInt) -> BigInt {
     let (mut r, mut next_r, mut t, mut next_t) =
-        (get_prime(), num.clone(), BigInt::from(0), BigInt::from(1));
+        (prime.clone(), num.clone(), BigInt::from(0), BigInt::from(1));
     let mut quotient;
     let mut tmp;
     while next_r > BigInt::from(0) {
@@ -166,40 +160,35 @@ fn mod_inv(num: BigInt) -> BigInt {
 }
 
 fn get_prime() -> BigInt {
+    // 512 bit prime number from https://neuromancer.sk/std/other/ssc-512#
     BigInt::parse_bytes(
-        b"FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551",
+        b"C90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B235A2359C4AFBC9EB7987F1C9AB37E42599188C4B7DC6269B830D80897F57A5F71",
         16,
     )
     .unwrap()
 }
 
-fn not_in_range_prime(bi_key: &BigInt) -> bool {
-    let prime = get_prime();
-    let zero = BigInt::from(0);
-    *bi_key >= prime || *bi_key < zero
+fn not_in_range_prime(bi_key: &BigInt, prime: &BigInt) -> bool {
+    *bi_key >= *prime || *bi_key < BigInt::from(0)
 }
 
 impl SecretSharing {
-    pub fn split(
-        &mut self,
-        secret_bytes: &[u8; HPKE_PRIVATE_KEY_LENGTH],
-    ) -> Result<Vec<Share>, Error> {
-        let prime = get_prime();
+    pub fn split(&mut self, secret_bytes: &Vec<u8>) -> Result<Vec<Share>, Error> {
         if self.numshares < self.threshold {
             return Err(Error::ThresholdGreaterThanNumShares);
         }
         if self.numshares < 2 || self.threshold < 2 {
             return Err(Error::MustSplitTrust);
         }
-        let secret = BigInt::from_signed_bytes_be(secret_bytes);
-        if not_in_range_prime(&secret) {
+        let secret = BigInt::from_bytes_be(Sign::Plus, secret_bytes);
+        if not_in_range_prime(&secret, &self.prime) {
             return Err(Error::SecretMustBeInRangePrime);
         }
         let mut poly: Vec<BigInt> = vec![secret.clone()];
         let mut rng = rand::thread_rng();
         let low = BigInt::from(1);
         for _ in 0..(self.threshold - 1) {
-            poly.push(rng.gen_bigint_range(&low, &prime));
+            poly.push(rng.gen_bigint_range(&low, &self.prime));
         }
         if poly.len() == 1 {
             return Err(Error::ImproperCoeffs);
@@ -207,15 +196,14 @@ impl SecretSharing {
         let mut output: Vec<Share> = Vec::new();
         for x in 1..=self.numshares {
             output.push(Share {
-                value: eval(poly.clone(), x),
+                value: eval(poly.clone(), x, &self.prime),
                 index: BigInt::from(x),
             });
         }
         Ok(output)
     }
 
-    pub fn recover(&mut self, shares: &Vec<Share>) -> Result<[u8; HPKE_PRIVATE_KEY_LENGTH], Error> {
-        let prime = get_prime();
+    pub fn recover(&mut self, shares: &Vec<Share>) -> Result<Vec<u8>, Error> {
         if shares.len() < self.threshold.try_into().unwrap() {
             return Err(Error::BelowThreshold);
         }
@@ -225,11 +213,11 @@ impl SecretSharing {
             indices.push(shares[i].index.clone());
             share.push(shares[i].value.clone());
         }
-        let sum: BigInt = interpolate(indices, share);
+        let sum: BigInt = interpolate(indices, share, &self.prime);
         if sum < BigInt::from(0) {
-            Ok((sum + &prime).to_signed_bytes_be().try_into().unwrap())
+            Ok((sum + &self.prime).to_bytes_be().1)
         } else {
-            Ok(sum.to_signed_bytes_be().try_into().unwrap())
+            Ok(sum.to_bytes_be().1)
         }
     }
 }
@@ -237,12 +225,14 @@ impl SecretSharing {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crypto::P256Scalar;
 
     #[test]
     fn test_shamir2of3() {
         let mut sham = SecretSharing {
             threshold: 2,
             numshares: 3,
+            prime: get_prime(),
         };
 
         let secret = get_valid_private_key();
@@ -264,6 +254,7 @@ mod test {
         let mut sham = SecretSharing {
             threshold: 3,
             numshares: 5,
+            prime: get_prime(),
         };
 
         let secret = get_valid_private_key();
@@ -287,6 +278,7 @@ mod test {
         let mut sham = SecretSharing {
             threshold: 4,
             numshares: 4,
+            prime: get_prime(),
         };
 
         let secret = get_valid_private_key();
@@ -311,6 +303,7 @@ mod test {
         let mut sham = SecretSharing {
             threshold: 2,
             numshares: 5,
+            prime: get_prime(),
         };
 
         let secret = get_valid_private_key();
@@ -340,6 +333,7 @@ mod test {
         let mut sham = SecretSharing {
             threshold: 3,
             numshares: 2,
+            prime: get_prime(),
         };
 
         let e = sham.split(&secret).unwrap_err();
@@ -348,13 +342,15 @@ mod test {
         sham = SecretSharing {
             threshold: 1,
             numshares: 1,
+            prime: get_prime(),
         };
         let e = sham.split(&secret).unwrap_err();
         assert_eq!(e, Error::MustSplitTrust);
 
-        let mut sham = SecretSharing {
+        sham = SecretSharing {
             threshold: 3,
             numshares: 5,
+            prime: get_prime(),
         };
 
         let secret_bytes = get_valid_private_key();
@@ -369,10 +365,30 @@ mod test {
         let sham = SecretSharing {
             threshold: 4,
             numshares: 4,
+            prime: get_prime(),
         };
 
         let secret = get_valid_private_key();
 
+        let shares = split_wrap(&secret, sham.numshares, sham.threshold).unwrap();
+
+        let recovered_secret = recover_wrap(&shares, sham.numshares, sham.threshold).unwrap();
+        assert_eq!(secret, recovered_secret);
+    }
+
+    #[test]
+    fn test_shamir_encrypted_secret_size() {
+        let sham = SecretSharing {
+            threshold: 4,
+            numshares: 4,
+            prime: get_prime(),
+        };
+        // 65bytes = 520bits, need to shorten
+        // using public key here to represent an encrypted secret > 32 bytes
+        let public: [u8; 63] = P256Scalar::generate().compute_public_key()[2..]
+            .try_into()
+            .unwrap();
+        let secret = public.to_vec();
         let shares = split_wrap(&secret, sham.numshares, sham.threshold).unwrap();
 
         let recovered_secret = recover_wrap(&shares, sham.numshares, sham.threshold).unwrap();
