@@ -1,0 +1,21 @@
+launcherServicePort: 8080
+tvsAddress: "http://localhost:7774"
+cvmConfig: {
+  runc_runtime_bundle: "/tmp/runc/runtime_bundle.tar"
+  hats_system_bundle: "/tmp/runc/system_bundle.tar"
+  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
+  num_cpus: 4
+  ramdrive_size_kb: 10485760
+  ram_size_kb: 1048576
+  debug_telnet_port: 1234
+  virtio_guest_cid: 3
+  pci_passthrough: "09:00.1"
+  networkConfig: {
+    virtual_bridge: {
+      "virtual_bridge_device": "virbr2"
+      "cvm_ip_addr": "192.168.110.2"
+      "cvm_gateway_addr": "192.168.110.1"
+    }
+  }
+}
+

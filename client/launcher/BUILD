@@ -50,6 +50,53 @@ rust_cxx_bridge(
     ],
 )
 
+cc_binary(
+    name = "launcher_main",
+    srcs = ["launcher_main.cc"],
+    deps = [
+        ":launcher_cc",
+        "//client/proto:launcher_config_cc_proto",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:initialize",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+cc_library(
+    name = "launcher_cc",
+    srcs = ["launcher.cc"],
+    hdrs = ["launcher.h"],
+    deps = [
+        "//:libarchive",
+        "//client/proto:launcher_config_cc_proto",
+        "@com_google_absl//absl/log",
+    ],
+)
+
+cc_test(
+    name = "launcher_test",
+    srcs = ["launcher_test.cc"],
+    data = [
+        "//client/test_data/launcher:launcher_test_data",
+    ],
+    deps = [
+        ":launcher_cc",
+        "@bazel_tools//tools/cpp/runfiles",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_protobuf//:protobuf_headers",
+        "@com_google_protobuf//src/google/protobuf/io",
+    ],
+)
+
 cc_library(
     name = "launcher-server",
     srcs = ["launcher-server.cc"],

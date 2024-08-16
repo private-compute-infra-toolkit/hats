@@ -45,14 +45,14 @@ message CVMConfig {
   // runc runtime bundle must be a tar file consisting of a rootfs/ and
   // config.json.
   string runc_runtime_bundle = 2;
-  // Base system for the full oak stack for verification purposes.
-  string oak_system_bundle = 3;
+  // Base system for the full hats stack for verification purposes.
+  string hats_system_bundle = 3;
   // Number of CPUs required for the CVM.
-  int64 num_cpus = 4;
+  uint32 num_cpus = 4;
   // Ramdrive size for the system root file system in kb.
-  int64 ramdrive_size_kb = 5;
+  uint64 ramdrive_size_kb = 5;
   // Ram reserved for the CVM.
-  int64 ram_size_kb = 6;
+  uint64 ram_size_kb = 6;
   // Allow opening a telnet port for debugging purposes.
   uint32 debug_telnet_port = 7;
 
