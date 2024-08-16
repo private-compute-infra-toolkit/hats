@@ -123,12 +123,6 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
 
-    // Launch a process right now
-    // TODO(alwabel): package the trusted app in a container.
-    let mut cmd = tokio::process::Command::new("/usr/bin/launch-trusted-app.sh");
-    cmd.arg(hex::encode(token.clone()));
-    let _ = cmd.spawn()?;
-
     // Request group keys.
     if key_provisioning_role == KeyProvisioningRole::Follower {
         let get_group_keys_response = launcher_client
