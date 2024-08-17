@@ -21,12 +21,12 @@ PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
 readonly PREBUILT_DIR
 
 # The oak_containers_launcher has hardcoded AMD SEV-SNP parameters
-sudo "${PREBUILT_DIR}/oak_containers_launcher" \
-  --system-image "${PREBUILT_DIR}/image-old.tar.xz" \
+sudo "${PREBUILT_DIR}/launcher" \
+  --system-image "${PREBUILT_DIR}/hats_system_image.tar.xz" \
   --container-bundle "${PREBUILT_DIR}/oak_container_example_oci_filesystem_bundle.tar" \
   --vmm-binary "${PREBUILT_DIR}/qemu-system-x86_64" \
   --stage0-binary "${PREBUILT_DIR}/stage0_bin" \
-  --kernel "${PREBUILT_DIR}/bzImage" \
+  --kernel "${PREBUILT_DIR}/vanilla_bzImage" \
   --initrd "${PREBUILT_DIR}/stage1.cpio" \
   --memory-size="8G" \
   --ramdrive-size="10000000" \
