@@ -65,6 +65,11 @@ args=(
   --noshow_progress
   --verbose_failures=true
   --symlink_prefix=/
+    # presubmit server complains as `tar_pkg` rules runs python
+    # and the presubmit runs as root. So here we exclude these
+    # rules that we tagged them with *nopresubmit*.
+    # https://screenshot.googleplex.com/3ThEtDfNQTE3YW4
+  --build_tag_filters=-nopresubmit
   --
   //...
 )

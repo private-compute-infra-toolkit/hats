@@ -8,6 +8,7 @@ pkg_tar(
     name = "services",
     srcs = ["oak-orchestrator.service"],
     package_dir = "/etc/systemd/system/",
+    tags = ["nopresubmit"],
 )
 
 # Override the enp0s1 interface settings as we are setting
@@ -16,6 +17,7 @@ pkg_tar(
     name = "interface",
     srcs = ["10-enp0s1.network"],
     package_dir = "/etc/systemd/network/",
+    tags = ["nopresubmit"],
 )
 
 # Administrative binaries.
@@ -24,14 +26,21 @@ pkg_tar(
     srcs = [
         "//client/orchestrator:orchestrator_main",
         "@oak//oak_containers_agent",
-        "@oak//oak_containers_syslogd",
-    ],
+    ] + select({
+        # Build syslogd only if the user specifically enabled it
+        # oak_containers_syslogd requires libsystemd.so during the
+        # build, which might not exists.
+        "//:syslogd_enabled": ["@oak//oak_containers_syslogd"],
+        "//conditions:default": [],
+    }),
     package_dir = "/usr/bin/",
+    tags = ["nopresubmit"],
 )
 
 oci_image(
     name = "hats_system_oci_image",
     base = "@oak_containers_sysimage_base",
+    tags = ["nopresubmit"],
     tars = [
         ":admin_bin",
         ":services",
@@ -43,4 +52,5 @@ oci_runtime_bundle(
     name = "hats_system_image",
     image = ":hats_system_oci_image",
     rootfs_only = True,
+    tags = ["nopresubmit"],
 )
