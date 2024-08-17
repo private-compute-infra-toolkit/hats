@@ -1,5 +1,5 @@
-diff --git oak_containers_launcher/src/qemu.rs oak_containers_launcher/src/qemu.rs
-index 88472aa3b..7ee0fc64a 100644
+diff --git a/oak_containers_launcher/src/qemu.rs b/oak_containers_launcher/src/qemu.rs
+index 88472aa3bb..fa99a7ecb2 100644
 --- oak_containers_launcher/src/qemu.rs
 +++ oak_containers_launcher/src/qemu.rs
 @@ -92,6 +92,14 @@ pub struct Params {
@@ -15,7 +15,7 @@ index 88472aa3b..7ee0fc64a 100644
 +    #[arg(long, required = false, default_value_t = 50051)]
 +    pub host_forwarding_port: u16,
  }
- 
+
  impl Params {
 @@ -113,6 +121,8 @@ impl Params {
              virtio_guest_cid: None,
@@ -44,16 +44,25 @@ index 88472aa3b..7ee0fc64a 100644
          cmd.args(["-netdev", netdev_rules.join(",").as_str()]);
          cmd.args([
              "-device",
-diff --git oak_containers_orchestrator/src/crypto.rs oak_containers_orchestrator/src/crypto.rs
-index 9bef552b2..09051391f 100644
+@@ -266,7 +287,7 @@ impl Qemu {
+             "brd.rd_nr=1".to_string(),
+             format!("brd.rd_size={ramdrive_size}"),
+             "brd.max_part=1".to_string(),
+-            format!("ip={vm_address}:::255.255.255.0::eth0:off"),
++            format!("ip={vm_address}:::255.255.255.0::enp0s1:off"),
+             "quiet".to_string(),
+             "--".to_string(),
+             format!("--launcher-addr=vsock://{VMADDR_CID_HOST}:{launcher_service_port}"),
+diff --git a/oak_containers_orchestrator/src/crypto.rs b/oak_containers_orchestrator/src/crypto.rs
+index 47fac04a40..ff28f536da 100644
 --- oak_containers_orchestrator/src/crypto.rs
 +++ oak_containers_orchestrator/src/crypto.rs
-@@ -43,7 +43,7 @@ pub fn generate_instance_keys() -> (InstanceKeys, InstancePublicKeys) {
- 
+@@ -42,7 +42,7 @@ pub fn generate_instance_keys() -> (InstanceKeys, InstancePublicKeys) {
+
  pub struct InstanceKeys {
      encryption_key: EncryptionKey,
 -    signing_key: p256::ecdsa::SigningKey,
 +    pub signing_key: p256::ecdsa::SigningKey,
  }
- 
+
  pub struct InstancePublicKeys {
