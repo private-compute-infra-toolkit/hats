@@ -30,8 +30,10 @@
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 #include "tools/cpp/runfiles/runfiles.h"
+
 namespace privacy_sandbox::client {
 namespace {
+
 using ::absl_testing::IsOk;
 using ::absl_testing::StatusIs;
 
@@ -68,12 +70,7 @@ absl::Status VerifyContent(absl::string_view full_runfile_path,
   std::vector<char> bytes((std::istreambuf_iterator<char>(input)),
                           (std::istreambuf_iterator<char>()));
   input.close();
-  printf("sidachen: %s", full_runfile_path.data());
-  for (auto i : bytes) {
-    printf("%d,", i);
-  }
-  printf("\n");
-  for (int i = 0; i < bytes.size(); i++) {
+  for (int i = 0; i < bytes.size(); ++i) {
     if (bytes[i] != want[i]) {
       return absl::InternalError(absl::StrFormat(
           "unexpected byte at loc %d  want %d got %d.", i, want[i], bytes[i]));
@@ -105,6 +102,7 @@ TEST(HatsLauncherTest, Successful) {
   EXPECT_THAT(VerifyContent((*launcher)->GetInitrdCpioXzPath(), {97, 10}),
               IsOk());
 }
+
 TEST(HatsLauncherTest, Unsuccessful) {
   absl::StatusOr<std::string> runfile_path =
       GetRunfilePath("launcher_config_port_forwarding.textproto");
