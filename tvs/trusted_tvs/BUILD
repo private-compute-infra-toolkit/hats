@@ -25,7 +25,7 @@ rust_library(
         "@oak_crates_index//:prost",
         "@oak//micro_rpc",
         "@oak//oak_proto_rust",
-        "@oak//oak_attestation_verification",
+        "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",
         "@enclave//crypto",
         "@enclave//handshake",
         "//key_manager:rust-key-fetcher",
