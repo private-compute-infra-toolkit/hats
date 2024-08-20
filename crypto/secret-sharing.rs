@@ -49,7 +49,7 @@ mod ffi {
     }
     extern "Rust" {
         pub fn split_wrap(
-            secret_bytes: &Vec<u8>,
+            secret_bytes: &[u8],
             numshares: usize,
             threshold: usize,
         ) -> Result<Vec<String>>;
@@ -63,7 +63,7 @@ mod ffi {
 }
 
 pub fn split_wrap(
-    secret_bytes: &Vec<u8>,
+    secret_bytes: &[u8],
     numshares: usize,
     threshold: usize,
 ) -> Result<Vec<String>, String> {
@@ -72,7 +72,7 @@ pub fn split_wrap(
         threshold: threshold,
         prime: get_prime(),
     };
-    let shares = sham.split(secret_bytes).unwrap();
+    let shares = sham.split(&secret_bytes.to_vec()).unwrap();
     let mut serialized_shares: Vec<String> = Vec::new();
     for share in shares {
         let serialized_share = json!({
@@ -385,7 +385,7 @@ mod test {
         };
         // 65bytes = 520bits, need to shorten
         // using public key here to represent an encrypted secret > 32 bytes
-        let public: [u8; 63] = P256Scalar::generate().compute_public_key()[2..]
+        let public: [u8; 60] = P256Scalar::generate().compute_public_key()[5..]
             .try_into()
             .unwrap();
         let secret = public.to_vec();

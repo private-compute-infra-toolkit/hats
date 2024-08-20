@@ -5,6 +5,7 @@ cc_binary(
     srcs = ["database_main.cc"],
     deps = [
         "//crypto:aead-crypter",
+        "//crypto:bridge",
         "//crypto:secret-data",
         "//gcp_common:gcp-status",
         "//key_manager:gcp-kms-client",

@@ -63,6 +63,7 @@
 #include "absl/strings/string_view.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
+#include "crypto/secret-sharing.rs.h"
 #include "gcp_common/gcp-status.h"
 #include "google/cloud/spanner/admin/database_admin_client.h"
 #include "google/cloud/spanner/client.h"
@@ -82,7 +83,18 @@ ABSL_FLAG(std::string, operation, "create_database",
 ABSL_FLAG(std::string, spanner_database, "",
           "Spanner database to use in the following format "
           "<project_id>/<instance_id>/<database_id>");
+ABSL_FLAG(std::vector<std::string>, spanner_databases,
+          std::vector<std::string>({""}),
+          "Comma separated list of spanner databases to use in the following "
+          "format "
+          "<project_id1>/<instance_id1>/<database_id1>,<project_id2>/"
+          "<instance_id2>/<database_id2>");
 ABSL_FLAG(std::string, key_resource_name, "", "Key resource name.");
+ABSL_FLAG(
+    std::vector<std::string>, key_resource_names,
+    std::vector<std::string>({""}),
+    "Comma separated list of spanner databases to use in the following format"
+    "<Key resource name 1>, <Key resource name 2>");
 ABSL_FLAG(std::string, appraisal_policy_path, "",
           "Path to an appraisal policy file");
 ABSL_FLAG(std::string, user_public_key, "",
@@ -94,6 +106,22 @@ ABSL_FLAG(std::string, user_origin, "", "Origin of the user.");
 namespace {
 
 using ::privacy_sandbox::crypto::SecretData;
+using ::privacy_sandbox::secret_sharing::get_valid_private_key;
+using ::privacy_sandbox::secret_sharing::split_wrap;
+
+std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
+  return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
+}
+
+rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
+  return rust::Slice<const std::uint8_t>(
+      reinterpret_cast<const unsigned char*>(str.data()), str.size());
+}
+
+rust::Vec<rust::String> GenerateSecretShares(int num_secrets) {
+  return split_wrap(StringToRustSlice(RustVecToString(get_valid_private_key())),
+                    num_secrets, num_secrets - 1);
+}
 
 absl::StatusOr<google::cloud::spanner::Database> CreateSpannerDatabase(
     absl::string_view spanner_database) {
@@ -638,20 +666,8 @@ struct UserSecrets {
 
 // Generates user secrets.
 absl::StatusOr<UserSecrets> GenerateUserSecrets(
-    absl::string_view kms_key_resource_name) {
-  // Generate data encryption key (DEK) to wrap keys and secrets.
-  SecretData dek = privacy_sandbox::crypto::RandomAeadKey();
-  absl::StatusOr<std::unique_ptr<HPKEKey>> hpke_key = HPKEKey::Create();
-  if (!hpke_key.ok()) return hpke_key.status();
-  // Wrap secret - returned by TVS after successful attestation verification -
-  // with DEK.
-  absl::StatusOr<std::string> wrapped_user_secret =
-      (*hpke_key)->WrapPrivateKey(dek);
-  if (!wrapped_user_secret.ok()) return wrapped_user_secret.status();
-  absl::StatusOr<std::string> user_public_key =
-      (*hpke_key)->GetPublicKeyInHex();
-  if (!user_public_key.ok()) return user_public_key.status();
-
+    absl::string_view kms_key_resource_name, std::string wrapped_user_secret,
+    std::string user_public_key, SecretData dek) {
   // GCP KMS client.
   privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client(
       google::cloud::kms_v1::KeyManagementServiceClient(
@@ -663,8 +679,8 @@ absl::StatusOr<UserSecrets> GenerateUserSecrets(
   if (!wrapped_dek.ok()) return wrapped_dek.status();
 
   return UserSecrets{
-      .wrapped_user_secret = *std::move(wrapped_user_secret),
-      .user_public_key = *std::move(user_public_key),
+      .wrapped_user_secret = std::move(wrapped_user_secret),
+      .user_public_key = std::move(user_public_key),
       .wrapped_dek = *std::move(wrapped_dek),
   };
 }
@@ -673,7 +689,8 @@ absl::Status RegisterUser(absl::string_view spanner_database,
                           absl::string_view kms_key_resource_name,
                           absl::string_view user_public_key,
                           absl::string_view user_name,
-                          absl::string_view user_origin) {
+                          absl::string_view user_origin,
+                          std::string wrapped_user_sec) {
   std::string public_key_hex;
   if (!absl::HexStringToBytes(user_public_key, &public_key_hex)) {
     return absl::InvalidArgumentError(
@@ -686,8 +703,26 @@ absl::Status RegisterUser(absl::string_view spanner_database,
   // Spanner client.
   google::cloud::spanner::Client spanner_client(
       google::cloud::spanner::MakeConnection(*database));
-  absl::StatusOr<UserSecrets> user_secrets =
-      GenerateUserSecrets(kms_key_resource_name);
+  // Generate data encryption key (DEK) to wrap keys and secrets.
+  SecretData dek = privacy_sandbox::crypto::RandomAeadKey();
+  absl::StatusOr<std::unique_ptr<HPKEKey>> hpke_key = HPKEKey::Create();
+  if (!hpke_key.ok()) return hpke_key.status();
+  // Wrap secret - returned by TVS after successful attestation verification -
+  // with DEK.
+  std::string wrapped_user_secret;
+  if (wrapped_user_sec == "") {
+    absl::StatusOr<std::string> wrapped_user_secret_or =
+        (*hpke_key)->WrapPrivateKey(dek);
+    if (!wrapped_user_secret_or.ok()) return wrapped_user_secret_or.status();
+    wrapped_user_secret = *wrapped_user_secret_or;
+  } else {
+    wrapped_user_secret = wrapped_user_sec;
+  }
+  absl::StatusOr<std::string> derived_pub_key =
+      (*hpke_key)->GetPublicKeyInHex();
+  if (!derived_pub_key.ok()) return derived_pub_key.status();
+  absl::StatusOr<UserSecrets> user_secrets = GenerateUserSecrets(
+      kms_key_resource_name, wrapped_user_secret, *derived_pub_key, dek);
   if (!user_secrets.ok()) return user_secrets.status();
 
   // Stash all inserts in the same transaction so we only commit if all inserts
@@ -830,6 +865,24 @@ absl::Status RegisterUser(absl::string_view spanner_database,
   return absl::OkStatus();
 }
 
+absl::Status RegisterUserSplitTrust(
+    std::vector<std::string> spanner_databases,
+    std::vector<std::string> kms_key_resource_names,
+    absl::string_view user_public_key, absl::string_view user_name,
+    absl::string_view user_origin) {
+  rust::Vec<rust::String> shares =
+      GenerateSecretShares(spanner_databases.size());
+  if (shares.size() != spanner_databases.size())
+    return absl::InternalError("Failed to create secret shares");
+  for (size_t i = 0; i < spanner_databases.size(); i++) {
+    absl::Status register_user = RegisterUser(
+        spanner_databases[i], kms_key_resource_names[i], user_public_key,
+        user_name, user_origin, static_cast<std::string>(shares[i]));
+    if (!register_user.ok()) return register_user;
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -862,9 +915,20 @@ int main(int argc, char* argv[]) {
     }
 
   } else if (operation == "register_user") {
-    if (absl::Status status = RegisterUser(
-            absl::GetFlag(FLAGS_spanner_database),
-            absl::GetFlag(FLAGS_key_resource_name),
+    if (absl::Status status =
+            RegisterUser(absl::GetFlag(FLAGS_spanner_database),
+                         absl::GetFlag(FLAGS_key_resource_name),
+                         absl::GetFlag(FLAGS_user_public_key),
+                         absl::GetFlag(FLAGS_user_name),
+                         absl::GetFlag(FLAGS_user_origin), "");
+        !status.ok()) {
+      LOG(ERROR) << "Failed to register user: " << status;
+      return 1;
+    }
+  } else if (operation == "register_user_split_trust") {
+    if (absl::Status status = RegisterUserSplitTrust(
+            absl::GetFlag(FLAGS_spanner_databases),
+            absl::GetFlag(FLAGS_key_resource_names),
             absl::GetFlag(FLAGS_user_public_key),
             absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin));
         !status.ok()) {
