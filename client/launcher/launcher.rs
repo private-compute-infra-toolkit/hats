@@ -22,6 +22,7 @@ mod ffi {
         use_tls: bool,
         target: &'a str,
         access_token: &'a str,
+        tvs_authentication_key: &'a str,
         // Parc server options.
         enable_parc: bool,
         parc_parameters_file: &'a str,
@@ -42,7 +43,8 @@ struct Args {
     pub use_tls: bool,
     #[arg(long, default_value = "")]
     pub access_token: String,
-
+    #[arg(long)]
+    pub tvs_authentication_key: String,
     #[arg(long)]
     pub enable_parc: bool,
     #[arg(long, default_value = "parc_data/parameters/parameters-local.json")]
@@ -63,6 +65,7 @@ async fn main() -> Result<(), anyhow::Error> {
             use_tls: args.use_tls,
             target: &args.tvs_address,
             access_token: &args.access_token,
+            tvs_authentication_key: &args.tvs_authentication_key,
             enable_parc: args.enable_parc,
             parc_parameters_file: &args.parc_parameters_file,
             parc_blobstore_root: &args.parc_blobstore_root,

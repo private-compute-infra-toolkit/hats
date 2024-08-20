@@ -24,6 +24,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
@@ -53,24 +54,31 @@ KeyFetcher* RegisteredKeyFetcherOrDefault() {
 
 class EchoKeyFetcher final : public KeyFetcher {
  public:
+  EchoKeyFetcher() {
+    if (!absl::HexStringToBytes(
+            "04f3099a8ebcb494430958bd39b246255589b44c60bceb2ef392ffbb7529962c05"
+            "e94895665cc7e1a54f730480f50c523f7bc90b70b3a12ab7850293290d2e32c8",
+            &test_client_authentication_key_)) {
+      LOG(ERROR) << "Failed to convert test key from hex to bytes";
+    }
+  }
+
   absl::StatusOr<std::string> GetPrimaryPrivateKey() override {
     return absl::UnimplementedError("unimplemented.");
   }
+
   absl::StatusOr<std::string> GetSecondaryPrivateKey() override {
     return absl::UnimplementedError("unimplemented.");
   }
-  absl::StatusOr<std::vector<Secret>> GetSecrets(
-      absl::string_view user_name) override {
-    return std::vector<Secret>{{
-        .key_id = 64,
-        .public_key = absl::StrCat(user_name, "-public-key"),
-        .private_key = absl::StrCat(user_name, "-secret"),
-    }};
-  }
+
   absl::StatusOr<int64_t> UserIdForAuthenticationKey(
       absl::string_view public_key) override {
-    return 0;
+    if (public_key == test_client_authentication_key_) {
+      return 1;
+    }
+    return absl::NotFoundError("Cannot find public key");
   }
+
   absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
       int64_t user_id) override {
     return std::vector<Secret>{{
@@ -79,35 +87,12 @@ class EchoKeyFetcher final : public KeyFetcher {
         .private_key = absl::StrCat(user_id, "-secret"),
     }};
   }
+
+ private:
+  std::string test_client_authentication_key_;
 };
 
 }  // namespace
-
-rust::Vec<uint8_t> GetSecret(rust::Str username) {
-  KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
-  absl::StatusOr<std::vector<Secret>> secrets =
-      key_fetcher->GetSecrets(std::string(username));
-  if (!secrets.ok()) {
-    throw std::runtime_error(
-        absl::StrCat("Failed to get secret: ", secrets.status()));
-  }
-  std::string serialized_response;
-  {
-    tvs::VerifyReportResponse response;
-    // Use non-const to enable effective use of std::move().
-    for (Secret& secret : *secrets) {
-      tvs::Secret& tvs_secret = *response.add_secrets();
-      tvs_secret.set_key_id(secret.key_id);
-      *tvs_secret.mutable_public_key() = std::move(secret.public_key);
-      *tvs_secret.mutable_private_key() = std::move(secret.private_key);
-    }
-    serialized_response = response.SerializeAsString();
-  }
-  rust::Vec<uint8_t> v;
-  std::copy(serialized_response.begin(), serialized_response.end(),
-            std::back_inserter(v));
-  return v;
-}
 
 int64_t UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key) {
   KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
@@ -121,7 +106,7 @@ int64_t UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key) {
   return *std::move(user_id);
 }
 
-rust::Vec<uint8_t> GetSecretForUserId(int64_t user_id) {
+rust::Vec<uint8_t> GetSecretsForUserId(int64_t user_id) {
   KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
   absl::StatusOr<std::vector<Secret>> secrets =
       key_fetcher->GetSecretsForUserId(user_id);

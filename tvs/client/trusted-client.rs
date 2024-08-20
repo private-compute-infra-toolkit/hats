@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate hex;
 use crate::proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionRequest, VerifyReportRequest, VerifyReportRequestEncrypted,
 };
 
-use crypto::{P256_X962_LENGTH, SHA256_OUTPUT_LEN};
+use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::{client::HandshakeInitiator, noise::HandshakeType, Crypter};
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Signer, Signature, SigningKey};
@@ -43,7 +42,7 @@ pub mod proto {
 mod ffi {
     extern "Rust" {
         type TvsClient;
-        fn new_tvs_client(tvs_pub_key: &str) -> Result<Box<TvsClient>>;
+        fn new_tvs_client(private_key: &[u8], tvs_pub_key: &[u8]) -> Result<Box<TvsClient>>;
         fn build_initial_message(&mut self) -> Result<Vec<u8>>;
         fn process_handshake_response(&mut self, response: &[u8]) -> Result<()>;
         fn build_verify_report_request(
@@ -56,29 +55,41 @@ mod ffi {
     }
 }
 
-pub fn new_tvs_client(tvs_pub_key: &str) -> Result<Box<TvsClient>, String> {
-    let tvs_pub_key = hex::decode(tvs_pub_key)
-        .map_err(|_| "Cannot decode tvs_pub_key. The key is expected to be in hex format")?;
-    let tvs_pub_key_bytes: [u8; P256_X962_LENGTH] = tvs_pub_key
+pub fn new_tvs_client(private_key: &[u8], tvs_public_key: &[u8]) -> Result<Box<TvsClient>, String> {
+    let private_key_scalar: P256Scalar = private_key.try_into().map_err(|_| {
+        format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
+    })?;
+
+    let tvs_public_key_bytes: [u8; P256_X962_LENGTH] = tvs_public_key
         .try_into()
-        .map_err(|_| format!("Expected tvs_pub_key to be of length {}.", P256_X962_LENGTH))?;
-    Ok(Box::new(TvsClient::new(tvs_pub_key_bytes)))
+        .map_err(|_| format!("Expected tvs_public_key to be of length {P256_X962_LENGTH}."))?;
+
+    Ok(Box::new(TvsClient::new(
+        private_key_scalar,
+        tvs_public_key_bytes,
+    )))
 }
 
 pub struct TvsClient {
     handshake: HandshakeInitiator,
     crypter: Option<Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
-    peer_public_key: [u8; P256_X962_LENGTH],
+    private_key: P256Scalar,
+    tvs_public_key: [u8; P256_X962_LENGTH],
 }
 
 impl TvsClient {
-    fn new(peer_public_key: [u8; P256_X962_LENGTH]) -> Self {
+    fn new(private_key: P256Scalar, tvs_public_key: [u8; P256_X962_LENGTH]) -> Self {
         Self {
-            handshake: HandshakeInitiator::new(HandshakeType::Nk, &peer_public_key, None),
+            handshake: HandshakeInitiator::new(
+                HandshakeType::Kk,
+                &tvs_public_key,
+                Some(private_key.bytes()),
+            ),
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
-            peer_public_key,
+            private_key,
+            tvs_public_key,
         }
     }
 
@@ -91,8 +102,8 @@ impl TvsClient {
                         .handshake
                         .build_initial_message()
                         .map_err(|_| "Invalid Initialization of Handshake")?,
-                    tvs_public_key: self.peer_public_key.to_vec(),
-                    client_public_key: vec![],
+                    tvs_public_key: self.tvs_public_key.to_vec(),
+                    client_public_key: self.private_key.compute_public_key().to_vec(),
                 },
             )),
         }
@@ -223,18 +234,28 @@ mod tests {
         include_bytes!("../test_data/good_evidence.binarypb").to_vec()
     }
 
-    fn expected_verify_report_response(username: &str) -> VerifyReportResponse {
+    fn expected_verify_report_response(user_id: i64) -> VerifyReportResponse {
         VerifyReportResponse {
             secrets: vec![Secret {
                 key_id: 64,
-                public_key: format!("{username}-public-key").into(),
-                private_key: format!("{username}-secret").into(),
+                public_key: format!("{user_id}-public-key").into(),
+                private_key: format!("{user_id}-secret").into(),
             }],
         }
     }
 
-    const NOW_UTC_MILLIS: i64 = 1698829200000;
+    // Get client keys where the public key is registered in the test key fetcher.
+    fn get_good_client_private_key() -> P256Scalar {
+        static TEST_CLIENT_PRIVATE_KEY: &'static str =
+            "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
+        return hex::decode(TEST_CLIENT_PRIVATE_KEY)
+            .unwrap()
+            .as_slice()
+            .try_into()
+            .unwrap();
+    }
 
+    const NOW_UTC_MILLIS: i64 = 1698829200000;
     // End to end testing: handshake, building and signing the report and decrypt the secret.
     #[test]
     fn verify_report_successful() {
@@ -245,12 +266,15 @@ mod tests {
             &tvs_private_key.bytes(),
             default_appraisal_policies().as_slice(),
             "test_user1",
-            false,
         )
         .unwrap();
 
-        let mut tvs_client =
-            new_tvs_client(&hex::encode(tvs_private_key.compute_public_key())).unwrap();
+        let client_private_key = get_good_client_private_key();
+        let mut tvs_client = new_tvs_client(
+            &client_private_key.bytes(),
+            &tvs_private_key.compute_public_key(),
+        )
+        .unwrap();
         let initial_message = tvs_client.build_initial_message().unwrap();
 
         let handshake_response = trusted_tvs_service
@@ -273,15 +297,19 @@ mod tests {
 
         let decrypted_secret = tvs_client.process_response(secret.as_slice()).unwrap();
         let response = VerifyReportResponse::decode(decrypted_secret.as_slice()).unwrap();
-        assert_eq!(response, expected_verify_report_response("test_user1"));
+        assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
     }
 
     #[test]
     fn process_handshake_response_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
+        let client_private_key = get_good_client_private_key();
         let tvs_private_key = P256Scalar::generate();
-        let mut tvs_client =
-            new_tvs_client(&hex::encode(tvs_private_key.compute_public_key())).unwrap();
+        let mut tvs_client = new_tvs_client(
+            &client_private_key.bytes(),
+            &tvs_private_key.compute_public_key(),
+        )
+        .unwrap();
         match tvs_client.process_handshake_response(&[1, 2, 3]) {
             Ok(_) => assert!(false, "process_handshake_response() should fail"),
             Err(e) => assert_eq!(e, "Error decoding message to AttestReportResponse proto."),
@@ -306,9 +334,13 @@ mod tests {
     #[test]
     fn process_response_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
+        let client_private_key = get_good_client_private_key();
         let tvs_private_key = P256Scalar::generate();
-        let mut tvs_client =
-            new_tvs_client(&hex::encode(tvs_private_key.compute_public_key())).unwrap();
+        let mut tvs_client = new_tvs_client(
+            &client_private_key.bytes(),
+            &tvs_private_key.compute_public_key(),
+        )
+        .unwrap();
         match tvs_client.process_response(&[1, 2, 3]) {
             Ok(_) => assert!(false, "process_response() should fail"),
             Err(e) => assert_eq!(
@@ -322,7 +354,6 @@ mod tests {
             &tvs_private_key.bytes(),
             default_appraisal_policies().as_slice(),
             "test_user2",
-            false,
         )
         .unwrap();
 
@@ -360,18 +391,17 @@ mod tests {
     #[test]
     fn new_tvs_client_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
-        match new_tvs_client("--") {
+        let tvs_private_key = P256Scalar::generate();
+        match new_tvs_client(&[1, 2, 3], &tvs_private_key.compute_public_key()) {
             Ok(_) => assert!(false, "new_tvs_client() should fail"),
-            Err(e) => assert_eq!(
-                e,
-                "Cannot decode tvs_pub_key. The key is expected to be in hex format"
-            ),
+            Err(e) => assert_eq!(e, "Invalid private key. Key should be 32 bytes long.",),
         }
-        match new_tvs_client("ffff") {
+        let client_private_key = get_good_client_private_key();
+        match new_tvs_client(&client_private_key.bytes(), &[1, 2, 3]) {
             Ok(_) => assert!(false, "new_tvs_client() should fail"),
             Err(e) => assert_eq!(
                 e,
-                format!("Expected tvs_pub_key to be of length {}.", P256_X962_LENGTH)
+                format!("Expected tvs_public_key to be of length {P256_X962_LENGTH}."),
             ),
         }
     }

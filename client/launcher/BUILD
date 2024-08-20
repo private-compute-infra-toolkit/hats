@@ -60,7 +60,6 @@ cc_binary(
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:initialize",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_protobuf//:protobuf",
     ],
@@ -74,6 +73,7 @@ cc_library(
         "//:libarchive",
         "//client/proto:launcher_config_cc_proto",
         "@com_google_absl//absl/log",
+        "@com_google_absl//absl/strings",
     ],
 )
 

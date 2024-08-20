@@ -23,6 +23,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "client/launcher/launcher-server.h"
 #include "external/google_privacysandbox_servers_common/src/parc/servers/local/parameters.h"
@@ -77,8 +78,15 @@ void CreateAndStartServers(const LauncherServerOptions& options) {
       return channel.status();
     }
 
-    auto launcher_server =
-        std::make_unique<client::LauncherServer>(std::move(channel).value());
+    std::string tvs_authentication_key_in_bytes;
+    if (!absl::HexStringToBytes(
+            static_cast<std::string>(options.tvs_authentication_key),
+            &tvs_authentication_key_in_bytes)) {
+      return absl::InvalidArgumentError(
+          "tvs authentication key should be in hex string format");
+    }
+    auto launcher_server = std::make_unique<client::LauncherServer>(
+        tvs_authentication_key_in_bytes, *std::move(channel));
     grpc::ServerBuilder server_builder;
     server_builder
         .AddListeningPort(server_address, grpc::InsecureServerCredentials())

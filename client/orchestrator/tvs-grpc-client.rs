@@ -34,32 +34,55 @@ pub mod proto {
 
 pub struct TvsGrpcClient {
     inner: launcher_service_client::LauncherServiceClient<Channel>,
-    tvs_public_key: String,
+    tvs_public_key: Vec<u8>,
+    tvs_authentication_key: Option<Vec<u8>>,
+    tee_certificate: Option<Vec<u8>>,
 }
 
 impl TvsGrpcClient {
     pub async fn create(
         addr: tonic::transport::Uri,
-        tvs_public_key: String,
+        tvs_public_key: Vec<u8>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let channel = Channel::builder(addr.clone()).connect().await?;
         let inner = launcher_service_client::LauncherServiceClient::new(channel.clone());
-        Ok(Self {
+        let mut tvs_grp_client = Self {
             inner,
             tvs_public_key,
-        })
+            tvs_authentication_key: None,
+            tee_certificate: None,
+        };
+        tvs_grp_client.init().await?;
+        Ok(tvs_grp_client)
     }
+
     pub async fn create_with_channel(
         channel: tonic::transport::Channel,
-        tvs_public_key: String,
+        tvs_public_key: Vec<u8>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let inner = launcher_service_client::LauncherServiceClient::new(channel);
-        Ok(Self {
+        let mut tvs_grp_client = Self {
             inner,
             tvs_public_key,
-        })
+            tvs_authentication_key: None,
+            tee_certificate: None,
+        };
+        tvs_grp_client.init().await?;
+        Ok(tvs_grp_client)
     }
-    pub async fn fetch_orchestrator_metadata(
+
+    // Get metadata from the launcher.
+    async fn init(&mut self) -> Result<(), String> {
+        let metadata = self
+            .fetch_orchestrator_metadata()
+            .await
+            .map_err(|error| format!("couldn't find tee metadata: {:?}", error))?;
+        self.tee_certificate = Some(metadata.tee_certificate);
+        self.tvs_authentication_key = Some(metadata.tvs_authentication_key);
+        Ok(())
+    }
+
+    async fn fetch_orchestrator_metadata(
         &self,
     ) -> Result<FetchOrchestratorMetadataResponse, String> {
         let response = self
@@ -70,13 +93,35 @@ impl TvsGrpcClient {
             .map_err(|error| format!("error from launcher server: {}", error))?;
         Ok(response.into_inner())
     }
+
     pub async fn send_evidence(
         &self,
         evidence: Evidence,
         signing_key: SigningKey,
-        vcek: Vec<u8>,
     ) -> Result<Vec<u8>, String> {
-        let mut tvs = tvs_trusted_client::new_tvs_client(&self.tvs_public_key)?;
+        let Some(ref tvs_authentication_key) = self.tvs_authentication_key else {
+            return Err("tvs_authentication_key is not set".to_string());
+        };
+        let Some(ref tee_certificate) = self.tee_certificate else {
+            return Err("tee_certificate is not set".to_string());
+        };
+        self.send_evidence_internal(
+            evidence,
+            signing_key,
+            tvs_authentication_key.to_vec(),
+            tee_certificate.to_vec(),
+        )
+        .await
+    }
+    async fn send_evidence_internal(
+        &self,
+        evidence: Evidence,
+        signing_key: SigningKey,
+        tvs_authentication_key: Vec<u8>,
+        tee_certificate: Vec<u8>,
+    ) -> Result<Vec<u8>, String> {
+        let mut tvs =
+            tvs_trusted_client::new_tvs_client(&tvs_authentication_key, &self.tvs_public_key)?;
 
         // Channel between the `outbound stream` - the one that sends grpc
         // requests - and the `processing_task` task that generates and process VerifyReport requests:
@@ -98,7 +143,7 @@ impl TvsGrpcClient {
                     .map_err(|_| "error sending requests out")?;
                 let Some(handshake_response): Option<OpaqueMessage> = inbound_rx.recv().await
                 else {
-                    return Err("no response from the server".to_string());
+                    return Err("error from the server".to_string());
                 };
                 tvs.process_handshake_response(handshake_response.binary_message.as_slice())?;
                 let mut message: Vec<u8> = Vec::with_capacity(256);
@@ -107,7 +152,7 @@ impl TvsGrpcClient {
                     .map_err(|error| format!("error decoding evidence: {}", error))?;
                 let command = tvs.build_verify_report_request(
                     message.as_slice(),
-                    vcek.as_slice(),
+                    tee_certificate.as_slice(),
                     &hex::encode(signing_key.to_bytes()),
                 )?;
                 let command = OpaqueMessage {
@@ -185,12 +230,13 @@ mod tests {
         AppraisalPolicies, Secret, VerifyReportResponse,
     };
 
-    struct TestService {
+    struct TestLauncherService {
         pub tvs_private_key: [u8; P256_SCALAR_LENGTH],
+        pub tvs_authentication_key: Vec<u8>,
     }
 
     #[tonic::async_trait]
-    impl LauncherService for TestService {
+    impl LauncherService for TestLauncherService {
         type VerifyReportStream =
             Pin<Box<dyn tokio_stream::Stream<Item = Result<OpaqueMessage, tonic::Status>> + Send>>;
         async fn fetch_orchestrator_metadata(
@@ -198,9 +244,8 @@ mod tests {
             _request: tonic::Request<()>,
         ) -> Result<tonic::Response<FetchOrchestratorMetadataResponse>, tonic::Status> {
             Ok(Response::new(FetchOrchestratorMetadataResponse {
-                tee_certificate_signature: include_bytes!("../../tvs/test_data/vcek_genoa.crt")
-                    .to_vec(),
-                noise_kk_private_key: None,
+                tee_certificate: include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec(),
+                tvs_authentication_key: self.tvs_authentication_key.to_vec(),
             }))
         }
 
@@ -214,7 +259,6 @@ mod tests {
                 &self.tvs_private_key,
                 default_appraisal_policies().as_slice(),
                 "test_user",
-                false,
             ) else {
                 return Err(tonic::Status::internal("Error creating TVS Server"));
             };
@@ -268,14 +312,25 @@ mod tests {
         .expect("could not decode evidence")
     }
 
-    fn expected_verify_report_response(username: &str) -> VerifyReportResponse {
+    fn expected_verify_report_response(user_id: i64) -> VerifyReportResponse {
         VerifyReportResponse {
             secrets: vec![Secret {
                 key_id: 64,
-                public_key: format!("{username}-public-key").into(),
-                private_key: format!("{username}-secret").into(),
+                public_key: format!("{user_id}-public-key").into(),
+                private_key: format!("{user_id}-secret").into(),
             }],
         }
+    }
+
+    // Get client keys where the public key is registered in the test key fetcher.
+    fn get_good_client_private_key() -> P256Scalar {
+        static TEST_CLIENT_PRIVATE_KEY: &'static str =
+            "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
+        return hex::decode(TEST_CLIENT_PRIVATE_KEY)
+            .unwrap()
+            .as_slice()
+            .try_into()
+            .unwrap();
     }
 
     const NOW_UTC_MILLIS: i64 = 1698829200000;
@@ -284,8 +339,10 @@ mod tests {
     async fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let test_service = TestService {
+        let tvs_authentication_key = get_good_client_private_key();
+        let test_service = TestLauncherService {
             tvs_private_key: tvs_private_key.bytes(),
+            tvs_authentication_key: tvs_authentication_key.bytes().to_vec(),
         };
         let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let listener = TcpListener::bind(sockaddr).await.unwrap();
@@ -302,10 +359,11 @@ mod tests {
                 )
                 .await
         });
+
         let secret = tokio::spawn(async move {
             let tvs_client = TvsGrpcClient::create(
                 format!("http://localhost:{}", port).parse().unwrap(),
-                hex::encode(tvs_private_key.compute_public_key()),
+                tvs_private_key.compute_public_key().to_vec(),
             )
             .await
             .unwrap();
@@ -319,11 +377,6 @@ mod tests {
                         .unwrap(),
                     )
                     .unwrap(),
-                    tvs_client
-                        .fetch_orchestrator_metadata()
-                        .await
-                        .unwrap()
-                        .tee_certificate_signature,
                 )
                 .await
         })
@@ -333,15 +386,16 @@ mod tests {
         let _ = server.await;
         let response =
             VerifyReportResponse::decode(VecDeque::from(secret.unwrap().unwrap())).unwrap();
-        assert_eq!(response, expected_verify_report_response("test_user"));
+        assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
     }
 
     #[tokio::test]
-    async fn fetch_tee_certificate_successful() {
+    async fn verify_report_unauthenticated_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let test_service = TestService {
+        let test_service = TestLauncherService {
             tvs_private_key: tvs_private_key.bytes(),
+            tvs_authentication_key: P256Scalar::generate().bytes().to_vec(),
         };
         let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let listener = TcpListener::bind(sockaddr).await.unwrap();
@@ -358,10 +412,65 @@ mod tests {
                 )
                 .await
         });
+
+        let secret = tokio::spawn(async move {
+            let tvs_client = TvsGrpcClient::create(
+                format!("http://localhost:{}", port).parse().unwrap(),
+                tvs_private_key.compute_public_key().to_vec(),
+            )
+            .await
+            .unwrap();
+            tvs_client
+                .send_evidence(
+                    get_good_evidence(),
+                    SigningKey::from_slice(
+                        &hex::decode(
+                            "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                        )
+                        .unwrap(),
+                    )
+                    .unwrap(),
+                )
+                .await
+        })
+        .await;
+
+        let _ = shutdown_tx.send(());
+        let _ = server.await;
+        match secret.unwrap() {
+            Ok(_) => assert!(false, "send_evidence() should fail."),
+            Err(_) => assert!(true),
+        }
+    }
+
+    #[tokio::test]
+    async fn fetch_tee_certificate_successful() {
+        key_fetcher::ffi::register_echo_key_fetcher_for_test();
+        let tvs_private_key = P256Scalar::generate();
+        let test_service = TestLauncherService {
+            tvs_private_key: tvs_private_key.bytes(),
+            tvs_authentication_key: vec![],
+        };
+        let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
+        let listener = TcpListener::bind(sockaddr).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+        let server = tokio::spawn(async move {
+            tonic::transport::Server::builder()
+                .add_service(LauncherServiceServer::new(test_service))
+                .serve_with_incoming_shutdown(
+                    TcpListenerStream::new(listener),
+                    shutdown_rx.map(|_| ()),
+                )
+                .await
+        });
+
         let cert = tokio::spawn(async move {
             let tvs_client = TvsGrpcClient::create(
                 format!("http://localhost:{}", port).parse().unwrap(),
-                hex::encode(tvs_private_key.compute_public_key()),
+                tvs_private_key.compute_public_key().to_vec(),
             )
             .await
             .unwrap();
@@ -375,8 +484,8 @@ mod tests {
         assert_eq!(
             cert.unwrap().unwrap(),
             proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse {
-                tee_certificate_signature: want,
-                noise_kk_private_key: None,
+                tee_certificate: want,
+                tvs_authentication_key: vec![],
             }
         )
     }

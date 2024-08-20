@@ -16,7 +16,9 @@
 #define HATS_CLIENT_LAUNCHER_LAUNCHER_SERVER_
 
 #include <memory>
+#include <string>
 
+#include "absl/strings/string_view.h"
 #include "client/proto/launcher.grpc.pb.h"
 #include "client/proto/launcher.pb.h"
 #include "grpcpp/support/status.h"
@@ -29,7 +31,9 @@ namespace privacy_sandbox::client {
 class LauncherServer final
     : public privacy_sandbox::client::LauncherService::Service {
  public:
-  LauncherServer(std::shared_ptr<grpc::Channel> channel);
+  // tvs_authentication_key is in bytes format.
+  LauncherServer(absl::string_view tvs_authentication_key,
+                 std::shared_ptr<grpc::Channel> channel);
   // Pipes messages between the client and the server.
   // This used to proxy communication between the orchestrator and Tvs.
   grpc::Status VerifyReport(
@@ -43,11 +47,13 @@ class LauncherServer final
       override;
 
  private:
+  const std::string tvs_authentication_key_;
   std::unique_ptr<tvs::TeeVerificationService::Stub> stub_;
 };
 
 // Starts a server and blocks forever.
 void CreateAndStartLauncherServer(int port,
+                                  absl::string_view tvs_authentication_key,
                                   std::shared_ptr<grpc::Channel> channel);
 
 }  // namespace privacy_sandbox::client

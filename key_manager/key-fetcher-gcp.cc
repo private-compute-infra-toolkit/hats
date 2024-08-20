@@ -80,48 +80,6 @@ absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
 // Maximum number of secrets to return to the user.
 constexpr int64_t kMaxSecrets = 2;
 
-absl::StatusOr<std::vector<Keys>> WrappedSecretsFromSpanner(
-    absl::string_view username, google::cloud::spanner::Client& client) {
-  google::cloud::spanner::SqlStatement select(
-      R"sql(
-      SELECT
-          ResourceName, Dek, Secrets.SecretId, PublicKey, Secret
-      FROM
-          Secrets, DataEncryptionKeys, KeyEncryptionKeys, UserPublicKeys, Users
-      WHERE
-          KeyEncryptionKeys.KekId = DataEncryptionKeys.KekId
-          AND Secrets.DekId = DataEncryptionKeys.DekId
-          AND Users.UserId = Secrets.UserId
-          AND Secrets.SecretId = UserPublicKeys.SecretId
-          AND Users.Name = @username
-      ORDER BY UpdateTimestamp DESC
-      LIMIT @limit)sql",
-      {{"username", google::cloud::spanner::Value(std::string(username))},
-       {"limit", google::cloud::spanner::Value(kMaxSecrets)}});
-  using RowType =
-      std::tuple<std::string, google::cloud::spanner::Bytes, int64_t,
-                 std::string, google::cloud::spanner::Bytes>;
-  auto rows = client.ExecuteQuery(std::move(select));
-  std::vector<Keys> keys;
-  for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-    if (!row.ok()) {
-      return gcp_common::GcpToAbslStatus(row.status());
-    }
-    keys.push_back({
-        .kek = std::get<0>(*row),
-        .dek = std::get<1>(*row).get<std::string>(),
-        .key_id = std::get<2>(*row),
-        .public_key = std::get<3>(*row),
-        .private_key = std::get<4>(*row).get<std::string>(),
-    });
-  }
-  if (keys.empty()) {
-    return absl::NotFoundError(
-        absl::StrCat("Cannot find secret for user '", username, "'"));
-  }
-  return keys;
-}
-
 absl::StatusOr<std::vector<Keys>> WrappedSecretsByUserIdFromSpanner(
     int64_t user_id, google::cloud::spanner::Client& client) {
   google::cloud::spanner::SqlStatement select(
@@ -217,28 +175,6 @@ absl::StatusOr<std::string> KeyFetcherGcp::GetSecondaryPrivateKey() {
     return secret_data.status();
   }
   return std::string(secret_data->GetStringView());
-}
-
-absl::StatusOr<std::vector<Secret>> KeyFetcherGcp::GetSecrets(
-    absl::string_view username) {
-  absl::StatusOr<std::vector<Keys>> keys =
-      WrappedSecretsFromSpanner(username, spanner_client_);
-  if (!keys.ok()) return keys.status();
-  std::vector<Secret> secrets;
-  // Use non-const to enable effective use of std::move().
-  for (Keys& key : *keys) {
-    absl::StatusOr<crypto::SecretData> secret_data =
-        UnwrapSecret(crypto::kSecretAd, gcp_kms_client_, key);
-    if (!secret_data.ok()) {
-      return secret_data.status();
-    }
-    secrets.push_back({
-        .key_id = key.key_id,
-        .public_key = std::move(key.public_key),
-        .private_key = std::string(secret_data->GetStringView()),
-    });
-  }
-  return secrets;
 }
 
 absl::StatusOr<int64_t> KeyFetcherGcp::UserIdForAuthenticationKey(

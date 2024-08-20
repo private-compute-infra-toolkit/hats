@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let client = tvs_grpc_client::TvsGrpcClient::create(
         args.hats_launcher_addr.parse()?,
-        args.tvs_public_key,
+        hex::decode(args.tvs_public_key)?,
     )
     .await
     .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
@@ -112,14 +112,8 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow!("couldn't send attestation evidence: {:?}", error))?;
 
-    let orchestrator_metadata = client
-        .fetch_orchestrator_metadata()
-        .await
-        .map_err(|error| anyhow!("couldn't find tee certificate: {:?}", error))?;
-    let cert = orchestrator_metadata.tee_certificate_signature;
-
     let token = client
-        .send_evidence(evidence, instance_keys.signing_key.clone(), cert)
+        .send_evidence(evidence, instance_keys.signing_key.clone())
         .await
         .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
 
@@ -160,6 +154,5 @@ async fn main() -> anyhow::Result<()> {
         ),
         hats_server::create(&args.ipc_socket_path, &token, cancellation_token),
     )?;
-
     Ok(())
 }

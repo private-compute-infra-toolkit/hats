@@ -64,13 +64,13 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
           absl::ToUnixMillis(absl::Now()),
           StringToRustSlice(primary_private_key),
           StringToRustSlice(appraisal_policies.SerializeAsString()),
-          /*user=*/"default", enable_authentication);
+          /*user=*/"default");
     }
     return new_trusted_tvs_service_with_second_key(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(secondary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
-        /*user=*/"default", enable_authentication);
+        /*user=*/"default");
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
         absl::StrCat("Cannot create trusted TVS server. ", e.what()));
@@ -78,20 +78,16 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
 }
 
 TvsServer::TvsServer(const std::string& primary_private_key,
-                     AppraisalPolicies appraisal_policies,
-                     bool enable_authentication)
+                     AppraisalPolicies appraisal_policies)
     : primary_private_key_(primary_private_key),
-      appraisal_policies_(std::move(appraisal_policies)),
-      enable_authentication_(enable_authentication) {}
+      appraisal_policies_(std::move(appraisal_policies)) {}
 
 TvsServer::TvsServer(const std::string& primary_private_key,
                      const std::string& secondary_private_key,
-                     AppraisalPolicies appraisal_policies,
-                     bool enable_authentication)
+                     AppraisalPolicies appraisal_policies)
     : primary_private_key_(primary_private_key),
       secondary_private_key_(secondary_private_key),
-      appraisal_policies_(std::move(appraisal_policies)),
-      enable_authentication_(enable_authentication) {}
+      appraisal_policies_(std::move(appraisal_policies)) {}
 
 grpc::Status TvsServer::VerifyReport(
     grpc::ServerContext* context,
@@ -128,10 +124,9 @@ grpc::Status TvsServer::VerifyReport(
 
 void CreateAndStartTvsServer(TvsServerOptions options) {
   const std::string server_address = absl::StrCat("0.0.0.0:", options.port);
-  bool enable_authentication = (options.handshake == "KK");
-  TvsServer tvs_server(
-      options.primary_private_key, options.secondary_private_key,
-      std::move(options.appraisal_policies), enable_authentication);
+  TvsServer tvs_server(options.primary_private_key,
+                       options.secondary_private_key,
+                       std::move(options.appraisal_policies));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()
           .AddListeningPort(server_address, grpc::InsecureServerCredentials())

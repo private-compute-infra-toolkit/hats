@@ -166,6 +166,10 @@ pub fn respond(
             return Err(Error::MustProvideClientStaticForKk);
         }
     } else {
+        if let Some(_) = initiator_static_pub {
+            // Return an error to notify users who think they are using KK.
+            return Err(Error::InvalidArgument);
+        }
         initiator_static_pub_bytes = [0u8; P256_X962_LENGTH];
     }
 

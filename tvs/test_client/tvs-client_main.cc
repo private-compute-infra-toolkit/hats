@@ -44,6 +44,9 @@ ABSL_FLAG(std::string, application_signing_key, "",
           "and the evidence.");
 ABSL_FLAG(std::string, access_token, "",
           "Access token to pass in the GRPC request. TLS needs to be enabled");
+ABSL_FLAG(
+    std::string, tvs_authentication_key, "",
+    "Private key used to authenticate with TVS in hex format e.g. deadbeef");
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
@@ -76,6 +79,11 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  if (absl::GetFlag(FLAGS_tvs_authentication_key).empty()) {
+    LOG(ERROR) << "--tvs_authentication_key cannot be empty.";
+    return 1;
+  }
+
   absl::StatusOr<std::shared_ptr<grpc::Channel>> channel =
       privacy_sandbox::tvs::CreateGrpcChannel({
           .use_tls = absl::GetFlag(FLAGS_use_tls),
@@ -92,6 +100,7 @@ int main(int argc, char* argv[]) {
   absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient>>
       tvs_client = privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = absl::GetFlag(FLAGS_tvs_public_key),
+          .tvs_authentication_key = absl::GetFlag(FLAGS_tvs_authentication_key),
           .channel = std::move(channel).value(),
       });
   if (!tvs_client.ok()) {

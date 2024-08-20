@@ -40,12 +40,10 @@ class TvsServer final : public TeeVerificationService::Service {
  public:
   // Pass appraisal_policy by value as we expect the caller to use std::move().
   explicit TvsServer(const std::string& primary_private_key,
-                     const AppraisalPolicies appraisal_policies,
-                     bool authentication = false);
+                     const AppraisalPolicies appraisal_policies);
   explicit TvsServer(const std::string& primary_private_key,
                      const std::string& secondary_private_key,
-                     AppraisalPolicies appraisal_policies,
-                     bool authentication = false);
+                     AppraisalPolicies appraisal_policies);
 
   TvsServer() = delete;
   grpc::Status VerifyReport(
@@ -56,7 +54,6 @@ class TvsServer final : public TeeVerificationService::Service {
   const std::string primary_private_key_;
   const std::string secondary_private_key_;
   const AppraisalPolicies appraisal_policies_;
-  const bool enable_authentication_;
 };
 
 struct TvsServerOptions {
@@ -64,7 +61,6 @@ struct TvsServerOptions {
   std::string primary_private_key;
   std::string secondary_private_key;
   AppraisalPolicies appraisal_policies;
-  std::string handshake = "NK";
 };
 
 // Starts a server and blocks forever.

@@ -21,6 +21,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "client/proto/launcher.grpc.pb.h"
 #include "grpcpp/client_context.h"
@@ -91,10 +92,26 @@ TvsUntrustedClient::TvsUntrustedClient(
 
 absl::StatusOr<std::unique_ptr<TvsUntrustedClient>>
 TvsUntrustedClient::CreateClient(const Options& options) {
+  std::string tvs_public_key;
+  if (!absl::HexStringToBytes(options.tvs_public_key, &tvs_public_key)) {
+    return absl::InvalidArgumentError(
+        "Failed to parse tvs_public_key. The key should be in hex string "
+        "format");
+  }
+
+  std::string tvs_authentication_key;
+  if (!absl::HexStringToBytes(options.tvs_authentication_key,
+                              &tvs_authentication_key)) {
+    return absl::InvalidArgumentError(
+        "Failed to parse tvs_authentication_key. The key should be in hex "
+        "string format");
+  }
   // try/catch is to handle errors from rust code.
   // Errors returned by rust functions are converted to C++ exception.
   try {
-    rust::Box<TvsClient> tvs_client = new_tvs_client(options.tvs_public_key);
+    rust::Box<TvsClient> tvs_client =
+        new_tvs_client(StringToRustSlice(tvs_authentication_key),
+                       StringToRustSlice(tvs_public_key));
     // Perform handshake.
     std::unique_ptr<TeeVerificationService::Stub> stub = nullptr;
     std::unique_ptr<privacy_sandbox::client::LauncherService::Stub>
@@ -124,7 +141,7 @@ TvsUntrustedClient::CreateClient(const Options& options) {
         std::move(stream), std::move(tvs_client)));
   } catch (std::exception& e) {
     return absl::FailedPreconditionError(
-        absl::StrCat("Failed to create trusted TVS client.", e.what()));
+        absl::StrCat("Failed to create trusted TVS client. ", e.what()));
   }
 }
 

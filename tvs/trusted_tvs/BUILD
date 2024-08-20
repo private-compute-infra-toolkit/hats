@@ -17,7 +17,6 @@ rust_library(
     deps = [
         ":build",
         "@using_cxx//:cxx",
-        "@hats_crate_index//:hex",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the

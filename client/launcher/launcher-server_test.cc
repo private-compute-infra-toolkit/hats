@@ -179,6 +179,9 @@ constexpr absl::string_view kTvsPrivateKey =
 constexpr absl::string_view kTvsPublicKey =
     "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
     "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+// Authentication key registered in the test TVS server.
+constexpr absl::string_view kTvsAuthenticationKey =
+    "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
 
 absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
   std::string bytes;
@@ -204,17 +207,22 @@ TEST(LauncherServer, Successful) {
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
+  // A key to be returned by the launcher service by `FetchOrchestratorMetadata`
+  // rpc. We are not using this key in the test.
+  constexpr absl::string_view kFakeKey =
+      "4583ed91df564f17c0726f7fa4d7e00ec2da067ad3c92448794c5982f6150ba7";
   // Forwarding TVS server.
   LauncherServer launcher_service(
+      /*tvs_authentication_key=*/kFakeKey,
       tvs_server->InProcessChannel(grpc::ChannelArguments()));
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
       "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
-
   absl::StatusOr<std::unique_ptr<tvs::TvsUntrustedClient>> tvs_client =
       tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kTvsPublicKey),
+          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
           .channel =
               launcher_server->InProcessChannel(grpc::ChannelArguments()),
           .use_launcher_forwarding = true,
@@ -233,8 +241,8 @@ TEST(LauncherServer, Successful) {
           R"pb(
             secrets {
               key_id: 64
-              public_key: "default-public-key"
-              private_key: "default-secret"
+              public_key: "1-public-key"
+              private_key: "1-secret"
             })pb")));
 }
 
@@ -253,15 +261,20 @@ TEST(LauncherServer, BadReportError) {
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
+  // A key to be returned by the launcher service by `FetchOrchestratorMetadata`
+  // rpc. We are not using this key in the test.
+  constexpr absl::string_view kFakeKey =
+      "4583ed91df564f17c0726f7fa4d7e00ec2da067ad3c92448794c5982f6150ba7";
   // Forwarding TVS server.
   LauncherServer launcher_service(
+      /*tvs_authentication_key==*/kFakeKey,
       tvs_server->InProcessChannel(grpc::ChannelArguments()));
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
-
   absl::StatusOr<std::unique_ptr<tvs::TvsUntrustedClient>> tvs_client =
       tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kTvsPublicKey),
+          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
           .channel =
               launcher_server->InProcessChannel(grpc::ChannelArguments()),
           .use_launcher_forwarding = true,

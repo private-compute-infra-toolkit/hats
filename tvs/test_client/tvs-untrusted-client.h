@@ -36,6 +36,7 @@ namespace privacy_sandbox::tvs {
 class TvsUntrustedClient final {
   struct Options {
     std::string tvs_public_key;
+    std::string tvs_authentication_key;
     std::shared_ptr<grpc::Channel> channel = nullptr;
     bool use_launcher_forwarding = false;
   };

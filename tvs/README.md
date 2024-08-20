@@ -13,7 +13,8 @@ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
 bazel-bin/tvs/untrusted_tvs/tvs-server_main \
    --port=8080 \
    --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001 \
-   --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto
+   --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto \
+   --user_authentication_public_key=04a99c16a302716404b075086c8c125ea93d0822330f8a46675c8f7e5760478024811211845d43e6addae5280660ba3b5ba0f78834b79ec9449b626a725728b76d
 ```
 
 ### To run a test server through GCP KMS Integration:
@@ -91,7 +92,8 @@ bazel-bin/tvs/test_client/tvs-client_main \
    --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
    --nouse_tls \
    --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext \
-   --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23
+   --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
+   --tvs_authentication_key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9
 ```
 
 #### Test with invalid report
@@ -103,7 +105,8 @@ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
     --nouse_tls \
     --verify_report_request_file=tvs/test_data/bad_verify_request_report.prototext \
-    --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
+    --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759 \
+    --tvs_authentication_key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9
 ```
 
 ### To run a test client with GCP KMS Integration:

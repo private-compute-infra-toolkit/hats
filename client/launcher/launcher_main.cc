@@ -52,7 +52,12 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  auto launcher = privacy_sandbox::client::HatsLauncher::Create(config);
+  absl::StatusOr<std::unique_ptr<privacy_sandbox::client::HatsLauncher>>
+      launcher = privacy_sandbox::client::HatsLauncher::Create(config);
+  if (!launcher.ok()) {
+    LOG(ERROR) << "Failed to create launcher: " << launcher.status();
+    return 1;
+  }
   // TODO(b/358628725): Finish up qemu process spinup.
   return 0;
 }

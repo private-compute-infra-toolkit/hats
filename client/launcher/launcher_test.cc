@@ -70,7 +70,7 @@ absl::Status VerifyContent(absl::string_view full_runfile_path,
   std::vector<char> bytes((std::istreambuf_iterator<char>(input)),
                           (std::istreambuf_iterator<char>()));
   input.close();
-  for (int i = 0; i < bytes.size(); ++i) {
+  for (size_t i = 0; i < bytes.size(); ++i) {
     if (bytes[i] != want[i]) {
       return absl::InternalError(absl::StrFormat(
           "unexpected byte at loc %d  want %d got %d.", i, want[i], bytes[i]));

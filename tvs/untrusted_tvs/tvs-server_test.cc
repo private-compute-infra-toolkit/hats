@@ -179,7 +179,9 @@ constexpr absl::string_view kTvsPrivateKey =
 constexpr absl::string_view kTvsPublicKey =
     "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
     "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
-constexpr absl::string_view kSecret = "default-secret";
+// Authentication key registered in the test TVS server.
+constexpr absl::string_view kTvsAuthenticationKey =
+    "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
 
 absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
   std::string bytes;
@@ -206,6 +208,7 @@ TEST(TvsServer, Successful) {
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kTvsPublicKey),
+          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       });
   ASSERT_TRUE(tvs_client.ok());
@@ -225,8 +228,8 @@ TEST(TvsServer, Successful) {
           R"pb(
             secrets {
               key_id: 64
-              public_key: "default-public-key"
-              private_key: "default-secret"
+              public_key: "1-public-key"
+              private_key: "1-secret"
             })pb")));
 }
 
@@ -247,6 +250,7 @@ TEST(TvsServer, BadReportError) {
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kTvsPublicKey),
+          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       });
   ASSERT_TRUE(tvs_client.ok());
@@ -283,6 +287,7 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kTvsPublicKey),
+          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       });
   ASSERT_TRUE(tvs_client.ok());
@@ -302,8 +307,8 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
           R"pb(
             secrets {
               key_id: 64
-              public_key: "default-public-key"
-              private_key: "default-secret"
+              public_key: "1-public-key"
+              private_key: "1-secret"
             })pb")));
 
   EXPECT_THAT(
@@ -354,6 +359,7 @@ TEST(TvsServer, CreatingTrustedTvsServerError) {
   EXPECT_THAT(
       TvsUntrustedClient::CreateClient({
           .tvs_public_key = std::string(kTvsPublicKey),
+          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       }),
       StatusIs(
@@ -362,6 +368,30 @@ TEST(TvsServer, CreatingTrustedTvsServerError) {
                     "FAILED_PRECONDITION: Cannot create trusted TVS server"),
                 HasSubstr("Invalid private key. Key should be 32 bytes "
                           "long."))));
+}
+
+TEST(TvsServer, AuthenticationError) {
+  key_manager::RegisterEchoKeyFetcherForTest();
+  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+      GetTestAppraisalPolicies();
+  ASSERT_TRUE(appraisal_policies.ok());
+  absl::StatusOr<std::string> tvs_private_key =
+      HexStringToBytes(kTvsPrivateKey);
+  ASSERT_TRUE(tvs_private_key.ok());
+
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
+  std::unique_ptr<grpc::Server> server =
+      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+
+  constexpr absl::string_view kBadAuthenticationKey =
+      "4583ed91df564f17c0726f7fa4d7e00ec2da067ad3c92448794c5982f6150ba7";
+  EXPECT_THAT(TvsUntrustedClient::CreateClient({
+                  .tvs_public_key = std::string(kTvsPublicKey),
+                  .tvs_authentication_key = std::string(kBadAuthenticationKey),
+                  .channel = server->InProcessChannel(grpc::ChannelArguments()),
+              }),
+              StatusIs(absl::StatusCode::kUnknown,
+                       HasSubstr("Unauthenticated: Failed to lookup user")));
 }
 
 }  // namespace

@@ -24,6 +24,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "client/launcher/certificates.rs.h"
 #include "client/proto/launcher.grpc.pb.h"
 #include "grpcpp/channel.h"
@@ -44,8 +45,10 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
 
 }  // namespace
 
-LauncherServer::LauncherServer(std::shared_ptr<grpc::Channel> channel)
-    : stub_(tvs::TeeVerificationService::NewStub(channel)) {}
+LauncherServer::LauncherServer(absl::string_view tvs_authentication_key,
+                               std::shared_ptr<grpc::Channel> channel)
+    : tvs_authentication_key_(tvs_authentication_key),
+      stub_(tvs::TeeVerificationService::NewStub(channel)) {}
 
 grpc::Status LauncherServer::VerifyReport(
     grpc::ServerContext* context,
@@ -81,8 +84,9 @@ grpc::Status LauncherServer::FetchOrchestratorMetadata(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply) {
   try {
-    reply->set_tee_certificate_signature(
+    reply->set_tee_certificate(
         RustVecToString(privacy_sandbox::launcher::get_vcek()));
+    reply->set_tvs_authentication_key(tvs_authentication_key_);
     return grpc::Status::OK;
   } catch (rust::Error& error) {
     return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error.what());
@@ -90,13 +94,14 @@ grpc::Status LauncherServer::FetchOrchestratorMetadata(
 }
 
 void CreateAndStartLauncherServer(int port,
+                                  absl::string_view tvs_authentication_key,
                                   std::shared_ptr<grpc::Channel> channel) {
   const std::string server_address = absl::StrCat("0.0.0.0:", port);
-  LauncherServer forwarding_tvs_server(channel);
+  LauncherServer launcher_server(tvs_authentication_key, channel);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()
           .AddListeningPort(server_address, grpc::InsecureServerCredentials())
-          .RegisterService(&forwarding_tvs_server)
+          .RegisterService(&launcher_server)
           .BuildAndStart();
   LOG(INFO) << "Server listening on " << server_address;
   server->Wait();

@@ -38,10 +38,6 @@ class KeyFetcher {
   virtual absl::StatusOr<std::string> GetPrimaryPrivateKey() = 0;
   // The secondary private key used for the noise protocol.
   virtual absl::StatusOr<std::string> GetSecondaryPrivateKey() = 0;
-  // Get secrets for `username` (and unwrap the secret if encrypted).
-  // TODO(b/359951785): remove after authentication is implemented.
-  virtual absl::StatusOr<std::vector<Secret>> GetSecrets(
-      absl::string_view username) = 0;
   // Find the user id owning the authentication key.
   virtual absl::StatusOr<int64_t> UserIdForAuthenticationKey(
       absl::string_view public_key) = 0;

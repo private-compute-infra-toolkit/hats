@@ -24,5 +24,6 @@ pub enum Error {
     InvalidPublicKey,
     MustProvideClientStaticForKk,
     MustHaveSecondaryPrivKeyForKk,
+    InvalidArgument,
     UnknownError(&'static str),
 }

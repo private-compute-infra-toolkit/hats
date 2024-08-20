@@ -25,6 +25,8 @@ struct LauncherServerOptions {
   bool forwarding_use_tls;
   rust::Str forwarding_target;
   rust::Str forwarding_access_token;
+  // Private key to authenticate with TVS.
+  rust::Str tvs_authentication_key;
 
   // Parc server options.
   bool enable_parc;

@@ -21,6 +21,7 @@ PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
 readonly PREBUILT_DIR
 
 # The oak_containers_launcher has hardcoded AMD SEV-SNP parameters
+# Note: --tvs-authentication-key is a test key.
 sudo "${PREBUILT_DIR}/launcher" \
   --system-image "${PREBUILT_DIR}/hats_system_image.tar.xz" \
   --container-bundle "${PREBUILT_DIR}/oak_container_example_oci_filesystem_bundle.tar" \
@@ -32,6 +33,7 @@ sudo "${PREBUILT_DIR}/launcher" \
   --ramdrive-size="10000000" \
   --vm-type sev-snp \
   --tvs-address "$1" \
+  --tvs-authentication-key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9 \
   --enable-parc \
   --parc-parameters-file "${PREBUILT_DIR}/parc_data/parameters/parameters-local.json" \
   --parc-blobstore-root "${PREBUILT_DIR}/parc_data/blob_root"
