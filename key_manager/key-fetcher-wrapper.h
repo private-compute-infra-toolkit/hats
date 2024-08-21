@@ -27,6 +27,8 @@ IntResult UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key);
 
 VecU8Result GetSecretsForUserId(int64_t user_id);
 
+bool MaybeAcquireLock(int64_t user_id);
+
 // Allow registration of a KeyFetcher to be used in test.
 // The registered KeyFetcher echos back the `username` as the secret.
 // Note, we only allow registration once to avoid unexpected behavior just

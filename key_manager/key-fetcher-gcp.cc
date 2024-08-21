@@ -31,6 +31,9 @@
 #include "gcp_common/gcp-status.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/spanner/client.h"
+#include "google/cloud/spanner/sql_statement.h"
+#include "google/cloud/spanner/timestamp.h"
+#include "google/cloud/spanner/transaction.h"
 #include "key_manager/gcp-kms-client.h"
 #include "key_manager/key-fetcher.h"
 
@@ -221,6 +224,53 @@ absl::StatusOr<std::vector<Secret>> KeyFetcherGcp::GetSecretsForUserId(
     });
   }
   return secrets;
+}
+
+absl::StatusOr<bool> KeyFetcherGcp::MaybeAcquireLock(int64_t user_id) {
+  bool lock_acquired = false;
+  auto commit = spanner_client_.Commit(
+      [&spanner_client_ = spanner_client_, &user_id,
+       &lock_acquired](google::cloud::spanner::Transaction transaction)
+          -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
+        google::cloud::spanner::SqlStatement select(
+            R"sql(
+              SELECT
+                  LockExpiryTime
+              FROM
+                  Users
+              WHERE
+                  Users.UserId = @user_id)sql",
+            {{"user_id", google::cloud::spanner::Value(user_id)}});
+        auto query = spanner_client_.ExecuteQuery(std::move(transaction),
+                                                  std::move(select));
+
+        auto row = google::cloud::spanner::GetSingularRow(
+            google::cloud::spanner::StreamOf<std::tuple<int64_t>>(query));
+        int64_t lockExpiryTime = std::get<0>(*row);
+        int64_t currentTime = absl::ToUnixSeconds(absl::Now());
+
+        if (lockExpiryTime < currentTime) {
+          google::cloud::spanner::SqlStatement update(
+              R"sql(
+                  UPDATE
+                      Users
+                  SET
+                      Users.LockExpiryTime = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 20 MINUTE)
+                  WHERE
+                      Users.UserId = @user_id)sql",
+              {{"user_id", google::cloud::spanner::Value(user_id)}});
+          auto update_result = spanner_client_.ExecuteDml(transaction, update);
+          if (!update_result.ok()) {
+            return update_result.status();
+          }
+          lock_acquired = true;
+        }
+        return google::cloud::spanner::Mutations{};  // Indicate success
+      });
+  if (!commit.ok()) {
+    return gcp_common::GcpToAbslStatus(commit.status());
+  }
+  return lock_acquired;
 }
 
 std::unique_ptr<KeyFetcher> KeyFetcherGcp::Create(

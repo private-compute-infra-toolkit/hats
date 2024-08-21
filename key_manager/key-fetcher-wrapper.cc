@@ -89,6 +89,13 @@ class EchoKeyFetcher final : public KeyFetcher {
     }};
   }
 
+  absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) override {
+    if (user_id != 0) {
+      return false;
+    }
+    return absl::NotFoundError(absl::StrCat("Cannot find user ", user_id));
+  }
+
  private:
   std::string test_client_authentication_key_;
 };
