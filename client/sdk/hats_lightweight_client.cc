@@ -90,12 +90,13 @@ HatsLightweightClient::HatsLightweightClient(
 absl::StatusOr<std::vector<Key>> HatsLightweightClient::GetKeys() const {
   grpc::ClientContext context;
   context.set_authority("[::]:0");
-  privacy_sandbox::client::GetKeysResponse response;
+  GetKeysResponse response;
   if (grpc::Status status = hats_stub_->GetKeys(&context, {}, &response);
       !status.ok()) {
     return GrpcToAbslStatus(status);
   }
   std::vector<Key> keys;
+  // Non-const to allow effective moving.
   for (Key& key : *response.mutable_keys()) {
     keys.push_back(std::move(key));
   }
