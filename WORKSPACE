@@ -104,14 +104,6 @@ crates_repository(
         ),
         "rand": crate.spec(version = "*"),
         "rand_core": crate.spec(version = "*"),
-        "reqwest": crate.spec(
-            default_features = False,
-            features = [
-                "rustls-tls",
-                "blocking",
-            ],
-            version = "*",
-        ),
         "serde": crate.spec(version = "*"),
         "serde_json": crate.spec(version = "*"),
         "sev": crate.spec(

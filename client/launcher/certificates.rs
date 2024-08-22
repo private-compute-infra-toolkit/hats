@@ -19,7 +19,7 @@ use std::arch::x86_64;
 #[cxx::bridge(namespace = "privacy_sandbox::launcher")]
 mod ffi {
     extern "Rust" {
-        pub fn get_vcek() -> Result<Vec<u8>>;
+        pub fn vcek_url() -> Result<String>;
     }
 }
 
@@ -101,15 +101,4 @@ fn vcek_url() -> Result<String> {
                          status.reported_tcb_version.tee,
                          status.reported_tcb_version.snp,
                          status.reported_tcb_version.microcode))
-}
-
-fn get_vcek_from_url(url: &str) -> Result<Vec<u8>> {
-    let mut response = reqwest::blocking::get(url)?;
-    let mut buf: Vec<u8> = Vec::new();
-    response.copy_to(&mut buf)?;
-    Ok(buf)
-}
-
-pub fn get_vcek() -> Result<Vec<u8>> {
-    get_vcek_from_url(&vcek_url()?)
 }

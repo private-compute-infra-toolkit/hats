@@ -34,3 +34,4 @@ git_override(
 )
 
 bazel_dep(name = "libarchive", version = "3.7.4.bcr.3")
+bazel_dep(name = "curl", version = "8.8.0.bcr.1")

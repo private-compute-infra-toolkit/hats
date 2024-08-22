@@ -35,7 +35,6 @@ rust_library(
     name = "certificates",
     srcs = ["certificates.rs"],
     deps = [
-        "@hats_crate_index//:reqwest",
         "@hats_crate_index//:sev",
         "@oak_crates_index//:anyhow",
         "@using_cxx//:cxx",
@@ -113,6 +112,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@curl",
         "@using_cxx//:cxx",
         "@using_cxx//:cxx_cc",
     ],

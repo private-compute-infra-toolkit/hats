@@ -27,6 +27,7 @@
 #include "absl/strings/string_view.h"
 #include "client/launcher/certificates.rs.h"
 #include "client/proto/launcher.grpc.pb.h"
+#include "curl/curl.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
@@ -39,8 +40,28 @@ namespace privacy_sandbox::client {
 
 namespace {
 
-std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
-  return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
+size_t ResponseHandler(char* contents, size_t byte_size, size_t num_bytes,
+                       void* output) {
+  std::string* certificate = static_cast<std::string*>(output);
+  *certificate =
+      std::string(static_cast<const char*>(contents), byte_size * num_bytes);
+  return byte_size * num_bytes;
+}
+
+absl::StatusOr<std::string> DownloadCertificate(const std::string& url) {
+  CURL* curl;
+  curl = curl_easy_init();
+  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ResponseHandler);
+  std::string certificate;
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &certificate);
+  if (CURLcode res = curl_easy_perform(curl); res != CURLE_OK) {
+    curl_easy_cleanup(curl);
+    return absl::UnknownError(
+        absl::StrCat("Error downloading certificate from '", url, "'"));
+  }
+  curl_easy_cleanup(curl);
+  return certificate;
 }
 
 }  // namespace
@@ -84,8 +105,13 @@ grpc::Status LauncherServer::FetchOrchestratorMetadata(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply) {
   try {
-    reply->set_tee_certificate(
-        RustVecToString(privacy_sandbox::launcher::get_vcek()));
+    absl::StatusOr<std::string> certificate = DownloadCertificate(
+        static_cast<std::string>(privacy_sandbox::launcher::vcek_url()));
+    if (!certificate.ok()) {
+      return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          std::string(certificate.status().message()));
+    }
+    reply->set_tee_certificate(*std::move(certificate));
     reply->set_tvs_authentication_key(tvs_authentication_key_);
     return grpc::Status::OK;
   } catch (rust::Error& error) {
