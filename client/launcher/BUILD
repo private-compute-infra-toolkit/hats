@@ -70,10 +70,10 @@ cc_library(
     srcs = ["launcher.cc"],
     hdrs = ["launcher.h"],
     deps = [
-        "//:libarchive",
         "//client/proto:launcher_config_cc_proto",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
+        "@libarchive//libarchive:archive",
     ],
 )
 

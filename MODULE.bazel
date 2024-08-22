@@ -32,3 +32,5 @@ git_override(
     ],
     remote = "https://boringssl.googlesource.com/boringssl",
 )
+
+bazel_dep(name = "libarchive", version = "3.7.4.bcr.3")

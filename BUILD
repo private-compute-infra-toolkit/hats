@@ -1,5 +1,4 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
 
 licenses(["notice"])
 
@@ -34,15 +33,4 @@ config_setting(
     flag_values = {
         ":enable_syslogd": "true",
     },
-)
-
-# Foreign CMake library must be declared in a BUILD file.
-cmake(
-    name = "libarchive",
-    cache_entries = {
-        "CMAKE_C_FLAGS": "-fPIC",
-    },
-    lib_source = "@libarchive//:all_srcs",
-    out_static_libs = ["libarchive.a"],
-    visibility = ["//visibility:public"],
 )
