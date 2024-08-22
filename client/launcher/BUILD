@@ -70,6 +70,7 @@ cc_library(
     srcs = ["launcher.cc"],
     hdrs = ["launcher.h"],
     deps = [
+        ":qemu",
         "//client/proto:launcher_config_cc_proto",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
@@ -175,6 +176,7 @@ cc_library(
     srcs = ["qemu.cc"],
     hdrs = ["qemu.h"],
     deps = [
+        "//client/proto:launcher_config_cc_proto",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

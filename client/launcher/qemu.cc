@@ -46,10 +46,15 @@
 // porting from oak qemu launcher: http://shortn/_LgMZgnCwOM
 // currently Start() is non-blocking, do not terminate process
 
-namespace privacy_sandbox::launcher {
+namespace privacy_sandbox::client {
 
 // SLIRP assings 10.0.2.15 to the guest.
 constexpr char kVmLocalAddress[] = "10.0.2.15";
+// Hardcoded launcher address for CVM.
+constexpr char kVmLauncherAddress[] = "10.0.2.100";
+constexpr uint16_t kVmHatsLauncherPort = 8889;
+// TODO(b/351007909): Remove the oak launcher port when C++ conversion is done.
+constexpr uint16_t kVmOakLauncherPort = 8080;
 constexpr char kLocalHost[] = "127.0.0.1";
 constexpr uint16_t kVmOrchestratorLocalPort = 4000;
 constexpr uint16_t kVmLocalPort = 8080;
@@ -191,16 +196,30 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
         std::move(interface), ",mac=", std::move(mac_address)));
   } else {
     // Set up the networking. `rombar=0` is so that QEMU wouldn't bother with
-    // the `efi-virtio.rom` file, as we're not using EFI anyway. (TODO)
-    // alexorozco: implement forwarding to guest
-    std::string host_fwd =
+    // the `efi-virtio.rom` file, as we're not using EFI anyway.
+    // Allow guest workload to talk to oak launcher service.
+    std::string guestfwd_oak_launcher = absl::StrFormat(
+        "guestfwd=tcp:%s:%u-cmd:nc %s %u", kVmLauncherAddress,
+        kVmOakLauncherPort, kLocalHost, options.launcher_service_port);
+    // Allow host to talk to guest orchestrator service.
+    std::string hostfwd_guest_orchestrator =
         absl::StrFormat("hostfwd=tcp:%s:%u-%s:%u", kLocalHost,
                         options.host_orchestrator_proxy_port, kVmLocalAddress,
                         kVmOrchestratorLocalPort);
+    // Allow guest workload to talk to hats launcher service.
+    std::string guestfwd_hats_launcher = absl::StrFormat(
+        "guestfwd=tcp:%s:%u-cmd:nc %s %u", kVmLauncherAddress,
+        kVmHatsLauncherPort, kLocalHost, options.launcher_service_port);
+    // Allow host to talk to guest workload.
+    std::string hostfwd_guest_workload =
+        absl::StrFormat("hostfwd=tcp:%s:%u-%s:%u", kLocalHost,
+                        options.host_proxy_port, kVmLocalAddress, kVmLocalPort);
+
     args.push_back("-netdev");
-    args.push_back(absl::StrFormat(
-        "user,id=netdev,%s,hostfwd=tcp:%s:%u-%s:%u", std::move(host_fwd),
-        kLocalHost, options.host_proxy_port, kVmLocalAddress, kVmLocalPort));
+    args.push_back(
+        absl::StrFormat("user,id=netdev,%s,%s,%s,%s", guestfwd_oak_launcher,
+                        hostfwd_guest_orchestrator, guestfwd_hats_launcher,
+                        hostfwd_guest_workload));
     args.push_back("-device");
     args.push_back(
         "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
@@ -370,4 +389,4 @@ void Qemu::Wait() {
   waitpid(process_id_, /*wstatus=*/nullptr, 0);
 }
 
-}  // namespace privacy_sandbox::launcher
+}  // namespace privacy_sandbox::client
