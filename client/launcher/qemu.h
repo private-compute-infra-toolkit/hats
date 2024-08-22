@@ -28,7 +28,7 @@
 #ifndef HATS_CLIENT_LAUNCHER_QEMU_H_
 #define HATS_CLIENT_LAUNCHER_QEMU_H_
 
-namespace privacy_sandbox::launcher {
+namespace privacy_sandbox::client {
 
 // Main Qemu struct
 class Qemu final {
@@ -146,6 +146,6 @@ class Qemu final {
   std::string log_filename_ ABSL_GUARDED_BY(mu_);
 };
 
-}  // namespace privacy_sandbox::launcher
+}  // namespace privacy_sandbox::client
 
 #endif  // HATS_CLIENT_LAUNCHER_QEMU_H_

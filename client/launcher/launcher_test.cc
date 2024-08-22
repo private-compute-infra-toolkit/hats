@@ -117,5 +117,31 @@ TEST(HatsLauncherTest, Unsuccessful) {
   EXPECT_THAT(privacy_sandbox::client::HatsLauncher::Create(*config),
               StatusIs(absl::StatusCode::kInternal));
 }
+TEST(HatsLauncherTest, QemuOption) {
+  // Ensure that QEMU option is correctly generated.
+  absl::StatusOr<std::string> runfile_path =
+      GetRunfilePath("launcher_config_port_forwarding.textproto");
+  ASSERT_THAT(runfile_path, IsOk());
+  absl::StatusOr<LauncherConfig> config =
+      ParseLauncherConfigFromFile(*runfile_path);
+  ASSERT_THAT(config, IsOk());
+  absl::StatusOr<std::string> system_bundle =
+      GetRunfilePath("system_bundle.tar");
+  ASSERT_THAT(system_bundle, IsOk());
+  (*config).mutable_cvm_config()->set_hats_system_bundle(*system_bundle);
+  absl::StatusOr<std::unique_ptr<HatsLauncher>> launcher =
+      privacy_sandbox::client::HatsLauncher::Create(*config);
+  ASSERT_THAT(launcher, IsOk());
+  absl::StatusOr<Qemu::Options> option =
+      privacy_sandbox::client::HatsLauncher::GetQemuOptions(
+          /*kernel_binary_path=*/"kernel_binary_path",
+          /*stage0_binary_path=*/"stage0_binary_path",
+          /*initrd_cpio_xz_path=*/"initrd_cpio_xz_path",
+          *config);
+  ASSERT_THAT(option, IsOk());
+  EXPECT_EQ((*option).num_cpus, 4);
+  EXPECT_EQ((*option).network_mode, Qemu::kOutboundAllowed);
+  EXPECT_EQ((*option).telnet_port, std::nullopt);
+}
 }  // namespace
 }  // namespace privacy_sandbox::client

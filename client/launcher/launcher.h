@@ -19,6 +19,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "client/launcher/qemu.h"
 #include "client/proto/launcher_config.pb.h"
 
 namespace privacy_sandbox::client {
@@ -32,17 +33,31 @@ class HatsLauncher final {
   HatsLauncher& operator=(const HatsLauncher&) = delete;
   static absl::StatusOr<std::unique_ptr<HatsLauncher>> Create(
       const LauncherConfig& config);
+
+  static absl::StatusOr<Qemu::Options> GetQemuOptions(
+      absl::string_view kernel_binary_path,
+      absl::string_view stage0_binary_path,
+      absl::string_view initrd_cpio_xz_path,
+      const LauncherConfig& launcher_config);
   std::string GetKernelBinaryPath();
   std::string GetSystemImageTarXzPath();
   std::string GetStage0BinaryPath();
   std::string GetInitrdCpioXzPath();
 
+  // Run QEMU server and launcher service.
+  absl::Status Start();
+
  private:
-  HatsLauncher(std::string hats_bundle_dir);
+  HatsLauncher(std::string kernel_binary_path,
+               std::string system_image_tar_xz_path,
+               std::string stage0_binary_path, std::string initrd_cpio_xz_path,
+               std::unique_ptr<Qemu> qemu);
   const std::string kernel_binary_path_;
   const std::string system_image_tar_xz_path_;
   const std::string stage0_binary_path_;
   const std::string initrd_cpio_xz_path_;
+  const LauncherConfig launcher_config_;
+  std::unique_ptr<Qemu> qemu_;
 };
 }  // namespace privacy_sandbox::client
 

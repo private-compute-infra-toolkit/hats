@@ -58,6 +58,11 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "Failed to create launcher: " << launcher.status();
     return 1;
   }
-  // TODO(b/358628725): Finish up qemu process spinup.
+  if (absl::Status status = (*launcher)->Start(); !status.ok()) {
+    LOG(ERROR) << "launcher terminated with abnormal status "
+               << status.message();
+    return 1;
+  }
+
   return 0;
 }

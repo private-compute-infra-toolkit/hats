@@ -25,6 +25,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "client/launcher/qemu.h"
 #include "client/proto/launcher_config.pb.h"
 #include "libarchive/archive.h"
 #include "libarchive/archive_entry.h"
@@ -35,7 +36,7 @@ namespace {
 constexpr absl::string_view kKernelBinary = "kernel_bin";
 constexpr absl::string_view kSystemImageTarXz = "system.tar.xz";
 constexpr absl::string_view kStage0Binary = "stage0_bin";
-constexpr absl::string_view kInitRdCPIOXz = "initrd.cpio.xz";
+constexpr absl::string_view kInitRdCpioXz = "initrd.cpio.xz";
 
 absl::Status UntarOneFile(archive* reader, archive* writer) {
   if (reader == nullptr || writer == nullptr) {
@@ -86,8 +87,8 @@ absl::Status UntarHatsBundle(archive* reader, archive* writer,
     // redirect to appropriate location.
     absl::string_view path(archive_entry_pathname(entry));
     std::string target_output;
-    if (absl::EndsWith(path, kInitRdCPIOXz)) {
-      target_output = absl::StrCat(target_folder, "/", kInitRdCPIOXz);
+    if (absl::EndsWith(path, kInitRdCpioXz)) {
+      target_output = absl::StrCat(target_folder, "/", kInitRdCpioXz);
     } else if (absl::EndsWith(path, kStage0Binary)) {
       target_output = absl::StrCat(target_folder, "/", kStage0Binary);
     } else if (absl::EndsWith(path, kSystemImageTarXz)) {
@@ -111,7 +112,80 @@ absl::Status UntarHatsBundle(archive* reader, archive* writer,
   }
   return absl::OkStatus();
 }
+
 }  // namespace
+
+absl::StatusOr<Qemu::Options> HatsLauncher::GetQemuOptions(
+    absl::string_view kernel_binary_path, absl::string_view stage0_binary_path,
+    absl::string_view initrd_cpio_xz_path,
+    const LauncherConfig& launcher_config) {
+  CVMConfig cvm_config = launcher_config.cvm_config();
+  Qemu::Options option = {
+      .vmm_binary = cvm_config.vmm_binary(),
+      .stage0_binary = stage0_binary_path.data(),
+      .kernel = kernel_binary_path.data(),
+      .initrd = initrd_cpio_xz_path.data(),
+      .memory_size = absl::StrFormat("%dk", cvm_config.ram_size_kb()),
+      .num_cpus = cvm_config.num_cpus(),
+      .ramdrive_size = cvm_config.ramdrive_size_kb(),
+      .virtio_guest_cid = cvm_config.virtio_guest_cid(),
+      .pci_passthrough = cvm_config.pci_passthrough(),
+  };
+
+  switch (cvm_config.cvm_type()) {
+    case CVMTYPE_DEFAULT:
+      option.vm_type = Qemu::VmType::kDefault;
+      break;
+    case CVMTYPE_SEV:
+      option.vm_type = Qemu::VmType::kSev;
+      break;
+    case CVMTYPE_SEVES:
+      option.vm_type = Qemu::VmType::kSevEs;
+      break;
+    case CVMTYPE_SEVSNP:
+      option.vm_type = Qemu::VmType::kSevSnp;
+      break;
+    case CVMTYPE_TDX:
+      return absl::UnimplementedError("tdx is not implemented");
+    case CVMType_INT_MIN_SENTINEL_DO_NOT_USE_:
+    case CVMType_INT_MAX_SENTINEL_DO_NOT_USE_:
+      return absl::UnknownError("invalid CVMType");
+  }
+
+  if (cvm_config.debug_telnet_port() != 0) {
+    option.telnet_port = cvm_config.debug_telnet_port();
+  }
+  option.launcher_service_port = launcher_config.launcher_service_port();
+  if (cvm_config.network_config().has_inbound_only()) {
+    option.network_mode = Qemu::NetworkMode::kRestricted;
+    option.host_proxy_port = cvm_config.network_config()
+                                 .inbound_only()
+                                 .host_enclave_app_proxy_port();
+    option.host_orchestrator_proxy_port = cvm_config.network_config()
+                                              .inbound_only()
+                                              .host_orchestrator_proxy_port();
+  } else if (cvm_config.network_config().has_inbound_and_outbound()) {
+    option.network_mode = Qemu::NetworkMode::kOutboundAllowed;
+    option.host_proxy_port = cvm_config.network_config()
+                                 .inbound_and_outbound()
+                                 .host_enclave_app_proxy_port();
+    option.host_orchestrator_proxy_port = cvm_config.network_config()
+                                              .inbound_and_outbound()
+                                              .host_orchestrator_proxy_port();
+  } else if (cvm_config.network_config().has_virtual_bridge()) {
+    option.network_mode = Qemu::NetworkMode::kRoutableIp;
+    option.virtual_bridge =
+        cvm_config.network_config().virtual_bridge().virtual_bridge_device();
+    option.vm_ip_address =
+        cvm_config.network_config().virtual_bridge().cvm_ip_addr();
+    option.vm_gateway_address =
+        cvm_config.network_config().virtual_bridge().cvm_gateway_addr();
+  } else {
+    return absl::UnimplementedError("unsupported networking config");
+  }
+
+  return option;
+}
 
 absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
     const LauncherConfig& config) {
@@ -141,15 +215,42 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   archive_read_free(writer);
   if (!status.ok()) return status;
 
-  return absl::WrapUnique(new HatsLauncher(std::string(tmp_dir)));
+  std::string kernel_binary = absl::StrCat(tmp_dir, "/", kKernelBinary);
+  std::string system_image = absl::StrCat(tmp_dir, "/", kSystemImageTarXz);
+  std::string stage0_binary = absl::StrCat(tmp_dir, "/", kStage0Binary);
+  std::string initrd = absl::StrCat(tmp_dir, "/", kInitRdCpioXz);
+  absl::StatusOr<Qemu::Options> option = HatsLauncher::GetQemuOptions(
+      kernel_binary, stage0_binary, initrd, config);
+  if (!option.ok()) return option.status();
+  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(*option);
+  if (!qemu.ok()) return qemu.status();
+  return absl::WrapUnique(new HatsLauncher(
+      kernel_binary, system_image, stage0_binary, initrd, *std::move(qemu)));
 }
 
-HatsLauncher::HatsLauncher(std::string hats_bundle_dir)
-    : kernel_binary_path_(absl::StrCat(hats_bundle_dir, "/", kKernelBinary)),
-      system_image_tar_xz_path_(
-          absl::StrCat(hats_bundle_dir, "/", kSystemImageTarXz)),
-      stage0_binary_path_(absl::StrCat(hats_bundle_dir, "/", kStage0Binary)),
-      initrd_cpio_xz_path_(absl::StrCat(hats_bundle_dir, "/", kInitRdCPIOXz)) {}
+absl::Status HatsLauncher::Start() {
+  LOG(INFO) << "qemu command:" << qemu_->GetCommand();
+  LOG(INFO) << "LogFilename:" << qemu_->LogFilename();
+  absl::Status qemu_status = qemu_->Start();
+  if (!qemu_status.ok()) {
+    return qemu_status;
+  }
+  // Blocking call.
+  qemu_->Wait();
+
+  return absl::OkStatus();
+}
+
+HatsLauncher::HatsLauncher(std::string kernel_binary_path,
+                           std::string system_image_tar_xz_path,
+                           std::string stage0_binary_path,
+                           std::string initrd_cpio_xz_path,
+                           std::unique_ptr<Qemu> qemu)
+    : kernel_binary_path_(std::move(kernel_binary_path)),
+      system_image_tar_xz_path_(std::move(system_image_tar_xz_path)),
+      stage0_binary_path_(std::move(stage0_binary_path)),
+      initrd_cpio_xz_path_(std::move(initrd_cpio_xz_path)),
+      qemu_(std::move(qemu)) {}
 std::string HatsLauncher::GetKernelBinaryPath() { return kernel_binary_path_; }
 std::string HatsLauncher::GetSystemImageTarXzPath() {
   return system_image_tar_xz_path_;
