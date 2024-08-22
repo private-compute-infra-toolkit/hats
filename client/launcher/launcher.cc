@@ -26,10 +26,12 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "client/proto/launcher_config.pb.h"
-#include "libarchive/include/archive.h"
-#include "libarchive/include/archive_entry.h"
+#include "libarchive/archive.h"
+#include "libarchive/archive_entry.h"
+
 namespace privacy_sandbox::client {
 namespace {
+
 constexpr absl::string_view kKernelBinary = "kernel_bin";
 constexpr absl::string_view kSystemImageTarXz = "system.tar.xz";
 constexpr absl::string_view kStage0Binary = "stage0_bin";
@@ -152,6 +154,9 @@ std::string HatsLauncher::GetKernelBinaryPath() { return kernel_binary_path_; }
 std::string HatsLauncher::GetSystemImageTarXzPath() {
   return system_image_tar_xz_path_;
 }
+
 std::string HatsLauncher::GetStage0BinaryPath() { return stage0_binary_path_; }
+
 std::string HatsLauncher::GetInitrdCpioXzPath() { return initrd_cpio_xz_path_; }
+
 }  // namespace privacy_sandbox::client
