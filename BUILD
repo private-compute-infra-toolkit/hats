@@ -11,26 +11,37 @@ config_setting(
     },
 )
 
-# Whether or not to build oak_containers_syslogd.
+# Where to find oak_containers_syslogd.
 string_flag(
-    name = "enable_syslogd",
-    build_setting_default = "false",
+    name = "syslogd_source",
+    build_setting_default = "none",
     values = [
-        "false",
-        "true",
+        # Don't attempt to find oak_containers_syslogd..
+        "none",
+        # Build oak_containers_syslogd from source.
+        "source",
+        # oak_containers_syslogd binary is in the prebuilt directory.
+        "binary",
     ],
 )
 
 config_setting(
-    name = "syslogd_disabled",
+    name = "no_syslogd",
     flag_values = {
-        ":enable_syslogd": "false",
+        ":syslogd_source": "none",
     },
 )
 
 config_setting(
-    name = "syslogd_enabled",
+    name = "syslogd_from_source",
     flag_values = {
-        ":enable_syslogd": "true",
+        ":syslogd_source": "source",
+    },
+)
+
+config_setting(
+    name = "syslogd_from_binary",
+    flag_values = {
+        ":syslogd_source": "binary",
     },
 )

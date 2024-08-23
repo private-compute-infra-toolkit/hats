@@ -21,13 +21,16 @@ PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
 readonly PREBUILT_DIR
 cd "$SCRIPTS_DIR"
 mkdir -p "$PREBUILT_DIR"
+git submodule update --init --recursive
 
 # shellcheck disable=1091
 source ./build-lib.sh
 
-build_oak_containers_kernel "$PREBUILT_DIR"
-build_hats_containers_images "$PREBUILT_DIR"
-build_hats_launcher "$PREBUILT_DIR"
 build_oak_containers_stage0 "$PREBUILT_DIR"
 build_oak_containers_stage1 "$PREBUILT_DIR"
+build_oak_containers_kernel "$PREBUILT_DIR"
+build_oak_containers_syslogd "$PREBUILT_DIR"
+build_hats_containers_images "$PREBUILT_DIR"
+build_hats_launcher "$PREBUILT_DIR"
 build_oak_hello_world_container_bundle_tar "$PREBUILT_DIR"
+build_tvs "$PREBUILT_DIR"

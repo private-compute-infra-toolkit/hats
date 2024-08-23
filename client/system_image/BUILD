@@ -2,6 +2,10 @@ load("@oak//bazel:defs.bzl", "oci_runtime_bundle")
 load("@rules_oci//oci:defs.bzl", "oci_image")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
+package(
+    default_visibility = ["//visibility:public"],
+)
+
 # Change oak-orchestrator.service to load hats orchestrator
 # and bake the TVS public key in the file.
 pkg_tar(
@@ -27,10 +31,13 @@ pkg_tar(
         "//client/orchestrator:orchestrator_main",
         "@oak//oak_containers_agent",
     ] + select({
+        # Use syslogd from the `prebuilt` directory. This requires the user
+        # to run ./client/build-for-hats.sh.
+        "//:syslogd_from_binary": ["//client/prebuilt:oak_containers_syslogd"],
         # Build syslogd only if the user specifically enabled it
         # oak_containers_syslogd requires libsystemd.so during the
         # build, which might not exists.
-        "//:syslogd_enabled": ["@oak//oak_containers_syslogd"],
+        "//:syslogd_from_source": ["@oak//oak_containers_syslogd"],
         "//conditions:default": [],
     }),
     package_dir = "/usr/bin/",

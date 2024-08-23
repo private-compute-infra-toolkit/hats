@@ -159,9 +159,29 @@ function build_hats_launcher() {
   cp -r ../test_data/parc_data "$BUILD_DIR"
 }
 
+function build_oak_containers_syslogd() {
+  local BUILD_DIR="$1"
+  cat << EOF > "$BUILD_DIR/BUILD"
+exports_files([
+  "oak_containers_syslogd",
+])
+EOF
+  printf "\nBUILDING OAK CONTAINERS SYSLOGD"
+  pushd ../../submodules/oak
+  nix develop --command just oak_containers_syslogd && \
+    cp ./oak_containers_syslogd/target/oak_containers_syslogd_patched "$BUILD_DIR/oak_containers_syslogd"
+  popd
+}
+
 function build_hats_containers_images() {
   local BUILD_DIR="$1"
-  bazel build -c opt //client/system_image:hats_system_image --//:enable_syslogd=true
+  bazel build -c opt //client/system_image:hats_system_image --//:syslogd_source=binary
   cp -f ../../bazel-bin/client/system_image/hats_system_image.tar "$BUILD_DIR"
   xz --force "$BUILD_DIR/hats_system_image.tar"
+}
+
+function build_tvs() {
+  local BUILD_DIR="$1"
+  bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
+  cp -f ../../bazel-bin/tvs/untrusted_tvs/tvs-server_main "$BUILD_DIR"
 }
