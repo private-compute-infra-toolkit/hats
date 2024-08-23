@@ -5,3 +5,8 @@ build --output_groups=+rustfmt_checks
 # Hide warnings for external libraries
 # external_include_paths actually stops warnings (helps with stricter build flags), but seems to only be for .h files, not most .cc files.
 build --output_filter='^//((?!(external):).)*$'
+# Prevent Bazel from detecting the system's C++ toolchain.
+build --action_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+build --incompatible_strict_action_env=true
+# Enable the CC toolchain resolution based on platforms.
+build --incompatible_enable_cc_toolchain_resolution

@@ -145,7 +145,6 @@ load_oak_crate_repositories()
 
 # CXX bridge setup.
 # Mostly copied from https://github.com/bazelbuild/rules_rust/blob/df80ce61e418ea1c45c5bd51f88a440a7fb9ebc9/examples/crate_universe/WORKSPACE.bazel#L502
-
 crates_repository(
     name = "using_cxx",
     cargo_lockfile = "//:Cargo.cxx.bazel.lock",
@@ -309,6 +308,30 @@ oci_pull(
 load("@oak//bazel:repositories.bzl", "oak_toolchain_repositories")
 
 oak_toolchain_repositories()
+
+# Hermetic toolchain for binary portability.
+# https://blog.aspect.build/hermetic-c-toolchain
+# https://github.com/bazelbuild/examples/tree/main/cpp-tutorial/stage0
+http_archive(
+    name = "aspect_gcc_toolchain",
+    sha256 = "3341394b1376fb96a87ac3ca01c582f7f18e7dc5e16e8cf40880a31dd7ac0e1e",
+    strip_prefix = "gcc-toolchain-0.4.2",
+    urls = [
+        "https://github.com/aspect-build/gcc-toolchain/archive/refs/tags/0.4.2.tar.gz",
+    ],
+)
+
+load("@aspect_gcc_toolchain//toolchain:repositories.bzl", "gcc_toolchain_dependencies")
+
+gcc_toolchain_dependencies()
+
+load("@aspect_gcc_toolchain//toolchain:defs.bzl", "ARCHS", "gcc_register_toolchain")
+
+gcc_register_toolchain(
+    name = "gcc_toolchain_x86_64",
+    sysroot_variant = "x86_64",
+    target_arch = ARCHS.x86_64,
+)
 
 # Declare submodules as local repository so that `build //...` doesn't try to build them.
 local_repository(
