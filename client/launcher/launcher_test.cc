@@ -136,8 +136,7 @@ TEST(HatsLauncherTest, QemuOption) {
       privacy_sandbox::client::HatsLauncher::GetQemuOptions(
           /*kernel_binary_path=*/"kernel_binary_path",
           /*stage0_binary_path=*/"stage0_binary_path",
-          /*initrd_cpio_xz_path=*/"initrd_cpio_xz_path",
-          *config);
+          /*initrd_cpio_xz_path=*/"initrd_cpio_xz_path", *config);
   ASSERT_THAT(option, IsOk());
   EXPECT_EQ((*option).num_cpus, 4);
   EXPECT_EQ((*option).network_mode, Qemu::kOutboundAllowed);
