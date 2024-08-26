@@ -58,7 +58,6 @@ mod ffi {
             numshares: usize,
             threshold: usize,
         ) -> Result<Vec<u8>>;
-        pub fn get_valid_private_key() -> Vec<u8>;
     }
 }
 
