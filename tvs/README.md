@@ -1,84 +1,97 @@
-# TEE Verification Service
+# TEE Verification Service (TVS)
 
-This is the Privacy Sandbox repo for the TEE Verification Service (TVS). It aims
-to verify TEEs such as AMD SEV-SNP or Intel TDX enclaves running in Confidential
-VMs (CVMS) anywhere, in an open and publicly verifiable way.
+An attestation verification service to verify that a remote service runs in a
+Confidential VMs (CVMS) with an endorsed hardware and software stack matching
+certain a predefined appraisal policies.
 
-## Testing locally
+In order to run the service you need:
 
-### To run a test server:
+1.  An elliptical curve prime256v1 private key.
 
-```shell
-bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
-bazel-bin/tvs/untrusted_tvs/tvs-server_main \
-   --port=8080 \
-   --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001 \
-   --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto \
-   --user_authentication_public_key=04a99c16a302716404b075086c8c125ea93d0822330f8a46675c8f7e5760478024811211845d43e6addae5280660ba3b5ba0f78834b79ec9449b626a725728b76d
-```
+1.  An appraisal policy that contains a list of acceptable measurements.
 
-### To run a test server through GCP KMS Integration:
+1.  One registered client: the client is registered by providing the public portion of
+    an elliptical curve prime256v1 key.
 
-1.  Authenticate with GCP:
+The client needs to initiate a noise KK handshake session, send an attestation
+report (DICE certificate) with hardware endorsement, and sign the handshake hash
+with the DICE application layer private key. If the attestation report is
+accepted, the server returns a list of secrets to the client (a full or partial
+private keys).
+
+The server runs in two modes:
+
+1.  GCP: keys, user secrets, client authentication keys, and appraisal policies
+    are stored in Spanner. Further, GCP KMS is used to encrypt data encryption
+    keys that encrypts the stored keys.
+
+1.  Local (for testing): TVS keys, a user secret, a client authentication key,
+    and an appraisal policy are passed as a flag to the server.
+
+## TVS in local mode:
+
+NOTE: TVS in local mode allows for one user only.
+
+To run TVS in local mode:
+
+1.  Generate TVS primary noise key:
 
     ```shell
-    gcloud auth login
+    $ bazel run //key_manager:key-gen
     ```
 
-1.  Generate HPKE Key Pair :
+    NOTE: the above step generates a pair of keys. The private key is passed to
+    the server, while the public key is given to the client.
+
+1.  Generate TVS secondary noise key:
 
     ```shell
-    bazel build //key_manager:key-gen
-    bazel-bin/key_manager/key-gen --key-type x25519-hkdf-sha256
+    $ bazel run //key_manager:key-gen
     ```
 
-1.  Wrap TVS Private Key and format to pass in as flag:
+    NOTE: the above step generates a pair of keys. The private key is passed to
+    the server, while the public key is given to the client.
+
+1.  Generate an authentication key for the client:
 
     ```shell
-    gcloud kms encrypt \
-        --key key \
-        --keyring key-ring \
-        --location location  \
-        --plaintext-file file-with-data-to-encrypt \
-        --ciphertext-file file-to-store-encrypted-data
-
-    xxd -p file-with-encrypted-key.bin
+    $bazel run //key_manager:key-gen
     ```
 
-1.  Wrap TVS Token and format to pass in as flag:
+    NOTE: the above step generates a pair of keys. The public key is passed to
+    the server, while the private key is given to the client.
+
+1.  Generate a pair of HPKE keys to be returned to the client (it can be any
+    secret):
 
     ```shell
-    gcloud kms encrypt \
-        --key key \
-        --keyring key-ring \
-        --location location  \
-        --plaintext-file file-with-data-to-encrypt \
-        --ciphertext-file file-to-store-encrypted-data
-
-    xxd -p file-with-encrypted-token.bin
+    $ bazel run //key_manager:key-gen --key-type=x25519-hkdf-sha256
     ```
 
-1.  Run test server:
+1.  Run the server:
 
     ```shell
-    bazel build -c opt //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
-    bazel-bin/tvs/untrusted_tvs/tvs-server-gcp_main \
-        --port=8080 \
-        --primary_private_key=0a240079214835c942365a1f19443819dc074a6c3e6369f8928739eabec8\
-    6c3c920b3b38d2ab126900fd7ff73aa5284fa337fca0aeca16ab942b8212\
-    d0f539aadeb3d8bd56a21a52909d388e12476589806561c845753b659d96\
-    0331a2acd47b66a6c4e7faf0e88924921c183db375166ee7dfbefd35bb57\
-    7ef2d6650329591fde32207eb496ca7cee3269312902b4e489\
-        --project_id=ps-hats-playground \
-        --location_id=global \
-        --key_ring_id=ps-hats-keyring-test \
-        --private_key_id=ps-hats-encrypt-decrypt \
-        --secret_id=ps-hats-jwt \
-        --secret=0a2400580d333e2c8902a66351671408343d74dff88f80778ce6decc5073\
-    5bc845dea30845af123500649610304affb397161ca90a7b70c42f51007c\
-    3ccab96f6480c9addb3fb6af7df0e9862d962ea5d50f9971e14abdfeeff1\
-    87f9fb \
-        --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto
+    $ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
+    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+    --port=8080 \
+    --primary_private_key=<tvs-primary-private-key> \
+    --secondary_private_key=<tvs-secondary-private-key> \
+    --appraisal_policy_file=<path to appraisal policy> \
+    --user_authentication_public_key=<client authentication key> \
+    --user_key_id=<id of the client secret> \
+    --user_public_key=<public portionof the client's key in hex> \
+    --user_secret=<full or partial private key inhex>
+    ```
+
+    Or you can use the following for test keys and appraisal policies:
+
+    ```shell
+    $ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
+    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+    --port=8080 \
+    --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001 \
+    --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto \
+    --user_authentication_public_key=04a99c16a302716404b075086c8c125ea93d0822330f8a46675c8f7e5760478024811211845d43e6addae5280660ba3b5ba0f78834b79ec9449b626a725728b76d
     ```
 
 ### To run a test client:
@@ -86,8 +99,8 @@ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
 #### Test with valid report
 
 ```shell
-bazel build -c opt //tvs/test_client:tvs-client_main
-bazel-bin/tvs/test_client/tvs-client_main \
+$ bazel build -c opt //tvs/test_client:tvs-client_main
+$ bazel-bin/tvs/test_client/tvs-client_main \
    --tvs_address=localhost:8080 \
    --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
    --nouse_tls \
@@ -99,8 +112,8 @@ bazel-bin/tvs/test_client/tvs-client_main \
 #### Test with invalid report
 
 ```shell
-bazel build -c opt //tvs/test_client:tvs-client_main
-bazel-bin/tvs/test_client/tvs-client_main \
+$ bazel build -c opt //tvs/test_client:tvs-client_main
+$ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_address=localhost:8080 \
     --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
     --nouse_tls \
@@ -109,88 +122,98 @@ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_authentication_key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9
 ```
 
-### To run a test client with GCP KMS Integration:
+## Run TVS in GCP Mode:
 
-#### Test with valid report
+To deploy a new TVS Cloud Run you need to create, KMS encryption key, Spanner
+database, and populate the database with keys.
+
+1.  [Create a KMS asymmetric encryption key](https://cloud.google.com/kms/docs/create-key)
+1.  Create a Spanner database.
+
+    a. Obtain GCP credentials:
+
+    ```shell
+    $ gcloud auth login
+    $ gcloud config set project <gcp-project-name>
+    $ gcloud auth application-default login
+    ```
+
+    NOTE: `gcloud auth application-default login` is to enable database_main CLI
+    to talk to Spanner and KMS, while `gcloud auth login` is for the gcloud CLI.
+
+    a. Create a Spanner database instance:
+
+    ```shell
+    $ gcloud spanner instances create <instance_name> \
+    --config=<region> \
+    --description="TVS instance" \
+    --nodes=<nodes>
+    ```
+
+    a. Create a Spanner database:
+
+    ```shell
+    $ bazel build //production:database_main
+    $ bazel-bin/production/database_main \
+        --operation=create_database \
+        --spanner_database=<gcp_project>/<database_instance>/<database_name>
+    ```
+
+1.  Populate Spanner database with keys:
+
+    ```shell
+    $ bazel build //production:database_main
+    $ bazel-bin/production/database_main --operation=create_tvs_keys \
+    --spanner_database=<gcp_project>/<database_instance>/<database_name> \
+    --key_resource_name=<kms_key_resource_name>
+    ```
+
+1.  Insert at least one appraisal policy:
+
+    ```shell
+    $ bazel build //production:database_main
+    $ bazel-bin/production/database_main \
+        --operation=insert_appraisal_policy \
+        --spanner_database=<gcp_project>/<database_instance>/<database_name> \
+        --appraisal_policy_path=<path to appraisal policy>
+    ```
+
+1.  Register a user:
+
+    a. Create a pair of elliptical curve prime256v1 keys for authentication:
+
+    ```shell
+    $ bazel run //key_manager:key-gen
+    ```
+
+    a. Insert user information to the TVS database:
+
+    ```shell
+    $ bazel build //production:database_main
+    $ bazel-bin/production/database_main \
+    --operation=register_user
+    --spanner_database=<gcp_project>/<database_instance>/<database_name> \
+    --key_resource_name=<kms_key_resource_name> \
+    --user_public_key=<public key from the above step> \
+    --user_name=<user_name> \
+    --user_origin=<domain>
+    ```
+
+1.  Run TVS server:
 
 ```shell
-bazel build -c opt //tvs/test_client:tvs-client-gcp_main
-bazel-bin/tvs/test_client/tvs-client-gcp_main \
-   --tvs_address=localhost:8080 \
-   --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
-   --nouse_tls \
-   --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext \
-   --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23
-   --project_id=ps-hats-playground \
-   --location_id=global \
-   --key_ring_id=ps-hats-keyring-test \
-   --cryptokey_id=ps-hats-jwt \
+$ bazel build //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
+$ bazel-bin/tvs/untrusted_tvs/tvs-server_main --port=8080 \ --project_id=<project_id> --instance_id=<spanner_instance>--database_id=<spanner_database_id>
 ```
 
-#### Test with invalid report
-
-```shell
-bazel build -c opt //tvs/test_client:tvs-client-gcp_main
-bazel-bin/tvs/test_client/tvs-client-gcp_main \
-    --tvs_address=localhost:8080 \
-    --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
-    --nouse_tls \
-    --verify_report_request_file=tvs/test_data/bad_verify_request_report.prototext \
-    --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
-    --project_id=ps-hats-playground \
-    --location_id=global \
-    --key_ring_id=ps-hats-keyring-test \
-    --cryptokey_id=ps-hats-jwt \
-```
-
-## Testing on GCP:
-
-### To run a server on GCP:
-
-1.  Build a docker container
-
-    ```shell
-    docker build -t tvs-server -f tvs/Dockerfile .
-    ```
-
-1.  Authenticate with GCP:
-
-    ```shell
-    gcloud auth login
-    ```
-
-1.  Tag docker container:
-
-    ```shell
-    docker tag tvs-server gcr.io/<project-name>/<your-image-name>
-    ```
-
-1.  Push the container:
-
-    ```shell
-    docker push gcr.io/<project-name>/<your-image-name>
-    ```
-
-1.  Deploy the image:
-
-    ```shell
-    gcloud run deploy --image=gcr.io/<project-name>/<your-image-name> --use-http2  --min-instances 3 --allow-unauthenticated --region us-central1
-    ```
-
-The command outputs a service URL similar to
-https://tvs-server-gaig7cicoq-uc.a.run.app
-
-### To run a test client against the cloud instance
-
-Note that you need to enable `use_tls` and you need to provide the service name
-from above without https:// prefix, and suffix it with :443.
+### To run a test client:
 
 #### Test with valid report
 
 ```shell
 bazel build -c opt //tvs/test_client:tvs-client_main
 bazel-bin/tvs/test_client/tvs-client_main \
-    --tvs_address=<service_name>:443 \
+    --tvs_address=localhost:8080 \
     --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
     --use_tls \
     --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext \
@@ -202,42 +225,9 @@ bazel-bin/tvs/test_client/tvs-client_main \
 ```shell
 bazel build -c opt //tvs/test_client:tvs-client_main
 bazel-bin/tvs/test_client/tvs-client_main \
-    --tvs_address=<service_name>:443 \
+    --tvs_address=localhost:8080 \
     --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
     --use_tls \
     --verify_report_request_file=tvs/test_data/bad_verify_request_report.prototext \
     --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
-```
-
-#### Test with GCP credentials
-
-If the cloud service requires authentication, you can pass in an access token.
-
-To pass an access token for your account:
-
-```shell
-bazel build -c opt //tvs/test_client:tvs-client_main
-bazel-bin/tvs/test_client/tvs-client_main \
-    --tvs_address=<service_name>:443 \
-    --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
-    --use_tls \
-    --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext \
-    --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
-    --access_token=$(gcloud auth print-identity-token)
-```
-
-To impersonate a service account, you can pass an impersonation access token.
-You need permission to impersonate an account.
-
-To pass an impersonation access token for a service account:
-
-```shell
-bazel build -c opt //tvs/test_client:tvs-client_main
-bazel-bin/tvs/test_client/tvs-client_main \
-    --tvs_address=<service_name>:443 \
-    --tvs_public_key=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
-    --use_tls \
-    --verify_report_request_file=tvs/test_data/good_verify_request_report.prototext \
-    --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
-    --access_token=$(gcloud auth print-identity-token --impersonate-service-account <service-account>@<project>.iam.gserviceaccount.com)
 ```

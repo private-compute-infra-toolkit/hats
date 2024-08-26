@@ -300,6 +300,13 @@ oci_register_toolchains(
 load("@rules_oci//oci:pull.bzl", "oci_pull")
 
 oci_pull(
+    name = "distroless_cc_debian12",
+    digest = "sha256:6714977f9f02632c31377650c15d89a7efaebf43bab0f37c712c30fc01edb973",
+    image = "gcr.io/distroless/cc-debian12",
+    platforms = ["linux/amd64"],
+)
+
+oci_pull(
     name = "oak_containers_sysimage_base",
     digest = "sha256:9c88d3bed17cb49e4754de5b0ac7ed5cae3a7d033268278510c08c46b366f5d7",
     image = "europe-west2-docker.pkg.dev/oak-ci/oak-containers-sysimage-base/oak-containers-sysimage-base@sha256:9c88d3bed17cb49e4754de5b0ac7ed5cae3a7d033268278510c08c46b366f5d7",
