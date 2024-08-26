@@ -682,9 +682,9 @@ absl::StatusOr<WrappedSecrets> WrapSecret(
   };
 }
 
-absl::StatusOr<std::vector<SecretData>> SplitSecret(const SecretData secret,
-                                                    int num_shares,
-                                                    int threshold) {
+absl::StatusOr<std::vector<SecretData>> SplitSecret(int num_shares,
+                                                    int threshold,
+                                                    const SecretData& secret) {
   absl::StatusOr<rust::Vec<rust::String>> shares = split_wrap(
       rust::Slice<const std::uint8_t>(secret.GetData(), secret.GetSize()),
       num_shares, threshold);
@@ -860,8 +860,8 @@ absl::Status RegisterUserInternal(
 }
 
 absl::Status RegisterUserSplitTrust(
-    std::vector<std::string> spanner_databases,
-    std::vector<std::string> kms_key_resource_names,
+    const std::vector<std::string>& spanner_databases,
+    const std::vector<std::string>& kms_key_resource_names,
     absl::string_view user_authentication_public_key,
     absl::string_view user_name, absl::string_view user_origin) {
   if (spanner_databases.size() != kms_key_resource_names.size()) {
@@ -880,7 +880,7 @@ absl::Status RegisterUserSplitTrust(
   int num_shares = spanner_databases.size();
   int threshold = num_shares - 1;
   absl::StatusOr<std::vector<SecretData>> shares =
-      SplitSecret(*user_private_key, num_shares, threshold);
+      SplitSecret(num_shares, threshold, *user_private_key);
   if (!shares.ok()) return shares.status();
 
   if (shares->size() != spanner_databases.size()) {
