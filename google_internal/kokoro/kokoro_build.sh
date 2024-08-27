@@ -70,6 +70,10 @@ args=(
     # rules that we tagged them with *nopresubmit*.
     # https://screenshot.googleplex.com/3ThEtDfNQTE3YW4
   --build_tag_filters=-nopresubmit
+  # presubmit server cannot bind to a port in kokoro environment
+  # and so we exclude those tests with *nopresubmit*.
+  # https://screenshot.googleplex.com/BXzFU3LAVqcTmTP
+  --test_tag_filters=-nopresubmit
   --
   //...
 )

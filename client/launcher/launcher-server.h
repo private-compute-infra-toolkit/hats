@@ -21,12 +21,58 @@
 #include "absl/strings/string_view.h"
 #include "client/proto/launcher.grpc.pb.h"
 #include "client/proto/launcher.pb.h"
+#include "external/oak/proto/containers/interfaces.grpc.pb.h"
+#include "external/oak/proto/containers/interfaces.pb.h"
+#include "google/protobuf/empty.pb.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
 namespace privacy_sandbox::client {
+
+class LauncherOakServer final : public oak::containers::Launcher::Service {
+ public:
+  LauncherOakServer(absl::string_view oak_system_image,
+                    absl::string_view container_bundle, size_t chunk_size);
+
+  grpc::Status GetOakSystemImage(
+      grpc::ServerContext* context, const google::protobuf::Empty* request,
+      grpc::ServerWriter<oak::containers::GetImageResponse>* writer) override;
+  // Provides orchestrator with the trusted container image.
+  grpc::Status GetContainerBundle(
+      grpc::ServerContext* context, const google::protobuf::Empty* request,
+      grpc::ServerWriter<oak::containers::GetImageResponse>* writer) override;
+  // This method is used by the orchestrator to load and measure the trusted
+  // application config. The orchestrator will later, separately expose this
+  // config to the application.
+  grpc::Status GetApplicationConfig(
+      grpc::ServerContext* context, const google::protobuf::Empty* request,
+      oak::containers::GetApplicationConfigResponse* response) override;
+  // Provides the orchestrator with the endorsements of the trusted application
+  // and the container.
+  grpc::Status GetEndorsements(
+      grpc::ServerContext* context, const google::protobuf::Empty* request,
+      oak::attestation::v1::Endorsements* response) override;
+  // Sends Attestation Evidence containing the Attestation Report with
+  // corresponding measurements and public keys to the Launcher. This API is
+  // called exactly once after the Attestation Evidence is generated. Calling
+  // this API a second time will result in an error.
+  grpc::Status SendAttestationEvidence(
+      grpc::ServerContext* context,
+      const oak::containers::SendAttestationEvidenceRequest* request,
+      google::protobuf::Empty* response) override;
+  // Notifies the launcher that the trusted app is ready to serve requests and
+  // listening on the pre-arranged port (8080).
+  grpc::Status NotifyAppReady(grpc::ServerContext* context,
+                              const google::protobuf::Empty* request,
+                              google::protobuf::Empty* response) override;
+
+ private:
+  const std::string oak_system_image_;
+  const std::string container_bundle_;
+  const size_t chunk_size_;
+};
 
 class LauncherServer final
     : public privacy_sandbox::client::LauncherService::Service {

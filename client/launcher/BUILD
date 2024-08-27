@@ -102,6 +102,7 @@ cc_library(
     srcs = ["launcher-server.cc"],
     hdrs = ["launcher-server.h"],
     deps = [
+        ":certificates_cc",
         "//client/launcher:certificates_bridge",
         "//client/launcher:certificates_bridge/include",
         "//client/proto:launcher_cc_grpc",
@@ -113,7 +114,8 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@curl",
+        "@oak//proto/containers:interfaces_cc_grpc",
+        "@oak//proto/containers:interfaces_cc_proto",
         "@using_cxx//:cxx",
         "@using_cxx//:cxx_cc",
     ],
@@ -142,6 +144,8 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf_headers",
         "@com_google_protobuf//src/google/protobuf/io",
+        "@oak//proto/containers:interfaces_cc_grpc",
+        "@oak//proto/containers:interfaces_cc_proto",
     ],
 )
 
@@ -195,5 +199,36 @@ cc_test(
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "certificates_cc",
+    srcs = ["certificates.cc"],
+    hdrs = ["certificates.h"],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@curl",
+    ],
+)
+
+cc_test(
+    name = "certificates_test",
+    srcs = ["certificates_test.cc"],
+    data = [
+        "//client/test_data/launcher:launcher_test_data",
+    ],
+    tags = ["nopresubmit"],
+    deps = [
+        ":certificates_cc",
+        "@bazel_tools//tools/cpp/runfiles",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@cpp-httplib//:cpp-httplib",
     ],
 )
