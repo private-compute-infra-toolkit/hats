@@ -17,6 +17,8 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "client/proto/launcher.grpc.pb.h"
@@ -78,14 +80,16 @@ class LauncherServer final
     : public privacy_sandbox::client::LauncherService::Service {
  public:
   // tvs_authentication_key is in bytes format.
-  LauncherServer(absl::string_view tvs_authentication_key,
-                 std::shared_ptr<grpc::Channel> channel);
+  LauncherServer(
+      absl::string_view tvs_authentication_key,
+      const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
+          channel_map);
   // Pipes messages between the client and the server.
   // This used to proxy communication between the orchestrator and Tvs.
   grpc::Status VerifyReport(
       grpc::ServerContext* context,
-      grpc::ServerReaderWriter<tvs::OpaqueMessage, tvs::OpaqueMessage>* stream)
-      override;
+      grpc::ServerReaderWriter<tvs::OpaqueMessage, ForwardingTvsMessage>*
+          stream) override;
 
   grpc::Status FetchOrchestratorMetadata(
       grpc::ServerContext* context, const google::protobuf::Empty* request,
@@ -94,13 +98,10 @@ class LauncherServer final
 
  private:
   const std::string tvs_authentication_key_;
-  std::unique_ptr<tvs::TeeVerificationService::Stub> stub_;
+  std::unordered_map<int64_t,
+                     std::shared_ptr<tvs::TeeVerificationService::Stub>>
+      stubs_;
 };
-
-// Starts a server and blocks forever.
-void CreateAndStartLauncherServer(int port,
-                                  absl::string_view tvs_authentication_key,
-                                  std::shared_ptr<grpc::Channel> channel);
 
 }  // namespace privacy_sandbox::client
 

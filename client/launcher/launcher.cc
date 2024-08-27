@@ -18,6 +18,7 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <unordered_map>
 #include <utility>
 
 #include "absl/base/nullability.h"
@@ -253,7 +254,8 @@ absl::StatusOr<LauncherExtDeps> UnbundleHatsBundle(
 
 absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
     const HatsLauncherConfig& config,
-    std::shared_ptr<grpc::Channel> tvs_channel) {
+    const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
+        channel_map) {
   // External dependencies must be satisfied for hats launcher to run.
   absl::StatusOr<LauncherExtDeps> deps = UnbundleHatsBundle(config.config);
   if (!deps.ok()) return deps.status();
@@ -268,7 +270,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   (*deps).vmm_binary_path = (*option).vmm_binary;
 
   auto launcher_server = std::make_unique<client::LauncherServer>(
-      config.tvs_authentication_key_bytes, std::move(tvs_channel));
+      config.tvs_authentication_key_bytes, channel_map);
 
   auto launcher_oak_server = std::make_unique<LauncherOakServer>(
       (*deps).oak_system_image_path, (*deps).container_bundle,

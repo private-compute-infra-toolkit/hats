@@ -62,15 +62,16 @@ async fn main() -> anyhow::Result<()> {
     let tvs_public_keys =
         fs::read_to_string(args.tvs_public_keys_file).expect("Unable to read file");
     for key in tvs_public_keys.lines() {
-        let tvs_orch_identifier = &key[0..1];
+        let tvs_id = &key[0..1].parse::<i64>()?;
         let pub_key = &key[2..];
         let tvs: tvs_grpc_client::TvsGrpcClient = tvs_grpc_client::TvsGrpcClient::create(
             args.hats_launcher_addr.parse()?,
             hex::decode(pub_key)?,
+            *tvs_id,
         )
         .await
         .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
-        grpc_client_map.insert(tvs_orch_identifier.parse::<i64>()?, tvs);
+        grpc_client_map.insert(*tvs_id, tvs);
     }
 
     let launcher_client = Arc::new(

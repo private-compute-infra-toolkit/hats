@@ -14,6 +14,7 @@
 
 use crate::proto::privacy_sandbox::client::launcher_service_client;
 use crate::proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse;
+use crate::proto::privacy_sandbox::client::ForwardingTvsMessage;
 use crate::proto::privacy_sandbox::tvs::OpaqueMessage;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
@@ -37,12 +38,14 @@ pub struct TvsGrpcClient {
     tvs_public_key: Vec<u8>,
     tvs_authentication_key: Option<Vec<u8>>,
     tee_certificate: Option<Vec<u8>>,
+    tvs_id: i64,
 }
 
 impl TvsGrpcClient {
     pub async fn create(
         addr: tonic::transport::Uri,
         tvs_public_key: Vec<u8>,
+        tvs_id: i64,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let channel = Channel::builder(addr.clone()).connect().await?;
         let inner = launcher_service_client::LauncherServiceClient::new(channel.clone());
@@ -51,6 +54,7 @@ impl TvsGrpcClient {
             tvs_public_key,
             tvs_authentication_key: None,
             tee_certificate: None,
+            tvs_id: tvs_id,
         };
         tvs_grp_client.init().await?;
         Ok(tvs_grp_client)
@@ -59,6 +63,7 @@ impl TvsGrpcClient {
     pub async fn create_with_channel(
         channel: tonic::transport::Channel,
         tvs_public_key: Vec<u8>,
+        tvs_id: i64,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let inner = launcher_service_client::LauncherServiceClient::new(channel);
         let mut tvs_grp_client = Self {
@@ -66,6 +71,7 @@ impl TvsGrpcClient {
             tvs_public_key,
             tvs_authentication_key: None,
             tee_certificate: None,
+            tvs_id: tvs_id,
         };
         tvs_grp_client.init().await?;
         Ok(tvs_grp_client)
@@ -110,6 +116,7 @@ impl TvsGrpcClient {
             signing_key,
             tvs_authentication_key.to_vec(),
             tee_certificate.to_vec(),
+            self.tvs_id,
         )
         .await
     }
@@ -119,6 +126,7 @@ impl TvsGrpcClient {
         signing_key: SigningKey,
         tvs_authentication_key: Vec<u8>,
         tee_certificate: Vec<u8>,
+        tvs_id: i64,
     ) -> Result<Vec<u8>, String> {
         let mut tvs =
             tvs_trusted_client::TvsClient::new(&tvs_authentication_key, &self.tvs_public_key)?;
@@ -137,8 +145,12 @@ impl TvsGrpcClient {
                 let handshake_initial = OpaqueMessage {
                     binary_message: initial_message,
                 };
+                let orch_message = ForwardingTvsMessage {
+                    tvs_id: tvs_id,
+                    opaque_message: Some(handshake_initial.clone()),
+                };
                 outbound_tx
-                    .send(handshake_initial)
+                    .send(orch_message)
                     .await
                     .map_err(|_| "error sending requests out")?;
                 let Some(handshake_response): Option<OpaqueMessage> = inbound_rx.recv().await
@@ -158,8 +170,12 @@ impl TvsGrpcClient {
                 let command = OpaqueMessage {
                     binary_message: command,
                 };
+                let orch_message = ForwardingTvsMessage {
+                    tvs_id: tvs_id,
+                    opaque_message: Some(command.clone()),
+                };
                 outbound_tx
-                    .send(command)
+                    .send(orch_message)
                     .await
                     .map_err(|_| "error sending requests out")?;
                 let Some(secret_bin) = inbound_rx.recv().await else {
@@ -251,7 +267,7 @@ mod tests {
 
         async fn verify_report(
             &self,
-            request: tonic::Request<tonic::Streaming<OpaqueMessage>>,
+            request: tonic::Request<tonic::Streaming<ForwardingTvsMessage>>,
         ) -> Result<tonic::Response<Self::VerifyReportStream>, tonic::Status> {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
             let Ok(mut trusted_tvs) = tvs_trusted::TrustedTvs::new(
@@ -269,9 +285,9 @@ mod tests {
                 while let Some(message) = stream.next().await {
                     match message {
                         Ok(message) => {
-                            let Ok(report) =
-                                trusted_tvs.verify_report(message.binary_message.as_slice())
-                            else {
+                            let Ok(report) = trusted_tvs.verify_report(
+                                message.opaque_message.unwrap().binary_message.as_slice(),
+                            ) else {
                                 let _ =
                                     tx.send(Err(tonic::Status::internal("Error verifying report")));
                                 return;
@@ -366,6 +382,7 @@ mod tests {
             let tvs_client = TvsGrpcClient::create(
                 format!("http://localhost:{}", port).parse().unwrap(),
                 tvs_private_key.compute_public_key().to_vec(),
+                0,
             )
             .await
             .unwrap();
@@ -419,6 +436,7 @@ mod tests {
             let tvs_client = TvsGrpcClient::create(
                 format!("http://localhost:{}", port).parse().unwrap(),
                 tvs_private_key.compute_public_key().to_vec(),
+                0,
             )
             .await
             .unwrap();
@@ -473,6 +491,7 @@ mod tests {
             let tvs_client = TvsGrpcClient::create(
                 format!("http://localhost:{}", port).parse().unwrap(),
                 tvs_private_key.compute_public_key().to_vec(),
+                0,
             )
             .await
             .unwrap();

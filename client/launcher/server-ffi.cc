@@ -18,7 +18,9 @@
 #include <exception>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -87,8 +89,10 @@ void CreateAndStartServers(const LauncherServerOptions& options) {
       return absl::InvalidArgumentError(
           "tvs authentication key should be in hex string format");
     }
+    std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
+    channel_map[0] = *std::move(channel);
     auto launcher_server = std::make_unique<client::LauncherServer>(
-        tvs_authentication_key_in_bytes, *std::move(channel));
+        tvs_authentication_key_in_bytes, channel_map);
     grpc::ServerBuilder server_builder;
     server_builder
         .AddListeningPort(server_address, grpc::InsecureServerCredentials())

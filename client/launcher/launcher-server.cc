@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -120,34 +121,54 @@ grpc::Status LauncherOakServer::NotifyAppReady(
   return grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "");
 }
 
-LauncherServer::LauncherServer(absl::string_view tvs_authentication_key,
-                               std::shared_ptr<grpc::Channel> channel)
-    : tvs_authentication_key_(tvs_authentication_key),
-      stub_(tvs::TeeVerificationService::NewStub(channel)) {}
+LauncherServer::LauncherServer(
+    absl::string_view tvs_authentication_key,
+    const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
+        channel_map)
+    : tvs_authentication_key_(tvs_authentication_key) {
+  for (auto const& [tvs_id, channel] : channel_map) {
+    stubs_[tvs_id] = tvs::TeeVerificationService::NewStub(channel);
+  }
+}
 
 grpc::Status LauncherServer::VerifyReport(
     grpc::ServerContext* context,
-    grpc::ServerReaderWriter<tvs::OpaqueMessage, tvs::OpaqueMessage>* stream) {
+    grpc::ServerReaderWriter<tvs::OpaqueMessage, ForwardingTvsMessage>*
+        stream) {
   auto remote_context = std::make_unique<grpc::ClientContext>();
   std::unique_ptr<
       grpc::ClientReaderWriter<tvs::OpaqueMessage, tvs::OpaqueMessage>>
-      remote_stream = stub_->VerifyReport(remote_context.get());
-  tvs::OpaqueMessage opaque_message;
-  while (stream->Read((&opaque_message))) {
-    if (!remote_stream->Write(opaque_message)) {
+      remote_stream;
+  ForwardingTvsMessage orch_message;
+  // read from orchestrator
+  while (stream->Read((&orch_message))) {
+    // create tvs grpc client for tvs specified in orch message
+    if (remote_stream == nullptr) {
+      if (stubs_.find(orch_message.tvs_id()) == stubs_.end()) {
+        return grpc::Status(
+            grpc::StatusCode::UNKNOWN,
+            absl::StrCat("Failed to find tvs_id ", orch_message.tvs_id()));
+      } else {
+        remote_stream =
+            stubs_[orch_message.tvs_id()]->VerifyReport(remote_context.get());
+      }
+    }
+    // write to tvs
+    if (!remote_stream->Write(orch_message.opaque_message())) {
       return grpc::Status(
           grpc::StatusCode::UNKNOWN,
           absl::StrCat("Failed to write to stream. ",
                        remote_stream->Finish().error_message()));
     }
-    if (!remote_stream->Read(&opaque_message)) {
+    // read from tvs
+    if (!remote_stream->Read(orch_message.mutable_opaque_message())) {
       return grpc::Status(
           grpc::StatusCode::UNKNOWN,
           absl::StrCat("Failed to read from stream. ",
                        remote_stream->Finish().error_message()));
     }
-    // Send the message back to the client.
-    if (!stream->Write(opaque_message)) {
+    // write to orchestrator
+    if (!stream->Write(orch_message.opaque_message())) {
       return grpc::Status(grpc::StatusCode::UNKNOWN,
                           "Failed to write message to stream. ");
     }
@@ -167,4 +188,5 @@ grpc::Status LauncherServer::FetchOrchestratorMetadata(
   reply->set_tvs_authentication_key(tvs_authentication_key_);
   return grpc::Status::OK;
 }
+
 }  // namespace privacy_sandbox::client

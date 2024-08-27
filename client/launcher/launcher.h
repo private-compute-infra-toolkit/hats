@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 #include "absl/base/nullability.h"
 #include "absl/flags/declare.h"
@@ -55,7 +56,8 @@ class HatsLauncher final {
   HatsLauncher& operator=(const HatsLauncher&) = delete;
   static absl::StatusOr<std::unique_ptr<HatsLauncher>> Create(
       const HatsLauncherConfig& config,
-      std::shared_ptr<grpc::Channel> tvs_channel);
+      const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
+          channel_map);
 
   // Terminate all services and subprocesses.
   void Shutdown() ABSL_LOCKS_EXCLUDED(mu_);

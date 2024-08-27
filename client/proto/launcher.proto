@@ -26,12 +26,17 @@ message FetchOrchestratorMetadataResponse {
   bytes tvs_authentication_key = 2;
 }
 
+message ForwardingTvsMessage {
+  int64 tvs_id = 1;
+  tvs.OpaqueMessage opaque_message = 2;
+}
+
 service LauncherService {
   // Provides chip endorsement key for DICE verification purpose to
   // orchestrator.
   rpc FetchOrchestratorMetadata(google.protobuf.Empty)
       returns (FetchOrchestratorMetadataResponse);
   // Proxies messages between the orchestrator and a TVS service.
-  rpc VerifyReport(stream privacy_sandbox.tvs.OpaqueMessage)
-      returns (stream privacy_sandbox.tvs.OpaqueMessage);
+  rpc VerifyReport(stream ForwardingTvsMessage)
+      returns (stream tvs.OpaqueMessage);
 }
