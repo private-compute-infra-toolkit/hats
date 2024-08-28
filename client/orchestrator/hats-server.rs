@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::proto::privacy_sandbox::client::hats_orchestrator_server::{
+use crate::proto::privacy_sandbox::server_common::hats_orchestrator_server::{
     HatsOrchestrator, HatsOrchestratorServer,
 };
-use crate::proto::privacy_sandbox::client::{GetKeysResponse, Key};
+use crate::proto::privacy_sandbox::server_common::{GetKeysResponse, Key};
 use crate::proto::privacy_sandbox::tvs::VerifyReportResponse;
 use anyhow::Context;
 use prost::Message;
@@ -32,8 +32,11 @@ pub mod proto {
         pub mod tvs {
             include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
         }
-        pub mod client {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.client.rs"));
+        pub mod server_common {
+            include!(concat!(
+                env!("OUT_DIR"),
+                "/privacy_sandbox.server_common.rs"
+            ));
         }
     }
 }
@@ -84,7 +87,7 @@ pub async fn create(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::privacy_sandbox::client::hats_orchestrator_client::HatsOrchestratorClient;
+    use crate::proto::privacy_sandbox::server_common::hats_orchestrator_client::HatsOrchestratorClient;
     use crate::proto::privacy_sandbox::tvs::Secret;
     use futures::FutureExt;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};

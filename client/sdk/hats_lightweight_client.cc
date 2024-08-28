@@ -26,7 +26,7 @@
 #include "grpcpp/channel.h"
 #include "grpcpp/create_channel.h"
 
-namespace privacy_sandbox::client {
+namespace privacy_sandbox::server_common {
 
 namespace {
 
@@ -103,4 +103,4 @@ absl::StatusOr<std::vector<Key>> HatsLightweightClient::GetKeys() const {
   return keys;
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace privacy_sandbox::server_common

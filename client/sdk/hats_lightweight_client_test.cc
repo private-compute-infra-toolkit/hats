@@ -24,7 +24,7 @@
 #include "gtest/gtest.h"
 #include "src/google/protobuf/test_textproto.h"
 
-namespace privacy_sandbox::client {
+namespace privacy_sandbox::server_common {
 namespace {
 
 using ::absl_testing::IsOkAndHolds;
@@ -83,4 +83,4 @@ TEST(HatsLightweightClient, Error) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::client
+}  // namespace privacy_sandbox::server_common

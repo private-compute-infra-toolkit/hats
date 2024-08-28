@@ -25,7 +25,7 @@
 #include "external/oak/cc/containers/sdk/orchestrator_client.h"
 #include "grpcpp/channel.h"
 
-namespace privacy_sandbox::client {
+namespace privacy_sandbox::server_common {
 
 // Client to the orchestrator to be used by the workload to obtain the HPKE key.
 class HatsOrchestratorClient final
@@ -40,5 +40,5 @@ class HatsOrchestratorClient final
   std::unique_ptr<HatsOrchestrator::Stub> hats_stub_;
 };
 
-}  // namespace privacy_sandbox::client
+}  // namespace privacy_sandbox::server_common
 #endif  // HATS_CLIENT_SDK_HATS_ORCHESTRATOR_CLIENT_H_

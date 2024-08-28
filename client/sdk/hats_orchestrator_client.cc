@@ -26,7 +26,7 @@
 #include "external/oak/cc/containers/sdk/common.h"
 #include "grpcpp/channel.h"
 
-namespace privacy_sandbox::client {
+namespace privacy_sandbox::server_common {
 
 namespace {
 
@@ -99,4 +99,4 @@ absl::StatusOr<std::vector<Key>> HatsOrchestratorClient::GetKeys() const {
   return keys;
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace privacy_sandbox::server_common

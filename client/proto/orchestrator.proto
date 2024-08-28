@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package privacy_sandbox.client;
+package privacy_sandbox.server_common;
 
 import "google/protobuf/empty.proto";
 
