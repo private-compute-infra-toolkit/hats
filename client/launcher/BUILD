@@ -1,9 +1,52 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_binary")
 load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "snp-abi",
+    hdrs = [
+        "snp-abi.h",
+        "@psp-sev//file",
+    ],
+    # ABI library shouldn't be depended on unintentionally.
+    visibility = [":noexport"],
+)
+
+package_group(
+    name = "noexport",
+    packages = [
+        "//client/launcher/certificates",
+        "//client/launcher/kernel-api",
+        "//client/launcher/kernel-api-mock",
+        "//client/launcher/snp-abi",
+    ],
+)
+
+cc_library(
+    name = "kernel-api",
+    srcs = ["kernel-api.cc"],
+    hdrs = ["kernel-api.h"],
+    deps = [
+        ":snp-abi",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "kernel-api-mock",
+    testonly = 1,
+    hdrs = ["kernel-api-mock.h"],
+    deps = [
+        ":kernel-api",
+        ":snp-abi",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+    ],
 )
 
 rust_binary(
@@ -29,24 +72,6 @@ rust_cxx_bridge(
     name = "bridge",
     src = "launcher.rs",
     deps = [":server-ffi-include"],
-)
-
-rust_library(
-    name = "certificates",
-    srcs = ["certificates.rs"],
-    deps = [
-        "@hats_crate_index//:sev",
-        "@oak_crates_index//:anyhow",
-        "@using_cxx//:cxx",
-    ],
-)
-
-rust_cxx_bridge(
-    name = "certificates_bridge",
-    src = "certificates.rs",
-    deps = [
-        "certificates",
-    ],
 )
 
 cc_binary(
@@ -102,9 +127,7 @@ cc_library(
     srcs = ["launcher-server.cc"],
     hdrs = ["launcher-server.h"],
     deps = [
-        ":certificates_cc",
-        "//client/launcher:certificates_bridge",
-        "//client/launcher:certificates_bridge/include",
+        ":certificates",
         "//client/proto:launcher_cc_grpc",
         "//client/proto:launcher_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
@@ -116,8 +139,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@oak//proto/containers:interfaces_cc_grpc",
         "@oak//proto/containers:interfaces_cc_proto",
-        "@using_cxx//:cxx",
-        "@using_cxx//:cxx_cc",
     ],
 )
 
@@ -203,10 +224,12 @@ cc_test(
 )
 
 cc_library(
-    name = "certificates_cc",
+    name = "certificates",
     srcs = ["certificates.cc"],
     hdrs = ["certificates.h"],
     deps = [
+        ":kernel-api",
+        ":snp-abi",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -221,7 +244,8 @@ cc_test(
         "//client/test_data/launcher:launcher_test_data",
     ],
     deps = [
-        ":certificates_cc",
+        ":certificates",
+        ":kernel-api-mock",
         "@bazel_tools//tools/cpp/runfiles",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",

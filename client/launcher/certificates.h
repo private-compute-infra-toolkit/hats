@@ -18,8 +18,13 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "client/launcher/kernel-api.h"
 
 namespace privacy_sandbox::client {
+absl::StatusOr<std::string> GetCertificateUrl(const KernelApiInterface& api);
+
 absl::StatusOr<std::string> DownloadCertificate(const std::string& url);
+
+absl::StatusOr<std::string> DownloadCertificate();
 }  // namespace privacy_sandbox::client
 #endif  // HATS_CLIENT_LAUNCHER_CERTIFICATES_

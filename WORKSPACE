@@ -1,7 +1,7 @@
 workspace(name = "hats")
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
 
 # Required for google_privacysandbox_servers_common (Parc) and the order
@@ -109,9 +109,6 @@ crates_repository(
             version = "*",
         ),
         "serde_json": crate.spec(version = "*"),
-        "sev": crate.spec(
-            version = "*",
-        ),
         "thiserror": crate.spec(
             version = "*",
         ),
@@ -357,4 +354,11 @@ local_repository(
 local_repository(
     name = "submodule3",
     path = "submodules/common",
+)
+
+http_file(
+    name = "psp-sev",
+    downloaded_file_path = "psp-sev.h",
+    sha256 = "bf5128577e19b2e95186a78d6f7e10eb5b1389919c94b0fd5224749e275afe0d",
+    url = "https://raw.githubusercontent.com/torvalds/linux/3ec3f5fc4a91e389ea56b111a73d97ffc94f19c6/include/uapi/linux/psp-sev.h",
 )

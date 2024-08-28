@@ -30,7 +30,6 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "client/launcher/certificates.h"
-#include "client/launcher/certificates.rs.h"
 #include "client/proto/launcher.grpc.pb.h"
 #include "external/oak/proto/containers/interfaces.pb.h"
 #include "google/protobuf/empty.pb.h"
@@ -39,7 +38,6 @@
 #include "grpcpp/server_builder.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
-#include "rust/cxx.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
 namespace privacy_sandbox::client {
@@ -161,19 +159,14 @@ grpc::Status LauncherServer::VerifyReport(
 grpc::Status LauncherServer::FetchOrchestratorMetadata(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply) {
-  try {
-    absl::StatusOr<std::string> certificate = DownloadCertificate(
-        static_cast<std::string>(privacy_sandbox::launcher::vcek_url()));
-    if (!certificate.ok()) {
-      return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                          std::string(certificate.status().message()));
-    }
-    reply->set_tee_certificate(*std::move(certificate));
-    reply->set_tvs_authentication_key(tvs_authentication_key_);
-    return grpc::Status::OK;
-  } catch (rust::Error& error) {
-    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error.what());
+  absl::StatusOr<std::string> certificate = DownloadCertificate();
+  if (!certificate.ok()) {
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                        std::string(certificate.status().message()));
   }
+  reply->set_tee_certificate(*std::move(certificate));
+  reply->set_tvs_authentication_key(tvs_authentication_key_);
+  return grpc::Status::OK;
 }
 
 void CreateAndStartLauncherServer(int port,
