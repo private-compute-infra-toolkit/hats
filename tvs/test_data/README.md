@@ -21,7 +21,7 @@ operating systems.
 For example, to regenerate good\_evidence.textproto run the following: `protoc
 --encode="oak.attestation.v1.Evidence"
 bazel-hats/external/oak/proto/attestation/evidence.proto <
-tvs/test_data/good_evidence.prototext > tvs/test_data/good_evidence.binarypb`
+tvs/test_data/good_evidence.textproto > tvs/test_data/good_evidence.binarypb`
 
 Note that you might need to run `bazel build //...` in order to populate
 `bazel-hats`. Alternativley, you can pull `Oak` repository and point `protoc` to
@@ -34,6 +34,6 @@ the following:
 ```
 protoc --encode="privacy_sandbox.tvs.VerifyReportRequest" \
   tvs/proto/tvs_messages.proto -Itvs/proto -Ibazel-hats/external/oak \
- < tvs/test_data/good_verify_request_report.prototext \
+ < tvs/test_data/good_verify_request_report.textproto \
  > tvs/test_data/good_verify_request_report.binarypb
 ```

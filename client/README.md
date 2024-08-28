@@ -137,7 +137,7 @@ with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
     $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
       --port=7774 \
       --tvs_private_key=<private_key> \
-      --appraisal_policy_file=tvs/appraisal_policies/digests2.prototext
+      --appraisal_policy_file=tvs/appraisal_policies/digests2.textproto
 
     ```
 
@@ -205,7 +205,7 @@ configuration and data.
     $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
       --port=7774 \
       --tvs_private_key=<private_key> \
-      --appraisal_policy_file=tvs/appraisal_policies/digests2.prototext \
+      --appraisal_policy_file=tvs/appraisal_policies/digests2.textproto \
       --token=<private_hpke_key>
     ```
 
