@@ -14,6 +14,9 @@
 
 #include "client/launcher/certificates.h"
 
+#include <netinet/in.h>
+#include <sys/socket.h>
+
 #include <string>
 
 #include "absl/status/status_matchers.h"
@@ -27,6 +30,7 @@
 #include "tools/cpp/runfiles/runfiles.h"
 
 #include "httplib.h"
+
 namespace privacy_sandbox::client {
 namespace {
 using ::absl_testing::IsOk;
@@ -66,9 +70,34 @@ absl::StatusOr<std::string> GetVcek() {
   return result;
 }
 
-TEST(Certificates, DownloadCertificateTest) {
+absl::StatusOr<uint16_t> UnusedTcpPort() {
+  int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0) {
+    return absl::FailedPreconditionError("Failed to create a socket");
+  }
+  sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = INADDR_ANY;
+  addr.sin_port = 0;  // Let the system assign an unused port
+
+  if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    return absl::FailedPreconditionError("Failed to create bind a socket");
+  }
+
+  socklen_t addrlen = sizeof(addr);
+  if (getsockname(sockfd, (struct sockaddr*)&addr, &addrlen) < 0) {
+    return absl::FailedPreconditionError("Failed to create t get socket name");
+  }
+  return ntohs(addr.sin_port);
+}
+
+TEST(DownloadCertificate, Success) {
   absl::StatusOr<std::string> vcek = GetVcek();
   ASSERT_THAT(vcek, IsOk());
+
+  absl::StatusOr<uint16_t> port = UnusedTcpPort();
+  ASSERT_THAT(port, IsOk());
+
   // Run a test HTTP server.
   httplib::Server server;
   server.Get("/vcek",
@@ -77,9 +106,13 @@ TEST(Certificates, DownloadCertificateTest) {
                  response.set_content(*vcek, "application/octet-stream");
                }
              });
-  std::thread server_thread([&] { server.listen("localhost", 8080); });
+
+  std::thread server_thread([&] { server.listen("localhost", *port); });
+  // Wait for the server to start before sending requests otherwise we might
+  // deadlock.
+  server.wait_until_ready();
   absl::StatusOr<std::string> cert =
-      DownloadCertificate("http://localhost:8080/vcek");
+      DownloadCertificate(absl::StrCat("http://localhost:", *port, "/vcek"));
   server.stop();
   server_thread.join();
   EXPECT_THAT(cert, IsOkAndHolds(*vcek));
