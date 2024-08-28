@@ -14,6 +14,9 @@
 
 #include "client/launcher/launcher-server.h"
 
+#include <stdlib.h>
+
+#include <chrono>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -25,7 +28,10 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "external/oak/proto/containers/interfaces.grpc.pb.h"
+#include "external/oak/proto/containers/interfaces.pb.h"
 #include "gmock/gmock.h"
+#include "google/protobuf/empty.pb.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/server.h"
@@ -44,11 +50,16 @@
 namespace privacy_sandbox::client {
 namespace {
 
+using ::absl_testing::IsOk;
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
 using ::google::protobuf::EqualsProto;
+using ::grpc::ClientContext;
+using ::grpc::ClientReader;
+using ::oak::containers::GetImageResponse;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
+using OakLauncher = ::oak::containers::Launcher;
 
 absl::StatusOr<tvs::VerifyReportRequest> VerifyReportRequestFromFile(
     const std::string& file_path) {
@@ -190,6 +201,103 @@ absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
         absl::StrCat("Failed to convert '", hex_string, "' to bytes."));
   }
   return bytes;
+}
+
+absl::StatusOr<std::string> GenerateTmpFile(absl::string_view content) {
+  char filename[] = "/tmp/hatstest-XXXXXX";
+  int fd = mkstemp(filename);
+  if (fd == -1)
+    return absl::FailedPreconditionError(
+        absl::StrCat("mkstemp() failed: ", strerror(errno)));
+  std::cout << "generated temporary file at" << filename << std::endl;
+  std::ofstream tmpf;
+  tmpf.open(filename);
+  // tmpf should have \0 attached to the end of the file although not obvious.
+  // This is fine for the temporary file used for testing.
+  tmpf << content;
+  tmpf.close();
+  if (close(fd) == -1)
+    return absl::FailedPreconditionError(
+        absl::StrCat("close() failed: ", strerror(errno)));
+  return std::string(filename);
+}
+
+TEST(LauncherOakServer, GetContainerBundleCancelled) {
+  absl::StatusOr<std::string> container_bundle_path =
+      GenerateTmpFile("container_bundle");
+  ASSERT_THAT(container_bundle_path, IsOk());
+  LauncherOakServer launcher_oak_service(
+      /*oak_image_path=*/"", *container_bundle_path, /*chunk_size=*/2);
+  std::unique_ptr<grpc::Server> launcher_server =
+      grpc::ServerBuilder()
+          .RegisterService(&launcher_oak_service)
+          .BuildAndStart();
+  ClientContext context;
+  // set deadline to the past so that it'll always fail.
+  std::chrono::system_clock::time_point deadline =
+      std::chrono::system_clock::now() - std::chrono::milliseconds(1);
+  context.set_deadline(deadline);
+  google::protobuf::Empty request;
+  std::unique_ptr<OakLauncher::Stub> client = OakLauncher::NewStub(
+      launcher_server->InProcessChannel(grpc::ChannelArguments()));
+  std::unique_ptr<ClientReader<GetImageResponse>> reader =
+      client->GetContainerBundle(&context, request);
+  grpc::Status status = reader->Finish();
+  EXPECT_TRUE(!status.ok());
+}
+
+TEST(LauncherOakServer, GetContainerBundle) {
+  absl::StatusOr<std::string> container_bundle_path =
+      GenerateTmpFile("container_bundle");
+  ASSERT_THAT(container_bundle_path, IsOk());
+  LauncherOakServer launcher_oak_service(
+      /*oak_image_path=*/"", *container_bundle_path, /*chunk_size=*/2);
+  std::unique_ptr<grpc::Server> launcher_server =
+      grpc::ServerBuilder()
+          .RegisterService(&launcher_oak_service)
+          .BuildAndStart();
+  ClientContext context;
+  ::google::protobuf::Empty request;
+  std::unique_ptr<OakLauncher::Stub> client = OakLauncher::NewStub(
+      launcher_server->InProcessChannel(grpc::ChannelArguments()));
+  std::unique_ptr<ClientReader<GetImageResponse>> reader =
+      client->GetContainerBundle(&context, request);
+  GetImageResponse response;
+  std::string result;
+  while (reader->Read(&response)) {
+    result += response.image_chunk();
+  }
+
+  grpc::Status status = reader->Finish();
+  EXPECT_TRUE(status.ok());
+  EXPECT_EQ(result, "container_bundle");
+}
+
+TEST(LauncherOakServer, GetOakSystemImage) {
+  absl::StatusOr<std::string> oak_image_path = GenerateTmpFile("oak_image");
+  ASSERT_THAT(oak_image_path, IsOk());
+  LauncherOakServer launcher_oak_service(
+      *oak_image_path, /*container_bundle_path=*/"", /*chunk_size=*/2);
+  std::unique_ptr<grpc::Server> launcher_server =
+      grpc::ServerBuilder()
+          .RegisterService(&launcher_oak_service)
+          .BuildAndStart();
+
+  ClientContext context;
+  ::google::protobuf::Empty request;
+  std::unique_ptr<OakLauncher::Stub> client = OakLauncher::NewStub(
+      launcher_server->InProcessChannel(grpc::ChannelArguments()));
+  std::unique_ptr<ClientReader<GetImageResponse>> reader =
+      client->GetOakSystemImage(&context, request);
+  GetImageResponse response;
+  std::string result;
+  while (reader->Read(&response)) {
+    result += response.image_chunk();
+  }
+
+  grpc::Status status = reader->Finish();
+  EXPECT_TRUE(status.ok());
+  EXPECT_EQ(result, "oak_image");
 }
 
 TEST(LauncherServer, Successful) {
