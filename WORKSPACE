@@ -104,7 +104,10 @@ crates_repository(
         ),
         "rand": crate.spec(version = "*"),
         "rand_core": crate.spec(version = "*"),
-        "serde": crate.spec(version = "*"),
+        "serde": crate.spec(
+            features = ["derive"],
+            version = "*",
+        ),
         "serde_json": crate.spec(version = "*"),
         "sev": crate.spec(
             version = "*",
