@@ -220,7 +220,6 @@ cc_test(
     data = [
         "//client/test_data/launcher:launcher_test_data",
     ],
-    tags = ["nopresubmit"],
     deps = [
         ":certificates_cc",
         "@bazel_tools//tools/cpp/runfiles",
