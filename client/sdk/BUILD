@@ -21,6 +21,7 @@ cc_library(
 
 cc_test(
     name = "hats_orchestrator_client_test",
+    size = "small",
     srcs = ["hats_orchestrator_client_test.cc"],
     deps = [
         ":hats_orchestrator_client",
@@ -48,6 +49,7 @@ cc_library(
 
 cc_test(
     name = "hats_lightweight_client_test",
+    size = "small",
     srcs = ["hats_lightweight_client_test.cc"],
     deps = [
         ":hats_lightweight_client",

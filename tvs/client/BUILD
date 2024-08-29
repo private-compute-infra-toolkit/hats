@@ -45,6 +45,7 @@ rust_library(
 
 rust_test(
     name = "trusted-client_test",
+    size = "small",
     srcs = ["trusted-client.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate_features = ["noffi"],

@@ -104,6 +104,7 @@ cc_library(
 
 cc_test(
     name = "launcher_test",
+    size = "small",
     srcs = ["launcher_test.cc"],
     data = [
         "//client/test_data/launcher:launcher_test_data",
@@ -144,6 +145,7 @@ cc_library(
 
 cc_test(
     name = "launcher-server_test",
+    size = "small",
     srcs = ["launcher-server_test.cc"],
     data = [
         "//tvs/test_data:tvs_test_data",
@@ -213,6 +215,7 @@ cc_library(
 
 cc_test(
     name = "qemu_test",
+    size = "small",
     srcs = ["qemu_test.cc"],
     deps = [
         ":qemu",
@@ -239,6 +242,7 @@ cc_library(
 
 cc_test(
     name = "certificates_test",
+    size = "small",
     srcs = ["certificates_test.cc"],
     data = [
         "//client/test_data/launcher:launcher_test_data",
