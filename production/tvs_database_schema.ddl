@@ -58,6 +58,7 @@ CREATE TABLE Secrets (
   UserId INT64 NOT NULL,
   DekId INT64 NOT NULL,
   Secret BYTES(MAX) NOT NULL,
+  LockExpiryTime TIMESTAMP NOT NULL,
   UpdateTimestamp TIMESTAMP NOT NULL,
 ) PRIMARY KEY(SecretId);
 

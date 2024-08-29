@@ -255,6 +255,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
           UserId   INT64 NOT NULL,
           DekId    INT64 NOT NULL,
           Secret   BYTES(MAX) NOT NULL,
+          LockExpiryTime TIMESTAMP NOT NULL,
           UpdateTimestamp   TIMESTAMP NOT NULL,
       ) PRIMARY KEY (SecretId))sql");
 
