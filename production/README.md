@@ -203,7 +203,7 @@ deploy a Cloud Run Instance.
     --operation=register_user
     --spanner_database=<gcp_project>/<database_instance>/<database_name> \
     --key_resource_name=<kms_key_resource_name> \
-    --user_public_key=<public key from the above step> \
+    --user_authentication_public_key=<public key from the above step> \
     --user_name=<user_name> \
     --user_origin=<domain>
     ```
