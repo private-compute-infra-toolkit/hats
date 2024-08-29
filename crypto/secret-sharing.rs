@@ -41,6 +41,9 @@ pub enum Error {
     ImproperCoeffs,
 }
 
+// Do not use cxx:bridge if `noffi` is enabled. This is to avoid
+// linking against C++ standard and cxx libraries in pure rust code.
+#[cfg(not(feature = "noffi"))]
 #[cxx::bridge(namespace = "privacy_sandbox::crypto")]
 mod ffi {
     pub struct SecretSharing {
@@ -71,6 +74,7 @@ mod ffi {
     }
 }
 
+#[cfg(not(feature = "noffi"))]
 pub fn split_wrap(secret_bytes: &[u8], numshares: usize, threshold: usize) -> ffi::VecStringResult {
     let mut sham = SecretSharing {
         numshares: numshares,
@@ -98,6 +102,7 @@ pub fn split_wrap(secret_bytes: &[u8], numshares: usize, threshold: usize) -> ff
     }
 }
 
+#[cfg(not(feature = "noffi"))]
 pub fn recover_wrap(
     shares_vec: &Vec<String>,
     numshares: usize,
@@ -181,7 +186,7 @@ fn mod_inv(num: BigInt, prime: BigInt) -> BigInt {
     t
 }
 
-fn get_prime() -> BigInt {
+pub fn get_prime() -> BigInt {
     // 512 bit prime number from https://neuromancer.sk/std/other/ssc-512#
     BigInt::parse_bytes(
         b"C90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B235A2359C4AFBC9EB7987F1C9AB37E42599188C4B7DC6269B830D80897F57A5F71",

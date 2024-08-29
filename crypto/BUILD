@@ -21,6 +21,22 @@ rust_library(
     ],
 )
 
+rust_library(
+    name = "secret-sharing-noffi",
+    srcs = ["secret-sharing.rs"],
+    crate_features = ["noffi"],
+    crate_name = "secret_sharing",
+    deps = [
+        "@boringssl//rust/bssl-crypto",
+        "@enclave//crypto",
+        "@hats_crate_index//:num-bigint",
+        "@hats_crate_index//:rand",
+        "@hats_crate_index//:serde",
+        "@hats_crate_index//:serde_json",
+        "@oak_crates_index//:anyhow",
+    ],
+)
+
 rust_test(
     name = "secret-sharing_test",
     srcs = ["secret-sharing.rs"],
