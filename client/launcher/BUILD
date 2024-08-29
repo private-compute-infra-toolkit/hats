@@ -80,11 +80,14 @@ cc_binary(
     deps = [
         ":launcher_cc",
         "//client/proto:launcher_config_cc_proto",
+        "//tvs/credentials",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:flags",
         "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
     ],
 )
@@ -94,10 +97,17 @@ cc_library(
     srcs = ["launcher.cc"],
     hdrs = ["launcher.h"],
     deps = [
+        ":launcher-server",
         ":qemu",
         "//client/proto:launcher_config_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//:local_parameters",
+        "@google_privacysandbox_servers_common//:local_parc_server",
         "@libarchive//libarchive:archive",
     ],
 )
@@ -110,6 +120,8 @@ cc_test(
     ],
     deps = [
         ":launcher_cc",
+        "//tvs/proto:appraisal_policies_cc_proto",
+        "//tvs/untrusted_tvs:tvs-server",
         "@bazel_tools//tools/cpp/runfiles",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
@@ -202,6 +214,7 @@ cc_library(
     hdrs = ["qemu.h"],
     deps = [
         "//client/proto:launcher_config_cc_proto",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

@@ -6,13 +6,12 @@ cvm_config {
   num_cpus: 4
   ramdrive_size_kb: 10485760
   ram_size_kb: 1048576
-  debug_telnet_port: 2345
-  vmm_binary: "/usr/bin/echo"
-  virtio_guest_cid: 38291
+  debug_telnet_port: 1234
+  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
   network_config {
     inbound_only {
-      host_orchestrator_proxy_port: 4111
-      host_enclave_app_proxy_port: 8111
+      host_orchestrator_proxy_port: 4000
+      host_enclave_app_proxy_port: 8000
     }
   }
 }

@@ -159,6 +159,14 @@ function build_hats_launcher() {
   cp -r ../test_data/parc_data "$BUILD_DIR"
 }
 
+function build_hats_launcher_cc() {
+  local BUILD_DIR="$1"
+  echo "BUILDING LAUNCHER CC"
+  bazel build -c opt //client/launcher:launcher_main
+  cp -f ../../bazel-bin/client/launcher/launcher_main "$BUILD_DIR"
+  cp -r ../test_data/parc_data "$BUILD_DIR"
+}
+
 function build_oak_containers_syslogd() {
   local BUILD_DIR="$1"
   cat << EOF > "$BUILD_DIR/BUILD"
@@ -184,4 +192,43 @@ function build_tvs() {
   local BUILD_DIR="$1"
   bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
   cp -f ../../bazel-bin/tvs/untrusted_tvs/tvs-server_main "$BUILD_DIR"
+}
+
+function build_test_keygen() {
+  local BUILD_DIR="$1"
+  bazel build -c opt //key_manager:key-gen
+  cp -f ../../bazel-bin/key_manager/key-gen "$BUILD_DIR"
+}
+
+# A tar file contains all launch required data.
+# A textproto file contains all launch parameters.
+# Secrets are in parameters only.
+function build_launch_bundle() {
+  echo "Building Launcher Bundle"
+  local BUILD_DIR="$1"
+  local STAGE0="$2"
+  local INITRD="$3"
+  local KERNEL="$4"
+  local SYSTEM="$5"
+  local RUNTIME="$6"
+  local APPRISAL_POLICY="$7"
+  local LAUNCHER_CONFIG="$8"
+  local TAR_DIR="$BUILD_DIR/tar"
+  mkdir -p "$TAR_DIR"
+  mv -f "$STAGE0" "$TAR_DIR/stage0_bin"
+  mv -f "$INITRD" "$TAR_DIR/initrd.cpio.xz"
+  mv -f "$KERNEL" "$TAR_DIR/kernel_bin"
+  mv -f "$SYSTEM" "$TAR_DIR/system.tar.xz"
+  tar -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
+  mv "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
+  cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.prototext"
+  cp "$APPRISAL_POLICY" "$BUILD_DIR/apprisal_policy.prototext"
+  # Init script to generate fake test keys.
+  cp "keygen-local-init.sh" "$BUILD_DIR/"
+  cp "launcher-up.sh" "$BUILD_DIR/"
+  cp "tvs-up.sh" "$BUILD_DIR/"
+  # Clean up the extra stuff in the folder.
+  rm -rf "$TAR_DIR"
+  rm "$BUILD_DIR/oak_containers_syslogd"
+  rm "$BUILD_DIR/BUILD"
 }

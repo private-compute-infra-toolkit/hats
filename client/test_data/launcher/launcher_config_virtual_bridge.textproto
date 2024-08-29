@@ -1,5 +1,4 @@
 launcherServicePort: 8080
-tvsAddress: "http://localhost:7774"
 cvmConfig: {
   runc_runtime_bundle: "/tmp/runc/runtime_bundle.tar"
   hats_system_bundle: "/tmp/runc/system_bundle.tar"

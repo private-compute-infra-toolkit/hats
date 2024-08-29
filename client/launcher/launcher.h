@@ -18,11 +18,33 @@
 #include <memory>
 #include <string>
 
+#include "absl/base/nullability.h"
+#include "absl/flags/declare.h"
 #include "absl/strings/string_view.h"
+#include "client/launcher/launcher-server.h"
 #include "client/launcher/qemu.h"
 #include "client/proto/launcher_config.pb.h"
+#include "external/google_privacysandbox_servers_common/src/parc/servers/local/parc_server.h"
 
 namespace privacy_sandbox::client {
+
+// External dependencies to the file system or other places for the launcher to
+// be healthy.
+struct LauncherExtDeps {
+  std::string kernel_binary_path;
+  std::string stage0_binary_path;
+  std::string initrd_cpio_xz_path;
+  std::string oak_system_image_path;
+  std::string container_bundle;
+  std::string vmm_binary_path;
+};
+
+struct HatsLauncherConfig {
+  // Config file provided configurations.
+  LauncherConfig config;
+  // Flag provided configurations.
+  std::string tvs_authentication_key_bytes;
+};
 
 // HatsLauncher untars the hats bundle into a hosted location:
 // /tmp/hats-XXXXX/. The folder is owned by the process owner.
@@ -32,32 +54,58 @@ class HatsLauncher final {
   HatsLauncher(const HatsLauncher&) = delete;
   HatsLauncher& operator=(const HatsLauncher&) = delete;
   static absl::StatusOr<std::unique_ptr<HatsLauncher>> Create(
-      const LauncherConfig& config);
+      const HatsLauncherConfig& config,
+      std::shared_ptr<grpc::Channel> tvs_channel);
 
-  static absl::StatusOr<Qemu::Options> GetQemuOptions(
-      absl::string_view kernel_binary_path,
-      absl::string_view stage0_binary_path,
-      absl::string_view initrd_cpio_xz_path,
-      const LauncherConfig& launcher_config);
-  std::string GetKernelBinaryPath();
-  std::string GetSystemImageTarXzPath();
-  std::string GetStage0BinaryPath();
-  std::string GetInitrdCpioXzPath();
+  // Terminate all services and subprocesses.
+  void Shutdown() ABSL_LOCKS_EXCLUDED(mu_);
+
+  // InProcessChannel to the launcher services used only for testing purpose.
+  absl::StatusOr<std::shared_ptr<grpc::Channel>> VsockChannelForTest()
+      ABSL_LOCKS_EXCLUDED(mu_);
+
+  absl::StatusOr<std::shared_ptr<grpc::Channel>> TcpChannelForTest()
+      ABSL_LOCKS_EXCLUDED(mu_);
+
+  absl::StatusOr<std::string> GetQemuLogFilename();
+
+  // Wait for the process ready to receive requests.
+  void WaitUntilReady() ABSL_LOCKS_EXCLUDED(mu_);
+
+  // Wait for termination. Return immediately if the server is not started.
+  void Wait() ABSL_LOCKS_EXCLUDED(mu_);
 
   // Run QEMU server and launcher service.
-  absl::Status Start();
+  // This function should be called only once to ensure server states are clean.
+  absl::Status Start(absl::string_view addr_uri, absl::string_view vsock_uri,
+                     absl::string_view qemu_log_filename)
+      ABSL_LOCKS_EXCLUDED(mu_);
 
  private:
-  HatsLauncher(std::string kernel_binary_path,
-               std::string system_image_tar_xz_path,
-               std::string stage0_binary_path, std::string initrd_cpio_xz_path,
-               std::unique_ptr<Qemu> qemu);
-  const std::string kernel_binary_path_;
-  const std::string system_image_tar_xz_path_;
-  const std::string stage0_binary_path_;
-  const std::string initrd_cpio_xz_path_;
-  const LauncherConfig launcher_config_;
-  std::unique_ptr<Qemu> qemu_;
+  HatsLauncher(
+      LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
+      absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
+      absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
+      absl::Nullable<
+          std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
+          parc_server);
+  // The external dependencies are not owned by HatsLauncher but required
+  // for system health.
+  const LauncherExtDeps deps_;
+  absl::Nonnull<std::unique_ptr<Qemu>> qemu_;
+  absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server_;
+  absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server_;
+  // PARC server is null when it's not specified.
+  absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
+      parc_server_;
+  // gRPC servers created during Start and shutdown when stop is called.
+  std::unique_ptr<grpc::Server> tcp_server_;
+  std::unique_ptr<grpc::Server> vsock_server_;
+
+  // Whether all underlying processes was started or not.
+  // The mutex is only for controlling access to started_.
+  mutable absl::Mutex mu_;
+  bool started_ ABSL_GUARDED_BY(mu_) = false;
 };
 }  // namespace privacy_sandbox::client
 
