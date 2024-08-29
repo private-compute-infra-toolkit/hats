@@ -17,12 +17,25 @@
 
 #[cxx::bridge(namespace = "privacy_sandbox::key_manager")]
 pub mod ffi {
+    struct IntResult {
+        value: i64,
+        error: String,
+    }
+
+    struct VecU8Result {
+        value: Vec<u8>,
+        error: String,
+    }
+
     unsafe extern "C++" {
         include!("key_manager/key-fetcher-wrapper.h");
+
         #[rust_name = "user_id_for_authentication_key"]
-        fn UserIdForAuthenticationKey(public_key: &[u8]) -> Result<i64>;
+        fn UserIdForAuthenticationKey(public_key: &[u8]) -> IntResult;
+
         #[rust_name = "get_secrets_for_user_id"]
-        fn GetSecretsForUserId(user_id: i64) -> Result<Vec<u8>>;
+        fn GetSecretsForUserId(user_id: i64) -> VecU8Result;
+
         #[rust_name = "register_echo_key_fetcher_for_test"]
         fn RegisterEchoKeyFetcherForTest();
     }

@@ -54,27 +54,25 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
 absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
     const std::string& primary_private_key,
     const std::string& secondary_private_key,
-    const AppraisalPolicies& appraisal_policies,
-    bool enable_authentication = false) {
-  // try/catch is to handle errors from rust code.
-  // Errors returned by rust functions are converted to C++ exception.
-  try {
-    if (secondary_private_key.empty()) {
-      return NewTrustedTvs(
-          absl::ToUnixMillis(absl::Now()),
-          StringToRustSlice(primary_private_key),
-          StringToRustSlice(appraisal_policies.SerializeAsString()),
-          /*user=*/"default");
-    }
-    return NewTrustedTvs(
+    const AppraisalPolicies& appraisal_policies) {
+  TrustedTvsCreationResult trusted_tvs;
+  if (secondary_private_key.empty()) {
+    trusted_tvs = NewTrustedTvs(
+        absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
+        StringToRustSlice(appraisal_policies.SerializeAsString()),
+        /*user=*/"default");
+  } else {
+    trusted_tvs = NewTrustedTvs(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(secondary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
         /*user=*/"default");
-  } catch (std::exception& e) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("Cannot create trusted TVS server. ", e.what()));
   }
+  if (!trusted_tvs.error.empty()) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "Cannot create trusted TVS server. ", std::string(trusted_tvs.error)));
+  }
+  return rust::Box<TrustedTvs>::from_raw(trusted_tvs.value);
 }
 
 TvsServer::TvsServer(const std::string& primary_private_key,
@@ -98,26 +96,23 @@ grpc::Status TvsServer::VerifyReport(
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         trusted_tvs.status().ToString());
   }
-  // try/catch is to handle errors from rust code.
-  // Errors returned by rust functions are converted to C++ exception.
-  try {
-    OpaqueMessage request;
-    while (stream->Read(&request) && !(*trusted_tvs)->IsTerminated()) {
-      const rust::Vec<std::uint8_t> result =
-          (*trusted_tvs)
-              ->VerifyReport(StringToRustSlice(request.binary_message()));
-      OpaqueMessage response;
-      response.set_binary_message(RustVecToString(result));
-      if (!stream->Write(response)) {
-        LOG(ERROR) << "Failed to write message to stream";
-        return grpc::Status(grpc::StatusCode::UNKNOWN,
-                            "Failed to write message to stream");
-      }
+  OpaqueMessage request;
+  while (stream->Read(&request) && !(*trusted_tvs)->IsTerminated()) {
+    const VecU8Result result =
+        (*trusted_tvs)
+            ->VerifyReport(StringToRustSlice(request.binary_message()));
+    if (!result.error.empty()) {
+      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                          absl::StrCat("Invalid or malformed command. ",
+                                       std::string(result.error)));
     }
-  } catch (std::exception& e) {
-    return grpc::Status(
-        grpc::StatusCode::INVALID_ARGUMENT,
-        absl::StrCat("Invalid or malformed command. ", e.what()));
+    OpaqueMessage response;
+    response.set_binary_message(RustVecToString(result.value));
+    if (!stream->Write(response)) {
+      LOG(ERROR) << "Failed to write message to stream";
+      return grpc::Status(grpc::StatusCode::UNKNOWN,
+                          "Failed to write message to stream");
+    }
   }
   return grpc::Status::OK;
 }

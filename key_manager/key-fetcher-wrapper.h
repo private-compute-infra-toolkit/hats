@@ -17,14 +17,15 @@
 #include <string>
 
 #include "include/cxx.h"
+#include "key_manager/rust-key-fetcher.rs.h"
 
 namespace privacy_sandbox::key_manager {
 
 // Wrapper functions around `KeyFetcher` methods to make it usable to Rust code
 
-int64_t UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key);
+IntResult UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key);
 
-rust::Vec<uint8_t> GetSecretsForUserId(int64_t user_id);
+VecU8Result GetSecretsForUserId(int64_t user_id);
 
 // Allow registration of a KeyFetcher to be used in test.
 // The registered KeyFetcher echos back the `username` as the secret.

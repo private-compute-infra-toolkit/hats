@@ -40,43 +40,62 @@ pub mod proto {
 #[cxx::bridge(namespace = "privacy_sandbox::tvs")]
 #[cfg(not(feature = "noffi"))]
 mod ffi {
+    struct TvsClientCreationResult {
+        value: *mut TvsClient,
+        error: String,
+    }
+
+    struct VecU8Result {
+        value: Vec<u8>,
+        error: String,
+    }
+
     extern "Rust" {
         type TvsClient;
+
+        // This is to force cxx to generate full implementation
+        // for Box<TvsClient>::drop()
+        fn tvs_client_dummy() -> Result<Box<TvsClient>>;
+
         #[cxx_name = "NewTvsClient"]
-        fn new_tvs_client(private_key: &[u8], tvs_pub_key: &[u8]) -> Result<Box<TvsClient>>;
+        fn new_tvs_client(private_key: &[u8], tvs_pub_key: &[u8]) -> TvsClientCreationResult;
 
         #[cxx_name = "BuildInitialMessage"]
-        fn build_initial_message(&mut self) -> Result<Vec<u8>>;
+        fn build_initial_message_ffi(&mut self) -> VecU8Result;
 
         #[cxx_name = "ProcessHandshakeResponse"]
-        fn process_handshake_response(&mut self, response: &[u8]) -> Result<()>;
+        fn process_handshake_response_ffi(&mut self, response: &[u8]) -> String;
 
         #[cxx_name = "BuildVerifyReportRequest"]
-        fn build_verify_report_request(
+        fn build_verify_report_request_ffi(
             &mut self,
             evidence_bin: &[u8],
             vcek: &[u8],
             application_signing_key: &str,
-        ) -> Result<Vec<u8>>;
+        ) -> VecU8Result;
 
         #[cxx_name = "ProcessResponse"]
-        fn process_response(&mut self, response: &[u8]) -> Result<Vec<u8>>;
+        fn process_response_ffi(&mut self, response: &[u8]) -> VecU8Result;
     }
 }
 
-pub fn new_tvs_client(private_key: &[u8], tvs_public_key: &[u8]) -> Result<Box<TvsClient>, String> {
-    let private_key_scalar: P256Scalar = private_key.try_into().map_err(|_| {
-        format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
-    })?;
+#[cfg(not(feature = "noffi"))]
+fn tvs_client_dummy() -> Result<Box<TvsClient>, String> {
+    Err("unimplemented".to_string())
+}
 
-    let tvs_public_key_bytes: [u8; P256_X962_LENGTH] = tvs_public_key
-        .try_into()
-        .map_err(|_| format!("Expected tvs_public_key to be of length {P256_X962_LENGTH}."))?;
-
-    Ok(Box::new(TvsClient::new(
-        private_key_scalar,
-        tvs_public_key_bytes,
-    )))
+#[cfg(not(feature = "noffi"))]
+fn new_tvs_client(private_key: &[u8], tvs_public_key: &[u8]) -> ffi::TvsClientCreationResult {
+    match TvsClient::new(private_key, tvs_public_key) {
+        Ok(tvs_client) => ffi::TvsClientCreationResult {
+            value: Box::into_raw(Box::new(tvs_client)),
+            error: "".to_string(),
+        },
+        Err(error) => ffi::TvsClientCreationResult {
+            value: std::ptr::null_mut(),
+            error: error,
+        },
+    }
 }
 
 pub struct TvsClient {
@@ -88,17 +107,39 @@ pub struct TvsClient {
 }
 
 impl TvsClient {
-    fn new(private_key: P256Scalar, tvs_public_key: [u8; P256_X962_LENGTH]) -> Self {
-        Self {
+    pub fn new(private_key: &[u8], tvs_public_key: &[u8]) -> Result<Self, String> {
+        let private_key_scalar: P256Scalar = private_key.try_into().map_err(|_| {
+            format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
+        })?;
+
+        let tvs_public_key_bytes: [u8; P256_X962_LENGTH] = tvs_public_key
+            .try_into()
+            .map_err(|_| format!("Expected tvs_public_key to be of length {P256_X962_LENGTH}."))?;
+        Ok(Self {
             handshake: HandshakeInitiator::new(
                 HandshakeType::Kk,
-                &tvs_public_key,
-                Some(private_key.bytes()),
+                &tvs_public_key_bytes,
+                Some(private_key_scalar.bytes()),
             ),
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
-            private_key,
-            tvs_public_key,
+            private_key: private_key_scalar,
+            tvs_public_key: tvs_public_key_bytes,
+        })
+    }
+
+    // Wrapper around `build_initial_message` to be used in C++.
+    #[cfg(not(feature = "noffi"))]
+    fn build_initial_message_ffi(&mut self) -> ffi::VecU8Result {
+        match self.build_initial_message() {
+            Ok(result) => ffi::VecU8Result {
+                value: result,
+                error: "".to_string(),
+            },
+            Err(error) => ffi::VecU8Result {
+                value: vec![],
+                error: error,
+            },
         }
     }
 
@@ -121,6 +162,15 @@ impl TvsClient {
         Ok(message_bin)
     }
 
+    // Wrapper around `process_handshake_response` to be used in C++.
+    #[cfg(not(feature = "noffi"))]
+    fn process_handshake_response_ffi(&mut self, response: &[u8]) -> String {
+        match self.process_handshake_response(response) {
+            Ok(_) => "".to_string(),
+            Err(error) => error,
+        }
+    }
+
     pub fn process_handshake_response(&mut self, response: &[u8]) -> Result<(), String> {
         let message_reponse: AttestReportResponse = prost::Message::decode(response)
             .map_err(|_| "Error decoding message to AttestReportResponse proto.".to_string())?;
@@ -139,6 +189,26 @@ impl TvsClient {
         self.crypter = Some(crypter);
         self.handshake_hash = handshake_hash;
         Ok(())
+    }
+
+    // Wrapper around `build_verify_report_request` to be used in C++.
+    #[cfg(not(feature = "noffi"))]
+    fn build_verify_report_request_ffi(
+        &mut self,
+        evidence_bin: &[u8],
+        vcek: &[u8],
+        application_signing_key: &str,
+    ) -> ffi::VecU8Result {
+        match self.build_verify_report_request(evidence_bin, vcek, application_signing_key) {
+            Ok(result) => ffi::VecU8Result {
+                value: result,
+                error: "".to_string(),
+            },
+            Err(error) => ffi::VecU8Result {
+                value: vec![],
+                error: error,
+            },
+        }
     }
 
     pub fn build_verify_report_request(
@@ -180,6 +250,21 @@ impl TvsClient {
             }
         } else {
             Err("Handshake initiation should be done before encrypting messages".to_string())
+        }
+    }
+
+    // Wrapper around `process_response` to be used in C++.
+    #[cfg(not(feature = "noffi"))]
+    fn process_response_ffi(&mut self, response: &[u8]) -> ffi::VecU8Result {
+        match self.process_response(response) {
+            Ok(result) => ffi::VecU8Result {
+                value: result,
+                error: "".to_string(),
+            },
+            Err(error) => ffi::VecU8Result {
+                value: vec![],
+                error: error,
+            },
         }
     }
 
@@ -265,21 +350,23 @@ mod tests {
     }
 
     const NOW_UTC_MILLIS: i64 = 1698829200000;
+
     // End to end testing: handshake, building and signing the report and decrypt the secret.
     #[test]
     fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs_service = tvs_trusted::new_trusted_tvs_service(
+        let mut trusted_tvs_service = tvs_trusted::TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policies().as_slice(),
             "test_user1",
         )
         .unwrap();
 
         let client_private_key = get_good_client_private_key();
-        let mut tvs_client = new_tvs_client(
+        let mut tvs_client = TvsClient::new(
             &client_private_key.bytes(),
             &tvs_private_key.compute_public_key(),
         )
@@ -314,7 +401,7 @@ mod tests {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let client_private_key = get_good_client_private_key();
         let tvs_private_key = P256Scalar::generate();
-        let mut tvs_client = new_tvs_client(
+        let mut tvs_client = TvsClient::new(
             &client_private_key.bytes(),
             &tvs_private_key.compute_public_key(),
         )
@@ -345,7 +432,7 @@ mod tests {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let client_private_key = get_good_client_private_key();
         let tvs_private_key = P256Scalar::generate();
-        let mut tvs_client = new_tvs_client(
+        let mut tvs_client = TvsClient::new(
             &client_private_key.bytes(),
             &tvs_private_key.compute_public_key(),
         )
@@ -358,9 +445,10 @@ mod tests {
             ),
         }
 
-        let mut trusted_tvs_service = tvs_trusted::new_trusted_tvs_service(
+        let mut trusted_tvs_service = tvs_trusted::TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policies().as_slice(),
             "test_user2",
         )
@@ -401,13 +489,13 @@ mod tests {
     fn new_tvs_client_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        match new_tvs_client(&[1, 2, 3], &tvs_private_key.compute_public_key()) {
-            Ok(_) => assert!(false, "new_tvs_client() should fail"),
+        match TvsClient::new(&[1, 2, 3], &tvs_private_key.compute_public_key()) {
+            Ok(_) => assert!(false, "TvsClient::new() should fail"),
             Err(e) => assert_eq!(e, "Invalid private key. Key should be 32 bytes long.",),
         }
         let client_private_key = get_good_client_private_key();
-        match new_tvs_client(&client_private_key.bytes(), &[1, 2, 3]) {
-            Ok(_) => assert!(false, "new_tvs_client() should fail"),
+        match TvsClient::new(&client_private_key.bytes(), &[1, 2, 3]) {
+            Ok(_) => assert!(false, "TvsClient::new() should fail"),
             Err(e) => assert_eq!(
                 e,
                 format!("Expected tvs_public_key to be of length {P256_X962_LENGTH}."),

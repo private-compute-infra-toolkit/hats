@@ -684,13 +684,17 @@ absl::StatusOr<WrappedSecrets> WrapSecret(
 absl::StatusOr<std::vector<SecretData>> SplitSecret(int num_shares,
                                                     int threshold,
                                                     const SecretData& secret) {
-  absl::StatusOr<rust::Vec<rust::String>> shares =
+  privacy_sandbox::crypto::VecStringResult shares =
       privacy_sandbox::crypto::SplitSecret(
           rust::Slice<const std::uint8_t>(secret.GetData(), secret.GetSize()),
           num_shares, threshold);
-  if (!shares.ok()) return shares.status();
+  if (!shares.error.empty()) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to split secret. ", std::string(shares.error)));
+  }
+
   std::vector<SecretData> result;
-  for (const rust::String& share : *shares) {
+  for (const rust::String& share : shares.value) {
     result.push_back(SecretData(static_cast<std::string>(share)));
   }
   return result;

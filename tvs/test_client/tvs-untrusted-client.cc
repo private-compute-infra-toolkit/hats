@@ -48,28 +48,30 @@ rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
 absl::Status PerformNoiseHandshake(
     grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>& stream,
     TvsClient& tvs_client) {
-  // try/catch is to handle errors from rust code.
-  // Errors returned by rust functions are converted to C++ exception.
-  try {
-    const rust::Vec<std::uint8_t> initial_message =
-        tvs_client.BuildInitialMessage();
-    OpaqueMessage opaque_message;
-    opaque_message.set_binary_message(RustVecToString(initial_message));
-    if (!stream.Write(opaque_message)) {
-      return absl::UnknownError(
-          absl::StrCat("Failed to write message to stream. ",
-                       stream.Finish().error_message()));
-    }
-    if (!stream.Read(&opaque_message)) {
-      return absl::UnknownError(
-          absl::StrCat("Failed to write message to stream. ",
-                       stream.Finish().error_message()));
-    }
-    tvs_client.ProcessHandshakeResponse(
-        StringToRustSlice(opaque_message.binary_message()));
-  } catch (std::exception& e) {
-    return absl::InternalError(
-        absl::StrCat("Failed to finish noise handshake.", e.what()));
+  const VecU8Result initial_message = tvs_client.BuildInitialMessage();
+  if (!initial_message.error.empty()) {
+    return absl::UnknownError(absl::StrCat("Failed to build initial message: ",
+                                           std::string(initial_message.error)));
+  }
+
+  OpaqueMessage opaque_message;
+  opaque_message.set_binary_message(RustVecToString(initial_message.value));
+  if (!stream.Write(opaque_message)) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to write message to stream. ",
+                     stream.Finish().error_message()));
+  }
+  if (!stream.Read(&opaque_message)) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to write message to stream. ",
+                     stream.Finish().error_message()));
+  }
+
+  if (rust::String status = tvs_client.ProcessHandshakeResponse(
+          StringToRustSlice(opaque_message.binary_message()));
+      !status.empty()) {
+    return absl::UnknownError(absl::StrCat(
+        "Failed to process handshake response: ", std::string(status)));
   }
   return absl::OkStatus();
 }
@@ -106,85 +108,85 @@ TvsUntrustedClient::CreateClient(const Options& options) {
         "Failed to parse tvs_authentication_key. The key should be in hex "
         "string format");
   }
-  // try/catch is to handle errors from rust code.
-  // Errors returned by rust functions are converted to C++ exception.
-  try {
-    rust::Box<TvsClient> tvs_client =
-        NewTvsClient(StringToRustSlice(tvs_authentication_key),
-                     StringToRustSlice(tvs_public_key));
-    // Perform handshake.
-    std::unique_ptr<TeeVerificationService::Stub> stub = nullptr;
-    std::unique_ptr<privacy_sandbox::client::LauncherService::Stub>
-        launcher_stub = nullptr;
 
-    if (options.use_launcher_forwarding) {
-      launcher_stub =
-          privacy_sandbox::client::LauncherService::LauncherService::NewStub(
-              options.channel);
-    } else {
-      stub = TeeVerificationService::NewStub(options.channel);
-    }
-    auto context = std::make_unique<grpc::ClientContext>();
-    std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
-        stream;
-    if (stub != nullptr) {
-      stream = stub->VerifyReport(context.get());
-    } else {
-      stream = launcher_stub->VerifyReport(context.get());
-    }
-    if (absl::Status status = PerformNoiseHandshake(*stream, *tvs_client);
-        !status.ok()) {
-      return status;
-    }
-    return absl::WrapUnique(new TvsUntrustedClient(
-        std::move(launcher_stub), std::move(stub), std::move(context),
-        std::move(stream), std::move(tvs_client)));
-  } catch (std::exception& e) {
+  TvsClientCreationResult tvs_client_result =
+      NewTvsClient(StringToRustSlice(tvs_authentication_key),
+                   StringToRustSlice(tvs_public_key));
+  if (!tvs_client_result.error.empty()) {
     return absl::FailedPreconditionError(
-        absl::StrCat("Failed to create trusted TVS client. ", e.what()));
+        absl::StrCat("Failed to create trusted TVS client. ",
+                     std::string(tvs_client_result.error)));
   }
+
+  auto tvs_client = rust::Box<TvsClient>::from_raw(tvs_client_result.value);
+
+  // Perform handshake.
+  std::unique_ptr<TeeVerificationService::Stub> stub = nullptr;
+  std::unique_ptr<privacy_sandbox::client::LauncherService::Stub>
+      launcher_stub = nullptr;
+
+  if (options.use_launcher_forwarding) {
+    launcher_stub =
+        privacy_sandbox::client::LauncherService::LauncherService::NewStub(
+            options.channel);
+  } else {
+    stub = TeeVerificationService::NewStub(options.channel);
+  }
+  auto context = std::make_unique<grpc::ClientContext>();
+  std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
+      stream;
+  if (stub != nullptr) {
+    stream = stub->VerifyReport(context.get());
+  } else {
+    stream = launcher_stub->VerifyReport(context.get());
+  }
+  if (absl::Status status = PerformNoiseHandshake(*stream, *tvs_client);
+      !status.ok()) {
+    return status;
+  }
+  return absl::WrapUnique(new TvsUntrustedClient(
+      std::move(launcher_stub), std::move(stub), std::move(context),
+      std::move(stream), std::move(tvs_client)));
 }
 
 absl::StatusOr<VerifyReportResponse>
 TvsUntrustedClient::VerifyReportAndGetSecrets(
     const std::string& application_signing_key,
     const VerifyReportRequest& verify_report_request) {
-  // try/catch is to handle errors from rust code.
-  // Errors returned by rust functions are converted to C++ exception.
-  try {
-    const rust::Vec<std::uint8_t> encrypted_command =
-        tvs_client_->BuildVerifyReportRequest(
-            StringToRustSlice(
-                verify_report_request.evidence().SerializeAsString()),
-            StringToRustSlice(verify_report_request.tee_certificate()),
-            application_signing_key);
-    OpaqueMessage opaque_message;
-    opaque_message.set_binary_message(RustVecToString(encrypted_command));
-
-    if (!stream_->Write(opaque_message)) {
-      return absl::UnknownError(
-          absl::StrCat("Failed to write message to stream. ",
-                       stream_->Finish().error_message()));
-    }
-
-    if (!stream_->Read(&opaque_message)) {
-      return absl::UnknownError(
-          absl::StrCat("Failed to write message to stream. ",
-                       stream_->Finish().error_message()));
-    }
-
-    rust::Vec<uint8_t> secret = tvs_client_->ProcessResponse(
-        StringToRustSlice(opaque_message.binary_message()));
-    VerifyReportResponse response;
-    if (!response.ParseFromArray(secret.data(), secret.size())) {
-      return absl::UnknownError("Cannot parse result into proto");
-    }
-    return response;
-  } catch (std::exception& e) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("Failed to create trusted TVS client.", e.what()));
+  const VecU8Result encrypted_command = tvs_client_->BuildVerifyReportRequest(
+      StringToRustSlice(verify_report_request.evidence().SerializeAsString()),
+      StringToRustSlice(verify_report_request.tee_certificate()),
+      application_signing_key);
+  if (!encrypted_command.error.empty()) {
+    return absl::UnknownError(absl::StrCat(
+        "Failed to process response: ", std::string(encrypted_command.error)));
   }
-  return absl::OkStatus();
+  OpaqueMessage opaque_message;
+  opaque_message.set_binary_message(RustVecToString(encrypted_command.value));
+
+  if (!stream_->Write(opaque_message)) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to write message to stream. ",
+                     stream_->Finish().error_message()));
+  }
+
+  if (!stream_->Read(&opaque_message)) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to write message to stream. ",
+                     stream_->Finish().error_message()));
+  }
+
+  const VecU8Result secret = tvs_client_->ProcessResponse(
+      StringToRustSlice(opaque_message.binary_message()));
+  if (!secret.error.empty()) {
+    return absl::UnknownError(absl::StrCat("Failed to process response: ",
+                                           std::string(secret.error)));
+  }
+  VerifyReportResponse response;
+  if (!response.ParseFromArray(secret.value.data(), secret.value.size())) {
+    return absl::UnknownError("Cannot parse result into proto");
+  }
+  return response;
 }
 
 }  // namespace privacy_sandbox::tvs

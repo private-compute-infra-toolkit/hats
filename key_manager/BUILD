@@ -120,6 +120,7 @@ cc_library(
     srcs = ["key-fetcher-wrapper.cc"],
     hdrs = ["key-fetcher-wrapper.h"],
     deps = [
+        ":bridge/include",
         "//tvs/proto:tvs_messages_cc_proto",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",

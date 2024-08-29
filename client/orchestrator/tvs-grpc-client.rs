@@ -121,7 +121,7 @@ impl TvsGrpcClient {
         tee_certificate: Vec<u8>,
     ) -> Result<Vec<u8>, String> {
         let mut tvs =
-            tvs_trusted_client::new_tvs_client(&tvs_authentication_key, &self.tvs_public_key)?;
+            tvs_trusted_client::TvsClient::new(&tvs_authentication_key, &self.tvs_public_key)?;
 
         // Channel between the `outbound stream` - the one that sends grpc
         // requests - and the `processing_task` task that generates and process VerifyReport requests:
@@ -254,9 +254,10 @@ mod tests {
             request: tonic::Request<tonic::Streaming<OpaqueMessage>>,
         ) -> Result<tonic::Response<Self::VerifyReportStream>, tonic::Status> {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
-            let Ok(mut trusted_tvs) = tvs_trusted::new_trusted_tvs_service(
+            let Ok(mut trusted_tvs) = tvs_trusted::TrustedTvs::new(
                 NOW_UTC_MILLIS,
                 &self.tvs_private_key,
+                /*secondary_private_key=*/ None,
                 default_appraisal_policies().as_slice(),
                 "test_user",
             ) else {

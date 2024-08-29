@@ -157,19 +157,14 @@ int main(int argc, char* argv[]) {
     }
   }
   for (const auto& [key_id, shared_secret] : keys) {
-    std::string recovered_secret;
-    try {
-      recovered_secret = RustVecToString(privacy_sandbox::crypto::RecoverSecret(
-          StringVecToRustVec(shared_secret.secret_shares), tvs_addresses.size(),
-          tvs_addresses.size() - 1));
-    } catch (std::exception& e) {
-      LOG(ERROR) << "Error when recovering secret: " << e.what();
-      return 1;
-    }
+    privacy_sandbox::crypto::VecU8Result recovered_secret =
+        privacy_sandbox::crypto::RecoverSecret(
+            StringVecToRustVec(shared_secret.secret_shares),
+            tvs_addresses.size(), tvs_addresses.size() - 1);
     std::cout << "Key id: " << key_id << std::endl;
     std::cout << "Public key: " << shared_secret.public_key << std::endl;
     if (absl::StatusOr<std::string> private_key_hex =
-            absl::BytesToHexString(recovered_secret);
+            absl::BytesToHexString(RustVecToString(recovered_secret.value));
         private_key_hex.ok()) {
       std::cout << "Private key: " << private_key_hex << std::endl;
     } else {

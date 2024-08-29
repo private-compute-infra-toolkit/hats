@@ -30,6 +30,7 @@
 #include "absl/synchronization/mutex.h"
 #include "include/cxx.h"
 #include "key_manager/key-fetcher.h"
+#include "key_manager/rust-key-fetcher.rs.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
 namespace privacy_sandbox::key_manager {
@@ -94,25 +95,29 @@ class EchoKeyFetcher final : public KeyFetcher {
 
 }  // namespace
 
-int64_t UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key) {
+IntResult UserIdForAuthenticationKey(rust::Slice<const uint8_t> public_key) {
   KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
   absl::StatusOr<int64_t> user_id =
       key_fetcher->UserIdForAuthenticationKey(std::string(
           reinterpret_cast<const char*>(public_key.data()), public_key.size()));
   if (!user_id.ok()) {
-    throw std::runtime_error(
-        absl::StrCat("Failed to lookup user: ", user_id.status()));
+    return IntResult{
+        .error = absl::StrCat("Failed to lookup user: ", user_id.status()),
+    };
   }
-  return *std::move(user_id);
+  return IntResult{
+      .value = *std::move(user_id),
+  };
 }
 
-rust::Vec<uint8_t> GetSecretsForUserId(int64_t user_id) {
+VecU8Result GetSecretsForUserId(int64_t user_id) {
   KeyFetcher* key_fetcher = RegisteredKeyFetcherOrDefault();
   absl::StatusOr<std::vector<Secret>> secrets =
       key_fetcher->GetSecretsForUserId(user_id);
   if (!secrets.ok()) {
-    throw std::runtime_error(
-        absl::StrCat("Failed to get secret: ", secrets.status()));
+    return VecU8Result{
+        .error = absl::StrCat("Failed to get secret: ", secrets.status()),
+    };
   }
   std::string serialized_response;
   {
@@ -129,7 +134,9 @@ rust::Vec<uint8_t> GetSecretsForUserId(int64_t user_id) {
   rust::Vec<uint8_t> v;
   std::copy(serialized_response.begin(), serialized_response.end(),
             std::back_inserter(v));
-  return v;
+  return VecU8Result{
+      .value = std::move(v),
+  };
 }
 
 void RegisterEchoKeyFetcherForTest() {
