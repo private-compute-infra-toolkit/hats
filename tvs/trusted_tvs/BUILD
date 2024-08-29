@@ -1,6 +1,6 @@
+load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
-load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -16,7 +16,7 @@ rust_library(
     }),
     deps = [
         ":build",
-        "@using_cxx//:cxx",
+        "@cxx.rs//:cxx",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the
@@ -37,7 +37,7 @@ rust_test(
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
         ":build",
-        "@using_cxx//:cxx",
+        "@cxx.rs//:cxx",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different

@@ -28,8 +28,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "include/cxx.h"
 #include "key_manager/key-fetcher.h"
-#include "rust/cxx.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
 namespace privacy_sandbox::key_manager {

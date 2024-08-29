@@ -16,7 +16,7 @@
 #define HATS_KEY_MANAGER_KEY_FETCHER_WRAPPER_H_
 #include <string>
 
-#include "rust/cxx.h"
+#include "include/cxx.h"
 
 namespace privacy_sandbox::key_manager {
 

@@ -1,6 +1,6 @@
+load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
-load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -57,6 +57,7 @@ rust_binary(
     deps = [
         ":bridge",
         ":server-ffi",
+        "@cxx.rs//:cxx",
         "@oak//oak_client",
         "@oak//oak_containers_launcher:lib",
         "@oak//oak_crypto",
@@ -64,7 +65,6 @@ rust_binary(
         "@oak_crates_index//:clap",
         "@oak_crates_index//:env_logger",
         "@oak_crates_index//:tokio",
-        "@using_cxx//:cxx",
     ],
 )
 
@@ -182,9 +182,9 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@cxx.rs//:cxx",
         "@google_privacysandbox_servers_common//:local_parameters",
         "@google_privacysandbox_servers_common//:local_parc_server",
-        "@using_cxx//:cxx_cc",
     ],
 )
 
@@ -192,7 +192,7 @@ cc_library(
     name = "server-ffi-include",
     hdrs = ["server-ffi.h"],
     deps = [
-        "@using_cxx//:cxx_cc",
+        "@cxx.rs//:cxx",
     ],
 )
 

@@ -31,7 +31,7 @@
 #include "grpcpp/channel.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
-#include "rust/cxx.h"
+#include "include/cxx.h"
 #include "tvs/credentials/credentials.h"
 
 namespace privacy_sandbox::launcher {
