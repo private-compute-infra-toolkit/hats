@@ -115,7 +115,6 @@ ABSL_FLAG(std::string, user_origin, "", "Origin of the user.");
 namespace {
 
 using ::privacy_sandbox::crypto::SecretData;
-using ::privacy_sandbox::secret_sharing::split_wrap;
 
 absl::StatusOr<google::cloud::spanner::Database> CreateSpannerDatabase(
     absl::string_view spanner_database) {
@@ -685,12 +684,17 @@ absl::StatusOr<WrappedSecrets> WrapSecret(
 absl::StatusOr<std::vector<SecretData>> SplitSecret(int num_shares,
                                                     int threshold,
                                                     const SecretData& secret) {
-  absl::StatusOr<rust::Vec<rust::String>> shares = split_wrap(
-      rust::Slice<const std::uint8_t>(secret.GetData(), secret.GetSize()),
-      num_shares, threshold);
-  if (!shares.ok()) return shares.status();
+  privacy_sandbox::crypto::VecStringResult shares =
+      privacy_sandbox::crypto::SplitSecret(
+          rust::Slice<const std::uint8_t>(secret.GetData(), secret.GetSize()),
+          num_shares, threshold);
+  if (!shares.error.empty()) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to split secret. ", std::string(shares.error)));
+  }
+
   std::vector<SecretData> result;
-  for (const rust::String& share : *shares) {
+  for (const rust::String& share : shares.value) {
     result.push_back(SecretData(static_cast<std::string>(share)));
   }
   return result;

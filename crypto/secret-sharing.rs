@@ -41,37 +41,49 @@ pub enum Error {
     ImproperCoeffs,
 }
 
-#[cxx::bridge(namespace = "privacy_sandbox::secret_sharing")]
+#[cxx::bridge(namespace = "privacy_sandbox::crypto")]
 mod ffi {
     pub struct SecretSharing {
         pub threshold: usize,
         pub numshares: usize,
     }
+
+    struct VecStringResult {
+        value: Vec<String>,
+        error: String,
+    }
+
+    struct VecU8Result {
+        value: Vec<u8>,
+        error: String,
+    }
+
     extern "Rust" {
-        pub fn split_wrap(
-            secret_bytes: &[u8],
-            numshares: usize,
-            threshold: usize,
-        ) -> Result<Vec<String>>;
-        pub fn recover_wrap(
+        #[cxx_name = "SplitSecret"]
+        fn split_wrap(secret_bytes: &[u8], numshares: usize, threshold: usize) -> VecStringResult;
+
+        #[cxx_name = "RecoverSecret"]
+        fn recover_wrap(
             shares_vec: &Vec<String>,
             numshares: usize,
             threshold: usize,
-        ) -> Result<Vec<u8>>;
+        ) -> VecU8Result;
     }
 }
 
-pub fn split_wrap(
-    secret_bytes: &[u8],
-    numshares: usize,
-    threshold: usize,
-) -> Result<Vec<String>, String> {
+pub fn split_wrap(secret_bytes: &[u8], numshares: usize, threshold: usize) -> ffi::VecStringResult {
     let mut sham = SecretSharing {
         numshares: numshares,
         threshold: threshold,
         prime: get_prime(),
     };
-    let shares = sham.split(&secret_bytes.to_vec()).unwrap();
+    let Ok(shares) = sham.split(&secret_bytes.to_vec()) else {
+        return ffi::VecStringResult {
+            value: vec![],
+            error: "Error splitting secret".to_string(),
+        };
+    };
+
     let mut serialized_shares: Vec<String> = Vec::new();
     for share in shares {
         let serialized_share = json!({
@@ -80,14 +92,17 @@ pub fn split_wrap(
         });
         serialized_shares.push(serialized_share.to_string());
     }
-    Ok(serialized_shares)
+    ffi::VecStringResult {
+        value: serialized_shares,
+        error: "".to_string(),
+    }
 }
 
 pub fn recover_wrap(
     shares_vec: &Vec<String>,
     numshares: usize,
     threshold: usize,
-) -> Result<Vec<u8>, String> {
+) -> ffi::VecU8Result {
     let mut sham = SecretSharing {
         numshares: numshares,
         threshold: threshold,
@@ -100,8 +115,16 @@ pub fn recover_wrap(
             serde_json::from_value(serde_json::from_str(ser_share).unwrap()).unwrap();
         shares.push(share);
     }
-    let key = sham.recover(&shares).unwrap();
-    Ok(key)
+    match sham.recover(&shares) {
+        Ok(key) => ffi::VecU8Result {
+            value: key,
+            error: "".to_string(),
+        },
+        Err(_) => ffi::VecU8Result {
+            value: vec![],
+            error: "Error recovering secrets".to_string(),
+        },
+    }
 }
 
 pub fn get_valid_private_key() -> Vec<u8> {
@@ -369,10 +392,10 @@ mod test {
 
         let secret = get_valid_private_key();
 
-        let shares = split_wrap(&secret, sham.numshares, sham.threshold).unwrap();
+        let shares = split_wrap(&secret, sham.numshares, sham.threshold);
 
-        let recovered_secret = recover_wrap(&shares, sham.numshares, sham.threshold).unwrap();
-        assert_eq!(secret, recovered_secret);
+        let recovered_secret = recover_wrap(&shares.value, sham.numshares, sham.threshold);
+        assert_eq!(secret, recovered_secret.value);
     }
 
     #[test]
@@ -388,9 +411,9 @@ mod test {
             .try_into()
             .unwrap();
         let secret = public.to_vec();
-        let shares = split_wrap(&secret, sham.numshares, sham.threshold).unwrap();
+        let shares = split_wrap(&secret, sham.numshares, sham.threshold);
 
-        let recovered_secret = recover_wrap(&shares, sham.numshares, sham.threshold).unwrap();
-        assert_eq!(secret, recovered_secret);
+        let recovered_secret = recover_wrap(&shares.value, sham.numshares, sham.threshold);
+        assert_eq!(secret, recovered_secret.value);
     }
 }

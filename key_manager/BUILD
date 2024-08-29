@@ -1,6 +1,6 @@
+load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
-load("//bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -120,13 +120,14 @@ cc_library(
     srcs = ["key-fetcher-wrapper.cc"],
     hdrs = ["key-fetcher-wrapper.h"],
     deps = [
+        ":bridge/include",
         "//tvs/proto:tvs_messages_cc_proto",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
-        "@using_cxx//:cxx_cc",
+        "@cxx.rs//:cxx",
     ] + select({
         "//:gcp": ["//key_manager:key-fetcher-gcp"],
         "//conditions:default": ["//key_manager:key-fetcher-local"],
@@ -146,6 +147,6 @@ rust_library(
     deps = [
         ":bridge",
         ":key-fetcher-wrapper",
-        "@using_cxx//:cxx",
+        "@cxx.rs//:cxx",
     ],
 )

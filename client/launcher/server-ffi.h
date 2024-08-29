@@ -15,7 +15,7 @@
 #ifndef HATS_CLIENT_LAUNCHER_SERVER_FFI_
 #define HATS_CLIENT_LAUNCHER_SERVER_FFI_
 
-#include "rust/cxx.h"
+#include "include/cxx.h"
 
 namespace privacy_sandbox::launcher {
 

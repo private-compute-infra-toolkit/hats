@@ -54,27 +54,50 @@ pub struct TrustedTvs {
 // Export TrustedTvs and it's methods to C++.
 #[cxx::bridge(namespace = "privacy_sandbox::tvs")]
 mod ffi {
+    struct TrustedTvsCreationResult {
+        value: *mut TrustedTvs,
+        error: String,
+    }
+
+    struct VecU8Result {
+        value: Vec<u8>,
+        error: String,
+    }
+
     extern "Rust" {
         type TrustedTvs;
 
+        // This is to force cxx to generate full implementation
+        // for Box<TrustedTvs>::drop().
+        fn trusted_tvs_dummy() -> Result<Box<TrustedTvs>>;
+
+        #[cxx_name = "NewTrustedTvs"]
         fn new_trusted_tvs_service(
             time_milis: i64,
             primary_private_key: &[u8],
             policy: &[u8],
             user: &str,
-        ) -> Result<Box<TrustedTvs>>;
+        ) -> TrustedTvsCreationResult;
 
+        #[cxx_name = "NewTrustedTvs"]
         fn new_trusted_tvs_service_with_second_key(
             time_milis: i64,
             primary_private_key: &[u8],
             secondary_private_key: &[u8],
             policy: &[u8],
             user: &str,
-        ) -> Result<Box<TrustedTvs>>;
+        ) -> TrustedTvsCreationResult;
 
-        pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
-        pub fn is_terminated(self: &TrustedTvs) -> bool;
+        #[cxx_name = "VerifyReport"]
+        fn verify_report_ffi(self: &mut TrustedTvs, request: &[u8]) -> VecU8Result;
+
+        #[cxx_name = "IsTerminated"]
+        fn is_terminated(self: &TrustedTvs) -> bool;
     }
+}
+
+pub fn trusted_tvs_dummy() -> Result<Box<TrustedTvs>, String> {
+    Err("unimplemented".to_string())
 }
 
 pub fn new_trusted_tvs_service(
@@ -82,19 +105,23 @@ pub fn new_trusted_tvs_service(
     primary_private_key: &[u8],
     policies: &[u8],
     user: &str,
-) -> Result<Box<TrustedTvs>, String> {
-    let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
-        format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
-    })?;
-    let appraisal_policies = AppraisalPolicies::decode(policies)
-        .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
-    Ok(Box::new(TrustedTvs::new(
+) -> ffi::TrustedTvsCreationResult {
+    match TrustedTvs::new(
         time_milis,
-        primary_private_key_scalar,
-        appraisal_policies,
-        user.to_string(),
-        None,
-    )))
+        primary_private_key,
+        /*secondary_private_key*/ None,
+        policies,
+        user,
+    ) {
+        Ok(trusted_tvs) => ffi::TrustedTvsCreationResult {
+            value: Box::into_raw(Box::new(trusted_tvs)),
+            error: "".to_string(),
+        },
+        Err(error) => ffi::TrustedTvsCreationResult {
+            value: std::ptr::null_mut(),
+            error: error,
+        },
+    }
 }
 
 fn new_trusted_tvs_service_with_second_key(
@@ -103,50 +130,81 @@ fn new_trusted_tvs_service_with_second_key(
     secondary_private_key: &[u8],
     policies: &[u8],
     user: &str,
-) -> Result<Box<TrustedTvs>, String> {
-    let primary_private_key_scalar: P256Scalar = primary_private_key.try_into().map_err(|_| {
-        format!("Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
-    })?;
-    let secondary_private_key_scalar: P256Scalar =
-        secondary_private_key.try_into().map_err(|_| {
-            format!("Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
-        })?;
-    let appraisal_policies = AppraisalPolicies::decode(policies)
-        .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
-    Ok(Box::new(TrustedTvs::new(
+) -> ffi::TrustedTvsCreationResult {
+    match TrustedTvs::new(
         time_milis,
-        primary_private_key_scalar,
-        appraisal_policies,
-        user.to_string(),
-        Some(secondary_private_key_scalar),
-    )))
+        primary_private_key,
+        Some(secondary_private_key),
+        policies,
+        user,
+    ) {
+        Ok(trusted_tvs) => ffi::TrustedTvsCreationResult {
+            value: Box::into_raw(Box::new(trusted_tvs)),
+            error: "".to_string(),
+        },
+        Err(error) => ffi::TrustedTvsCreationResult {
+            value: std::ptr::null_mut(),
+            error: error,
+        },
+    }
 }
 
 impl TrustedTvs {
-    fn new(
+    pub fn new(
         time_milis: i64,
-        primary_private_key: P256Scalar,
-        appraisal_policies: AppraisalPolicies,
-        user: String,
-        secondary_private_key: Option<P256Scalar>,
-    ) -> Self {
-        let secondary_public_key = match &secondary_private_key {
-            Some(secondary_private_key) => Some(secondary_private_key.compute_public_key()),
-            None => None,
+        primary_private_key: &[u8],
+        secondary_private_key: Option<&[u8]>,
+        policies: &[u8],
+        user: &str,
+    ) -> Result<Self, String> {
+        let primary_private_key_scalar: P256Scalar =
+            primary_private_key.try_into().map_err(|_| {
+                format!(
+                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
+            })?;
+
+        let (secondary_public_key, secondary_private_key_scalar) = if secondary_private_key
+            .is_some()
+        {
+            // Using `unwrap()` since we already check `is_some()` is true above.
+            let key_scalar : P256Scalar = secondary_private_key.unwrap().try_into().map_err(|_| {
+            format!("Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
+        })?;
+            (Some(key_scalar.compute_public_key()), Some(key_scalar))
+        } else {
+            (None, None)
         };
 
-        Self {
+        let appraisal_policies = AppraisalPolicies::decode(policies)
+            .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
+
+        Ok(Self {
             time_milis,
-            primary_public_key: primary_private_key.compute_public_key(),
-            primary_private_key,
-            secondary_private_key: secondary_private_key,
+            primary_public_key: primary_private_key_scalar.compute_public_key(),
+            primary_private_key: primary_private_key_scalar,
+            secondary_private_key: secondary_private_key_scalar,
             secondary_public_key: secondary_public_key,
             appraisal_policies,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
-            user,
+            user: user.to_string(),
             user_id: None,
             terminated: false,
+        })
+    }
+
+    // Wrapper around `verify_report` to be used in C++.
+    fn verify_report_ffi(self: &mut TrustedTvs, request: &[u8]) -> ffi::VecU8Result {
+        match self.verify_report(request) {
+            Ok(result) => ffi::VecU8Result {
+                value: result,
+                error: "".to_string(),
+            },
+            Err(error) => ffi::VecU8Result {
+                value: vec![],
+                error: error,
+            },
         }
     }
 
@@ -229,8 +287,11 @@ impl TrustedTvs {
         }
         let private_key = self.private_key_to_use(public_key)?;
         // First check if we recognize the public key.
-        let user_id = key_fetcher::ffi::user_id_for_authentication_key(client_public_key)
-            .map_err(|err| format!("Unauthenticated: {err}"))?;
+        let user_id = key_fetcher::ffi::user_id_for_authentication_key(client_public_key);
+        if !user_id.error.is_empty() {
+            return Err(format!("Unauthenticated: {}", user_id.error));
+        }
+
         let handshake_response = handshake::respond(
             HandshakeType::Kk,
             &private_key,
@@ -242,7 +303,7 @@ impl TrustedTvs {
         .map_err(|_| "Invalid handshake.".to_string())?;
         self.crypter = Some(handshake_response.crypter);
         self.handshake_hash = handshake_response.handshake_hash;
-        self.user_id = Some(user_id);
+        self.user_id = Some(user_id.value);
         Ok(handshake_response.response)
     }
 
@@ -263,9 +324,14 @@ impl TrustedTvs {
             // was changed.
             return Err("Something went wrong. user_id has no value.".to_string());
         };
-        let secret = key_fetcher::ffi::get_secrets_for_user_id(user_id)
-            .map_err(|err| format!("Failed to get secret for user ID: {}", err))?;
-        match self.crypter.as_mut().unwrap().encrypt(&secret) {
+        let secret = key_fetcher::ffi::get_secrets_for_user_id(user_id);
+        if !secret.error.is_empty() {
+            return Err(format!(
+                "Failed to get secret for user ID: {}",
+                secret.error
+            ));
+        }
+        match self.crypter.as_mut().unwrap().encrypt(&secret.value) {
             Ok(cipher_text) => Ok(cipher_text),
             Err(_) => Err("Failed to encrypt message.".to_string()),
         }
@@ -459,9 +525,10 @@ mod tests {
     fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
         )
@@ -550,15 +617,15 @@ mod tests {
     }
 
     #[test]
-    fn verify_report_with_seconary_key_successful() {
+    fn verify_report_with_secondary_key_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
         let client_private_key = get_good_client_private_key();
-        let mut trusted_tvs = new_trusted_tvs_service_with_second_key(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
-            &secondary_tvs_private_key.bytes(),
+            Some(&secondary_tvs_private_key.bytes()),
             default_appraisal_policicies().as_slice(),
             "test_user2",
         )
@@ -651,9 +718,10 @@ mod tests {
     fn verify_report_session_termination_on_successful_session() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
         )
@@ -763,9 +831,10 @@ mod tests {
     fn verify_report_invalid_report_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
         )
@@ -851,9 +920,10 @@ mod tests {
     fn verify_report_system_layer_verification_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
         )
@@ -932,9 +1002,10 @@ mod tests {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
         )
@@ -968,9 +1039,10 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         // Test that unregistered client keys are rejected.
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
         )
@@ -1002,9 +1074,10 @@ mod tests {
 
         // Test that requests where requests with client public key in the proto doesn't match
         // the one used in the handshake fail.
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
         )
@@ -1031,9 +1104,10 @@ mod tests {
             Err(e) => assert_eq!(e, "Invalid handshake."),
         }
         // Test that clients using Nk are rejected.
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
         )
@@ -1062,41 +1136,64 @@ mod tests {
     }
 
     #[test]
-    fn new_trusted_tvs_service_error() {
+    fn trusted_tvs_creation_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
-        match new_trusted_tvs_service(
+        match TrustedTvs::new(
             NOW_UTC_MILLIS,
             &[1, 2, 3],
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
         ) {
-            Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
+            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(
                 e,
-                format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
+                format!(
+                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
             ),
         }
 
-        match new_trusted_tvs_service(
+        match TrustedTvs::new(
             NOW_UTC_MILLIS,
             &[b'f'; P256_SCALAR_LENGTH * 3],
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
         ) {
-            Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
+            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(
                 e,
-                format!("Invalid private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
+                format!(
+                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
             ),
         }
 
-        match new_trusted_tvs_service(
+        match TrustedTvs::new(
             NOW_UTC_MILLIS,
             &P256Scalar::generate().bytes(),
+            Some(&[1, 3]),
+            default_appraisal_policicies().as_slice(),
+            "test_user",
+        ) {
+            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
+            Err(e) => assert_eq!(
+                e,
+                format!(
+                    "Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
+            ),
+        }
+
+        match TrustedTvs::new(
+            NOW_UTC_MILLIS,
+            &P256Scalar::generate().bytes(),
+            /*secondary_private_key=*/ None,
             &[1, 2, 3],
             "test_user",
         ) {
-            Ok(_) => assert!(false, "new_trusted_tvs_service() should fail."),
+            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
         }
     }
@@ -1105,9 +1202,10 @@ mod tests {
     fn handshake_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
         )
@@ -1125,9 +1223,10 @@ mod tests {
             Err(e) => assert_eq!(e, "Invalid handshake.".to_string()),
         }
 
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
         )
@@ -1161,9 +1260,10 @@ mod tests {
     fn verify_report_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = new_trusted_tvs_service(
+        let mut trusted_tvs = TrustedTvs::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
+            /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
         )

@@ -53,8 +53,6 @@ ABSL_FLAG(
     std::string, tvs_authentication_key, "",
     "Private key used to authenticate with TVS in hex format e.g. deadbeef");
 
-using ::privacy_sandbox::secret_sharing::recover_wrap;
-
 rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
   return rust::Slice<const std::uint8_t>(
       reinterpret_cast<const unsigned char*>(str.data()), str.size());
@@ -159,19 +157,14 @@ int main(int argc, char* argv[]) {
     }
   }
   for (const auto& [key_id, shared_secret] : keys) {
-    std::string recovered_secret;
-    try {
-      recovered_secret = RustVecToString(
-          recover_wrap(StringVecToRustVec(shared_secret.secret_shares),
-                       tvs_addresses.size(), tvs_addresses.size() - 1));
-    } catch (std::exception& e) {
-      LOG(ERROR) << "Error when recovering secret: " << e.what();
-      return 1;
-    }
+    privacy_sandbox::crypto::VecU8Result recovered_secret =
+        privacy_sandbox::crypto::RecoverSecret(
+            StringVecToRustVec(shared_secret.secret_shares),
+            tvs_addresses.size(), tvs_addresses.size() - 1);
     std::cout << "Key id: " << key_id << std::endl;
     std::cout << "Public key: " << shared_secret.public_key << std::endl;
     if (absl::StatusOr<std::string> private_key_hex =
-            absl::BytesToHexString(recovered_secret);
+            absl::BytesToHexString(RustVecToString(recovered_secret.value));
         private_key_hex.ok()) {
       std::cout << "Private key: " << private_key_hex << std::endl;
     } else {
