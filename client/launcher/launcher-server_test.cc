@@ -42,9 +42,9 @@
 #include "key_manager/key-fetcher-wrapper.h"
 #include "src/google/protobuf/test_textproto.h"
 #include "tools/cpp/runfiles/runfiles.h"
+#include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/test_client/tvs-untrusted-client.h"
 #include "tvs/untrusted_tvs/tvs-server.h"
 
 namespace privacy_sandbox::client {
@@ -300,6 +300,111 @@ TEST(LauncherOakServer, GetOakSystemImage) {
   EXPECT_EQ(result, "oak_image");
 }
 
+rust::Slice<const std::uint8_t> StringViewToRustSlice(absl::string_view str) {
+  return rust::Slice<const std::uint8_t>(
+      reinterpret_cast<const unsigned char*>(str.data()), str.size());
+}
+
+std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
+  return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
+}
+
+absl::StatusOr<tvs::VerifyReportResponse> RemoteVerifyReport(
+    absl::string_view tvs_public_key, absl::string_view tvs_authentication_key,
+    absl::string_view application_signing_key,
+    const tvs::VerifyReportRequest& verify_report_request,
+    std::shared_ptr<grpc::Channel> channel) {
+  std::string tvs_public_key_bytes;
+  if (!absl::HexStringToBytes(tvs_public_key, &tvs_public_key_bytes)) {
+    return absl::InvalidArgumentError(
+        "Failed to parse tvs_public_key. The key should be in hex string "
+        "format");
+  }
+
+  std::string tvs_authentication_key_bytes;
+  if (!absl::HexStringToBytes(tvs_authentication_key,
+                              &tvs_authentication_key_bytes)) {
+    return absl::InvalidArgumentError(
+        "Failed to parse tvs_authentication_key. The key should be in hex "
+        "string format");
+  }
+
+  tvs::TvsClientCreationResult tvs_client_result =
+      tvs::NewTvsClient(StringViewToRustSlice(tvs_authentication_key_bytes),
+                        StringViewToRustSlice(tvs_public_key_bytes));
+  if (!tvs_client_result.error.empty()) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("Failed to create trusted TVS client. ",
+                     std::string(tvs_client_result.error)));
+  }
+  auto tvs_client =
+      rust::Box<tvs::TvsClient>::from_raw(tvs_client_result.value);
+  const tvs::VecU8Result initial_message = tvs_client->BuildInitialMessage();
+  std::unique_ptr<LauncherService::Stub> stub =
+      LauncherService::NewStub(channel);
+  auto context = std::make_unique<grpc::ClientContext>();
+  std::unique_ptr<
+      grpc::ClientReaderWriter<tvs::OpaqueMessage, tvs::OpaqueMessage>>
+      stream = stub->VerifyReport(context.get());
+
+  tvs::OpaqueMessage opaque_message;
+  opaque_message.set_binary_message(RustVecToString(initial_message.value));
+  if (!stream->Write(opaque_message)) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to write message to stream. ",
+                     stream->Finish().error_message()));
+  }
+  if (!stream->Read(&opaque_message)) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to write message to stream. ",
+                     stream->Finish().error_message()));
+  }
+
+  if (rust::String status = tvs_client->ProcessHandshakeResponse(
+          StringViewToRustSlice(opaque_message.binary_message()));
+      !status.empty()) {
+    return absl::UnknownError(absl::StrCat(
+        "Failed to process handshake response: ", std::string(status)));
+  }
+
+  const tvs::VecU8Result encrypted_command =
+      tvs_client->BuildVerifyReportRequest(
+          StringViewToRustSlice(
+              verify_report_request.evidence().SerializeAsString()),
+          StringViewToRustSlice(verify_report_request.tee_certificate()),
+          std::string(application_signing_key));
+  if (!encrypted_command.error.empty()) {
+    return absl::UnknownError(absl::StrCat(
+        "Failed to process response: ", std::string(encrypted_command.error)));
+  }
+  opaque_message.set_binary_message(RustVecToString(encrypted_command.value));
+
+  if (!stream->Write(opaque_message)) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to write message to stream. ",
+                     stream->Finish().error_message()));
+  }
+
+  if (!stream->Read(&opaque_message)) {
+    return absl::UnknownError(
+        absl::StrCat("Failed to write message to stream. ",
+                     stream->Finish().error_message()));
+  }
+
+  const tvs::VecU8Result secret = tvs_client->ProcessResponse(
+      StringViewToRustSlice(opaque_message.binary_message()));
+  if (!secret.error.empty()) {
+    return absl::UnknownError(absl::StrCat("Failed to process response: ",
+                                           std::string(secret.error)));
+  }
+
+  tvs::VerifyReportResponse response;
+  if (!response.ParseFromArray(secret.value.data(), secret.value.size())) {
+    return absl::UnknownError("Cannot parse result into proto");
+  }
+  return response;
+}
+
 TEST(LauncherServer, Successful) {
   key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<tvs::AppraisalPolicies> appraisal_policies =
@@ -327,31 +432,22 @@ TEST(LauncherServer, Successful) {
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
       "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
-  absl::StatusOr<std::unique_ptr<tvs::TvsUntrustedClient>> tvs_client =
-      tvs::TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kTvsPublicKey),
-          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
-          .channel =
-              launcher_server->InProcessChannel(grpc::ChannelArguments()),
-          .use_launcher_forwarding = true,
-      });
-  ASSERT_TRUE(tvs_client.ok());
 
   absl::StatusOr<tvs::VerifyReportRequest> verify_report_request =
       GetGoodReportRequest();
   ASSERT_TRUE(verify_report_request.ok());
 
-  EXPECT_THAT(
-      (*tvs_client)
-          ->VerifyReportAndGetSecrets(std::string(kApplicationSigningKey),
-                                      *verify_report_request),
-      IsOkAndHolds(EqualsProto(
-          R"pb(
-            secrets {
-              key_id: 64
-              public_key: "1-public-key"
-              private_key: "1-secret"
-            })pb")));
+  EXPECT_THAT(RemoteVerifyReport(
+                  kTvsPublicKey, kTvsAuthenticationKey, kApplicationSigningKey,
+                  *verify_report_request,
+                  launcher_server->InProcessChannel(grpc::ChannelArguments())),
+              IsOkAndHolds(EqualsProto(
+                  R"pb(
+                    secrets {
+                      key_id: 64
+                      public_key: "1-public-key"
+                      private_key: "1-secret"
+                    })pb")));
 }
 
 TEST(LauncherServer, BadReportError) {
@@ -379,15 +475,6 @@ TEST(LauncherServer, BadReportError) {
       tvs_server->InProcessChannel(grpc::ChannelArguments()));
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
-  absl::StatusOr<std::unique_ptr<tvs::TvsUntrustedClient>> tvs_client =
-      tvs::TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kTvsPublicKey),
-          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
-          .channel =
-              launcher_server->InProcessChannel(grpc::ChannelArguments()),
-          .use_launcher_forwarding = true,
-      });
-  ASSERT_TRUE(tvs_client.ok());
 
   absl::StatusOr<tvs::VerifyReportRequest> verify_report_request =
       GetBadReportRequest();
@@ -395,13 +482,14 @@ TEST(LauncherServer, BadReportError) {
 
   constexpr absl::string_view kApplicationSigningKey =
       "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759";
-  EXPECT_THAT(
-      (*tvs_client)
-          ->VerifyReportAndGetSecrets(std::string(kApplicationSigningKey),
-                                      *verify_report_request),
-      StatusIs(absl::StatusCode::kUnknown,
-               AllOf(HasSubstr("Failed to verify report"),
-                     HasSubstr("No matching appraisal policy found"))));
+
+  EXPECT_THAT(RemoteVerifyReport(
+                  kTvsPublicKey, kTvsAuthenticationKey, kApplicationSigningKey,
+                  *verify_report_request,
+                  launcher_server->InProcessChannel(grpc::ChannelArguments())),
+              StatusIs(absl::StatusCode::kUnknown,
+                       AllOf(HasSubstr("Failed to verify report"),
+                             HasSubstr("No matching appraisal policy found"))));
 }
 
 }  // namespace

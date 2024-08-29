@@ -53,7 +53,6 @@ cc_library(
     srcs = ["tvs-untrusted-client.cc"],
     hdrs = ["tvs-untrusted-client.h"],
     deps = [
-        "//client/proto:launcher_cc_grpc",
         "//tvs/client:bridge",
         "//tvs/client:bridge/include",
         "//tvs/proto:tvs_cc_grpc",
