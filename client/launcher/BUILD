@@ -151,9 +151,10 @@ cc_test(
     deps = [
         ":launcher-server",
         "//key_manager:key-fetcher-wrapper",
+        "//tvs/client:bridge",
+        "//tvs/client:bridge/include",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_messages_cc_proto",
-        "//tvs/test_client:tvs-untrusted-client",
         "//tvs/untrusted_tvs:tvs-server",
         "@bazel_tools//tools/cpp/runfiles",
         "@com_github_grpc_grpc//:grpc++",
