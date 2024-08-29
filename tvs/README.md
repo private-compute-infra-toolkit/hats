@@ -10,8 +10,8 @@ In order to run the service you need:
 
 1.  An appraisal policy that contains a list of acceptable measurements.
 
-1.  One registered client: the client is registered by providing the public portion of
-    an elliptical curve prime256v1 key.
+1.  One registered client: the client is registered by providing the public
+    portion of an elliptical curve prime256v1 key.
 
 The client needs to initiate a noise KK handshake session, send an attestation
 report (DICE certificate) with hardware endorsement, and sign the handshake hash
@@ -50,51 +50,75 @@ To run TVS in local mode:
     ```
 
     NOTE: the above step generates a pair of keys. The private key is passed to
-    the server, while the public key is given to the client.
+    the server, while the public key is given to the client. This client key
+    serves as alternative to the primary key (for e.g. key rotation).
 
 1.  Generate an authentication key for the client:
 
     ```shell
-    $bazel run //key_manager:key-gen
+    $ bazel run //key_manager:key-gen
     ```
 
     NOTE: the above step generates a pair of keys. The public key is passed to
     the server, while the private key is given to the client.
 
-1.  Generate a pair of HPKE keys to be returned to the client (it can be any
-    secret):
+1.  Generate a pair of HPKE keys to be returned to the client:
 
     ```shell
-    $ bazel run //key_manager:key-gen --key-type=x25519-hkdf-sha256
+    $ bazel run //key_manager:key-gen -- --key-type=x25519-hkdf-sha256
     ```
+
+    NOTE: Any secret works, this just creates a realistic secret similar to
+    standard use case.
 
 1.  Run the server:
 
     ```shell
     $ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
     $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
-    --port=8080 \
-    --primary_private_key=<tvs-primary-private-key> \
-    --secondary_private_key=<tvs-secondary-private-key> \
-    --appraisal_policy_file=<path to appraisal policy> \
-    --user_authentication_public_key=<client authentication key> \
-    --user_key_id=<id of the client secret> \
-    --user_public_key=<public portionof the client's key in hex> \
-    --user_secret=<full or partial private key inhex>
+        --port=8080 \
+        --primary_private_key=<tvs-primary-private-key> \
+        --secondary_private_key=<tvs-secondary-private-key> \
+        --appraisal_policy_file=<path to appraisal policy> \
+        --user_authentication_public_key=<client-authentication-public-key> \
+        --user_key_id=<id of the client secret> \
+        --user_public_key=<public portion of the client key in hex> \
+        --user_secret=<full or partial private key in hex>
     ```
 
-    Or you can use the following for test keys and appraisal policies:
+    NOTE: `user_key_id`, `user_public_key`, and `user_secret` determine what
+    gets returned to the client, and otherwise can be any valid number (id) or
+    hex (key/secret).
 
-    ```shell
-    $ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
-    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+Alternatively, you can use the following pre-built test keys and appraisal
+policies:
+
+```shell
+$ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
+$ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
     --port=8080 \
     --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001 \
     --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto \
     --user_authentication_public_key=04a99c16a302716404b075086c8c125ea93d0822330f8a46675c8f7e5760478024811211845d43e6addae5280660ba3b5ba0f78834b79ec9449b626a725728b76d
-    ```
+```
 
 ### To run a test client:
+
+The general format is as follows.
+
+```shell
+$ bazel build -c opt //tvs/test_client:tvs-client_main
+$ bazel-bin/tvs/test_client/tvs-client_main \
+   --tvs_address=localhost:8080 \
+   --tvs_public_key=<tvs-primary-or-secondary-public-key> \
+   --nouse_tls \
+   --verify_report_request_file=<path to request report file> \
+   --application_signing_key=<signing key for the request report file> \
+   --tvs_authentication_key=<client-authentication-private-key>
+```
+
+These examples are for the pre-built keys example above. Substitute as
+necessary.
 
 #### Test with valid report
 
@@ -130,42 +154,43 @@ database, and populate the database with keys.
 1.  [Create a KMS asymmetric encryption key](https://cloud.google.com/kms/docs/create-key)
 1.  Create a Spanner database.
 
-    a. Obtain GCP credentials:
+    1.  Obtain GCP credentials:
 
-    ```shell
-    $ gcloud auth login
-    $ gcloud config set project <gcp-project-name>
-    $ gcloud auth application-default login
-    ```
+        ```shell
+        $ gcloud auth login
+        $ gcloud config set project <gcp-project-name>
+        $ gcloud auth application-default login
+        ```
 
-    NOTE: `gcloud auth application-default login` is to enable database_main CLI
-    to talk to Spanner and KMS, while `gcloud auth login` is for the gcloud CLI.
+        NOTE: `gcloud auth application-default login` is to enable database_main
+        CLI to talk to Spanner and KMS, while `gcloud auth login` is for the
+        gcloud CLI.
 
-    a. Create a Spanner database instance:
+    1.  Create a Spanner database instance:
 
-    ```shell
-    $ gcloud spanner instances create <instance_name> \
-    --config=<region> \
-    --description="TVS instance" \
-    --nodes=<nodes>
-    ```
+        ```shell
+        $ gcloud spanner instances create <instance_name> \
+            --config=<region> \
+            --description="TVS instance" \
+            --nodes=<nodes>
+        ```
 
-    a. Create a Spanner database:
+    1.  Create a Spanner database:
 
-    ```shell
-    $ bazel build //production:database_main
-    $ bazel-bin/production/database_main \
-        --operation=create_database \
-        --spanner_database=<gcp_project>/<database_instance>/<database_name>
-    ```
+        ```shell
+        $ bazel build //production:database_main
+        $ bazel-bin/production/database_main \
+            --operation=create_database \
+            --spanner_database=<gcp_project>/<database_instance>/<database_name>
+        ```
 
 1.  Populate Spanner database with keys:
 
     ```shell
     $ bazel build //production:database_main
     $ bazel-bin/production/database_main --operation=create_tvs_keys \
-    --spanner_database=<gcp_project>/<database_instance>/<database_name> \
-    --key_resource_name=<kms_key_resource_name>
+        --spanner_database=<gcp_project>/<database_instance>/<database_name> \
+        --key_resource_name=<kms_key_resource_name>
     ```
 
 1.  Insert at least one appraisal policy:
@@ -180,31 +205,34 @@ database, and populate the database with keys.
 
 1.  Register a user:
 
-    a. Create a pair of elliptical curve prime256v1 keys for authentication:
+    1.  Create a pair of elliptical curve prime256v1 keys for authentication:
 
-    ```shell
-    $ bazel run //key_manager:key-gen
-    ```
+        ```shell
+        $ bazel run //key_manager:key-gen
+        ```
 
-    a. Insert user information to the TVS database:
+    1.  Insert user information to the TVS database:
 
-    ```shell
-    $ bazel build //production:database_main
-    $ bazel-bin/production/database_main \
-    --operation=register_user
-    --spanner_database=<gcp_project>/<database_instance>/<database_name> \
-    --key_resource_name=<kms_key_resource_name> \
-    --user_authentication_public_key=<public key from the above step> \
-    --user_name=<user_name> \
-    --user_origin=<domain>
-    ```
+        ```shell
+        $ bazel build //production:database_main
+        $ bazel-bin/production/database_main \
+            --operation=register_user \
+            --spanner_database=<gcp_project>/<database_instance>/<database_name> \
+            --key_resource_name=<kms_key_resource_name> \
+            --user_authentication_public_key=<public key from the above step> \
+            --user_name=<user_name> \
+            --user_origin=<domain>
+        ```
 
 1.  Run TVS server:
 
-```shell
-$ bazel build //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
-$ bazel-bin/tvs/untrusted_tvs/tvs-server_main --port=8080 \ --project_id=<project_id> --instance_id=<spanner_instance>--database_id=<spanner_database_id>
-```
+    ```shell
+    $ bazel build //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
+    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main --port=8080 \
+        --project_id=<project_id> \
+        --instance_id=<spanner_instance> \
+        --database_id=<spanner_database_id>
+    ```
 
 ### To run a test client:
 
