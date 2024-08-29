@@ -57,6 +57,7 @@ mod ffi {
     extern "Rust" {
         type TrustedTvs;
 
+        #[cxx_name = "NewTrustedTvs"]
         fn new_trusted_tvs_service(
             time_milis: i64,
             primary_private_key: &[u8],
@@ -64,6 +65,7 @@ mod ffi {
             user: &str,
         ) -> Result<Box<TrustedTvs>>;
 
+        #[cxx_name = "NewTrustedTvs"]
         fn new_trusted_tvs_service_with_second_key(
             time_milis: i64,
             primary_private_key: &[u8],
@@ -72,7 +74,10 @@ mod ffi {
             user: &str,
         ) -> Result<Box<TrustedTvs>>;
 
+        #[cxx_name = "VerifyReport"]
         pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
+
+        #[cxx_name = "IsTerminated"]
         pub fn is_terminated(self: &TrustedTvs) -> bool;
     }
 }

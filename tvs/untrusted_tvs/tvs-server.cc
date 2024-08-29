@@ -60,13 +60,13 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
   // Errors returned by rust functions are converted to C++ exception.
   try {
     if (secondary_private_key.empty()) {
-      return new_trusted_tvs_service(
+      return NewTrustedTvs(
           absl::ToUnixMillis(absl::Now()),
           StringToRustSlice(primary_private_key),
           StringToRustSlice(appraisal_policies.SerializeAsString()),
           /*user=*/"default");
     }
-    return new_trusted_tvs_service_with_second_key(
+    return NewTrustedTvs(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(secondary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
@@ -102,10 +102,10 @@ grpc::Status TvsServer::VerifyReport(
   // Errors returned by rust functions are converted to C++ exception.
   try {
     OpaqueMessage request;
-    while (stream->Read(&request) && !(*trusted_tvs)->is_terminated()) {
+    while (stream->Read(&request) && !(*trusted_tvs)->IsTerminated()) {
       const rust::Vec<std::uint8_t> result =
           (*trusted_tvs)
-              ->verify_report(StringToRustSlice(request.binary_message()));
+              ->VerifyReport(StringToRustSlice(request.binary_message()));
       OpaqueMessage response;
       response.set_binary_message(RustVecToString(result));
       if (!stream->Write(response)) {

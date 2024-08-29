@@ -42,15 +42,24 @@ pub mod proto {
 mod ffi {
     extern "Rust" {
         type TvsClient;
+        #[cxx_name = "NewTvsClient"]
         fn new_tvs_client(private_key: &[u8], tvs_pub_key: &[u8]) -> Result<Box<TvsClient>>;
+
+        #[cxx_name = "BuildInitialMessage"]
         fn build_initial_message(&mut self) -> Result<Vec<u8>>;
+
+        #[cxx_name = "ProcessHandshakeResponse"]
         fn process_handshake_response(&mut self, response: &[u8]) -> Result<()>;
+
+        #[cxx_name = "BuildVerifyReportRequest"]
         fn build_verify_report_request(
             &mut self,
             evidence_bin: &[u8],
             vcek: &[u8],
             application_signing_key: &str,
         ) -> Result<Vec<u8>>;
+
+        #[cxx_name = "ProcessResponse"]
         fn process_response(&mut self, response: &[u8]) -> Result<Vec<u8>>;
     }
 }

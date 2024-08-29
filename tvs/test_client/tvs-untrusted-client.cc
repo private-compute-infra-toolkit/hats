@@ -52,7 +52,7 @@ absl::Status PerformNoiseHandshake(
   // Errors returned by rust functions are converted to C++ exception.
   try {
     const rust::Vec<std::uint8_t> initial_message =
-        tvs_client.build_initial_message();
+        tvs_client.BuildInitialMessage();
     OpaqueMessage opaque_message;
     opaque_message.set_binary_message(RustVecToString(initial_message));
     if (!stream.Write(opaque_message)) {
@@ -65,7 +65,7 @@ absl::Status PerformNoiseHandshake(
           absl::StrCat("Failed to write message to stream. ",
                        stream.Finish().error_message()));
     }
-    tvs_client.process_handshake_response(
+    tvs_client.ProcessHandshakeResponse(
         StringToRustSlice(opaque_message.binary_message()));
   } catch (std::exception& e) {
     return absl::InternalError(
@@ -110,8 +110,8 @@ TvsUntrustedClient::CreateClient(const Options& options) {
   // Errors returned by rust functions are converted to C++ exception.
   try {
     rust::Box<TvsClient> tvs_client =
-        new_tvs_client(StringToRustSlice(tvs_authentication_key),
-                       StringToRustSlice(tvs_public_key));
+        NewTvsClient(StringToRustSlice(tvs_authentication_key),
+                     StringToRustSlice(tvs_public_key));
     // Perform handshake.
     std::unique_ptr<TeeVerificationService::Stub> stub = nullptr;
     std::unique_ptr<privacy_sandbox::client::LauncherService::Stub>
@@ -153,7 +153,7 @@ TvsUntrustedClient::VerifyReportAndGetSecrets(
   // Errors returned by rust functions are converted to C++ exception.
   try {
     const rust::Vec<std::uint8_t> encrypted_command =
-        tvs_client_->build_verify_report_request(
+        tvs_client_->BuildVerifyReportRequest(
             StringToRustSlice(
                 verify_report_request.evidence().SerializeAsString()),
             StringToRustSlice(verify_report_request.tee_certificate()),
@@ -173,7 +173,7 @@ TvsUntrustedClient::VerifyReportAndGetSecrets(
                        stream_->Finish().error_message()));
     }
 
-    rust::Vec<uint8_t> secret = tvs_client_->process_response(
+    rust::Vec<uint8_t> secret = tvs_client_->ProcessResponse(
         StringToRustSlice(opaque_message.binary_message()));
     VerifyReportResponse response;
     if (!response.ParseFromArray(secret.data(), secret.size())) {

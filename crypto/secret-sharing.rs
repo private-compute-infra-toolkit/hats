@@ -41,18 +41,21 @@ pub enum Error {
     ImproperCoeffs,
 }
 
-#[cxx::bridge(namespace = "privacy_sandbox::secret_sharing")]
+#[cxx::bridge(namespace = "privacy_sandbox::crypto")]
 mod ffi {
     pub struct SecretSharing {
         pub threshold: usize,
         pub numshares: usize,
     }
     extern "Rust" {
+        #[cxx_name = "SplitSecret"]
         pub fn split_wrap(
             secret_bytes: &[u8],
             numshares: usize,
             threshold: usize,
         ) -> Result<Vec<String>>;
+
+        #[cxx_name = "RecoverSecret"]
         pub fn recover_wrap(
             shares_vec: &Vec<String>,
             numshares: usize,
