@@ -91,8 +91,30 @@ void CreateAndStartServers(const LauncherServerOptions& options) {
     }
     std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
     channel_map[0] = *std::move(channel);
+
+    client::PrivateKeyWrappingKeys wrapping_keys;
+    bool primary = true;
+    for (const auto& key : options.private_key_wrapping_keys) {
+      std::string key_in_bytes;
+      if (!absl::HexStringToBytes(static_cast<std::string>(key),
+                                  &key_in_bytes)) {
+        return absl::InvalidArgumentError(
+            "private key wrapping keys should be comma-delimited in hex string "
+            "format");
+      }
+
+      if (primary) {
+        primary = false;
+
+        wrapping_keys.set_primary(key_in_bytes);
+        continue;
+      }
+
+      wrapping_keys.add_active(key_in_bytes);
+    }
+
     auto launcher_server = std::make_unique<client::LauncherServer>(
-        tvs_authentication_key_in_bytes, channel_map);
+        tvs_authentication_key_in_bytes, wrapping_keys, channel_map);
     grpc::ServerBuilder server_builder;
     server_builder
         .AddListeningPort(server_address, grpc::InsecureServerCredentials())

@@ -27,6 +27,8 @@ struct LauncherServerOptions {
   rust::Str forwarding_access_token;
   // Private key to authenticate with TVS.
   rust::Str tvs_authentication_key;
+  // Wrapping keys to be passed to orchestrator.
+  rust::Slice<const rust::String> private_key_wrapping_keys;
 
   // Parc server options.
   bool enable_parc;

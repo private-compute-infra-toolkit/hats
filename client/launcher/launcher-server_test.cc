@@ -460,7 +460,8 @@ TEST(LauncherServer, Successful) {
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   channel_map[0] = tvs_server->InProcessChannel(grpc::ChannelArguments());
   LauncherServer launcher_service(
-      /*tvs_authentication_key=*/kFakeKey, channel_map);
+      /*tvs_authentication_key=*/kFakeKey, /*private_key_wrapping_keys=*/{},
+      channel_map);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
@@ -528,7 +529,8 @@ TEST(LauncherServer, SplitSuccessful) {
   channel_map[1] = tvs_server2->InProcessChannel(grpc::ChannelArguments());
   channel_map[2] = tvs_server3->InProcessChannel(grpc::ChannelArguments());
   LauncherServer launcher_service(
-      /*tvs_authentication_key=*/kFakeKey, channel_map);
+      /*tvs_authentication_key=*/kFakeKey,
+      /*private_key_wrapping_keys=*/{}, channel_map);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
@@ -591,7 +593,8 @@ TEST(LauncherServer, BadReportError) {
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   channel_map[0] = tvs_server->InProcessChannel(grpc::ChannelArguments());
   LauncherServer launcher_service(
-      /*tvs_authentication_key=*/kFakeKey, channel_map);
+      /*tvs_authentication_key=*/kFakeKey, PrivateKeyWrappingKeys{},
+      channel_map);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
 

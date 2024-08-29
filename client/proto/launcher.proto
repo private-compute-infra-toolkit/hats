@@ -24,6 +24,19 @@ message FetchOrchestratorMetadataResponse {
   // Authentication key to use in the noise protocol when talking to the TVS
   // server.
   bytes tvs_authentication_key = 2;
+
+  PrivateKeyWrappingKeys private_key_wrapping_keys = 3;
+}
+
+message PrivateKeyWrappingKeys {
+  // Symmetric key used for encrypting the generated private key before
+  // splitting and sending to TVS. Also used for decrypting during key
+  // retrieval.
+  bytes primary = 1;
+
+  // Additional keys to try to use when decrypting with the primary key fails.
+  // This can happen / is useful for rotating the wrapping key.
+  repeated bytes active = 2;
 }
 
 message ForwardingTvsMessage {

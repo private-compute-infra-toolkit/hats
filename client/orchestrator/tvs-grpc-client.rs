@@ -39,6 +39,10 @@ pub struct TvsGrpcClient {
     tvs_authentication_key: Option<Vec<u8>>,
     tee_certificate: Option<Vec<u8>>,
     tvs_id: i64,
+
+    // If specified, first key is primary key used for encryption/decryption of private key.
+    // Additional keys are used only for decryption (to facilitate key rotation).
+    private_key_wrapping_keys: Vec<Vec<u8>>,
 }
 
 impl TvsGrpcClient {
@@ -48,16 +52,7 @@ impl TvsGrpcClient {
         tvs_id: i64,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let channel = Channel::builder(addr.clone()).connect().await?;
-        let inner = launcher_service_client::LauncherServiceClient::new(channel.clone());
-        let mut tvs_grp_client = Self {
-            inner,
-            tvs_public_key,
-            tvs_authentication_key: None,
-            tee_certificate: None,
-            tvs_id: tvs_id,
-        };
-        tvs_grp_client.init().await?;
-        Ok(tvs_grp_client)
+        TvsGrpcClient::create_with_channel(channel.clone(), tvs_public_key, tvs_id).await
     }
 
     pub async fn create_with_channel(
@@ -72,6 +67,7 @@ impl TvsGrpcClient {
             tvs_authentication_key: None,
             tee_certificate: None,
             tvs_id: tvs_id,
+            private_key_wrapping_keys: Vec::new(),
         };
         tvs_grp_client.init().await?;
         Ok(tvs_grp_client)
@@ -85,6 +81,11 @@ impl TvsGrpcClient {
             .map_err(|error| format!("couldn't find tee metadata: {:?}", error))?;
         self.tee_certificate = Some(metadata.tee_certificate);
         self.tvs_authentication_key = Some(metadata.tvs_authentication_key);
+        if let Some(keys) = metadata.private_key_wrapping_keys {
+            self.private_key_wrapping_keys.push(keys.primary);
+            self.private_key_wrapping_keys
+                .extend_from_slice(&keys.active);
+        }
         Ok(())
     }
 
@@ -262,6 +263,7 @@ mod tests {
             Ok(Response::new(FetchOrchestratorMetadataResponse {
                 tee_certificate: include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec(),
                 tvs_authentication_key: self.tvs_authentication_key.to_vec(),
+                private_key_wrapping_keys: None,
             }))
         }
 
@@ -507,6 +509,7 @@ mod tests {
             proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse {
                 tee_certificate: want,
                 tvs_authentication_key: vec![],
+                private_key_wrapping_keys: None,
             }
         )
     }

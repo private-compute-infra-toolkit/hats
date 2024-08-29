@@ -46,6 +46,7 @@ struct HatsLauncherConfig {
   LauncherConfig config;
   // Flag provided configurations.
   std::string tvs_authentication_key_bytes;
+  PrivateKeyWrappingKeys private_key_wrapping_keys;
 };
 
 // HatsLauncher untars the hats bundle into a hosted location:

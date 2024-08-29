@@ -41,6 +41,10 @@ ABSL_FLAG(std::string, tvs_authentication_key, "",
           "HEX format authentication private key with public key pair shared "
           "with TVS "
           "instance to identify the specific launcher.");
+ABSL_FLAG(std::vector<std::string>, private_key_wrapping_keys, {},
+          "Comma-separated list of hex-encoded private key wrapping keys. Only "
+          "the first key is used for encryption; additional keys are used only "
+          "for decryption.");
 ABSL_FLAG(std::string, tvs_access_token, "",
           "Oauth bearer token got from TVS hosting provider used to talk to "
           "TVS server");
@@ -80,6 +84,26 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "tvs authentication key should be in hex string format";
     return 1;
   }
+
+  privacy_sandbox::client::PrivateKeyWrappingKeys wrapping_keys;
+  bool primary = true;
+  for (const std::string& key_hex :
+       absl::GetFlag(FLAGS_private_key_wrapping_keys)) {
+    std::string key_bytes;
+    if (!absl::HexStringToBytes(key_hex, &key_bytes)) {
+      LOG(ERROR) << "private key wrapping key should be in hex string format";
+      return 1;
+    }
+    if (primary) {
+      primary = false;
+
+      wrapping_keys.set_primary(key_bytes);
+      continue;
+    }
+
+    wrapping_keys.add_active(key_bytes);
+  }
+
   absl::StatusOr<privacy_sandbox::client::LauncherConfig> config =
       LoadConfig(absl::GetFlag(FLAGS_launcher_config_path));
   if (!config.ok()) {
@@ -90,7 +114,8 @@ int main(int argc, char* argv[]) {
 
   privacy_sandbox::client::HatsLauncherConfig hats_config{
       .config = *std::move(config),
-      .tvs_authentication_key_bytes = std::move(tvs_authentication_key_bytes)};
+      .tvs_authentication_key_bytes = std::move(tvs_authentication_key_bytes),
+      .private_key_wrapping_keys = std::move(wrapping_keys)};
 
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   int64_t tvs_id = 0;
