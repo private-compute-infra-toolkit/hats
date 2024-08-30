@@ -146,6 +146,52 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_authentication_key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9
 ```
 
+### To run a test client in split trust mode:
+
+The general format is as follows. \
+Note: provide the tvs_public_keys and ports in the same order \
+(i.e tvs_public_keys[i] corresponds to the tvs listening on ports[i])
+
+```shell
+$ bazel build -c opt //tvs/test_client:tvs-client-split_main
+$ bazel-bin/tvs/test_client/tvs-client-split_main \
+   --ports=localhost:8080,localhost:8082 \
+   --tvs_public_keys=<tvs1-primary-or-secondary-public-key>,<tvs2-primary-or-secondary-public-key> \
+   --nouse_tls \
+   --verify_report_request_file=<path to request report file> \
+   --application_signing_key=<signing key for the request report file> \
+   --tvs_authentication_key=<client-authentication-private-key>
+```
+
+These examples are for the pre-built keys example above. Substitute as
+necessary.
+
+#### Test with valid report
+
+```shell
+$ bazel build -c opt //tvs/test_client:tvs-client-split_main
+$ bazel-bin/tvs/test_client/tvs-client-split_main \
+   --ports=localhost:8080,localhost:8081 \
+   --tvs_public_keys=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5,045b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
+   --nouse_tls \
+   --verify_report_request_file=tvs/test_data/good_verify_request_report.textproto \
+   --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
+   --tvs_authentication_key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9
+```
+
+#### Test with invalid report
+
+```shell
+$ bazel build -c opt //tvs/test_client:tvs-client-split_main
+$ bazel-bin/tvs/test_client/tvs-client-split_main \
+    --ports=localhost:8080,localhost:8081 \
+    --tvs_public_keys=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5,056b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
+    --nouse_tls \
+    --verify_report_request_file=tvs/test_data/bad_verify_request_report.textproto \
+    --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759 \
+    --tvs_authentication_key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9
+```
+
 ## Run TVS in GCP Mode:
 
 To deploy a new TVS Cloud Run you need to create, KMS encryption key, Spanner
@@ -175,7 +221,8 @@ database, and populate the database with keys.
             --nodes=<nodes>
         ```
 
-    1.  Create a Spanner database:
+    1.  Create a Spanner database: \
+        Note: to test the split trust client, create n databases for n tvs instances
 
         ```shell
         $ bazel build //production:database_main
@@ -184,7 +231,8 @@ database, and populate the database with keys.
             --spanner_database=<gcp_project>/<database_instance>/<database_name>
         ```
 
-1.  Populate Spanner database with keys:
+1.  Populate Spanner database with keys: \
+    Note: to test the split trust client, repeat for n tvs instances
 
     ```shell
     $ bazel build //production:database_main
@@ -193,7 +241,8 @@ database, and populate the database with keys.
         --key_resource_name=<kms_key_resource_name>
     ```
 
-1.  Insert at least one appraisal policy:
+1.  Insert at least one appraisal policy: \
+    Note: to test the split trust client, repeat for n tvs instances
 
     ```shell
     $ bazel build //production:database_main
@@ -216,15 +265,30 @@ database, and populate the database with keys.
         ```shell
         $ bazel build //production:database_main
         $ bazel-bin/production/database_main \
-            --operation=register_user \
+            --operation=register_or_update_user \
             --spanner_database=<gcp_project>/<database_instance>/<database_name> \
             --key_resource_name=<kms_key_resource_name> \
             --user_authentication_public_key=<public key from the above step> \
             --user_name=<user_name> \
             --user_origin=<domain>
         ```
+    1.  Insert user information to the TVS database: \
+        Note: insert spanner_databases and kms_resource_names in the same corresponding order
 
-1.  Run TVS server:
+        ```shell
+        $ bazel build //production:database_main
+        $ bazel-bin/production/database_main \
+            --operation=register_or_update_user_split_trust \
+            --spanner_databases=<gcp_project>/<database_instance>/<database_name>,<gcp_project>/<database_instance>/<database_name2> \
+            --key_resource_names=<kms_key_resource_name1>,<kms_key_resource_name2> \
+            --user_authentication_public_key=<public key from the above step> \
+            --user_name=<user_name> \
+            --user_origin=<domain>
+        ```
+
+1.  Run TVS server: \
+    Note: If using the split trust test client, run n tvs instances
+
 
     ```shell
     $ bazel build //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
@@ -258,4 +322,29 @@ bazel-bin/tvs/test_client/tvs-client_main \
     --use_tls \
     --verify_report_request_file=tvs/test_data/bad_verify_request_report.textproto \
     --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
+```
+### To run a test client in split trust mode:
+
+#### Test with valid report
+
+```shell
+$ bazel build -c opt //tvs/test_client:tvs-client-split_main
+$ bazel-bin/tvs/test_client/tvs-client-split_main \
+   --ports=localhost:8080,localhost:8081 \
+   --tvs_public_keys=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5,045b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
+   --use_tls \
+   --verify_report_request_file=tvs/test_data/good_verify_request_report.textproto \
+   --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
+```
+
+#### Test with invalid report
+
+```shell
+$ bazel build -c opt //tvs/test_client:tvs-client-split_main
+$ bazel-bin/tvs/test_client/tvs-client-split_main \
+    --ports=localhost:8080,localhost:8081 \
+    --tvs_public_keys=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5,056b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
+    --use_tls \
+    --verify_report_request_file=tvs/test_data/bad_verify_request_report.textproto \
+    --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759 \
 ```

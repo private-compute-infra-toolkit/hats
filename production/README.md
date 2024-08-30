@@ -70,6 +70,7 @@ $ gcloud spanner databases execute-sql tvs-db --instance=tvs-instance \
 ```
 
 #### Test with valid report
+Note: To run the split client, use the build target :tvs-client-split_main and use --ports=port1,port1 instead of --tvs_addresses and use --tvs_public_keys=pub_key1,pub_key2 instead of --tvs_public_key
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client_main
@@ -83,6 +84,7 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
 ```
 
 #### Test with invalid report
+Note: To run the split client, use the build target :tvs-client-split_main and use --ports=port1,port1 instead of --tvs_addresses and use --tvs_public_keys=pub_key1,pub_key2 instead of --tvs_public_key
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client_main
@@ -98,7 +100,8 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
 ### Test tvs-server-authn in GCP
 
 You need to pass in an authenticator with the request through --access_token. To
-pass an access token for your account:
+pass an access token for your account: \
+Note: To run the split client, use the build target :tvs-client-split_main and use --ports=port1,port1 instead of --tvs_addresses and use --tvs_public_keys=pub_key1,pub_key2 instead of --tvs_public_key
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client_main
@@ -116,7 +119,8 @@ To impersonate a service account, you can pass an impersonation access token.
 You need permission to impersonate an account, and the impersonation account
 needs to have cloud run invoker permission.
 
-To pass an impersonation access token for a service account:
+To pass an impersonation access token for a service account: \
+Note: To run the split client, use the build target :tvs-client-split_main and use --ports=port1,port1 instead of --tvs_addresses and use --tvs_public_keys=pub_key1,pub_key2 instead of --tvs_public_key
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client_main
@@ -159,7 +163,8 @@ deploy a Cloud Run Instance.
     --nodes=<nodes>
     ```
 
-    a. Create a Spanner database:
+    a. Create a Spanner database: \
+    Note: For split trust, create n databases for n tvs instances
 
     ```shell
     $ bazel build //production:database_main
@@ -187,6 +192,27 @@ deploy a Cloud Run Instance.
         --appraisal_policy_path=<path to appraisal policy>
     ```
 
+1.  Register a user using split trust:
+
+    a. Create a pair of elliptical curve prime256v1 keys for authentication:
+
+    ```shell
+    $ bazel run //key_manager:key-gen
+    ```
+
+    a. Insert user information to the TVS database:
+
+    ```shell
+    $ bazel build //production:database_main
+    $ bazel-bin/production/database_main \
+    --operation=register_or_update_user_split_trust
+    --spanner_databases=<gcp_project>/<database_instance>/<database_name1>,<gcp_project>/<database_instance>/<database_name2> \
+    --key_resource_names=<kms_key_resource_name1>,<kms_key_resource_name2> \
+    --user_authentication_public_key=<public key from the above step> \
+    --user_name=<user_name> \
+    --user_origin=<domain>
+    ```
+
 1.  Register a user:
 
     a. Create a pair of elliptical curve prime256v1 keys for authentication:
@@ -200,7 +226,7 @@ deploy a Cloud Run Instance.
     ```shell
     $ bazel build //production:database_main
     $ bazel-bin/production/database_main \
-    --operation=register_user
+    --operation=register_or_update_user
     --spanner_database=<gcp_project>/<database_instance>/<database_name> \
     --key_resource_name=<kms_key_resource_name> \
     --user_authentication_public_key=<public key from the above step> \
