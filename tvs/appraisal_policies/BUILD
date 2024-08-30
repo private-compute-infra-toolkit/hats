@@ -21,6 +21,7 @@ cc_library(
 
 cc_test(
     name = "policy-fetcher-local_test",
+    size = "small",
     srcs = [":policy-fetcher-local_test.cc"],
     deps = [
         ":policy-fetcher-local",
@@ -58,6 +59,7 @@ cc_library(
 
 cc_test(
     name = "policy-fetcher-gcp_test",
+    size = "small",
     srcs = [":policy-fetcher-gcp_test.cc"],
     deps = [
         ":policy-fetcher-gcp",

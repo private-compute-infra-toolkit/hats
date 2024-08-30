@@ -33,6 +33,7 @@ rust_library(
 
 rust_test(
     name = "tvs-trusted_test",
+    size = "small",
     srcs = ["tvs-trusted.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [

@@ -46,6 +46,7 @@ rust_library(
 
 rust_test(
     name = "tvs-grpc-client_test",
+    size = "small",
     srcs = ["tvs-grpc-client.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
@@ -146,6 +147,7 @@ rust_library(
 
 rust_test(
     name = "hats-server_test",
+    size = "small",
     srcs = ["hats-server.rs"],
     deps = [
         ":build-for-test",

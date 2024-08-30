@@ -51,6 +51,7 @@ cc_library(
 
 cc_test(
     name = "tvs-server_test",
+    size = "small",
     srcs = ["tvs-server_test.cc"],
     data = [
         "//tvs/test_data:tvs_test_data",

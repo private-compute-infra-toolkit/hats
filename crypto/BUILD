@@ -39,6 +39,7 @@ rust_library(
 
 rust_test(
     name = "secret-sharing_test",
+    size = "small",
     srcs = ["secret-sharing.rs"],
     deps = [
         "@boringssl//rust/bssl-crypto",
@@ -75,6 +76,7 @@ cc_library(
 
 cc_test(
     name = "secret-data_test",
+    size = "small",
     srcs = ["secret-data_test.cc"],
     deps = [
         ":secret-data",
@@ -102,6 +104,7 @@ cc_library(
 
 cc_test(
     name = "aead-crypter_test",
+    size = "small",
     srcs = ["aead-crypter_test.cc"],
     deps = [
         ":aead-crypter",

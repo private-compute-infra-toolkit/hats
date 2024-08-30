@@ -25,6 +25,7 @@ cc_library(
 
 cc_test(
     name = "gcp-kms-client_test",
+    size = "small",
     srcs = ["gcp-kms-client_test.cc"],
     deps = [
         ":gcp-kms-client",
@@ -66,6 +67,7 @@ cc_library(
 
 cc_test(
     name = "key-fetcher-local_test",
+    size = "small",
     srcs = [":key-fetcher-local_test.cc"],
     deps = [
         ":key-fetcher-local",
@@ -100,6 +102,7 @@ cc_library(
 
 cc_test(
     name = "key-fetcher-gcp_test",
+    size = "small",
     srcs = [":key-fetcher-gcp_test.cc"],
     deps = [
         ":key-fetcher-gcp",
