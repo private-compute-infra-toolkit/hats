@@ -3,8 +3,8 @@
   "kv-server-local-data-loading-file-channel-bucket-sns-arn": "arn:aws:sns:us-east-1:12345:kv-server-local-delta-file-bucket-sns-topic",
   "kv-server-local-data-loading-realtime-channel-sns-arn": "arn:aws:sns:us-east-1:12345:kv-server-local-delta-file-bucket-realtime-sns-topic",
   "kv-server-local-launch-hook": "kv-server-local-launch-hook",
-  "kv-server-local-directory": "/deltas",
-  "kv-server-local-realtime-directory": "/realtime",
+  "kv-server-local-directory": "/tmp/deltas",
+  "kv-server-local-realtime-directory": "/tmp/realtime",
   "kv-server-local-data-loading-file-format": "riegeli",
   "kv-server-local-telemetry-config": "mode: EXPERIMENT",
   "kv-server-local-data-loading-blob-prefix-allowlist": ",",
@@ -26,5 +26,6 @@
   "kv-server-local-use-real-coordinators": false,
   "kv-server-local-use-external-metrics-collector-endpoint": false,
   "kv-server-local-use-sharding-key-regex": false,
-  "kv-server-local-enable-otel-logger": false
+  "kv-server-local-enable-otel-logger": false,
+  "kv-server-local-enable-consented-log": false
 }

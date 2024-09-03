@@ -21,6 +21,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/substitute.h"
 #include "external/kv-server/public/query/v2/get_values_v2.grpc.pb.h"
 #include "external/kv-server/public/query/v2/get_values_v2.pb.h"
 #include "grpcpp/channel.h"
@@ -31,7 +32,8 @@
 ABSL_FLAG(std::string, kv_server, "localhost:50051", "KV server address.");
 ABSL_FLAG(std::string, public_key, "",
           "HPKE public key to encrypt KV ObliviousGetValuesRequest");
-
+ABSL_FLAG(int, key_id, 1, "Key ID used to encrypt/decrypt requests");
+ABSL_FLAG(std::string, data_key, "foo0", "Data key to pull from KV-server");
 namespace {
 
 constexpr char kTestRequest[] = R"json({
@@ -49,7 +51,7 @@ constexpr char kTestRequest[] = R"json({
             "groupNames"
           ],
           "data": [
-            "foo0"
+            "$0"
           ]
         }
       ]
@@ -66,7 +68,8 @@ absl::StatusOr<std::string> GetHpkePublicKey() {
   return public_key_bytes;
 }
 
-absl::StatusOr<std::string> SendV2GetValueRequest(const std::string& kv_server,
+absl::StatusOr<std::string> SendV2GetValueRequest(uint8_t key_id,
+                                                  const std::string& kv_server,
                                                   const std::string& request) {
   std::shared_ptr<grpc::Channel> channel =
       grpc::CreateChannel(kv_server, grpc::InsecureChannelCredentials());
@@ -86,7 +89,7 @@ absl::StatusOr<std::string> SendV2GetValueRequest(const std::string& kv_server,
   const uint16_t kAEADParameter = 0x0002;
   absl::StatusOr<quiche::ObliviousHttpHeaderKeyConfig> ohttp_key_config =
       quiche::ObliviousHttpHeaderKeyConfig::Create(
-          /*key_id=*/64, kKEMParameter, kKDFParameter, kAEADParameter);
+          key_id, kKEMParameter, kKDFParameter, kAEADParameter);
   if (!ohttp_key_config.ok()) {
     return ohttp_key_config.status();
   }
@@ -136,10 +139,21 @@ absl::StatusOr<std::string> SendV2GetValueRequest(const std::string& kv_server,
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
-  absl::StatusOr<std::string> response =
-      SendV2GetValueRequest(absl::GetFlag(FLAGS_kv_server), kTestRequest);
+  absl::StatusOr<std::string> public_key = GetHpkePublicKey();
+  if (!public_key.ok()) {
+    LOG(ERROR) << "Failed to obtain a public key to use: " << public_key;
+    return 1;
+  }
+
+  // Explicitly cast int64 to uint8 to make it clear that data might be lost due
+  // to down sizing.
+  uint8_t key_id = static_cast<uint8_t>(absl::GetFlag(FLAGS_key_id));
+  absl::StatusOr<std::string> response = SendV2GetValueRequest(
+      key_id, absl::GetFlag(FLAGS_kv_server),
+      absl::Substitute(kTestRequest, absl::GetFlag(FLAGS_data_key)));
   if (!response.ok()) {
     LOG(ERROR) << "Failed to send V2GetValueRequest: " << response;
+    return 1;
   }
   std::cout << "Response from KV-Server: " << *response << std::endl;
   return 0;
