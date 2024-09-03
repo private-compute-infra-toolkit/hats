@@ -18,7 +18,7 @@ use oak_containers_orchestrator::{
     crypto::generate_instance_keys, launcher_client::LauncherClient,
 };
 use oak_proto_rust::oak::containers::v1::KeyProvisioningRole;
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Parser, Debug)]
@@ -38,11 +38,17 @@ struct Args {
     #[arg(long, default_value = "oakc")]
     runtime_user: String,
 
-    #[arg(long, default_value = "", required = true)]
+    #[arg(long, default_value = "")]
     tvs_public_key: String,
 
     #[arg(default_value = "http://10.0.2.100:8889")]
     hats_launcher_addr: String,
+
+    // For local testing, pass in the path to a file containing the tvs keys in the following format:
+    // tvs_id1:tvs_public_key1 (0:1234567890abcde)
+    // tvs_id2:tvs_public_key2 (1:abcde1234567890)
+    #[arg(long, default_value = "/hats/tvs_public_keys")]
+    tvs_public_keys_file: String,
 }
 
 #[tokio::main]
@@ -50,12 +56,22 @@ async fn main() -> anyhow::Result<()> {
     oak_containers_orchestrator::logging::setup()?;
 
     let args = Args::parse();
-    let client = tvs_grpc_client::TvsGrpcClient::create(
-        args.hats_launcher_addr.parse()?,
-        hex::decode(args.tvs_public_key)?,
-    )
-    .await
-    .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
+
+    let mut grpc_client_map: HashMap<i64, tvs_grpc_client::TvsGrpcClient> = HashMap::new();
+    println!("{}", args.tvs_public_keys_file);
+    let tvs_public_keys =
+        fs::read_to_string(args.tvs_public_keys_file).expect("Unable to read file");
+    for key in tvs_public_keys.lines() {
+        let tvs_orch_identifier = &key[0..1];
+        let pub_key = &key[2..];
+        let tvs: tvs_grpc_client::TvsGrpcClient = tvs_grpc_client::TvsGrpcClient::create(
+            args.hats_launcher_addr.parse()?,
+            hex::decode(pub_key)?,
+        )
+        .await
+        .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
+        grpc_client_map.insert(tvs_orch_identifier.parse::<i64>()?, tvs);
+    }
 
     let launcher_client = Arc::new(
         LauncherClient::create(args.launcher_addr.parse()?)
@@ -112,7 +128,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow!("couldn't send attestation evidence: {:?}", error))?;
 
-    let token = client
+    let token = grpc_client_map[&0]
         .send_evidence(evidence, instance_keys.signing_key.clone())
         .await
         .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
@@ -152,6 +168,7 @@ async fn main() -> anyhow::Result<()> {
             &args.ipc_socket_path,
             cancellation_token.clone(),
         ),
+        // this is the old launcher
         hats_server::create(&args.ipc_socket_path, &token, cancellation_token),
     )?;
     Ok(())

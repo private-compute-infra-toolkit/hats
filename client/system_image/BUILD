@@ -6,6 +6,13 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+pkg_tar(
+    name = "tvs_public_keys",
+    srcs = ["tvs_public_keys.txt"],
+    package_dir = "/hats/",
+    tags = ["nopresubmit"],
+)
+
 # Change oak-orchestrator.service to load hats orchestrator
 # and bake the TVS public key in the file.
 pkg_tar(
@@ -52,6 +59,7 @@ oci_image(
         ":admin_bin",
         ":services",
         ":interface",
+        ":tvs_public_keys",
     ],
 )
 
