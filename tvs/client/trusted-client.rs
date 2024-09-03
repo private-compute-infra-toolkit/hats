@@ -302,7 +302,7 @@ mod tests {
     use super::*;
     use crypto::P256Scalar;
     use tvs_trusted::proto::privacy_sandbox::tvs::{
-        AppraisalPolicies, Secret, VerifyReportResponse,
+        appraisal_policies::SignedAppraisalPolicy, AppraisalPolicies, Secret, VerifyReportResponse,
     };
 
     fn get_genoa_vcek() -> Vec<u8> {
@@ -310,12 +310,12 @@ mod tests {
     }
 
     fn default_appraisal_policies() -> Vec<u8> {
-        let policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(
+        let signed_policy = SignedAppraisalPolicy::decode(
             &include_bytes!("../../tvs/test_data/on-perm-reference.binarypb")[..],
         )
         .unwrap();
         let policies = AppraisalPolicies {
-            policy: vec![policy],
+            signed_policy: vec![signed_policy],
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();

@@ -30,7 +30,7 @@ namespace privacy_sandbox::tvs {
 
 namespace {
 
-absl::StatusOr<oak::attestation::v1::ReferenceValues> ReadAppraisalPolicy(
+absl::StatusOr<AppraisalPolicies::SignedAppraisalPolicy> ReadAppraisalPolicy(
     absl::string_view filename) {
   std::ifstream if_stream({std::string(filename)});
   if (!if_stream.is_open()) {
@@ -38,7 +38,7 @@ absl::StatusOr<oak::attestation::v1::ReferenceValues> ReadAppraisalPolicy(
         absl::StrCat("Failed to open: ", filename));
   }
   google::protobuf::io::IstreamInputStream istream(&if_stream);
-  oak::attestation::v1::ReferenceValues appraisal_policy;
+  AppraisalPolicies::SignedAppraisalPolicy appraisal_policy;
   if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policy)) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to parse: ", filename));
@@ -51,22 +51,22 @@ absl::StatusOr<oak::attestation::v1::ReferenceValues> ReadAppraisalPolicy(
 class PolicyFetcherLocal final : public PolicyFetcher {
  public:
   PolicyFetcherLocal() = delete;
-  PolicyFetcherLocal(oak::attestation::v1::ReferenceValues policy)
+  PolicyFetcherLocal(AppraisalPolicies::SignedAppraisalPolicy policy)
       : policy_(std::move(policy)) {}
 
   // Always return one same policy.
   absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) {
     AppraisalPolicies appraisal_policies;
-    *appraisal_policies.add_policy() = policy_;
+    *appraisal_policies.add_signed_policy() = policy_;
     return appraisal_policies;
   }
 
  private:
-  oak::attestation::v1::ReferenceValues policy_;
+  AppraisalPolicies::SignedAppraisalPolicy policy_;
 };
 
 absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create() {
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> policy =
+  absl::StatusOr<AppraisalPolicies::SignedAppraisalPolicy> policy =
       ReadAppraisalPolicy(absl::GetFlag(FLAGS_appraisal_policy_file));
   if (!policy.ok()) return policy.status();
   return std::make_unique<PolicyFetcherLocal>(*std::move(policy));

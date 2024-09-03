@@ -19,5 +19,16 @@ package privacy_sandbox.tvs;
 import "proto/attestation/reference_value.proto";
 
 message AppraisalPolicies {
-  repeated oak.attestation.v1.ReferenceValues policy = 1;
+  message Signature {
+    bytes signature = 1;
+    // When multiple signatures, for identifying the signer and therefore which
+    // verifying key to use
+    string signer = 2;
+  }
+  message SignedAppraisalPolicy {
+    oak.attestation.v1.ReferenceValues policy = 1;
+    repeated Signature signature = 2;
+  }
+
+  repeated SignedAppraisalPolicy signed_policy = 1;
 }

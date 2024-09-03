@@ -44,6 +44,8 @@ PolicyFetcherGcp::PolicyFetcherGcp(absl::string_view project_id,
 
 absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPolicies(int n) {
   AppraisalPolicies appraisal_policies;
+  // TODO(b/358413924): Add signatures to spanner. Is "Policy" a signed policy,
+  // or should it be a separate field.
   google::cloud::spanner::SqlStatement select(
       R"sql(
       SELECT
@@ -59,14 +61,13 @@ absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPolicies(int n) {
     if (!row.ok()) {
       return gcp_common::GcpToAbslStatus(row.status());
     }
-    oak::attestation::v1::ReferenceValues appraisal_policy;
-    if (!appraisal_policy.ParseFromString(
-            std::get<0>(*row).get<std::string>())) {
+    AppraisalPolicies::SignedAppraisalPolicy signed_policy;
+    if (!signed_policy.ParseFromString(std::get<0>(*row).get<std::string>())) {
       return absl::FailedPreconditionError("Failed to parse a policy");
     }
-    *appraisal_policies.add_policy() = appraisal_policy;
+    *appraisal_policies.add_signed_policy() = signed_policy;
   }
-  if (appraisal_policies.policy_size() == 0) {
+  if (appraisal_policies.signed_policy_size() == 0) {
     return absl::NotFoundError("No policies found");
   }
   return appraisal_policies;

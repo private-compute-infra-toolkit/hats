@@ -376,7 +376,12 @@ impl TrustedTvs {
 
     // Check evidence against the appraisal policies.
     fn check_evidence(&self, evidence: Evidence, endorsement: Endorsements) -> Result<(), String> {
-        for policy in &self.appraisal_policies.policy {
+        for signed_policy in &self.appraisal_policies.signed_policy {
+            let policy = match &signed_policy.policy {
+                Some(x) => x,
+                // Note: This is handled properly in a followup CL.
+                None => continue,
+            };
             match oak_attestation_verification::verifier::verify(
                 self.time_milis,
                 &evidence,
@@ -424,7 +429,8 @@ fn create_endorsements(
 mod tests {
     use super::*;
     use crate::proto::privacy_sandbox::tvs::{
-        InitSessionRequest, Secret, VerifyReportRequestEncrypted, VerifyReportResponse,
+        appraisal_policies::SignedAppraisalPolicy, AppraisalPolicies, InitSessionRequest, Secret,
+        VerifyReportRequestEncrypted, VerifyReportResponse,
     };
     use crypto::P256Scalar;
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
@@ -455,12 +461,12 @@ mod tests {
     }
 
     fn default_appraisal_policicies() -> Vec<u8> {
-        let policy = oak_proto_rust::oak::attestation::v1::ReferenceValues::decode(
+        let signed_policy = SignedAppraisalPolicy::decode(
             &include_bytes!("../test_data/on-perm-reference.binarypb")[..],
         )
         .unwrap();
         let policies = AppraisalPolicies {
-            policy: vec![policy],
+            signed_policy: vec![signed_policy],
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
