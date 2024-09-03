@@ -17,7 +17,6 @@ use anyhow::Result;
 use bssl_crypto::hpke;
 use num_bigint::{BigInt, RandBigInt, Sign};
 use serde::Deserialize;
-use serde_json::json;
 
 #[derive(Clone)]
 pub struct SecretSharing {
@@ -90,7 +89,7 @@ pub fn split_wrap(secret_bytes: &[u8], numshares: usize, threshold: usize) -> ff
 
     let mut serialized_shares: Vec<String> = Vec::new();
     for share in shares {
-        let serialized_share = json!({
+        let serialized_share = serde_json::json!({
             "value": share.value,
             "index": share.index,
         });
