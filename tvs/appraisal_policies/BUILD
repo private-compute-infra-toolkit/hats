@@ -1,4 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -70,5 +72,59 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@google_cloud_cpp//:spanner",
         "@google_cloud_cpp//:spanner_mocks",
+    ],
+)
+
+rust_library(
+    name = "policy-signature",
+    srcs = ["policy-signature.rs"],
+    crate_name = "policy_signature",
+    deps = [
+        ":build",
+        "@hats_crate_index//:p256",
+        # Use the same version oak uses protos generated from a different
+        # prost version are not compatible. Here we are referring to the
+        # attestation messages.
+        "@oak_crates_index//:prost",
+        "@oak//oak_proto_rust",
+    ],
+)
+
+rust_test(
+    name = "policy-signature_test",
+    size = "small",
+    srcs = ["policy-signature.rs"],
+    compile_data = ["//tvs/test_data:tvs_test_data"],
+    deps = [
+        ":build",
+        "@hats_crate_index//:hex",
+        "@hats_crate_index//:p256",
+        # Use the same version oak uses protos generated from a different
+        # prost version are not compatible. Here we are referring to the
+        # attestation messages.
+        "@oak_crates_index//:prost",
+        "@oak//oak_proto_rust",
+    ],
+)
+
+cargo_build_script(
+    name = "build",
+    srcs = [
+        "build.rs",
+    ],
+    build_script_env = {
+        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
+        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
+    },
+    data = [
+        "//tvs/proto:appraisal_policies_proto",
+        "@com_google_protobuf//:protoc",
+        "@oak//proto:digest.proto",
+        "@oak//proto/attestation:evidence.proto",
+        "@oak//proto/attestation:reference_value.proto",
+        "@oak//proto/attestation:tcb_version.proto",
+    ],
+    deps = [
+        "@oak_crates_index//:prost-build",
     ],
 )
