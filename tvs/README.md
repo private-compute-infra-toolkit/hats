@@ -149,13 +149,13 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
 ### To run a test client in split trust mode:
 
 The general format is as follows. \
-Note: provide the tvs_public_keys and ports in the same order \
-(i.e tvs_public_keys[i] corresponds to the tvs listening on ports[i])
+Note: provide the tvs_public_keys and tvs_addresses in the same order \
+(i.e tvs_public_keys[i] corresponds to the tvs listening on tvs_addresses[i])
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client-split_main
 $ bazel-bin/tvs/test_client/tvs-client-split_main \
-   --ports=localhost:8080,localhost:8082 \
+   --tvs_addresses=localhost:8080,localhost:8082 \
    --tvs_public_keys=<tvs1-primary-or-secondary-public-key>,<tvs2-primary-or-secondary-public-key> \
    --nouse_tls \
    --verify_report_request_file=<path to request report file> \
@@ -171,7 +171,7 @@ necessary.
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client-split_main
 $ bazel-bin/tvs/test_client/tvs-client-split_main \
-   --ports=localhost:8080,localhost:8081 \
+   --tvs_addresses=localhost:8080,localhost:8081 \
    --tvs_public_keys=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5,045b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
    --nouse_tls \
    --verify_report_request_file=tvs/test_data/good_verify_request_report.textproto \
@@ -184,7 +184,7 @@ $ bazel-bin/tvs/test_client/tvs-client-split_main \
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client-split_main
 $ bazel-bin/tvs/test_client/tvs-client-split_main \
-    --ports=localhost:8080,localhost:8081 \
+    --tvs_addresses=localhost:8080,localhost:8081 \
     --tvs_public_keys=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5,056b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
     --nouse_tls \
     --verify_report_request_file=tvs/test_data/bad_verify_request_report.textproto \
@@ -330,7 +330,7 @@ bazel-bin/tvs/test_client/tvs-client_main \
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client-split_main
 $ bazel-bin/tvs/test_client/tvs-client-split_main \
-   --ports=localhost:8080,localhost:8081 \
+   --tvs_addresses=localhost:8080,localhost:8081 \
    --tvs_public_keys=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5,045b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
    --use_tls \
    --verify_report_request_file=tvs/test_data/good_verify_request_report.textproto \
@@ -342,7 +342,7 @@ $ bazel-bin/tvs/test_client/tvs-client-split_main \
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client-split_main
 $ bazel-bin/tvs/test_client/tvs-client-split_main \
-    --ports=localhost:8080,localhost:8081 \
+    --tvs_addresses=localhost:8080,localhost:8081 \
     --tvs_public_keys=046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5,056b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5 \
     --use_tls \
     --verify_report_request_file=tvs/test_data/bad_verify_request_report.textproto \

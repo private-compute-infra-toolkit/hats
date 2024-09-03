@@ -33,8 +33,8 @@
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
 
-ABSL_FLAG(std::vector<std::string>, ports, std::vector<std::string>({""}),
-          "Ports TVS servers listens to.");
+ABSL_FLAG(std::vector<std::string>, tvs_addresses,
+          std::vector<std::string>({""}), "Ports TVS servers listens to.");
 ABSL_FLAG(std::vector<std::string>, tvs_public_keys,
           std::vector<std::string>({""}),
           "Comma-separated List of TVS public key in hex format e.g. deadbeef");
@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "--tvs_authentication_key cannot be empty.";
     return 1;
   }
-  std::vector<std::string> tvs_addresses = absl::GetFlag(FLAGS_ports);
+  std::vector<std::string> tvs_addresses = absl::GetFlag(FLAGS_tvs_addresses);
   std::vector<std::string> tvs_public_keys =
       absl::GetFlag(FLAGS_tvs_public_keys);
   // Here we are storing the public key, and associated key shares, indexed by
