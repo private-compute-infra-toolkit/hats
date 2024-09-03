@@ -260,6 +260,7 @@ mod tests {
                 /*secondary_private_key=*/ None,
                 default_appraisal_policies().as_slice(),
                 "test_user",
+                /*enable_policy_signature=*/ true,
             ) else {
                 return Err(tonic::Status::internal("Error creating TVS Server"));
             };

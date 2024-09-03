@@ -31,6 +31,8 @@
 #include "tvs/untrusted_tvs/tvs-server.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
+ABSL_FLAG(bool, enable_policy_signature, false,
+          "Whether to check signatures on policies");
 
 namespace {
 
@@ -106,6 +108,7 @@ int main(int argc, char* argv[]) {
                                        ? *std::move(secondary_private_key)
                                        : "",
           .appraisal_policies = *std::move(appraisal_policies),
-      });
+          .enable_policy_signature =
+              absl::GetFlag(FLAGS_enable_policy_signature)});
   return 0;
 }

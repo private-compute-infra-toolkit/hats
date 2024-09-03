@@ -12,6 +12,8 @@ rust_library(
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
         ":build",
+        "//tvs/appraisal_policies:policy-signature",
+        "@hats_crate_index//:hex",
         "@cxx.rs//:cxx",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
@@ -36,6 +38,7 @@ rust_test(
         "@cxx.rs//:cxx",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:p256",
+        "//tvs/appraisal_policies:policy-signature",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the
         # attestation messages.

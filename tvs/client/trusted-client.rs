@@ -360,6 +360,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policies().as_slice(),
             "test_user1",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 
@@ -449,6 +450,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policies().as_slice(),
             "test_user2",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 

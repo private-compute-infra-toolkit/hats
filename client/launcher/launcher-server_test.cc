@@ -179,6 +179,10 @@ absl::StatusOr<tvs::AppraisalPolicies> GetTestAppraisalPolicies() {
                   }
                 }
               }
+              signature: {
+                signature: "\x8f\xaa?\xda\xd7[_W\x17\xd4\xaf\xa0\xa7\x13\xc0\x0c\x0b\x8d%\xe0\xbbK\xebGa\xb2\x01\xa8\xd1\xe6\xbf\x04\x89\xaf\xd5\xc1Wg,\x03\x0f\xb2\xc8\x8e\xcc\xbe\xbc\xc2(\x83\x8a!\x94\xf9)\x013\x9d\xdfu\xaf\x9fK\xae"
+                signer: ""
+              }
             })pb",
           &appraisal_policies)) {
     return absl::UnknownError("Cannot parse test appraisal policy");

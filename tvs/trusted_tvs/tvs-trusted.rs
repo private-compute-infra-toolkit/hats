@@ -18,8 +18,8 @@
 extern crate handshake;
 
 use crate::proto::privacy_sandbox::tvs::{
-    attest_report_request, attest_report_response, AppraisalPolicies, AttestReportRequest,
-    AttestReportResponse, InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
+    attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
+    InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
@@ -43,7 +43,7 @@ pub struct TrustedTvs {
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
-    appraisal_policies: AppraisalPolicies,
+    appraisal_policies: Vec<oak_proto_rust::oak::attestation::v1::ReferenceValues>,
     // Authenticated user if any.
     #[allow(dead_code)]
     user: String,
@@ -77,6 +77,7 @@ mod ffi {
             primary_private_key: &[u8],
             policy: &[u8],
             user: &str,
+            enable_policy_signature: bool,
         ) -> TrustedTvsCreationResult;
 
         #[cxx_name = "NewTrustedTvs"]
@@ -86,6 +87,7 @@ mod ffi {
             secondary_private_key: &[u8],
             policy: &[u8],
             user: &str,
+            enable_policy_signature: bool,
         ) -> TrustedTvsCreationResult;
 
         #[cxx_name = "VerifyReport"]
@@ -105,6 +107,7 @@ pub fn new_trusted_tvs_service(
     primary_private_key: &[u8],
     policies: &[u8],
     user: &str,
+    enable_policy_signature: bool,
 ) -> ffi::TrustedTvsCreationResult {
     match TrustedTvs::new(
         time_milis,
@@ -112,6 +115,7 @@ pub fn new_trusted_tvs_service(
         /*secondary_private_key*/ None,
         policies,
         user,
+        enable_policy_signature,
     ) {
         Ok(trusted_tvs) => ffi::TrustedTvsCreationResult {
             value: Box::into_raw(Box::new(trusted_tvs)),
@@ -130,6 +134,7 @@ fn new_trusted_tvs_service_with_second_key(
     secondary_private_key: &[u8],
     policies: &[u8],
     user: &str,
+    enable_policy_signature: bool,
 ) -> ffi::TrustedTvsCreationResult {
     match TrustedTvs::new(
         time_milis,
@@ -137,6 +142,7 @@ fn new_trusted_tvs_service_with_second_key(
         Some(secondary_private_key),
         policies,
         user,
+        enable_policy_signature,
     ) {
         Ok(trusted_tvs) => ffi::TrustedTvsCreationResult {
             value: Box::into_raw(Box::new(trusted_tvs)),
@@ -149,6 +155,15 @@ fn new_trusted_tvs_service_with_second_key(
     }
 }
 
+// TODO(b/358413924): Actually fetch key
+fn get_policy_public_key() -> Result<VerifyingKey, String> {
+    Ok(VerifyingKey::from_sec1_bytes(
+        &hex::decode("048fa2c25d3d3368b23f7877c9ac84866f440f9dd7a94e7ca5440ef1bc611f77db2940cca2233d06c9cfbf503ee73fdf5cf1f4c637f376bb7daaf637faf05656e4")
+        .map_err(|_| "Failed to decode policy PK hex")?
+    )
+    .map_err(|_| "Failed to parse policy PK")?)
+}
+
 impl TrustedTvs {
     pub fn new(
         time_milis: i64,
@@ -156,6 +171,7 @@ impl TrustedTvs {
         secondary_private_key: Option<&[u8]>,
         policies: &[u8],
         user: &str,
+        enable_policy_signature: bool,
     ) -> Result<Self, String> {
         let primary_private_key_scalar: P256Scalar =
             primary_private_key.try_into().map_err(|_| {
@@ -176,8 +192,21 @@ impl TrustedTvs {
             (None, None)
         };
 
-        let appraisal_policies = AppraisalPolicies::decode(policies)
-            .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
+        let appraisal_policies: Vec<oak_proto_rust::oak::attestation::v1::ReferenceValues>;
+        if enable_policy_signature {
+            let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
+            appraisal_policies = policy_signature::decode_and_verify_policies(
+                policies,
+                vec![policy_verifying_key],
+                /*num_pass_required=*/ 1,
+            )?;
+        } else {
+            appraisal_policies = policy_signature::decode_and_verify_policies(
+                policies,
+                /*verifying_keys*/ vec![],
+                /*num_pass_required=*/ 0,
+            )?;
+        }
 
         Ok(Self {
             time_milis,
@@ -376,12 +405,7 @@ impl TrustedTvs {
 
     // Check evidence against the appraisal policies.
     fn check_evidence(&self, evidence: Evidence, endorsement: Endorsements) -> Result<(), String> {
-        for signed_policy in &self.appraisal_policies.signed_policy {
-            let policy = match &signed_policy.policy {
-                Some(x) => x,
-                // Note: This is handled properly in a followup CL.
-                None => continue,
-            };
+        for policy in &self.appraisal_policies {
             match oak_attestation_verification::verifier::verify(
                 self.time_milis,
                 &evidence,
@@ -537,6 +561,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 
@@ -634,6 +659,7 @@ mod tests {
             Some(&secondary_tvs_private_key.bytes()),
             default_appraisal_policicies().as_slice(),
             "test_user2",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
@@ -730,6 +756,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
@@ -843,6 +870,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 
@@ -932,6 +960,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
@@ -1014,6 +1043,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 
@@ -1051,6 +1081,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 
@@ -1086,6 +1117,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 
@@ -1116,6 +1148,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user1",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 
@@ -1150,6 +1183,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         ) {
             Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(
@@ -1166,6 +1200,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         ) {
             Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(
@@ -1182,6 +1217,7 @@ mod tests {
             Some(&[1, 3]),
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         ) {
             Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(
@@ -1198,6 +1234,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             &[1, 2, 3],
             "test_user",
+            /*enable_policy_signature=*/ true,
         ) {
             Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
@@ -1214,6 +1251,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
 
@@ -1235,6 +1273,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
         let client_handshake = handshake::client::HandshakeInitiator::new(
@@ -1272,6 +1311,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             default_appraisal_policicies().as_slice(),
             "test_user",
+            /*enable_policy_signature=*/ true,
         )
         .unwrap();
         match trusted_tvs.do_verify_report(b"aaa") {
