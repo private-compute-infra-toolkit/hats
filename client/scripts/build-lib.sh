@@ -39,10 +39,9 @@ function build_kv_service() {
 function build_oak_containers_kernel() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS KERNEL..."
-  pushd ../../submodules/oak/oak_containers_kernel
-  nix develop --command make clean && \
-    nix develop --command make target/vanilla_bzImage && \
-    rsync target/vanilla_bzImage "$BUILD_DIR"
+  pushd ../../submodules/oak/
+  nix develop --command just oak_containers_kernel && \
+    rsync ./oak_containers/kernel/target/bzImage "$BUILD_DIR"
   popd
 }
 
@@ -71,7 +70,7 @@ function build_oak_containers_stage0() {
   printf "\nBUILDING OAK CONTAINERS STAGE0..."
   pushd ../../submodules/oak
   nix develop --command just stage0_bin && \
-    rsync ./stage0_bin/target/x86_64-unknown-none/release/stage0_bin "$BUILD_DIR"
+    rsync ./generated/stage0_bin "$BUILD_DIR"
   popd
 }
 
@@ -88,8 +87,12 @@ function build_oak_hello_world_container_bundle_tar() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK HELLO WORLD CONTAINER BUNDLE TAR..."
   pushd ../../submodules/oak
-  nix develop --command just oak_containers_hello_world_container_bundle_tar && \
-    rsync ./oak_containers_hello_world_container/target/oak_container_example_oci_filesystem_bundle.tar "$BUILD_DIR"
+  # just command to build the container tries to copy a file to
+  # a folder it doesn't have permission to do so and it fails at that
+  # step; so here we copy after we call `just`.
+  nix develop --command  bazel build --compilation_mode opt //oak_containers/examples/hello_world/trusted_app:bundle.tar && \
+    rsync ./bazel-bin/oak_containers/examples/hello_world/trusted_app/bundle.tar "$BUILD_DIR/oak_container_example_oci_filesystem_bundle.tar"
+
   popd
 }
 
@@ -177,7 +180,7 @@ EOF
   printf "\nBUILDING OAK CONTAINERS SYSLOGD"
   pushd ../../submodules/oak
   nix develop --command just oak_containers_syslogd && \
-    cp ./oak_containers_syslogd/target/oak_containers_syslogd_patched "$BUILD_DIR/oak_containers_syslogd"
+    cp ./oak_containers/syslogd/target/oak_containers_syslogd_patched "$BUILD_DIR/oak_containers_syslogd"
   popd
 }
 

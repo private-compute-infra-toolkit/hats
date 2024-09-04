@@ -17,6 +17,10 @@ use std::env;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let oak_include_path =
         &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
+    let protobuf_include_path = &env::var("DESCRIPTOR_PROTO_PATH")
+        .unwrap()
+        .replace("google/protobuf/descriptor.proto", "");
+
     prost_build::Config::new()
         .extern_path(
             ".oak.attestation.v1",
@@ -24,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .compile_protos(
             &["../proto/tvs_messages.proto"],
-            &["../proto", oak_include_path],
+            &["../proto", oak_include_path, protobuf_include_path],
         )?;
 
     Ok(())

@@ -59,7 +59,7 @@ rust_binary(
         ":server-ffi",
         "@cxx.rs//:cxx",
         "@oak//oak_client",
-        "@oak//oak_containers_launcher:lib",
+        "@oak//oak_containers/launcher:lib",
         "@oak//oak_crypto",
         "@oak_crates_index//:anyhow",
         "@oak_crates_index//:clap",

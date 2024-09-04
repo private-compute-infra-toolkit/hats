@@ -1,7 +1,7 @@
 diff --git a/oak_containers_syslogd/BUILD b/oak_containers_syslogd/BUILD
 index 6d16b4bc89..a450e03e69 100644
---- oak_containers_syslogd/BUILD
-+++ oak_containers_syslogd/BUILD
+--- oak_containers/syslogd/BUILD
++++ oak_containers/syslogd/BUILD
 @@ -15,6 +15,7 @@
  #
  

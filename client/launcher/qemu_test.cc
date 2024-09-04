@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(
                  .stage0_binary =
                      "/home/user/hats_kv/hats_kv/prebuilt/stage0_bin",
                  .kernel = "/home/user/hats_kv/hats_kv/prebuilt/"
-                           "vanilla_bzImage",
+                           "bzImage",
                  .initrd = "/home/user/hats_kv/hats_kv/prebuilt/stage1.cpio",
                  .memory_size = "8G",
                  .num_cpus = 1,
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(
              "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
              "netdev,romfile= -device vhost-vsock-pci,guest-cid=8,rombar=0 "
              "-bios /home/user/hats_kv/hats_kv/prebuilt/stage0_bin -kernel "
-             "/home/user/hats_kv/hats_kv/prebuilt/vanilla_bzImage -initrd "
+             "/home/user/hats_kv/hats_kv/prebuilt/bzImage -initrd "
              "/home/user/hats_kv/hats_kv/prebuilt/stage1.cpio -append  "
              "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 brd.max_part=1 "
              "ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- "
@@ -251,7 +251,7 @@ TEST(Qemu, SuccessDefaultOptions) {
       "cmd:nc 127.0.0.1 0,hostfwd=tcp:127.0.0.1:0-10.0.2.15:8080 -device "
       "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=netdev,"
       "romfile= -device vhost-vsock-pci,guest-cid=2,rombar=0 -bios stage0_bin "
-      "-kernel vanilla_bzImage -initrd ./target/stage1.cpio -append  "
+      "-kernel bzImage -initrd ./target/stage1.cpio -append  "
       "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=3000000 brd.max_part=1 "
       "ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- "
       "--launcher-addr=vsock://2:0");

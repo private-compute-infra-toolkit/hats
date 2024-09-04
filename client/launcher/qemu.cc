@@ -66,7 +66,7 @@ Qemu::Options Qemu::Options::Default() {
   return {
       .vmm_binary = "./qemu-system-x86_64",
       .stage0_binary = "stage0_bin",
-      .kernel = "vanilla_bzImage",
+      .kernel = "bzImage",
       .initrd = "./target/stage1.cpio",
       .memory_size = "8G",
       .num_cpus = 2,

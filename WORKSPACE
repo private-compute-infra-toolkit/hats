@@ -112,12 +112,13 @@ hats_crate_repositories()
 http_archive(
     name = "oak",
     patches = [
+        "//patches/oak:orchestrator.patch",
         "//patches/oak:launcher.patch",
         "//patches/oak:syslogd.patch",
     ],
-    sha256 = "995df9aefaca30f242d765626d6b37af69bd27170e17c7554a4673f661080b2d",
-    strip_prefix = "oak-dc9ebbc93bacf3c7f79ad4b9c8a637646abadee4",
-    url = "https://github.com/project-oak/oak/archive/dc9ebbc93bacf3c7f79ad4b9c8a637646abadee4.tar.gz",
+    sha256 = "9df55614754d73da19f2a4b8744e9c088b6dc9f07d498688eb0bacc123c394dd",
+    strip_prefix = "oak-2dd8246badf8b7b79adee45b22a4de747245caef",
+    url = "https://github.com/project-oak/oak/archive/2dd8246badf8b7b79adee45b22a4de747245caef.tar.gz",
 )
 
 load("@oak//bazel/crates:repositories.bzl", "create_oak_crate_repositories")
@@ -127,6 +128,8 @@ create_oak_crate_repositories(
     lockfile = "//:cargo-oak-bazel-lock.json",
     no_std_cargo_lockfile = "//:Cargo_oak_no_std.bazel.lock",
     no_std_lockfile = "//:cargo-oak-no-std-bazel-lock.json",
+    no_std_no_avx_cargo_lockfile = "//:Cargo_oak_no_std_no_avx-test.bazel.lock",
+    no_std_no_avx_lockfile = "//:cargo-oak-no-std-no-avx-test-bazel-lock.json",
 )
 
 load("@oak//bazel/crates:crates.bzl", "load_oak_crate_repositories")

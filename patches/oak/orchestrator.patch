@@ -1,0 +1,13 @@
+diff --git a/oak_containers/orchestrator/src/crypto.rs b/oak_containers/orchestrator/src/crypto.rs
+index 47fac04a4..ff28f536d 100644
+--- oak_containers/orchestrator/src/crypto.rs
++++ oak_containers/orchestrator/src/crypto.rs
+@@ -42,7 +42,7 @@ pub fn generate_instance_keys() -> (InstanceKeys, InstancePublicKeys) {
+ 
+ pub struct InstanceKeys {
+     encryption_key: EncryptionKey,
+-    signing_key: p256::ecdsa::SigningKey,
++    pub signing_key: p256::ecdsa::SigningKey,
+ }
+ 
+ pub struct InstancePublicKeys {

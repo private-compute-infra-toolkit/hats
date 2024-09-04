@@ -44,7 +44,7 @@ build_launch_bundle \
   "$PREBUILT_DIR" \
   "$PREBUILT_DIR/stage0_bin" \
   "$PREBUILT_DIR/stage1.cpio" \
-  "$PREBUILT_DIR/vanilla_bzImage" \
+  "$PREBUILT_DIR/bzImage" \
   "$PREBUILT_DIR/hats_system_image.tar.xz" \
   "$PREBUILT_DIR/oak_container_example_oci_filesystem_bundle.tar" \
   "../../tvs/appraisal_policies/kernel-cmd-line-only1.prototext"  \
