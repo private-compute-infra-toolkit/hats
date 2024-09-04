@@ -372,7 +372,6 @@ void HatsLauncher::Shutdown() {
 }
 
 void HatsLauncher::WaitUntilReady() {
-  using namespace std::chrono_literals;
   while (true) {
     {
       absl::MutexLock lock(&mu_);
@@ -380,7 +379,7 @@ void HatsLauncher::WaitUntilReady() {
         break;
       }
     }
-    std::this_thread::sleep_for(10ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 }
 

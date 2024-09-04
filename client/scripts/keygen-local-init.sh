@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2002
 echo '0000000000000000000000000000000000000000000000000000000000000001' > tvs_hold_noise_kk_private_key_hex
 # uncompressed public key generated with P256 from the noise_kk private key.
 echo '04a99c16a302716404b075086c8c125ea93d0822330f8a46675c8f7e5760478024811211845d43e6addae5280660ba3b5ba0f78834b79ec9449b626a725728b76d' > orchestrator_hold_noise_kk_public_key_hex
