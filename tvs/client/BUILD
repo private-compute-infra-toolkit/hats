@@ -72,9 +72,11 @@ cargo_build_script(
     ],
     build_script_env = {
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
+        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//tvs/proto:tvs_messages_proto",
+        "@com_google_protobuf//:protoc",
         "@oak//proto/attestation:evidence.proto",
     ],
     deps = [
