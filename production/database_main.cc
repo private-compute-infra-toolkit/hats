@@ -217,6 +217,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
                 (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
           Name   STRING(1024) NOT NULL,
           Origin STRING(1024),
+          LockExpiryTime TIMESTAMP NOT NULL,
       ) PRIMARY KEY (UserId))sql");
 
   request.add_extra_statements(R"sql(
@@ -255,7 +256,6 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
           UserId   INT64 NOT NULL,
           DekId    INT64 NOT NULL,
           Secret   BYTES(MAX) NOT NULL,
-          LockExpiryTime TIMESTAMP NOT NULL,
           UpdateTimestamp   TIMESTAMP NOT NULL,
       ) PRIMARY KEY (SecretId))sql");
 
@@ -812,8 +812,8 @@ absl::Status RegisterOrUpdateUserInternal(
         }
         if (!user_id.has_value()) {
           google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  Users(Name, Origin)
-              VALUES (@name, @origin)
+              R"sql(INSERT INTO  Users(Name, Origin, LockExpiryTime)
+              VALUES (@name, @origin, CURRENT_TIMESTAMP())
               THEN RETURN UserId)sql",
               {{"name", google::cloud::spanner::Value(std::string(user_name))},
                {"origin",
