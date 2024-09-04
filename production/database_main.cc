@@ -992,6 +992,9 @@ int main(int argc, char* argv[]) {
       LOG(ERROR) << "Failed to register user: " << status;
       return 1;
     }
+  } else {
+    LOG(ERROR) << "Unknown command '" << operation;
+    return 1;
   }
   return 0;
 }
