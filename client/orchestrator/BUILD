@@ -50,7 +50,7 @@ rust_test(
     srcs = ["tvs-grpc-client.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
-        ":build",
+        ":build-for-test",
         "//key_manager:rust-key-fetcher",
         "//tvs/client:trusted-client-noffi",
         "//tvs/trusted_tvs:tvs-trusted",
@@ -83,22 +83,17 @@ cargo_build_script(
     build_script_env = {
         "DESCRIPTOR_PROTO_PATH": "$(location @com_google_protobuf//:descriptor_proto_srcs)",
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//client/proto:launcher.proto",
         "//client/proto:orchestrator_proto",
-        "//tvs/proto:tvs_proto",
+        "//tvs/proto:tvs_messages_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
         "@oak//proto/attestation:evidence.proto",
     ],
-    tools = [
-        "@com_google_protobuf//:protoc",
-    ],
     deps = [
-        "@oak//oak_grpc_utils",
-        "@oak_crates_index//:prost-build",
+        "@oak_crates_index//:tonic-build",
     ],
 )
 
@@ -110,22 +105,17 @@ cargo_build_script(
     build_script_env = {
         "DESCRIPTOR_PROTO_PATH": "$(location @com_google_protobuf//:descriptor_proto_srcs)",
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//client/proto:launcher.proto",
         "//client/proto:orchestrator_proto",
-        "//tvs/proto:tvs_proto",
+        "//tvs/proto:tvs_messages_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
         "@oak//proto/attestation:evidence.proto",
     ],
-    tools = [
-        "@com_google_protobuf//:protoc",
-    ],
     deps = [
-        "@oak//oak_grpc_utils",
-        "@oak_crates_index//:prost-build",
+        "@oak_crates_index//:tonic-build",
     ],
 )
 

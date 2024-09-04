@@ -10,10 +10,6 @@ rust_library(
     name = "tvs-trusted",
     srcs = ["tvs-trusted.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
-    crate_features = select({
-        "//:gcp": ["gcp"],
-        "//conditions:default": ["local"],
-    }),
     deps = [
         ":build",
         "@cxx.rs//:cxx",
@@ -22,7 +18,6 @@ rust_library(
         # prost version are not compatible. Here we are referring to the
         # attestation messages.
         "@oak_crates_index//:prost",
-        "@oak//micro_rpc",
         "@oak//oak_proto_rust",
         "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",
         "@enclave//crypto",
@@ -45,7 +40,6 @@ rust_test(
         # prost version are not compatible. Here we are referring to the
         # attestation messages.
         "@oak_crates_index//:prost",
-        "@oak//micro_rpc",
         "@oak//oak_proto_rust",
         "@oak//oak_attestation_verification",
         "@enclave//handshake",
@@ -61,19 +55,16 @@ cargo_build_script(
     ],
     build_script_env = {
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//tvs/proto:appraisal_policies_proto",
         "//tvs/proto:tvs_messages_proto",
-        "@com_google_protobuf//:protoc",
         "@oak//proto:digest.proto",
         "@oak//proto/attestation:evidence.proto",
         "@oak//proto/attestation:reference_value.proto",
         "@oak//proto/attestation:tcb_version.proto",
     ],
     deps = [
-        "@oak//micro_rpc_build",
         "@oak_crates_index//:prost-build",
     ],
 )

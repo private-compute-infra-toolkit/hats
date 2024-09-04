@@ -16,12 +16,10 @@ use crate::proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionRequest, VerifyReportRequest, VerifyReportRequestEncrypted,
 };
-
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::{client::HandshakeInitiator, noise::HandshakeType, Crypter};
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Signer, Signature, SigningKey};
-
 use prost::Message;
 
 pub mod proto {

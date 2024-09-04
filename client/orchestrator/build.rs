@@ -12,34 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use oak_grpc_utils::ExternPath;
-use oak_grpc_utils::{generate_grpc_code, CodegenOptions};
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let oak_include_path =
-        &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
-
     let protobuf_include_path = &env::var("DESCRIPTOR_PROTO_PATH")
         .unwrap()
         .replace("google/protobuf/descriptor.proto", "");
 
-    generate_grpc_code(
-        &[
-            "../../client/proto/launcher.proto",
-            "../../client/proto/orchestrator.proto",
-        ],
-        &["../", "../..", oak_include_path, protobuf_include_path],
-        CodegenOptions {
-            build_client: true,
-            build_server: true,
-            extern_paths: vec![ExternPath::new(
-                ".oak.attestation.v1",
-                "::oak_proto_rust::oak::attestation::v1",
-            )],
-            ..Default::default()
-        },
-    )?;
+    tonic_build::configure()
+        .build_client(false)
+        .build_server(true)
+        .compile(
+            &["../proto/orchestrator.proto"],
+            &["../", "../..", protobuf_include_path],
+        )?;
 
+    let oak_include_path =
+        &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
+    tonic_build::configure()
+        .build_client(true)
+        .build_server(false)
+        .extern_path(
+            ".oak.attestation.v1",
+            "::oak_proto_rust::oak::attestation::v1",
+        )
+        .compile(
+            &["../proto/launcher.proto"],
+            &["../", "../..", oak_include_path, protobuf_include_path],
+        )?;
     Ok(())
 }
