@@ -83,12 +83,14 @@ cargo_build_script(
     build_script_env = {
         "DESCRIPTOR_PROTO_PATH": "$(location @com_google_protobuf//:descriptor_proto_srcs)",
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
+        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//client/proto:launcher.proto",
         "//client/proto:orchestrator_proto",
         "//tvs/proto:tvs_messages_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
+        "@com_google_protobuf//:protoc",
         "@com_google_protobuf//:well_known_type_protos",
         "@oak//proto/attestation:evidence.proto",
     ],
@@ -105,12 +107,14 @@ cargo_build_script(
     build_script_env = {
         "DESCRIPTOR_PROTO_PATH": "$(location @com_google_protobuf//:descriptor_proto_srcs)",
         "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
+        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
         "//client/proto:launcher.proto",
         "//client/proto:orchestrator_proto",
         "//tvs/proto:tvs_messages_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
+        "@com_google_protobuf//:protoc",
         "@com_google_protobuf//:well_known_type_protos",
         "@oak//proto/attestation:evidence.proto",
     ],
