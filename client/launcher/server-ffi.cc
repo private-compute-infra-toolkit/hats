@@ -38,6 +38,8 @@ namespace privacy_sandbox::launcher {
 
 namespace {
 
+// TODO(sidachen): Delete after launcher.rs is deleted.
+// New implementation is in launcher.cc.
 absl::StatusOr<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
 CreateParcServer(const LauncherServerOptions& options) {
   // 8 MiB.

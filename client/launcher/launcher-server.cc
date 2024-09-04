@@ -43,7 +43,6 @@
 namespace privacy_sandbox::client {
 
 namespace {
-
 grpc::Status StreamFile(
     const grpc::ServerContext& context, absl::string_view image_path,
     const size_t chunk_size,
@@ -168,19 +167,4 @@ grpc::Status LauncherServer::FetchOrchestratorMetadata(
   reply->set_tvs_authentication_key(tvs_authentication_key_);
   return grpc::Status::OK;
 }
-
-void CreateAndStartLauncherServer(int port,
-                                  absl::string_view tvs_authentication_key,
-                                  std::shared_ptr<grpc::Channel> channel) {
-  const std::string server_address = absl::StrCat("0.0.0.0:", port);
-  LauncherServer launcher_server(tvs_authentication_key, channel);
-  std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder()
-          .AddListeningPort(server_address, grpc::InsecureServerCredentials())
-          .RegisterService(&launcher_server)
-          .BuildAndStart();
-  LOG(INFO) << "Server listening on " << server_address;
-  server->Wait();
-}
-
 }  // namespace privacy_sandbox::client

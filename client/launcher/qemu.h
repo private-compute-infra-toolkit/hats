@@ -23,6 +23,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
 #ifndef HATS_CLIENT_LAUNCHER_QEMU_H_
@@ -121,7 +122,7 @@ class Qemu final {
 
   // This function should be called once and only once.
   // The function returns an error if it was called multiple times.
-  absl::Status Start() ABSL_LOCKS_EXCLUDED(mu_);
+  absl::Status Start(absl::string_view log_filename) ABSL_LOCKS_EXCLUDED(mu_);
 
   // Exposed for unit test.
   std::string GetCommand() const;
@@ -131,6 +132,9 @@ class Qemu final {
 
   // Wait until QEMU terminates.
   void Wait() ABSL_LOCKS_EXCLUDED(mu_);
+
+  // Shutdown QEMU subprocess.
+  void Shutdown() ABSL_LOCKS_EXCLUDED(mu_);
 
  private:
   Qemu(std::string binary, std::vector<std::string> args);

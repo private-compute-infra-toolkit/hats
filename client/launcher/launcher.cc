@@ -20,20 +20,31 @@
 #include <fstream>
 #include <utility>
 
+#include "absl/base/nullability.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "client/launcher/launcher-server.h"
 #include "client/launcher/qemu.h"
 #include "client/proto/launcher_config.pb.h"
+#include "external/google_privacysandbox_servers_common/src/parc/servers/local/parameters.h"
+#include "external/google_privacysandbox_servers_common/src/parc/servers/local/parc_server.h"
+#include "grpcpp/channel.h"
+#include "grpcpp/server.h"
+#include "grpcpp/server_builder.h"
 #include "libarchive/archive.h"
 #include "libarchive/archive_entry.h"
 
 namespace privacy_sandbox::client {
-namespace {
 
+namespace {
+// The size of gRPC chunk used for orchestrator service to send the blob. Might
+// be tunable such that it's more performant.
+constexpr size_t kMaxGrpcResponseSize = 3 * 1024 * 1024;
 constexpr absl::string_view kKernelBinary = "kernel_bin";
 constexpr absl::string_view kSystemImageTarXz = "system.tar.xz";
 constexpr absl::string_view kStage0Binary = "stage0_bin";
@@ -114,25 +125,39 @@ absl::Status UntarHatsBundle(archive* reader, archive* writer,
   return absl::OkStatus();
 }
 
-}  // namespace
+absl::StatusOr<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
+CreateParcServer(const ParcConfig& config) {
+  // 8 MiB.
+  constexpr int64_t kBlobChunkSizeMax = 8 * 1 << 20;
+  const std::string blob_storage_root = std::filesystem::path(
+      static_cast<std::string>(config.blob_storage_root()));
+  const std::string parameters_file_path = std::filesystem::path(
+      static_cast<std::string>(config.parameters_file_path()));
+  absl::StatusOr<privacysandbox::parc::local::v0::Parameters> parameters =
+      privacysandbox::parc::local::v0::Parameters::Create(parameters_file_path);
+  if (!parameters.ok()) {
+    return parameters.status();
+  }
+  return std::make_unique<privacysandbox::parc::local::v0::ParcServer>(
+      std::move(parameters).value(), blob_storage_root, kBlobChunkSizeMax);
+}
 
-absl::StatusOr<Qemu::Options> HatsLauncher::GetQemuOptions(
-    absl::string_view kernel_binary_path, absl::string_view stage0_binary_path,
-    absl::string_view initrd_cpio_xz_path,
-    const LauncherConfig& launcher_config) {
+absl::StatusOr<Qemu::Options> GetQemuOptions(
+    const LauncherExtDeps& deps, const LauncherConfig& launcher_config) {
   CVMConfig cvm_config = launcher_config.cvm_config();
   Qemu::Options option = {
       .vmm_binary = cvm_config.vmm_binary(),
-      .stage0_binary = stage0_binary_path.data(),
-      .kernel = kernel_binary_path.data(),
-      .initrd = initrd_cpio_xz_path.data(),
+      .stage0_binary = deps.stage0_binary_path.data(),
+      .kernel = deps.kernel_binary_path.data(),
+      .initrd = deps.initrd_cpio_xz_path.data(),
       .memory_size = absl::StrFormat("%dk", cvm_config.ram_size_kb()),
       .num_cpus = cvm_config.num_cpus(),
       .ramdrive_size = cvm_config.ramdrive_size_kb(),
-      .virtio_guest_cid = cvm_config.virtio_guest_cid(),
       .pci_passthrough = cvm_config.pci_passthrough(),
   };
 
+  if (cvm_config.has_virtio_guest_cid())
+    option.virtio_guest_cid = cvm_config.virtio_guest_cid();
   switch (cvm_config.cvm_type()) {
     case CVMTYPE_DEFAULT:
       option.vm_type = Qemu::VmType::kDefault;
@@ -188,7 +213,7 @@ absl::StatusOr<Qemu::Options> HatsLauncher::GetQemuOptions(
   return option;
 }
 
-absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
+absl::StatusOr<LauncherExtDeps> UnbundleHatsBundle(
     const LauncherConfig& config) {
   char tmp_format[] = "/tmp/hats-XXXXXXX";
   char* tmp_dir = mkdtemp(tmp_format);
@@ -216,49 +241,158 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   archive_read_free(writer);
   if (!status.ok()) return status;
 
-  std::string kernel_binary = absl::StrCat(tmp_dir, "/", kKernelBinary);
-  std::string system_image = absl::StrCat(tmp_dir, "/", kSystemImageTarXz);
-  std::string stage0_binary = absl::StrCat(tmp_dir, "/", kStage0Binary);
-  std::string initrd = absl::StrCat(tmp_dir, "/", kInitRdCpioXz);
-  absl::StatusOr<Qemu::Options> option = HatsLauncher::GetQemuOptions(
-      kernel_binary, stage0_binary, initrd, config);
+  LauncherExtDeps ext_deps;
+  ext_deps.kernel_binary_path = absl::StrCat(tmp_dir, "/", kKernelBinary);
+  ext_deps.oak_system_image_path =
+      absl::StrCat(tmp_dir, "/", kSystemImageTarXz);
+  ext_deps.stage0_binary_path = absl::StrCat(tmp_dir, "/", kStage0Binary);
+  ext_deps.initrd_cpio_xz_path = absl::StrCat(tmp_dir, "/", kInitRdCpioXz);
+  return ext_deps;
+}
+}  // namespace
+
+absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
+    const HatsLauncherConfig& config,
+    std::shared_ptr<grpc::Channel> tvs_channel) {
+  // External dependencies must be satisfied for hats launcher to run.
+  absl::StatusOr<LauncherExtDeps> deps = UnbundleHatsBundle(config.config);
+  if (!deps.ok()) return deps.status();
+
+  (*deps).container_bundle = config.config.cvm_config().runc_runtime_bundle();
+
+  absl::StatusOr<Qemu::Options> option = GetQemuOptions(*deps, config.config);
   if (!option.ok()) return option.status();
+
   absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(*option);
   if (!qemu.ok()) return qemu.status();
+  (*deps).vmm_binary_path = (*option).vmm_binary;
+
+  auto launcher_server = std::make_unique<client::LauncherServer>(
+      config.tvs_authentication_key_bytes, std::move(tvs_channel));
+
+  auto launcher_oak_server = std::make_unique<LauncherOakServer>(
+      (*deps).oak_system_image_path, (*deps).container_bundle,
+      kMaxGrpcResponseSize);
+
+  // PARC server will be NULL when it's not specified.
+  absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
+      parc_server_nullable = nullptr;
+  if (config.config.has_parc_config()) {
+    absl::StatusOr<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
+        parc_server = CreateParcServer(config.config.parc_config());
+    if (!parc_server.ok()) return parc_server.status();
+    parc_server_nullable = *std::move(parc_server);
+  }
+
   return absl::WrapUnique(new HatsLauncher(
-      kernel_binary, system_image, stage0_binary, initrd, *std::move(qemu)));
+      *std::move(deps), *std::move(qemu), std::move(launcher_oak_server),
+      std::move(launcher_server), std::move(parc_server_nullable)));
 }
 
-absl::Status HatsLauncher::Start() {
-  LOG(INFO) << "qemu command:" << qemu_->GetCommand();
-  LOG(INFO) << "LogFilename:" << qemu_->LogFilename();
-  absl::Status qemu_status = qemu_->Start();
-  if (!qemu_status.ok()) {
-    return qemu_status;
+absl::Status HatsLauncher::Start(absl::string_view addr_uri,
+                                 absl::string_view vsock_uri,
+                                 absl::string_view qemu_log_filename) {
+  absl::MutexLock lock(&mu_);
+  if (started_) {
+    return absl::UnknownError(
+        "HatsLauncher is only expected to be started once even if shutdown.");
   }
-  // Blocking call.
-  qemu_->Wait();
+  started_ = true;
 
+  LOG(INFO) << "Qemu command:" << qemu_->GetCommand();
+  if (absl::Status status = qemu_->Start(qemu_log_filename); !status.ok())
+    return status;
+  LOG(INFO) << "Qemu LogFilename:" << qemu_->LogFilename();
+  grpc::ServerBuilder builder;
+  // All gRPC servers are owned by the HatsLauncher object.
+  builder.RegisterService(launcher_server_.get())
+      .RegisterService(launcher_oak_server_.get());
+  if (!addr_uri.empty()) {
+    builder.AddListeningPort(addr_uri.data(),
+                             grpc::InsecureServerCredentials());
+  }
+
+  if (parc_server_ != nullptr) {
+    LOG(INFO)
+        << "PARC server is enabled ( configured by parc_config existence )";
+    builder.RegisterService(parc_server_.get());
+  }
+
+  // Only Oak services are required for stage 1.
+  grpc::ServerBuilder vsock_builder;
+  vsock_builder.RegisterService(launcher_oak_server_.get());
+
+  if (!vsock_uri.empty()) {
+    vsock_builder.AddListeningPort(vsock_uri.data(),
+                                   grpc::InsecureServerCredentials());
+  }
+
+  vsock_server_ = std::move(vsock_builder.BuildAndStart());
+  tcp_server_ = std::move(builder.BuildAndStart());
+  LOG(INFO) << "Server listening on '" << addr_uri << "' and '" << vsock_uri
+            << "'";
+
+  // blocking
   return absl::OkStatus();
 }
 
-HatsLauncher::HatsLauncher(std::string kernel_binary_path,
-                           std::string system_image_tar_xz_path,
-                           std::string stage0_binary_path,
-                           std::string initrd_cpio_xz_path,
-                           std::unique_ptr<Qemu> qemu)
-    : kernel_binary_path_(std::move(kernel_binary_path)),
-      system_image_tar_xz_path_(std::move(system_image_tar_xz_path)),
-      stage0_binary_path_(std::move(stage0_binary_path)),
-      initrd_cpio_xz_path_(std::move(initrd_cpio_xz_path)),
-      qemu_(std::move(qemu)) {}
-std::string HatsLauncher::GetKernelBinaryPath() { return kernel_binary_path_; }
-std::string HatsLauncher::GetSystemImageTarXzPath() {
-  return system_image_tar_xz_path_;
+void HatsLauncher::Wait() {
+  {
+    absl::MutexLock lock(&mu_);
+    if (!started_) {
+      return;
+    }
+  }
+
+  tcp_server_->Wait();
+  vsock_server_->Wait();
+  qemu_->Wait();
 }
 
-std::string HatsLauncher::GetStage0BinaryPath() { return stage0_binary_path_; }
+absl::StatusOr<std::shared_ptr<grpc::Channel>>
+HatsLauncher::VsockChannelForTest() {
+  absl::MutexLock lock(&mu_);
+  if (!started_) return absl::UnknownError("HatsLauncher is not started yet");
+  return vsock_server_->InProcessChannel(grpc::ChannelArguments());
+}
 
-std::string HatsLauncher::GetInitrdCpioXzPath() { return initrd_cpio_xz_path_; }
+absl::StatusOr<std::shared_ptr<grpc::Channel>>
+HatsLauncher::TcpChannelForTest() {
+  absl::MutexLock lock(&mu_);
+  if (!started_) return absl::UnknownError("HatsLauncher is not started yet");
+  return tcp_server_->InProcessChannel(grpc::ChannelArguments());
+}
 
+void HatsLauncher::Shutdown() {
+  absl::MutexLock lock(&mu_);
+  // Qemu object and gRPC servers have internal Mutex lock.
+  qemu_->Shutdown();
+  tcp_server_->Shutdown();
+  vsock_server_->Shutdown();
+}
+
+void HatsLauncher::WaitUntilReady() {
+  using namespace std::chrono_literals;
+  while (true) {
+    {
+      absl::MutexLock lock(&mu_);
+      if (started_) {
+        break;
+      }
+    }
+    std::this_thread::sleep_for(10ms);
+  }
+}
+
+HatsLauncher::HatsLauncher(
+    LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
+    absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
+    absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
+    absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
+        parc_server)
+    : deps_(std::move(deps)),
+      qemu_(std::move(qemu)),
+      launcher_server_(std::move(launcher_server)),
+      launcher_oak_server_(std::move(launcher_oak_server)),
+      parc_server_(std::move(parc_server)) {}
 }  // namespace privacy_sandbox::client

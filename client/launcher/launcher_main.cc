@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <netinet/in.h>
+#include <sys/socket.h>
+
+#include <linux/vm_sockets.h>  // VMADDR_CID_ANY
+
 #include <fstream>
 #include <iostream>
 
@@ -20,49 +25,106 @@
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "client/launcher/launcher.h"
 #include "client/proto/launcher_config.pb.h"
 #include "google/protobuf/text_format.h"
+#include "tvs/credentials/credentials.h"
+
 ABSL_FLAG(std::string, launcher_config_path, "./launcher_config.textproto",
           "path to read launcher configuration");
-int main(int argc, char* argv[]) {
-  absl::ParseCommandLine(argc, argv);
-  absl::InitializeLog();
-
-  privacy_sandbox::client::LauncherConfig config;
-  std::string launcher_config_path = absl::GetFlag(FLAGS_launcher_config_path);
-  if (launcher_config_path.empty()) {
-    LOG(ERROR)
-        << "empty launcher_config_path flag, expect some valid path to file.";
-    return 1;
-  }
-
-  std::ifstream file(launcher_config_path);
+ABSL_FLAG(std::string, tvs_address, "localhost:7779",
+          "TVS address to talk to to fetch private keys.");
+ABSL_FLAG(bool, use_tls, false,
+          "whether to use tls when establishing gRPC channel to tvs server");
+ABSL_FLAG(std::string, tvs_authentication_key, "",
+          "HEX format authentication private key with public key pair shared "
+          "with TVS "
+          "instance to identify the specific launcher.");
+ABSL_FLAG(std::string, tvs_access_token, "",
+          "Oauth bearer token got from TVS hosting provider used to talk to "
+          "TVS server");
+ABSL_FLAG(std::string, qemu_log_filename, "",
+          "When provided, qemu will send std logs into the specific log file "
+          "path instead of a randomly generated path in tmp");
+absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
+    absl::string_view path) {
+  std::ifstream file(path.data());
   if (!file.is_open()) {
-    LOG(ERROR) << "failed to open file " << launcher_config_path;
-    return 1;
+    return absl::InvalidArgumentError(
+        absl::StrCat("failed to open file '", path, "'"));
   }
   std::string raw_config((std::istreambuf_iterator<char>(file)),
                          (std::istreambuf_iterator<char>()));
   file.close();
-
+  privacy_sandbox::client::LauncherConfig config;
   if (!google::protobuf::TextFormat::ParseFromString(raw_config, &config)) {
-    LOG(ERROR) << "invalid json string message at path "
-               << launcher_config_path;
+    return absl::InvalidArgumentError(
+        absl::StrCat("invalid prototext message at path '", path, "'"));
+  }
+
+  return config;
+}
+
+int main(int argc, char* argv[]) {
+  absl::ParseCommandLine(argc, argv);
+  absl::InitializeLog();
+  LOG(INFO) << "read configuration";
+  std::string tvs_authentication_key =
+      absl::GetFlag(FLAGS_tvs_authentication_key);
+  // convert hex string to bytes as expected.
+  std::string tvs_authentication_key_bytes;
+  if (!absl::HexStringToBytes(tvs_authentication_key,
+                              &tvs_authentication_key_bytes)) {
+    LOG(ERROR) << "tvs authentication key should be in hex string format";
+    return 1;
+  }
+  absl::StatusOr<privacy_sandbox::client::LauncherConfig> config =
+      LoadConfig(absl::GetFlag(FLAGS_launcher_config_path));
+  if (!config.ok()) {
+    LOG(ERROR) << "Failed to fetch launcher config with error: "
+               << config.status();
+    return 1;
+  }
+  privacy_sandbox::client::HatsLauncherConfig hats_config{
+      .config = *std::move(config),
+      .tvs_authentication_key_bytes = std::move(tvs_authentication_key_bytes)};
+
+  privacy_sandbox::tvs::CreateGrpcChannelOptions options({
+      .use_tls = absl::GetFlag(FLAGS_use_tls),
+      .target = absl::GetFlag(FLAGS_tvs_address),
+      .access_token = absl::GetFlag(FLAGS_tvs_access_token),
+  });
+  absl::StatusOr<std::shared_ptr<grpc::Channel>> tvs_channel =
+      privacy_sandbox::tvs::CreateGrpcChannel(std::move(options));
+  if (!tvs_channel.ok()) {
+    LOG(ERROR) << "Failed to establish gRPC channel to TVS server"
+               << tvs_channel.status();
     return 1;
   }
 
   absl::StatusOr<std::unique_ptr<privacy_sandbox::client::HatsLauncher>>
-      launcher = privacy_sandbox::client::HatsLauncher::Create(config);
+      launcher = privacy_sandbox::client::HatsLauncher::Create(
+          std::move(hats_config), *std::move(tvs_channel));
   if (!launcher.ok()) {
     LOG(ERROR) << "Failed to create launcher: " << launcher.status();
     return 1;
   }
-  if (absl::Status status = (*launcher)->Start(); !status.ok()) {
+
+  std::string addr_uri =
+      absl::StrFormat("0.0.0.0:%d", (*config).launcher_service_port());
+  std::string vsock_uri = absl::StrFormat("vsock:%d:%d", VMADDR_CID_ANY,
+                                          (*config).launcher_service_port());
+  // Generate the log file randomly.
+  if (absl::Status status =
+          (*launcher)->Start(std::move(addr_uri), std::move(vsock_uri),
+                             absl::GetFlag(FLAGS_qemu_log_filename));
+      !status.ok()) {
     LOG(ERROR) << "launcher terminated with abnormal status "
                << status.message();
     return 1;
   }
 
+  (*launcher)->Wait();
   return 0;
 }

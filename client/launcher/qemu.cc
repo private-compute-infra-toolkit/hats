@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 
 #include <chrono>
+#include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
@@ -35,12 +36,14 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
 // porting from oak qemu launcher: http://shortn/_LgMZgnCwOM
@@ -52,9 +55,7 @@ namespace privacy_sandbox::client {
 constexpr char kVmLocalAddress[] = "10.0.2.15";
 // Hardcoded launcher address for CVM.
 constexpr char kVmLauncherAddress[] = "10.0.2.100";
-constexpr uint16_t kVmHatsLauncherPort = 8889;
-// TODO(b/351007909): Remove the oak launcher port when C++ conversion is done.
-constexpr uint16_t kVmOakLauncherPort = 8080;
+constexpr uint16_t kVmHatsLauncherPort = 8080;
 constexpr char kLocalHost[] = "127.0.0.1";
 constexpr uint16_t kVmOrchestratorLocalPort = 4000;
 constexpr uint16_t kVmLocalPort = 8080;
@@ -106,6 +107,8 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
   constexpr char kMicroVmCommon[] = "microvm,acpi=on,pcie=on";
   // SEV, SEV-ES, SEV-SNP VMs need confidential guest support and private
   // memory.
+  // NOTE: Confidential Guest Support breaks vsock in
+  // QEMU v9.0.0-2221-g959269e910-dirty.
   constexpr char kSevMachineSuffix[] =
       ",memory-backend=ram1,confidential-guest-support=sev0";
   // Definition of the private memory.
@@ -198,9 +201,6 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
     // Set up the networking. `rombar=0` is so that QEMU wouldn't bother with
     // the `efi-virtio.rom` file, as we're not using EFI anyway.
     // Allow guest workload to talk to oak launcher service.
-    std::string guestfwd_oak_launcher = absl::StrFormat(
-        "guestfwd=tcp:%s:%u-cmd:nc %s %u", kVmLauncherAddress,
-        kVmOakLauncherPort, kLocalHost, options.launcher_service_port);
     // Allow host to talk to guest orchestrator service.
     std::string hostfwd_guest_orchestrator =
         absl::StrFormat("hostfwd=tcp:%s:%u-%s:%u", kLocalHost,
@@ -217,9 +217,8 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
 
     args.push_back("-netdev");
     args.push_back(
-        absl::StrFormat("user,id=netdev,%s,%s,%s,%s", guestfwd_oak_launcher,
-                        hostfwd_guest_orchestrator, guestfwd_hats_launcher,
-                        hostfwd_guest_workload));
+        absl::StrFormat("user,id=netdev,%s,%s,%s", hostfwd_guest_orchestrator,
+                        guestfwd_hats_launcher, hostfwd_guest_workload));
     args.push_back("-device");
     args.push_back(
         "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
@@ -231,7 +230,9 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
   // thread, it won't work. But we don't really have any other good sources of
   // globally unique identifiers available for us, and starting multiple VMMs
   // in one thread should be uncommon.
-  size_t random_number = absl::Uniform(bitgen, 0, 1000000);
+  // CID < 1024 are privilege ports and binding such port causes invalid
+  // argument error.
+  size_t random_number = absl::Uniform(bitgen, 1024, 1000000);
   args.push_back("-device");
   args.push_back(absl::StrCat("vhost-vsock-pci,guest-cid=",
                               options.virtio_guest_cid.has_value()
@@ -306,20 +307,28 @@ void ClosePosixObjects(posix_spawn_file_actions_t& file_actions,
 }  // namespace
 
 // This is a non-blocking op, you must make sure not to terminate your process
-absl::Status Qemu::Start() {
+absl::Status Qemu::Start(absl::string_view log_filename) {
   absl::MutexLock lock(&mu_);
   if (started_) {
     return absl::FailedPreconditionError("Qemu was already started");
   }
 
   started_ = true;
-  char log_file_template[] = "/tmp/hatsXXXXXX";
-  int file_descriptor = mkstemp(log_file_template);
-  if (file_descriptor == -1) {
-    return absl::FailedPreconditionError(
-        absl::StrCat("mkstemp() failed: ", strerror(errno)));
+  int file_descriptor = -1;
+  if (!log_filename.empty()) {
+    file_descriptor = open(log_filename.data(), O_RDWR);
+    log_filename_ = log_filename;
+    LOG(INFO) << "Writing to existing Log file: '" << log_filename_ << "'";
+  } else {
+    char log_file_template[] = "/tmp/hatsXXXXXX";
+    int file_descriptor = mkstemp(log_file_template);
+    if (file_descriptor == -1) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("mkstemp() failed: ", strerror(errno)));
+    }
+    log_filename_ = log_file_template;
+    LOG(INFO) << "Creating Temporary Log file: '" << log_filename_ << "'";
   }
-  log_filename_ = log_file_template;
 
   posix_spawn_file_actions_t file_actions;
   if (int r = posix_spawn_file_actions_init(&file_actions); r != 0) {
@@ -389,4 +398,9 @@ void Qemu::Wait() {
   waitpid(process_id_, /*wstatus=*/nullptr, 0);
 }
 
+void Qemu::Shutdown() {
+  absl::MutexLock lock(&mu_);
+  // Graceful shutdown signal.
+  kill(process_id_, SIGTERM);
+}
 }  // namespace privacy_sandbox::client

@@ -20,8 +20,17 @@ message LauncherConfig {
   // Port for providing Launcher services to the CVMs.
   uint32 launcher_service_port = 1;
   // Address to talk to Tee Verification Service ( TVS ).
-  string tvs_address = 2;
-  CVMConfig cvm_config = 3;
+  CVMConfig cvm_config = 2;
+  // Configuration to optionally launch a local PARC server.
+  ParcConfig parc_config = 3;
+}
+
+// Configuration for the local PARC server.
+message ParcConfig {
+  // Server config Parameters served by local PARC for KV or B&A init.
+  string parameters_file_path = 1;
+  // File system path root for PARC blob lookup.
+  string blob_storage_root = 2;
 }
 
 // Type of the machine the VM runs on.
