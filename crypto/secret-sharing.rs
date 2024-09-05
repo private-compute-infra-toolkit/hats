@@ -38,6 +38,7 @@ pub enum Error {
     MustSplitTrust,
     SecretMustBeInRangePrime,
     ImproperCoeffs,
+    NotAShareObject,
 }
 
 // Do not use cxx:bridge if `noffi` is enabled. This is to avoid
@@ -129,6 +130,14 @@ pub fn recover_wrap(
             error: "Error recovering secrets".to_string(),
         },
     }
+}
+
+pub fn desearialize_share(serialized_share: &Vec<u8>) -> Result<Share, Error> {
+    let string: String =
+        String::from_utf8(serialized_share.to_vec()).map_err(|_| Error::NotAShareObject)?;
+    let share: Share = serde_json::from_value(serde_json::from_str(&string).unwrap())
+        .map_err(|_| Error::NotAShareObject)?;
+    Ok(share)
 }
 
 pub fn get_valid_private_key() -> Vec<u8> {
