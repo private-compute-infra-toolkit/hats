@@ -111,6 +111,8 @@ ABSL_FLAG(std::string, user_authentication_public_key, "",
           "key in hex format.");
 ABSL_FLAG(std::string, user_name, "", "Name of the user.");
 ABSL_FLAG(std::string, user_origin, "", "Origin of the user.");
+ABSL_FLAG(std::string, user_dek, "",
+          "Aead Key to use for encrypting user secrets/private keys");
 
 namespace {
 
@@ -682,13 +684,26 @@ absl::StatusOr<WrappedSecrets> WrapSecret(
   };
 }
 
-absl::StatusOr<std::vector<SecretData>> SplitSecret(int num_shares,
-                                                    int threshold,
-                                                    const SecretData& secret) {
+absl::StatusOr<std::vector<SecretData>> SplitSecret(
+    int num_shares, int threshold, bool double_wrap, const SecretData& secret,
+    const SecretData& user_dek) {
+  absl::string_view secret_to_split;
+  if (double_wrap) {
+    absl::StatusOr<std::string> wrapped_user_secret =
+        privacy_sandbox::crypto::Encrypt(user_dek, secret,
+                                         privacy_sandbox::crypto::kSecretAd);
+    if (!wrapped_user_secret.ok()) return wrapped_user_secret.status();
+    secret_to_split = *wrapped_user_secret;
+  } else {
+    secret_to_split = secret.GetStringView();
+  }
   privacy_sandbox::crypto::VecStringResult shares =
       privacy_sandbox::crypto::SplitSecret(
-          rust::Slice<const std::uint8_t>(secret.GetData(), secret.GetSize()),
-          num_shares, threshold);
+          rust::Slice<const std::uint8_t>(
+              reinterpret_cast<uint8_t*>(secret_to_split.data(),
+                                         secret_to_split.length()),
+              secret_to_split.length()),
+          num_shares, threshold, double_wrap);
   if (!shares.error.empty()) {
     return absl::UnknownError(
         absl::StrCat("Failed to split secret. ", std::string(shares.error)));
@@ -705,7 +720,8 @@ absl::Status RegisterOrUpdateUserInternal(
     absl::string_view spanner_database, absl::string_view kms_key_resource_name,
     absl::string_view user_authentication_public_key,
     absl::string_view user_name, absl::string_view user_origin,
-    absl::string_view user_public_key, const SecretData& user_secret) {
+    absl::string_view user_public_key, const SecretData& user_secret,
+    const SecretData& user_dek, bool double_wrap) {
   std::string user_authentication_public_key_hex;
   if (!absl::HexStringToBytes(user_authentication_public_key,
                               &user_authentication_public_key_hex)) {
@@ -888,7 +904,8 @@ absl::Status RegisterOrUpdateUserSplitTrust(
     const std::vector<std::string>& spanner_databases,
     const std::vector<std::string>& kms_key_resource_names,
     absl::string_view user_authentication_public_key,
-    absl::string_view user_name, absl::string_view user_origin) {
+    absl::string_view user_name, absl::string_view user_origin,
+    absl::string_view user_dek) {
   if (spanner_databases.size() != kms_key_resource_names.size()) {
     return absl::FailedPreconditionError(
         "Number of KMS key resources should be equivalent to the number of "
@@ -904,8 +921,10 @@ absl::Status RegisterOrUpdateUserSplitTrust(
 
   int num_shares = spanner_databases.size();
   int threshold = num_shares - 1;
+  bool double_wrap = (user_dek != "");
   absl::StatusOr<std::vector<SecretData>> shares =
-      SplitSecret(num_shares, threshold, *user_private_key);
+      SplitSecret(num_shares, threshold, double_wrap, *user_private_key,
+                  SecretData(user_dek));
   if (!shares.ok()) return shares.status();
 
   if (shares->size() != spanner_databases.size()) {
@@ -917,7 +936,7 @@ absl::Status RegisterOrUpdateUserSplitTrust(
     absl::Status status = RegisterOrUpdateUserInternal(
         spanner_databases[i], kms_key_resource_names[i],
         user_authentication_public_key, user_name, user_origin,
-        *user_public_key, (*shares)[i]);
+        *user_public_key, (*shares)[i], SecretData(user_dek), double_wrap);
     if (!status.ok()) return status;
   }
   std::cout << "Public portion of secret: " << *user_public_key << "\n";
@@ -927,7 +946,8 @@ absl::Status RegisterOrUpdateUserSplitTrust(
 absl::Status RegisterOrUpdateUser(
     std::string spanner_database, std::string kms_key_resource_name,
     absl::string_view user_authentication_public_key,
-    absl::string_view user_name, absl::string_view user_origin) {
+    absl::string_view user_name, absl::string_view user_origin,
+    absl::string_view user_dek) {
   absl::StatusOr<std::unique_ptr<HPKEKey>> hpke_key = HPKEKey::Create();
   if (!hpke_key.ok()) return hpke_key.status();
   absl::StatusOr<std::string> derived_pub_key =
@@ -938,7 +958,8 @@ absl::Status RegisterOrUpdateUser(
   std::cout << "Public portion of secret: " << *derived_pub_key << "\n";
   return RegisterOrUpdateUserInternal(
       spanner_database, kms_key_resource_name, user_authentication_public_key,
-      user_name, user_origin, *derived_pub_key, *user_private_key);
+      user_name, user_origin, *derived_pub_key, *user_private_key,
+      SecretData(user_dek), (user_dek != ""));
 }
 
 }  // namespace
@@ -977,7 +998,8 @@ int main(int argc, char* argv[]) {
             absl::GetFlag(FLAGS_spanner_database),
             absl::GetFlag(FLAGS_key_resource_name),
             absl::GetFlag(FLAGS_user_authentication_public_key),
-            absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin));
+            absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin),
+            absl::GetFlag(FLAGS_user_dek));
         !status.ok()) {
       LOG(ERROR) << "Failed to register user: " << status;
       return 1;
@@ -987,7 +1009,8 @@ int main(int argc, char* argv[]) {
             absl::GetFlag(FLAGS_spanner_databases),
             absl::GetFlag(FLAGS_key_resource_names),
             absl::GetFlag(FLAGS_user_authentication_public_key),
-            absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin));
+            absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin),
+            absl::GetFlag(FLAGS_user_dek));
         !status.ok()) {
       LOG(ERROR) << "Failed to register user: " << status;
       return 1;
