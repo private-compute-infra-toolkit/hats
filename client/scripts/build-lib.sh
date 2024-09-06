@@ -27,12 +27,19 @@ function build_cloud_hypervisor() {
 }
 
 function build_kv_service() {
+  local BUILD_DIR="$1"
   printf "\nBUILDING KV SERVICE..."
   pushd ../../submodules/kv-server
+  # kv-server has submodules that we need to pull newer commits manually.
+  pushd common
+  git checkout af48964e3302d7d4f160641e02b55904ce9ea1c4
+  popd
   ./builders/tools/bazel-debian build //components/data_server/server:server \
-    --//:platform=local \
-    --//:instance=local
-  rsync bazel-bin/components/data_server/server/server ../../client/prebuilt/kv-server
+    --config=local_instance \
+    --config=local_platform \
+    --config=enable_parc \
+    --config=enable_hats
+  rsync bazel-bin/components/data_server/server/server "$BUILD_DIR/kv-server"
   popd
 }
 
