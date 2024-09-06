@@ -14,7 +14,11 @@
 
 #include "client/launcher/launcher.h"
 
+#include <netinet/in.h>
 #include <string.h>
+#include <sys/socket.h>
+
+#include <linux/vm_sockets.h>  // VMADDR_CID_ANY
 
 #include <cstdlib>
 #include <fstream>
@@ -286,14 +290,18 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
     parc_server_nullable = *std::move(parc_server);
   }
 
+  std::string addr_uri =
+      absl::StrFormat("0.0.0.0:%d", config.config.launcher_service_port());
+  std::string vsock_uri = absl::StrFormat(
+      "vsock:%d:%d", VMADDR_CID_ANY, config.config.launcher_service_port());
+
   return absl::WrapUnique(new HatsLauncher(
-      *std::move(deps), *std::move(qemu), std::move(launcher_oak_server),
-      std::move(launcher_server), std::move(parc_server_nullable)));
+      addr_uri, vsock_uri, *std::move(deps), *std::move(qemu),
+      std::move(launcher_oak_server), std::move(launcher_server),
+      std::move(parc_server_nullable)));
 }
 
-absl::Status HatsLauncher::Start(absl::string_view addr_uri,
-                                 absl::string_view vsock_uri,
-                                 absl::string_view qemu_log_filename) {
+absl::Status HatsLauncher::Start(absl::string_view qemu_log_filename) {
   absl::MutexLock lock(&mu_);
   if (started_) {
     return absl::UnknownError(
@@ -309,10 +317,7 @@ absl::Status HatsLauncher::Start(absl::string_view addr_uri,
   // All gRPC servers are owned by the HatsLauncher object.
   builder.RegisterService(launcher_server_.get())
       .RegisterService(launcher_oak_server_.get());
-  if (!addr_uri.empty()) {
-    builder.AddListeningPort(addr_uri.data(),
-                             grpc::InsecureServerCredentials());
-  }
+  builder.AddListeningPort(addr_uri_, grpc::InsecureServerCredentials());
 
   if (parc_server_ != nullptr) {
     LOG(INFO)
@@ -323,15 +328,11 @@ absl::Status HatsLauncher::Start(absl::string_view addr_uri,
   // Only Oak services are required for stage 1.
   grpc::ServerBuilder vsock_builder;
   vsock_builder.RegisterService(launcher_oak_server_.get());
-
-  if (!vsock_uri.empty()) {
-    vsock_builder.AddListeningPort(vsock_uri.data(),
-                                   grpc::InsecureServerCredentials());
-  }
+  vsock_builder.AddListeningPort(vsock_uri_, grpc::InsecureServerCredentials());
 
   vsock_server_ = std::move(vsock_builder.BuildAndStart());
   tcp_server_ = std::move(builder.BuildAndStart());
-  LOG(INFO) << "Server listening on '" << addr_uri << "' and '" << vsock_uri
+  LOG(INFO) << "Server listening on '" << addr_uri_ << "' and '" << vsock_uri_
             << "'";
 
   // blocking
@@ -386,12 +387,15 @@ void HatsLauncher::WaitUntilReady() {
 }
 
 HatsLauncher::HatsLauncher(
+    absl::string_view addr_uri, absl::string_view vsock_uri,
     LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
     absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
     absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
     absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
         parc_server)
-    : deps_(std::move(deps)),
+    : addr_uri_(addr_uri),
+      vsock_uri_(vsock_uri),
+      deps_(std::move(deps)),
       qemu_(std::move(qemu)),
       launcher_server_(std::move(launcher_server)),
       launcher_oak_server_(std::move(launcher_oak_server)),

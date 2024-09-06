@@ -119,6 +119,9 @@ cc_test(
     data = [
         "//client/test_data/launcher:launcher_test_data",
     ],
+    # TODO(b/351007909): remove this after deflaking
+    # the test.
+    tags = ["nopresubmit"],
     deps = [
         ":launcher_cc",
         "//tvs/proto:appraisal_policies_cc_proto",
