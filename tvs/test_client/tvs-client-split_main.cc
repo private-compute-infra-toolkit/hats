@@ -25,6 +25,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "crypto/aead-crypter.h"
+#include "crypto/secret-data.h"
 #include "crypto/secret-sharing.rs.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
@@ -32,6 +34,8 @@
 #include "tvs/credentials/credentials.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
+
+using privacy_sandbox::crypto::SecretData;
 
 ABSL_FLAG(std::vector<std::string>, tvs_addresses,
           std::vector<std::string>({""}), "Ports TVS servers listens to.");
@@ -51,6 +55,9 @@ ABSL_FLAG(std::string, access_token, "",
           "Access token to pass in the GRPC request. TLS needs to be enabled");
 ABSL_FLAG(
     std::string, tvs_authentication_key, "",
+    "Private key used to authenticate with TVS in hex format e.g. deadbeef");
+ABSL_FLAG(
+    std::string, user_dek, "",
     "Private key used to authenticate with TVS in hex format e.g. deadbeef");
 
 rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
@@ -161,17 +168,37 @@ int main(int argc, char* argv[]) {
         privacy_sandbox::crypto::RecoverSecret(
             StringVecToRustVec(shared_secret.secret_shares),
             tvs_addresses.size(), tvs_addresses.size() - 1);
-    std::cout << "Key id: " << key_id << std::endl;
-    std::cout << "Public key: " << shared_secret.public_key << std::endl;
-    if (absl::StatusOr<std::string> private_key_hex =
-            absl::BytesToHexString(RustVecToString(recovered_secret.value));
-        private_key_hex.ok()) {
-      std::cout << "Private key: " << private_key_hex << std::endl;
+    std::string bytes;
+    if (absl::GetFlag(FLAGS_user_dek) != "") {
+      std::string wrapped_key = RustVecToString(recovered_secret.value);
+      SecretData wrapped_secret = SecretData(wrapped_key);
+      std::string dec;
+      if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_user_dek), &dec)) {
+        LOG(ERROR) << "user_dek must be a 32 byte key in hex string format"
+                   << std::endl;
+        return 1;
+      }
+      SecretData dek = SecretData(dec);
+      absl::StatusOr<SecretData> unwrapped_key =
+          privacy_sandbox::crypto::Decrypt(dek, wrapped_secret,
+                                           privacy_sandbox::crypto::kSecretAd);
+      if (!unwrapped_key.ok()) {
+        LOG(ERROR) << "Invalid private key recovered: "
+                   << unwrapped_key.status();
+        return 1;
+      }
+      bytes = (*unwrapped_key).GetStringView();
     } else {
-      LOG(ERROR) << "Invalid private key recovered: "
-                 << private_key_hex.status();
+      bytes = RustVecToString(recovered_secret.value);
+    }
+    absl::StatusOr<std::string> priv_key_hex = absl::BytesToHexString(bytes);
+    if (!priv_key_hex.ok()) {
+      LOG(ERROR) << "Invalid private key recovered: " << priv_key_hex.status();
       return 1;
     }
+    std::cout << "Key id: " << key_id << std::endl;
+    std::cout << "Public key: " << shared_secret.public_key << std::endl;
+    std::cout << "Private key: " << *priv_key_hex << std::endl;
   }
   return 0;
 }

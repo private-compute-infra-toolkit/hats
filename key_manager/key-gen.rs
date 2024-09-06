@@ -23,6 +23,7 @@ enum KeyType {
     #[default]
     Secp128r1,
     X25519HkdfSha256,
+    Random256Key,
 }
 
 #[derive(Parser)]
@@ -35,6 +36,8 @@ struct Args {
     numshares: usize,
     #[arg(long, required = false, default_value = "2")]
     threshold: usize,
+    #[arg(long, required = false, default_value = "false")]
+    wrap: bool,
 }
 
 fn generate_secp128r1_keypairs() -> (String, String) {
@@ -52,10 +55,46 @@ fn generate_x25519hkdfsha256_keypairs() -> (String, String) {
     )
 }
 
+fn generate_random256key() -> String {
+    let mut random256key = [0u8; 32];
+    crypto::rand_bytes(&mut random256key);
+    hex::encode(random256key)
+}
+
 fn main() {
     let (public_key, private_key) = match Args::parse().key_type {
-        KeyType::Secp128r1 => generate_secp128r1_keypairs(),
-        KeyType::X25519HkdfSha256 => generate_x25519hkdfsha256_keypairs(),
+        KeyType::Secp128r1 => {
+            let (public_key, private_key) = generate_secp128r1_keypairs();
+            (Some(public_key), private_key)
+        }
+        KeyType::X25519HkdfSha256 => {
+            let (public_key, private_key) = generate_x25519hkdfsha256_keypairs();
+            (Some(public_key), private_key)
+        }
+        KeyType::Random256Key => (None, generate_random256key()),
+    };
+
+    if let Some(public_key) = public_key {
+        println!("Public: {}", public_key);
+    }
+    println!("Private: {}", private_key);
+    let secret = if Args::parse().wrap {
+        let wrapping_key = hex::decode(&generate_random256key()).unwrap();
+        let nonce = [0u8; 12];
+        let aad = [0u8; 16];
+        let plaintext = hex::decode(&private_key).unwrap();
+        let mut ciphertext = plaintext.clone();
+        println!("Wrapping: {}", hex::encode(wrapping_key.clone()));
+        // Encrypt the private_key with wrapping key
+        crypto::aes_256_gcm_seal_in_place(
+            &wrapping_key.try_into().unwrap(),
+            &nonce,
+            &aad,
+            &mut ciphertext,
+        );
+        hex::encode(ciphertext)
+    } else {
+        private_key
     };
 
     if Args::parse().split {
@@ -64,10 +103,7 @@ fn main() {
             threshold: Args::parse().threshold,
             prime: secret_sharing::get_prime(),
         };
-        let shares = sham
-            .split(&hex::decode(private_key).unwrap(), false)
-            .unwrap();
-        println!("Public: {}", public_key);
+        let shares = sham.split(&hex::decode(secret).unwrap(), false).unwrap();
         for share in shares {
             println!(
                 "Share[{}]: {}",
@@ -75,7 +111,5 @@ fn main() {
                 hex::encode(serde_json::to_string(&share).unwrap())
             );
         }
-    } else {
-        println!("Public: {}\nPrivate: {}", public_key, private_key);
     }
 }

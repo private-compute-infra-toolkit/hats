@@ -685,31 +685,20 @@ absl::StatusOr<WrappedSecrets> WrapSecret(
   };
 }
 
-absl::StatusOr<std::vector<SecretData>> SplitSecret(
-    int num_shares, int threshold, bool double_wrap, const SecretData& secret,
-    const SecretData& user_dek) {
-  absl::string_view secret_to_split;
-  if (double_wrap) {
-    absl::StatusOr<std::string> wrapped_user_secret =
-        privacy_sandbox::crypto::Encrypt(user_dek, secret,
-                                         privacy_sandbox::crypto::kSecretAd);
-    if (!wrapped_user_secret.ok()) return wrapped_user_secret.status();
-    secret_to_split = *wrapped_user_secret;
-  } else {
-    secret_to_split = secret.GetStringView();
-  }
+absl::StatusOr<std::vector<SecretData>> SplitSecret(int num_shares,
+                                                    int threshold,
+                                                    const SecretData& secret,
+                                                    bool double_wrapped) {
+  SecretData secret_to_split = SecretData(secret);
   privacy_sandbox::crypto::VecStringResult shares =
       privacy_sandbox::crypto::SplitSecret(
-          rust::Slice<const std::uint8_t>(
-              reinterpret_cast<uint8_t*>(secret_to_split.data(),
-                                         secret_to_split.length()),
-              secret_to_split.length()),
-          num_shares, threshold, double_wrap);
+          rust::Slice<const std::uint8_t>(secret_to_split.GetData(),
+                                          secret_to_split.GetSize()),
+          num_shares, threshold, double_wrapped);
   if (!shares.error.empty()) {
     return absl::UnknownError(
         absl::StrCat("Failed to split secret. ", std::string(shares.error)));
   }
-
   std::vector<SecretData> result;
   for (const rust::String& share : shares.value) {
     result.push_back(SecretData(static_cast<std::string>(share)));
@@ -721,8 +710,7 @@ absl::Status RegisterOrUpdateUserInternal(
     absl::string_view spanner_database, absl::string_view kms_key_resource_name,
     absl::string_view user_authentication_public_key,
     absl::string_view user_name, absl::string_view user_origin,
-    absl::string_view user_public_key, const SecretData& user_secret,
-    const SecretData& user_dek, bool double_wrap) {
+    absl::string_view user_public_key, const SecretData& user_secret) {
   std::string user_authentication_public_key_hex;
   if (!absl::HexStringToBytes(user_authentication_public_key,
                               &user_authentication_public_key_hex)) {
@@ -923,9 +911,21 @@ absl::Status RegisterOrUpdateUserSplitTrust(
   int num_shares = spanner_databases.size();
   int threshold = num_shares - 1;
   bool double_wrap = (user_dek != "");
+  std::string dec;
+  if (!absl::HexStringToBytes(user_dek, &dec)) {
+    return absl::InvalidArgumentError(
+        "user_dek must be a 32 byte key in hex string format");
+  }
+  SecretData to_split = SecretData(*user_private_key);
+  if (double_wrap) {
+    absl::StatusOr<std::string> wrapped_user_secret =
+        privacy_sandbox::crypto::Encrypt(SecretData(dec), *user_private_key,
+                                         privacy_sandbox::crypto::kSecretAd);
+    if (!wrapped_user_secret.ok()) return wrapped_user_secret.status();
+    to_split = SecretData(*wrapped_user_secret);
+  }
   absl::StatusOr<std::vector<SecretData>> shares =
-      SplitSecret(num_shares, threshold, double_wrap, *user_private_key,
-                  SecretData(user_dek));
+      SplitSecret(num_shares, threshold, to_split, double_wrap);
   if (!shares.ok()) return shares.status();
 
   if (shares->size() != spanner_databases.size()) {
@@ -937,7 +937,7 @@ absl::Status RegisterOrUpdateUserSplitTrust(
     absl::Status status = RegisterOrUpdateUserInternal(
         spanner_databases[i], kms_key_resource_names[i],
         user_authentication_public_key, user_name, user_origin,
-        *user_public_key, (*shares)[i], SecretData(user_dek), double_wrap);
+        *user_public_key, (*shares)[i]);
     if (!status.ok()) return status;
   }
   std::cout << "Public portion of secret: " << *user_public_key << "\n";
@@ -947,8 +947,7 @@ absl::Status RegisterOrUpdateUserSplitTrust(
 absl::Status RegisterOrUpdateUser(
     std::string spanner_database, std::string kms_key_resource_name,
     absl::string_view user_authentication_public_key,
-    absl::string_view user_name, absl::string_view user_origin,
-    absl::string_view user_dek) {
+    absl::string_view user_name, absl::string_view user_origin) {
   absl::StatusOr<std::unique_ptr<HPKEKey>> hpke_key = HPKEKey::Create();
   if (!hpke_key.ok()) return hpke_key.status();
   absl::StatusOr<std::string> derived_pub_key =
@@ -959,10 +958,8 @@ absl::Status RegisterOrUpdateUser(
   std::cout << "Public portion of secret: " << *derived_pub_key << "\n";
   return RegisterOrUpdateUserInternal(
       spanner_database, kms_key_resource_name, user_authentication_public_key,
-      user_name, user_origin, *derived_pub_key, *user_private_key,
-      SecretData(user_dek), (user_dek != ""));
+      user_name, user_origin, *derived_pub_key, *user_private_key);
 }
-
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -999,8 +996,7 @@ int main(int argc, char* argv[]) {
             absl::GetFlag(FLAGS_spanner_database),
             absl::GetFlag(FLAGS_key_resource_name),
             absl::GetFlag(FLAGS_user_authentication_public_key),
-            absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin),
-            absl::GetFlag(FLAGS_user_dek));
+            absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin));
         !status.ok()) {
       LOG(ERROR) << "Failed to register user: " << status;
       return 1;

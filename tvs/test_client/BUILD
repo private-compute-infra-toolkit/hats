@@ -32,7 +32,9 @@ cc_binary(
     deps =
         [
             ":tvs-untrusted-client",
+            "//crypto:aead-crypter",
             "//crypto:bridge",
+            "//crypto:secret-data",
             "//tvs/credentials",
             "@com_github_grpc_grpc//:grpc++",
             "@com_google_absl//absl/flags:flag",
@@ -44,6 +46,7 @@ cc_binary(
             "@com_google_absl//absl/strings",
             "@com_google_protobuf//:protobuf",
             "@com_google_protobuf//src/google/protobuf/io",
+            "@hats_crate_index//:hex",
         ],
 )
 
