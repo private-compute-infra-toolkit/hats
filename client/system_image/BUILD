@@ -44,7 +44,7 @@ pkg_tar(
         # Build syslogd only if the user specifically enabled it
         # oak_containers_syslogd requires libsystemd.so during the
         # build, which might not exists.
-        "//:syslogd_from_source": ["@oak//oak_container/syslogd:oak_containers_syslogd"],
+        "//:syslogd_from_source": ["@oak//oak_containers_syslogd"],
         "//conditions:default": [],
     }),
     package_dir = "/usr/bin/",

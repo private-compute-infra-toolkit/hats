@@ -47,7 +47,7 @@ struct Args {
     // For local testing, pass in the path to a file containing the tvs keys in the following format:
     // tvs_id1:tvs_public_key1 (0:1234567890abcde)
     // tvs_id2:tvs_public_key2 (1:abcde1234567890)
-    #[arg(long, default_value = "/hats/tvs_public_keys")]
+    #[arg(long, default_value = "/hats/tvs_public_keys.txt")]
     tvs_public_keys_file: String,
 }
 
