@@ -47,5 +47,5 @@ build_launch_bundle \
   "$PREBUILT_DIR/bzImage" \
   "$PREBUILT_DIR/hats_system_image.tar.xz" \
   "$PREBUILT_DIR/oak_container_example_oci_filesystem_bundle.tar" \
-  "../../tvs/appraisal_policies/kernel-cmd-line-only1.prototext"  \
+  "../../tvs/appraisal_policies/kernel-cmd-line-only1.textproto" \
   "./launcher_configs/launcher_config_port_forwarding.textproto"

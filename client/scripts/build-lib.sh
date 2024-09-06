@@ -230,7 +230,7 @@ function build_launch_bundle() {
   mv -f "$KERNEL" "$TAR_DIR/kernel_bin"
   mv -f "$SYSTEM" "$TAR_DIR/system.tar.xz"
   tar -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
-  mv "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
+  mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
   cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.prototext"
   cp "$APPRISAL_POLICY" "$BUILD_DIR/apprisal_policy.prototext"
   # Init script to generate fake test keys.
