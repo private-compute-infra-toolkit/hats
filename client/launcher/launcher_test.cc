@@ -86,7 +86,7 @@ absl::StatusOr<LauncherConfig> ParseLauncherConfigFromFile(
   return config;
 }
 
-TEST(HatsLauncherTest, Successful) {
+TEST(HatsLauncher, Successful) {
   // Ensure that the folders are correctly generated and QEMU process is
   // correctly spanwed.
   absl::StatusOr<std::string> runfile_path =
@@ -117,7 +117,7 @@ TEST(HatsLauncherTest, Successful) {
   // Bind to no port so that it works in hermetic test.
   // In this mode, we can only use in process channel.
   std::thread launcher_thread([&] {
-    ASSERT_THAT((*launcher)->Start("", "", *qemu_log), IsOk());
+    ASSERT_THAT((*launcher)->Start(*qemu_log), IsOk());
     (*launcher)->Wait();
     std::cout << "launcher shutdown" << std::endl;
   });

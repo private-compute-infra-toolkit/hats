@@ -79,18 +79,21 @@ class HatsLauncher final {
 
   // Run QEMU server and launcher service.
   // This function should be called only once to ensure server states are clean.
-  absl::Status Start(absl::string_view addr_uri, absl::string_view vsock_uri,
-                     absl::string_view qemu_log_filename)
+  absl::Status Start(absl::string_view qemu_log_filename)
       ABSL_LOCKS_EXCLUDED(mu_);
 
  private:
   HatsLauncher(
+      absl::string_view addr_uri, absl::string_view vsock_uri,
       LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
       absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
       absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
       absl::Nullable<
           std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
           parc_server);
+
+  const std::string addr_uri_;
+  const std::string vsock_uri_;
   // The external dependencies are not owned by HatsLauncher but required
   // for system health.
   const LauncherExtDeps deps_;

@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <netinet/in.h>
-#include <sys/socket.h>
-
-#include <linux/vm_sockets.h>  // VMADDR_CID_ANY
-
 #include <fstream>
 #include <iostream>
 
@@ -52,6 +47,7 @@ ABSL_FLAG(std::string, tvs_access_token, "",
 ABSL_FLAG(std::string, qemu_log_filename, "",
           "When provided, qemu will send std logs into the specific log file "
           "path instead of a randomly generated path in tmp");
+
 absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
     absl::string_view path) {
   std::ifstream file(path.data());
@@ -126,14 +122,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::string addr_uri =
-      absl::StrFormat("0.0.0.0:%d", (*config).launcher_service_port());
-  std::string vsock_uri = absl::StrFormat("vsock:%d:%d", VMADDR_CID_ANY,
-                                          (*config).launcher_service_port());
   // Generate the log file randomly.
   if (absl::Status status =
-          (*launcher)->Start(std::move(addr_uri), std::move(vsock_uri),
-                             absl::GetFlag(FLAGS_qemu_log_filename));
+          (*launcher)->Start(absl::GetFlag(FLAGS_qemu_log_filename));
       !status.ok()) {
     LOG(ERROR) << "launcher terminated with abnormal status "
                << status.message();
