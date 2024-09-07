@@ -65,6 +65,51 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "public-key-fetcher",
+    hdrs = [
+        "public-key-fetcher.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "public-key-fetcher-gcp",
+    srcs = ["public-key-fetcher-gcp.cc"],
+    hdrs = [
+        "public-key-fetcher.h",
+        "public-key-fetcher-gcp.h",
+    ],
+    deps = [
+        "//gcp_common:flags",
+        "//gcp_common:gcp-status",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@google_cloud_cpp//:spanner",
+    ],
+)
+
+cc_test(
+    name = "public-key-fetcher-gcp_test",
+    size = "small",
+    srcs = ["public-key-fetcher-gcp_test.cc"],
+    deps = [
+        ":public-key-fetcher-gcp",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@google_cloud_cpp//:spanner",
+        "@google_cloud_cpp//:spanner_mocks",
+    ],
+)
+
 cc_test(
     name = "key-fetcher-local_test",
     size = "small",

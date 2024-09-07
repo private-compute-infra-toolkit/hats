@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HATS_KEY_MANAGER_KEY_FETCHER_H_
-#define HATS_KEY_MANAGER_KEY_FETCHER_H_
+#ifndef HATS_KEY_MANAGER_PUBLIC_KEY_FETCHER_H_
+#define HATS_KEY_MANAGER_PUBLIC_KEY_FETCHER_H_
 
 #include <memory>
 #include <string>
@@ -24,28 +24,27 @@
 
 namespace privacy_sandbox::key_manager {
 
-struct Secret {
+struct PerOriginPublicKey {
   int64_t key_id;
   std::string public_key;
-  std::string private_key;
+  std::string origin;
+  bool operator==(const PerOriginPublicKey& rhs) const {
+    return key_id == rhs.key_id && public_key == rhs.public_key &&
+           origin == rhs.origin;
+  };
 };
 
-class KeyFetcher {
+// PublicKeyFetcher is not allowed to talk to KMS.
+class PublicKeyFetcher {
  public:
-  static std::unique_ptr<KeyFetcher> Create();
-  virtual ~KeyFetcher() = default;
-  // The primary private key used for the noise protocol.
-  virtual absl::StatusOr<std::string> GetPrimaryPrivateKey() = 0;
-  // The secondary private key used for the noise protocol.
-  virtual absl::StatusOr<std::string> GetSecondaryPrivateKey() = 0;
-  // Find the user id owning the authentication key.
-  virtual absl::StatusOr<int64_t> UserIdForAuthenticationKey(
-      absl::string_view public_key) = 0;
-  // Find secrets for `user_id`.
-  virtual absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
-      int64_t user_id) = 0;
+  static std::unique_ptr<PublicKeyFetcher> Create();
+  virtual ~PublicKeyFetcher() = default;
+  // Fetch the last public keys for each user ordered by Secret
+  // UpdateTimestamp.
+  virtual absl::StatusOr<std::vector<PerOriginPublicKey>>
+  GetLatestPublicKeys() = 0;
 };
 
 }  // namespace privacy_sandbox::key_manager
 
-#endif  // HATS_KEY_MANAGER_KEY_FETCHER_H_
+#endif  // HATS_KEY_MANAGER_PUBLIC_KEY_FETCHER_H_
