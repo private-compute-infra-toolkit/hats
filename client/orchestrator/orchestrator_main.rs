@@ -43,7 +43,7 @@ struct Args {
     #[arg(long, default_value = "")]
     tvs_public_key: String,
 
-    #[arg(default_value = "http://10.0.2.100:8889")]
+    #[arg(default_value = "http://10.0.2.100:8080")]
     hats_launcher_addr: String,
 
     // For local testing, pass in the path to a file containing the tvs keys in the following format:
