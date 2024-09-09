@@ -11,6 +11,7 @@ cc_binary(
         "//crypto:secret-data",
         "//gcp_common:gcp-status",
         "//key_manager:gcp-kms-client",
+        "//tvs/proto:appraisal_policies_cc_proto",
         "@boringssl//:crypto",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -21,7 +22,6 @@ cc_binary(
         "@com_google_protobuf//:protobuf",
         "@com_google_protobuf//src/google/protobuf/io",
         "@google_cloud_cpp//:spanner",
-        "@oak//proto/attestation:reference_value_cc_proto",
     ],
 )
 

@@ -84,7 +84,7 @@
 #include "openssl/ec_key.h"
 #include "openssl/hpke.h"
 #include "openssl/nid.h"
-#include "proto/attestation/reference_value.pb.h"
+#include "tvs/proto/appraisal_policies.pb.h"
 
 ABSL_FLAG(std::string, operation, "create_database",
           "Describe the operation to be done. Valid values are: "
@@ -540,15 +540,16 @@ absl::Status CreateTvsKeys(absl::string_view spanner_database,
   return absl::OkStatus();
 }
 
-absl::StatusOr<oak::attestation::v1::ReferenceValues> ReadAppraisalPolicy(
-    absl::string_view filename) {
+absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies::SignedAppraisalPolicy>
+ReadAppraisalPolicy(absl::string_view filename) {
   std::ifstream if_stream({std::string(filename)});
   if (!if_stream.is_open()) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to open: ", filename));
   }
   google::protobuf::io::IstreamInputStream istream(&if_stream);
-  oak::attestation::v1::ReferenceValues appraisal_policy;
+  privacy_sandbox::tvs::AppraisalPolicies::SignedAppraisalPolicy
+      appraisal_policy;
   if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policy)) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to parse: ", filename));
@@ -561,8 +562,8 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
   absl::StatusOr<google::cloud::spanner::Database> database =
       CreateSpannerDatabase(spanner_database);
   if (!database.ok()) return database.status();
-  absl::StatusOr<oak::attestation::v1::ReferenceValues> appraisal_policy =
-      ReadAppraisalPolicy(appraisal_policy_path);
+  absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies::SignedAppraisalPolicy>
+      appraisal_policy = ReadAppraisalPolicy(appraisal_policy_path);
   if (!appraisal_policy.ok()) return appraisal_policy.status();
 
   // Spanner client.
