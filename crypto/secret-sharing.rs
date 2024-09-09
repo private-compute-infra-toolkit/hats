@@ -27,8 +27,8 @@ pub struct SecretSharing {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Share {
-    value: BigInt,
     index: BigInt,
+    value: BigInt,
     wrapped: bool,
 }
 

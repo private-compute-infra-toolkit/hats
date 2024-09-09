@@ -46,6 +46,7 @@ rust_binary(
     name = "key-gen",
     srcs = ["key-gen.rs"],
     deps = [
+        "//crypto:secret-sharing-noffi",
         "@enclave//crypto",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:hpke",

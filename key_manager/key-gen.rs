@@ -16,6 +16,7 @@ use clap::{Parser, ValueEnum};
 use crypto::P256Scalar;
 use hpke::{kem::X25519HkdfSha256, Kem, Serializable};
 use rand::{rngs::StdRng, SeedableRng};
+use secret_sharing::SecretSharing;
 
 #[derive(Default, Clone, ValueEnum)]
 enum KeyType {
@@ -28,6 +29,12 @@ enum KeyType {
 struct Args {
     #[arg(long, required = false, value_enum, default_value_t = KeyType::default())]
     key_type: KeyType,
+    #[arg(long, required = false, default_value = "false")]
+    split: bool,
+    #[arg(long, required = false, default_value = "3")]
+    numshares: usize,
+    #[arg(long, required = false, default_value = "2")]
+    threshold: usize,
 }
 
 fn generate_secp128r1_keypairs() -> (String, String) {
@@ -50,5 +57,21 @@ fn main() {
         KeyType::Secp128r1 => generate_secp128r1_keypairs(),
         KeyType::X25519HkdfSha256 => generate_x25519hkdfsha256_keypairs(),
     };
-    println!("Public: {}\nPrivate: {}", public_key, private_key);
+
+    if Args::parse().split {
+        let mut sham = SecretSharing {
+            numshares: Args::parse().numshares,
+            threshold: Args::parse().threshold,
+            prime: secret_sharing::get_prime(),
+        };
+        let shares = sham
+            .split(&hex::decode(private_key).unwrap(), false)
+            .unwrap();
+        println!("Public: {}", public_key);
+        for share in shares {
+            println!("Private: {:?}", share);
+        }
+    } else {
+        println!("Public: {}\nPrivate: {}", public_key, private_key);
+    }
 }
