@@ -14,7 +14,11 @@
 
 #include "public_key/public-key-server.h"
 
+#include <memory>
+#include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "absl/log/log.h"
 #include "absl/strings/escaping.h"

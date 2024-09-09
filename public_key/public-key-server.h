@@ -15,6 +15,9 @@
 #ifndef HATS_PUBLIC_KEY_PUBLIC_KEY_SERVER_H_
 #define HATS_PUBLIC_KEY_PUBLIC_KEY_SERVER_H_
 
+#include <memory>
+#include <string>
+
 #include "google/protobuf/empty.pb.h"
 #include "key_manager/public-key-fetcher.h"
 #include "public_key/proto/public_key_service.grpc.pb.h"

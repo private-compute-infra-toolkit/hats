@@ -31,7 +31,7 @@ struct PerOriginPublicKey {
   bool operator==(const PerOriginPublicKey& rhs) const {
     return key_id == rhs.key_id && public_key == rhs.public_key &&
            origin == rhs.origin;
-  };
+  }
 };
 
 // PublicKeyFetcher is not allowed to talk to KMS.

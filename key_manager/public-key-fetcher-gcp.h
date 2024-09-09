@@ -43,7 +43,7 @@ class PublicKeyFetcherGcp : public PublicKeyFetcher {
 
  private:
   // For unit-tests only.
-  PublicKeyFetcherGcp(google::cloud::spanner::Client spanner_client);
+  explicit PublicKeyFetcherGcp(google::cloud::spanner::Client spanner_client);
 
   google::cloud::spanner::Client spanner_client_;
 };
