@@ -98,6 +98,7 @@ cc_library(
     hdrs = ["launcher.h"],
     deps = [
         ":launcher-server",
+        ":logs-service",
         ":qemu",
         "//client/proto:launcher_config_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
@@ -274,5 +275,33 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@cpp-httplib//:cpp-httplib",
+    ],
+)
+
+cc_library(
+    name = "logs-service",
+    srcs = ["logs-service.cc"],
+    hdrs = ["logs-service.h"],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@opentelemetry-proto//:logs_proto_cc",
+        "@opentelemetry-proto//:logs_service_grpc_cc",
+        "@opentelemetry-proto//:logs_service_proto_cc",
+    ],
+)
+
+cc_test(
+    name = "logs-service_test",
+    srcs = ["logs-service_test.cc"],
+    deps = [
+        ":logs-service",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/log:scoped_mock_log",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_protobuf//:protobuf",
+        "@opentelemetry-proto//:logs_service_grpc_cc",
+        "@opentelemetry-proto//:logs_service_proto_cc",
     ],
 )

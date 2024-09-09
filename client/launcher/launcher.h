@@ -23,6 +23,7 @@
 #include "absl/flags/declare.h"
 #include "absl/strings/string_view.h"
 #include "client/launcher/launcher-server.h"
+#include "client/launcher/logs-service.h"
 #include "client/launcher/qemu.h"
 #include "client/proto/launcher_config.pb.h"
 #include "external/google_privacysandbox_servers_common/src/parc/servers/local/parc_server.h"
@@ -111,6 +112,7 @@ class HatsLauncher final {
   // The mutex is only for controlling access to started_.
   mutable absl::Mutex mu_;
   bool started_ ABSL_GUARDED_BY(mu_) = false;
+  LogsService logs_service_;
 };
 }  // namespace privacy_sandbox::client
 
