@@ -18,7 +18,6 @@ use hats_server::proto::privacy_sandbox::tvs::{Secret, VerifyReportResponse};
 use oak_containers_orchestrator::{
     crypto::generate_instance_keys, launcher_client::LauncherClient,
 };
-use oak_proto_rust::oak::containers::v1::KeyProvisioningRole;
 use prost::Message;
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
@@ -125,21 +124,12 @@ async fn main() -> anyhow::Result<()> {
             .map_err(|error| anyhow!("couldn't create client: {:?}", error))?,
     );
 
-    // Get key provisioning role.
-    let key_provisioning_role = launcher_client
-        .get_key_provisioning_role()
-        .await
-        .map_err(|error| anyhow!("couldn't get key provisioning role: {:?}", error))?;
-
     // Generate application keys.
     let (instance_keys, instance_public_keys) = generate_instance_keys();
-    let (mut group_keys, group_public_keys) =
-        if key_provisioning_role == KeyProvisioningRole::Leader {
-            let (group_keys, group_public_keys) = instance_keys.generate_group_keys();
-            (Some(Arc::new(group_keys)), Some(group_public_keys))
-        } else {
-            (None, None)
-        };
+    let (group_keys, group_public_keys) = {
+        let (group_keys, group_public_keys) = instance_keys.generate_group_keys();
+        (Some(Arc::new(group_keys)), Some(group_public_keys))
+    };
 
     // Load application.
     let container_bundle = launcher_client
@@ -173,18 +163,6 @@ async fn main() -> anyhow::Result<()> {
         .send_attestation_evidence(evidence.clone())
         .await
         .map_err(|error| anyhow!("couldn't send attestation evidence: {:?}", error))?;
-
-    // Request group keys.
-    if key_provisioning_role == KeyProvisioningRole::Follower {
-        let get_group_keys_response = launcher_client
-            .get_group_keys()
-            .await
-            .map_err(|error| anyhow!("couldn't get group keys: {:?}", error))?;
-        let provisioned_group_keys = instance_keys
-            .provide_group_keys(get_group_keys_response)
-            .context("couldn't provide group keys")?;
-        group_keys = Some(Arc::new(provisioned_group_keys));
-    }
 
     if let Some(path) = args.ipc_socket_path.parent() {
         tokio::fs::create_dir_all(path).await?;
