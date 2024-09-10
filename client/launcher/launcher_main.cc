@@ -96,11 +96,12 @@ int main(int argc, char* argv[]) {
   int64_t tvs_id = 0;
   for (const std::string& tvs_address : absl::GetFlag(FLAGS_tvs_addresses)) {
     absl::StatusOr<std::shared_ptr<grpc::Channel>> tvs_channel =
-        privacy_sandbox::tvs::CreateGrpcChannel(privacy_sandbox::tvs::CreateGrpcChannelOptions{
-        .use_tls = absl::GetFlag(FLAGS_use_tls),
-        .target = tvs_address,
-        .access_token = absl::GetFlag(FLAGS_tvs_access_token),
-    });
+        privacy_sandbox::tvs::CreateGrpcChannel(
+            privacy_sandbox::tvs::CreateGrpcChannelOptions{
+                .use_tls = absl::GetFlag(FLAGS_use_tls),
+                .target = tvs_address,
+                .access_token = absl::GetFlag(FLAGS_tvs_access_token),
+            });
     if (!tvs_channel.ok()) {
       LOG(ERROR) << "Failed to establish gRPC channel to TVS server"
                  << tvs_channel.status();

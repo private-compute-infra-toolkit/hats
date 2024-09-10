@@ -292,6 +292,7 @@ cc_library(
 
 cc_test(
     name = "logs-service_test",
+    size = "small",
     srcs = ["logs-service_test.cc"],
     deps = [
         ":logs-service",
