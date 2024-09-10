@@ -69,7 +69,11 @@ fn main() {
             .unwrap();
         println!("Public: {}", public_key);
         for share in shares {
-            println!("Private: {:?}", share);
+            println!(
+                "Share[{}]: {}",
+                share.index,
+                hex::encode(serde_json::to_string(&share).unwrap())
+            );
         }
     } else {
         println!("Public: {}\nPrivate: {}", public_key, private_key);

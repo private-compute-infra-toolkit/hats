@@ -16,7 +16,7 @@ extern crate alloc;
 use anyhow::Result;
 use bssl_crypto::hpke;
 use num_bigint::{BigInt, RandBigInt, Sign};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct SecretSharing {
@@ -25,10 +25,10 @@ pub struct SecretSharing {
     pub prime: BigInt,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Share {
-    index: BigInt,
-    value: BigInt,
+    pub index: usize,
+    value: Vec<u8>,
     wrapped: bool,
 }
 
@@ -101,12 +101,14 @@ pub fn split_wrap(
 
     let mut serialized_shares: Vec<String> = Vec::new();
     for share in shares {
-        let serialized_share = serde_json::json!({
-            "value": share.value,
-            "index": share.index,
-            "wrapped": share.wrapped,
-        });
-        serialized_shares.push(serialized_share.to_string());
+        if let Ok(ser_share) = serde_json::to_string(&share) {
+            serialized_shares.push(ser_share);
+        } else {
+            return ffi::VecStringResult {
+                value: vec![],
+                error: "Error splitting secret".to_string(),
+            };
+        }
     }
     ffi::VecStringResult {
         value: serialized_shares,
@@ -158,7 +160,7 @@ pub fn get_valid_private_key() -> Vec<u8> {
     private.to_vec()
 }
 
-fn eval(poly: Vec<BigInt>, x: usize, prime: &BigInt) -> BigInt {
+fn eval(poly: Vec<BigInt>, x: usize, prime: &BigInt) -> Vec<u8> {
     let x_b: BigInt = BigInt::from(x);
     let mut total: BigInt = BigInt::from(0u32);
     for coeff in poly.into_iter().rev() {
@@ -166,24 +168,29 @@ fn eval(poly: Vec<BigInt>, x: usize, prime: &BigInt) -> BigInt {
         total += coeff;
         total %= prime;
     }
-    total
+    total.to_bytes_be().1
 }
 
-fn interpolate(indices: Vec<BigInt>, shares: Vec<BigInt>, prime: &BigInt) -> BigInt {
+fn interpolate(indices: Vec<usize>, shares: Vec<Vec<u8>>, prime: &BigInt) -> BigInt {
     let x = BigInt::from(0);
     let mut sum = BigInt::from(0);
+    let shares_bi: Vec<BigInt> = shares
+        .iter()
+        .map(|x| BigInt::from_bytes_be(Sign::Plus, x))
+        .collect();
+    let indices_bi: Vec<BigInt> = indices.iter().map(|x| BigInt::from(*x)).collect();
     for i in 0..shares.len() {
         let mut num = BigInt::from(1);
         let mut denom = BigInt::from(1);
         for j in 0..shares.len() {
             if i != j {
-                num = num * (&x - &indices[j]) % prime;
-                denom = denom * (&indices[i] - &indices[j]) % prime;
+                num = num * (&x - &indices_bi[j]) % prime;
+                denom = denom * (&indices_bi[i] - &indices_bi[j]) % prime;
             }
         }
         denom = ((denom % prime) + prime) % prime;
         denom = mod_inv(denom, prime.clone());
-        sum = (sum + num * denom * &shares[i]) % prime;
+        sum = (sum + num * denom * &shares_bi[i]) % prime;
     }
     sum
 }
@@ -244,7 +251,7 @@ impl SecretSharing {
         for x in 1..=self.numshares {
             output.push(Share {
                 value: eval(poly.clone(), x, &self.prime),
-                index: BigInt::from(x),
+                index: x,
                 wrapped: wrapped,
             });
         }
@@ -255,8 +262,8 @@ impl SecretSharing {
         if shares.len() < self.threshold.try_into().unwrap() {
             return Err(Error::BelowThreshold);
         }
-        let mut indices: Vec<BigInt> = Vec::new();
-        let mut share: Vec<BigInt> = Vec::new();
+        let mut indices: Vec<usize> = Vec::new();
+        let mut share: Vec<Vec<u8>> = Vec::new();
         for i in 0..self.threshold.clone() {
             indices.push(shares[i].index.clone());
             share.push(shares[i].value.clone());

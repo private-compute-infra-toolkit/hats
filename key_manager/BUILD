@@ -51,6 +51,7 @@ rust_binary(
         "@hats_crate_index//:hex",
         "@hats_crate_index//:hpke",
         "@hats_crate_index//:rand",
+        "@hats_crate_index//:serde_json",
         "@oak_crates_index//:clap",
     ],
 )
