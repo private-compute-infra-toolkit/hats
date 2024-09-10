@@ -87,31 +87,26 @@ int main(int argc, char* argv[]) {
                << config.status();
     return 1;
   }
+
   privacy_sandbox::client::HatsLauncherConfig hats_config{
       .config = *std::move(config),
       .tvs_authentication_key_bytes = std::move(tvs_authentication_key_bytes)};
-  std::unordered_map<int64_t, privacy_sandbox::tvs::CreateGrpcChannelOptions>
-      grpc_channel_map;
-  int64_t i = 0;
+
+  std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
+  int64_t tvs_id = 0;
   for (const std::string& tvs_address : absl::GetFlag(FLAGS_tvs_addresses)) {
-    privacy_sandbox::tvs::CreateGrpcChannelOptions options({
+    absl::StatusOr<std::shared_ptr<grpc::Channel>> tvs_channel =
+        privacy_sandbox::tvs::CreateGrpcChannel(privacy_sandbox::tvs::CreateGrpcChannelOptions{
         .use_tls = absl::GetFlag(FLAGS_use_tls),
         .target = tvs_address,
         .access_token = absl::GetFlag(FLAGS_tvs_access_token),
     });
-    grpc_channel_map[i] = options;
-  }
-
-  std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  for (auto const& [tvs_id, options] : grpc_channel_map) {
-    absl::StatusOr<std::shared_ptr<grpc::Channel>> tvs_channel =
-        privacy_sandbox::tvs::CreateGrpcChannel(std::move(options));
     if (!tvs_channel.ok()) {
       LOG(ERROR) << "Failed to establish gRPC channel to TVS server"
                  << tvs_channel.status();
       return 1;
     }
-    channel_map[tvs_id] = *std::move(tvs_channel);
+    channel_map[tvs_id++] = *std::move(tvs_channel);
   }
 
   absl::StatusOr<std::unique_ptr<privacy_sandbox::client::HatsLauncher>>
