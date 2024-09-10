@@ -15,9 +15,11 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
 use hats_server::proto::privacy_sandbox::tvs::{Secret, VerifyReportResponse};
+use oak_containers_orchestrator::ipc_server::create_services;
 use oak_containers_orchestrator::{
     crypto::generate_instance_keys, launcher_client::LauncherClient,
 };
+use oak_proto_rust::oak::attestation::v1::{endorsements, Endorsements, OakContainersEndorsements};
 use prost::Message;
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
@@ -181,6 +183,29 @@ async fn main() -> anyhow::Result<()> {
             .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?
     }
 
+    let endorsements = Endorsements {
+        r#type: Some(endorsements::Type::OakContainers(
+            OakContainersEndorsements {
+                root_layer: None,
+                kernel_layer: None,
+                system_layer: None,
+                container_layer: None,
+            },
+        )),
+    };
+    let (oak_orchestrator_server, oak_crypto_server) = create_services(
+        evidence,
+        endorsements,
+        instance_keys,
+        group_keys
+            .clone()
+            .context("group keys were not provisioned")?,
+        /*application_config=*/ vec![],
+        launcher_client,
+    )
+    .await
+    .map_err(|error| anyhow!("couldn't get oak servers {:?}", error))?;
+
     // Start application and gRPC servers.
     let user = nix::unistd::User::from_name(&args.runtime_user)
         .context(format!("error resolving user {}", args.runtime_user))?
@@ -189,7 +214,9 @@ async fn main() -> anyhow::Result<()> {
     tokio::try_join!(
         oak_containers_orchestrator::key_provisioning::create(
             &args.orchestrator_addr,
-            group_keys.context("group keys were not provisioned")?,
+            group_keys
+                .clone()
+                .context("group keys were not provisioned")?,
             cancellation_token.clone(),
         ),
         oak_containers_orchestrator::container_runtime::run(
@@ -200,8 +227,13 @@ async fn main() -> anyhow::Result<()> {
             &args.ipc_socket_path,
             cancellation_token.clone(),
         ),
-        // this is the old launcher
-        hats_server::create(&args.ipc_socket_path, &encoded_report, cancellation_token),
+        hats_server::create_services(
+            &args.ipc_socket_path,
+            oak_orchestrator_server,
+            oak_crypto_server,
+            &encoded_report,
+            cancellation_token
+        ),
     )?;
     Ok(())
 }

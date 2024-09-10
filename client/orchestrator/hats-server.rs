@@ -18,6 +18,10 @@ use crate::proto::privacy_sandbox::server_common::hats_orchestrator_server::{
 use crate::proto::privacy_sandbox::server_common::{GetKeysResponse, Key};
 use crate::proto::privacy_sandbox::tvs::VerifyReportResponse;
 use anyhow::Context;
+use oak_containers_orchestrator::crypto::CryptoService;
+use oak_containers_orchestrator::ipc_server::ServiceImplementation;
+use oak_grpc::oak::containers::orchestrator_server::OrchestratorServer;
+use oak_grpc::oak::containers::v1::orchestrator_crypto_server::OrchestratorCryptoServer;
 use prost::Message;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
@@ -63,21 +67,23 @@ impl HatsOrchestrator for HatsServer {
     }
 }
 
-pub async fn create(
+pub async fn create_services(
     path: &PathBuf,
+    oak_orchestrator_server: OrchestratorServer<ServiceImplementation>,
+    oak_crypto_server: OrchestratorCryptoServer<CryptoService>,
     secrets: &[u8],
     cancellation_token: CancellationToken,
 ) -> Result<(), anyhow::Error> {
-    // TODO(alwabel): export oak crypto service.
     let uds = UnixListener::bind(path.clone()).context("failed to bind uds")?;
     let uds_stream = UnixListenerStream::new(uds);
     set_permissions(path, Permissions::from_mode(0o666)).await?;
     // Decode TVS response.
     let response = VerifyReportResponse::decode(secrets)?;
     let hat_server = HatsServer { response: response };
-
     Server::builder()
         .add_service(HatsOrchestratorServer::new(hat_server))
+        .add_service(oak_orchestrator_server)
+        .add_service(oak_crypto_server)
         .serve_with_incoming_shutdown(uds_stream, cancellation_token.cancelled())
         .await?;
 

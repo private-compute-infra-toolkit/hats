@@ -135,7 +135,9 @@ rust_library(
     srcs = ["hats-server.rs"],
     deps = [
         ":build",
+        "@oak//oak_containers/orchestrator:lib",
         "@oak//oak_proto_rust",
+        "@oak//oak_proto_rust/grpc",
         "@oak_crates_index//:anyhow",
         "@oak_crates_index//:prost",
         "@oak_crates_index//:prost-types",
@@ -153,7 +155,9 @@ rust_test(
     deps = [
         ":build-for-test",
         ":hats-server",
+        "@oak//oak_containers/orchestrator:lib",
         "@oak//oak_proto_rust",
+        "@oak//oak_proto_rust/grpc",
         "@oak_crates_index//:anyhow",
         "@oak_crates_index//:futures",
         "@oak_crates_index//:prost",
