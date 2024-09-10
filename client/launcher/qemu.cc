@@ -321,7 +321,7 @@ absl::Status Qemu::Start(absl::string_view log_filename) {
     LOG(INFO) << "Writing to existing Log file: '" << log_filename_ << "'";
   } else {
     char log_file_template[] = "/tmp/hatsXXXXXX";
-    int file_descriptor = mkstemp(log_file_template);
+    file_descriptor = mkstemp(log_file_template);
     if (file_descriptor == -1) {
       return absl::FailedPreconditionError(
           absl::StrCat("mkstemp() failed: ", strerror(errno)));
@@ -342,27 +342,28 @@ absl::Status Qemu::Start(absl::string_view log_filename) {
   }
 
   // Redirect stdout and stderr to `log_filename_`.
-  if (int r =
-          posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 1);
+  if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
+                                               STDOUT_FILENO);
       r != 0) {
     ClosePosixObjects(file_actions, attr);
-    return absl::FailedPreconditionError(
-        "posix_spawn_file_actions_adddup2() failed.");
+    return absl::FailedPreconditionError(absl::StrCat(
+        "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
   }
   if (int r =
           posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 2);
       r != 0) {
     ClosePosixObjects(file_actions, attr);
-    return absl::FailedPreconditionError(
-        "posix_spawn_file_actions_adddup2() failed.");
+    return absl::FailedPreconditionError(absl::StrCat(
+        "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
   }
   if (int r =
           posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 0);
       r != 0) {
     ClosePosixObjects(file_actions, attr);
-    return absl::FailedPreconditionError(
-        "posix_spawn_file_actions_adddup2() failed.");
+    return absl::FailedPreconditionError(absl::StrCat(
+        "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
   }
+
   auto argv = std::unique_ptr<const char*[]>(new const char*[args_.size() + 2]);
   // posix_spawn , similar to execvp, expects all arguments including the
   // binary name in an array of c-strings. The array is terminated with
