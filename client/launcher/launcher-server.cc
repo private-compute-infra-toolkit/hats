@@ -44,6 +44,7 @@
 namespace privacy_sandbox::client {
 
 namespace {
+
 grpc::Status StreamFile(
     const grpc::ServerContext& context, absl::string_view image_path,
     const size_t chunk_size,
@@ -75,6 +76,7 @@ grpc::Status StreamFile(
   input_stream.close();
   return grpc::Status::OK;
 }
+
 }  // namespace
 
 LauncherOakServer::LauncherOakServer(absl::string_view oak_system_image,
@@ -112,7 +114,7 @@ grpc::Status LauncherOakServer::SendAttestationEvidence(
     grpc::ServerContext* context,
     const oak::containers::SendAttestationEvidenceRequest* request,
     google::protobuf::Empty* response) {
-  return grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "");
+  return grpc::Status::OK;
 }
 
 grpc::Status LauncherOakServer::NotifyAppReady(

@@ -136,17 +136,11 @@ async fn main() -> anyhow::Result<()> {
         .get_container_bundle()
         .await
         .map_err(|error| anyhow!("couldn't get container bundle: {:?}", error))?;
-    let application_config = launcher_client
-        .get_application_config()
-        .await
-        .map_err(|error| anyhow!("couldn't get application config: {:?}", error))?;
 
     // Generate attestation evidence and send it to the Hostlib.
     let dice_builder = oak_containers_orchestrator::dice::load_stage1_dice_data()?;
-    let additional_claims = oak_containers_orchestrator::dice::measure_container_and_config(
-        &container_bundle,
-        &application_config,
-    );
+    let additional_claims =
+        oak_containers_orchestrator::dice::measure_container_and_config(&container_bundle, &[]);
     let evidence = dice_builder.add_application_keys(
         additional_claims,
         &instance_public_keys.encryption_public_key,
