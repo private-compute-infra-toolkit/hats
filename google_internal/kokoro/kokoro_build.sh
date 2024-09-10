@@ -40,12 +40,9 @@ which bazel
 KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 
 # Apply patch
-cd "${KOKORO_HATS_DIR}/submodules/common"
-git apply ../../patches/parc/parc.patch
-
-# Patch WORKSPACE to use `google_privacysandbox_servers_common` from a local path.
 cd "${KOKORO_HATS_DIR}"
-perl -i -pe 'BEGIN{undef $/;} s/git_repository\(\n[\s\t]*name = \"google_privacysandbox_servers_common\",\n[\s\t]*commit = \"[^\"]+\",\n([\s\t]*patches = \[\n([\s\t]*\"[^\"]+\",)+\n[\s\t]*\],)\n[\s\t]*remote = \"sso[^\"]+\",\n\)/local_repository\(\n\tname = \"google_privacysandbox_servers_common\",\n\tpath = \"submodules\/common"\n)/smg' WORKSPACE
+source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
+patches::apply_common
 
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 
