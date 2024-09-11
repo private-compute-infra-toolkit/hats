@@ -15,5 +15,5 @@
 	url = https://github.com/privacysandbox/build-system
 [submodule "submodules/common"]
 	path = submodules/common
-	url = rpc://team/privacy-sandbox-team/servers/common
+	url = sso://team/privacy-sandbox-team/servers/common
 	branch = parc

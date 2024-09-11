@@ -185,7 +185,7 @@ git_repository(
     patches = [
         "//patches/parc:parc.patch",
     ],
-    remote = "rpc://team/privacy-sandbox-team/servers/common",
+    remote = "sso://team/privacy-sandbox-team/servers/common",
 )
 
 load("@google_privacysandbox_servers_common//third_party:cpp_deps.bzl", parc_cpp_dep = "cpp_dependencies")
