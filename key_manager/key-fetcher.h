@@ -44,6 +44,9 @@ class KeyFetcher {
   // Find secrets for `user_id`.
   virtual absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
       int64_t user_id) = 0;
+  // Returns true iff the lock was successfully acquired and it's OK to proceed
+  // with key generation.
+  virtual absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) = 0;
 };
 
 }  // namespace privacy_sandbox::key_manager

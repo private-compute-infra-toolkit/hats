@@ -118,6 +118,8 @@ class KeyFetcherLocal : public KeyFetcher {
     }};
   }
 
+  absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) { return false; }
+
  private:
   const std::string primary_private_key_;
   const std::string secondary_private_key_;

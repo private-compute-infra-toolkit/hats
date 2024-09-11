@@ -50,6 +50,8 @@ class KeyFetcherGcp : public KeyFetcher {
   absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
       int64_t user_id) override;
 
+  absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) override;
+
  private:
   // For unit-tests only.
   KeyFetcherGcp(google::cloud::kms_v1::v2_29::KeyManagementServiceClient client,
