@@ -137,7 +137,7 @@ absl::StatusOr<crypto::SecretData> UnwrapSecret(
 }  // namespace
 
 KeyFetcherGcp::KeyFetcherGcp(
-    google::cloud::kms_v1::v2_25::KeyManagementServiceClient gcp_kms_client,
+    google::cloud::kms_v1::v2_29::KeyManagementServiceClient gcp_kms_client,
     google::cloud::spanner::Client spanner_client)
     : gcp_kms_client_(google::cloud::kms_v1::KeyManagementServiceClient(
           std::move(gcp_kms_client))),
@@ -224,7 +224,7 @@ absl::StatusOr<std::vector<Secret>> KeyFetcherGcp::GetSecretsForUserId(
 }
 
 std::unique_ptr<KeyFetcher> KeyFetcherGcp::Create(
-    google::cloud::kms_v1::v2_25::KeyManagementServiceClient gcp_kms_client,
+    google::cloud::kms_v1::v2_29::KeyManagementServiceClient gcp_kms_client,
     google::cloud::spanner::Client spanner_client) {
   // The constructor is private so we use WrapUnique.
   return absl::WrapUnique(

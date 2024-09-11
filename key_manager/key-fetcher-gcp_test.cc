@@ -45,7 +45,7 @@ using ::testing::UnorderedElementsAre;
 // name and ciphertext, the encryption key is returned; otherwise and error is
 // returned.
 class TestKeyManagementServiceConnection
-    : public google::cloud::kms_v1::v2_25::KeyManagementServiceConnection {
+    : public google::cloud::kms_v1::v2_29::KeyManagementServiceConnection {
  public:
   TestKeyManagementServiceConnection(absl::string_view expected_resource_name,
                                      absl::string_view expected_ciphertext,
@@ -54,7 +54,7 @@ class TestKeyManagementServiceConnection
         expected_ciphertext_(expected_ciphertext),
         dek_(dek) {}
 
-  google::cloud::v2_25::StatusOr<google::cloud::kms::v1::DecryptResponse>
+  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::DecryptResponse>
   Decrypt(const google::cloud::kms::v1::DecryptRequest& request) override {
     google::cloud::kms::v1::DecryptResponse response;
     if (request.name() == expected_resource_name_ &&
@@ -82,7 +82,7 @@ TEST(KeyFetcherGcp, GetPrimaryPrivateKey) {
   constexpr absl::string_view kCiphertext = "test_dek_primary";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, dek);
-  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -161,7 +161,7 @@ TEST(KeyFetcherGcp, GetSecondaryPrimaryKey) {
   constexpr absl::string_view kCiphertext = "test_dek_secondary";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, dek);
-  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -236,7 +236,7 @@ TEST(KeyFetcherGcp, UserIdForAuthenticationKey) {
   crypto::SecretData dek(5);
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       /*expected_resource_name=*/"", /*expected_ciphertext=*/"", dek);
-  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -299,7 +299,7 @@ TEST(KeyFetcherGcp, GetSecretForUserId) {
   constexpr absl::string_view kCiphertext = "test_dek_secret";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, dek);
-  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -386,7 +386,7 @@ TEST(KeyFetcherGcp, KmsError) {
   constexpr absl::string_view kCiphertext = "test_dek_secret";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, dek);
-  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -464,7 +464,7 @@ TEST(KeyFetcherGcp, DecryptionError) {
   constexpr absl::string_view kCiphertext = "test_dek_secret";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, dek);
-  google::cloud::kms_v1::v2_25::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();

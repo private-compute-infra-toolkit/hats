@@ -35,7 +35,7 @@ class KeyFetcherGcp : public KeyFetcher {
   KeyFetcherGcp() = delete;
   // For unit-tests only.
   static std::unique_ptr<KeyFetcher> Create(
-      google::cloud::kms_v1::v2_25::KeyManagementServiceClient client,
+      google::cloud::kms_v1::v2_29::KeyManagementServiceClient client,
       google::cloud::spanner::Client spanner_client);
   KeyFetcherGcp(absl::string_view project_id, absl::string_view instance_id,
                 absl::string_view database_id);
@@ -52,7 +52,7 @@ class KeyFetcherGcp : public KeyFetcher {
 
  private:
   // For unit-tests only.
-  KeyFetcherGcp(google::cloud::kms_v1::v2_25::KeyManagementServiceClient client,
+  KeyFetcherGcp(google::cloud::kms_v1::v2_29::KeyManagementServiceClient client,
                 google::cloud::spanner::Client spanner_client);
 
   privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client_;

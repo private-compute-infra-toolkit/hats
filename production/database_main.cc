@@ -289,7 +289,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
 
   google::cloud::spanner_admin::DatabaseAdminClient client(
       google::cloud::spanner_admin::MakeDatabaseAdminConnection());
-  if (google::cloud::v2_25::StatusOr<
+  if (google::cloud::v2_29::StatusOr<
           google::spanner::admin::database::v1::Database>
           database = client.CreateDatabase(request).get();
       !database.ok()) {

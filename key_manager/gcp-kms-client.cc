@@ -35,7 +35,7 @@ namespace privacy_sandbox::key_manager {
 absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(absl::string_view key_id) {
   google::cloud::kms::v1::GetPublicKeyRequest request;
   request.set_name(key_id);
-  google::cloud::v2_25::StatusOr<google::cloud::kms::v1::PublicKey> result =
+  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::PublicKey> result =
       client_.GetPublicKey(request);
   if (!result.ok()) {
     return gcp_common::GcpToAbslStatus(result.status());
@@ -57,7 +57,7 @@ absl::StatusOr<CryptoKey> GcpKmsClient::CreateAsymmetricKey(
       google::cloud::kms::v1::
           CryptoKeyVersion_CryptoKeyVersionAlgorithm_EC_SIGN_P256_SHA256);
   *request.mutable_crypto_key() = std::move(gcp_key);
-  google::cloud::v2_25::StatusOr<google::cloud::kms::v1::CryptoKey> result =
+  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::CryptoKey> result =
       client_.CreateCryptoKey(request);
   if (!result.ok()) {
     return gcp_common::GcpToAbslStatus(result.status());
@@ -74,7 +74,7 @@ absl::StatusOr<std::string> GcpKmsClient::EncryptData(
   request.set_name(key_id);
   request.set_plaintext(plaintext);
   request.set_additional_authenticated_data(associated_data);
-  google::cloud::v2_25::StatusOr<google::cloud::kms::v1::EncryptResponse>
+  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::EncryptResponse>
       result = client_.Encrypt(request);
 
   if (!result.ok()) {
@@ -92,7 +92,7 @@ absl::StatusOr<std::string> GcpKmsClient::DecryptData(
   request.set_ciphertext(ciphertext);
   request.set_additional_authenticated_data(associated_data);
 
-  google::cloud::v2_25::StatusOr<google::cloud::kms::v1::DecryptResponse>
+  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::DecryptResponse>
       result = client_.Decrypt(request);
 
   if (!result.ok()) {
@@ -102,7 +102,7 @@ absl::StatusOr<std::string> GcpKmsClient::DecryptData(
 }
 
 GcpKmsClient::GcpKmsClient(
-    google::cloud::kms_v1::v2_25::KeyManagementServiceClient client)
+    google::cloud::kms_v1::v2_29::KeyManagementServiceClient client)
     : client_(std::move(client)) {}
 
 }  // namespace privacy_sandbox::key_manager
