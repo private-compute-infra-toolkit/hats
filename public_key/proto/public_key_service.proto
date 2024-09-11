@@ -28,6 +28,9 @@ import "google/protobuf/empty.proto";
 service PublicKeyService {
   // Fetches latest public keys from KeyService.
   rpc ListPublicKeys(google.protobuf.Empty) returns (ListPublicKeysResponse) {}
+  // RPC method to update the cloud bucket containing the public keys.
+  rpc UpdateCloudBucket(google.protobuf.Empty) returns (google.protobuf.Empty) {
+  }
 }
 
 // Response of listing public keys

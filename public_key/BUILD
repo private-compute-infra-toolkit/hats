@@ -39,6 +39,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
         "@curl",
+        "@google_cloud_cpp//:storage",
     ],
 )
 
@@ -59,5 +60,7 @@ cc_test(
         "@com_google_protobuf//:protobuf_headers",
         "@com_google_protobuf//src/google/protobuf/io",
         "@cpp-httplib//:cpp-httplib",
+        "@google_cloud_cpp//:storage_mocks",
+        "@google_cloud_cpp//google/cloud/storage:storage_client_testing",
     ],
 )
