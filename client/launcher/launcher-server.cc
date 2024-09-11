@@ -120,7 +120,7 @@ grpc::Status LauncherOakServer::SendAttestationEvidence(
 grpc::Status LauncherOakServer::NotifyAppReady(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     google::protobuf::Empty* response) {
-  return grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "");
+  return grpc::Status::OK;
 }
 
 LauncherServer::LauncherServer(
@@ -129,7 +129,7 @@ LauncherServer::LauncherServer(
     const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
         channel_map)
     : tvs_authentication_key_(tvs_authentication_key),
-      private_key_wrapping_keys_(private_key_wrapping_keys){
+      private_key_wrapping_keys_(private_key_wrapping_keys) {
   for (auto const& [tvs_id, channel] : channel_map) {
     stubs_[tvs_id] = tvs::TeeVerificationService::NewStub(channel);
   }

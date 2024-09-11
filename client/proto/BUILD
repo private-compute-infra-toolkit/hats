@@ -58,3 +58,24 @@ cc_grpc_library(
     tags = ["grpc"],
     deps = [":orchestrator_cc_proto"],
 )
+
+proto_library(
+    name = "trusted_service_proto",
+    srcs = ["trusted_service.proto"],
+    deps = [
+        "@com_google_protobuf//:empty_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "trusted_service_cc_proto",
+    deps = ["trusted_service_proto"],
+)
+
+cc_grpc_library(
+    name = "trusted_service_cc_grpc",
+    srcs = [":trusted_service_proto"],
+    grpc_only = True,
+    tags = ["grpc"],
+    deps = [":trusted_service_cc_proto"],
+)
