@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 
+#include "google/cloud/storage/client.h"
 #include "google/protobuf/empty.pb.h"
 #include "key_manager/public-key-fetcher.h"
 #include "public_key/proto/public_key_service.grpc.pb.h"
@@ -29,6 +30,8 @@ struct PublicKeyServerOptions {
   int port;
   std::string aws_key_endpoint;
   std::string gcp_key_endpoint;
+  // Bucket storing the public key json file distributed to all clients.
+  std::string gcp_cloud_bucket_name;
 };
 
 class PublicKeyServer final : public PublicKeyService::Service {
@@ -36,15 +39,20 @@ class PublicKeyServer final : public PublicKeyService::Service {
   PublicKeyServer() = delete;
   PublicKeyServer(
       const PublicKeyServerOptions& options,
-      std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> fetcher);
+      std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> fetcher,
+      google::cloud::storage::Client bucket_client);
   grpc::Status ListPublicKeys(grpc::ServerContext* context,
                               const google::protobuf::Empty* request,
                               ListPublicKeysResponse* response) override;
+  grpc::Status UpdateCloudBucket(grpc::ServerContext* context,
+                                 const google::protobuf::Empty* request,
+                                 google::protobuf::Empty* response) override;
 
  private:
   const PublicKeyServerOptions options_;
   const std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher>
       fetcher_;
+  google::cloud::storage::Client bucket_client_;
 };
 
 void CreateAndStartPublicKeyServer(

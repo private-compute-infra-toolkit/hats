@@ -146,10 +146,37 @@ grpc::Status PublicKeyServer::ListPublicKeys(
   return grpc::Status::OK;
 }
 
+grpc::Status PublicKeyServer::UpdateCloudBucket(
+    grpc::ServerContext* context, const google::protobuf::Empty* request,
+    google::protobuf::Empty* response) {
+  ListPublicKeysResponse list_response;
+  grpc::Status list_keys_status =
+      ListPublicKeys(context, request, &list_response);
+  if (!list_keys_status.ok()) return list_keys_status;
+
+  std::string json;
+  if (!google::protobuf::util::MessageToJsonString(list_response, &json).ok())
+    return grpc::Status(grpc::StatusCode::INTERNAL, "failed to serialize json");
+  google::cloud::storage::ObjectWriteStream writer = bucket_client_.WriteObject(
+      options_.gcp_cloud_bucket_name, "public_keys.json");
+  writer << json;
+  writer.Close();
+  if (!writer.metadata()) {
+    return grpc::Status(grpc::StatusCode::INTERNAL,
+                        absl::StrCat("failed to create object with error: ",
+                                     writer.metadata().status().message()));
+  }
+  LOG(INFO) << "Successfully created object: " << *writer.metadata();
+  return grpc::Status::OK;
+}
+
 PublicKeyServer::PublicKeyServer(
     const PublicKeyServerOptions& options,
-    std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> fetcher)
-    : options_(options), fetcher_(std::move(fetcher)) {}
+    std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> fetcher,
+    google::cloud::storage::Client bucket_client)
+    : options_(options),
+      fetcher_(std::move(fetcher)),
+      bucket_client_(bucket_client) {}
 
 void CreateAndStartPublicKeyServer(
     const PublicKeyServerOptions& options,
@@ -159,7 +186,8 @@ void CreateAndStartPublicKeyServer(
   // thread.
   curl_global_init(CURL_GLOBAL_SSL);
   std::string server_address = absl::StrCat("0.0.0.0:", options.port);
-  PublicKeyServer public_key_server(options, std::move(fetcher));
+  PublicKeyServer public_key_server(options, std::move(fetcher),
+                                    google::cloud::storage::Client());
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()

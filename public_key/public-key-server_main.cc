@@ -25,6 +25,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "google/cloud/storage/client.h"
 #include "key_manager/public-key-fetcher.h"
 #include "public_key/public-key-server.h"
 
@@ -37,6 +38,8 @@ ABSL_FLAG(std::string, gcp_key_endpoint,
           "https://publickeyservice.pa.gcp.privacysandboxservices.com/"
           ".well-known/protected-auction/v1/public-keys",
           "Address of the gcp public key instance");
+ABSL_FLAG(std::string, bucket_name, "ps-hats-playground-public-keys",
+          "Name of the Bucket to store the json file");
 
 namespace {
 
