@@ -1,0 +1,20 @@
+launcher_service_port: 8080
+cvm_config {
+  cvm_type: CVMTYPE_SEVSNP
+  runc_runtime_bundle: "./runtime_bundle.tar"
+  hats_system_bundle: "./system_bundle.tar"
+  num_cpus: 4
+  ramdrive_size_kb: 10485760
+  ram_size_kb: 8000000
+  vmm_binary: "./qemu-system-x86_64"
+  network_config {
+    inbound_only {
+      host_orchestrator_proxy_port: 4000
+      host_enclave_app_proxy_port: 8000
+    }
+  }
+}
+parc_config {
+  parameters_file_path: "./parc_data/parameters/parameters-local.json"
+  blob_storage_root: "./parc_data/blob_root"
+}

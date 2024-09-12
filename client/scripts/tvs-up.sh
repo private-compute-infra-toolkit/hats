@@ -8,4 +8,4 @@ echo "Running TVS server on port 7774"
         --user_secret="$(cat tvs_hold_private_hpke_key_hex)" \
         --user_authentication_public_key="$(cat tvs_hold_user_authentication_public_key_hex)" \
         --port=7774 \
-        --appraisal_policy_file='apprisal_policy.prototext'
+        --appraisal_policy_file='appraisal_policy.prototext'
