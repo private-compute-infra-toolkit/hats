@@ -125,9 +125,11 @@ grpc::Status LauncherOakServer::NotifyAppReady(
 
 LauncherServer::LauncherServer(
     absl::string_view tvs_authentication_key,
+    const PrivateKeyWrappingKeys& private_key_wrapping_keys,
     const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
         channel_map)
-    : tvs_authentication_key_(tvs_authentication_key) {
+    : tvs_authentication_key_(tvs_authentication_key),
+      private_key_wrapping_keys_(private_key_wrapping_keys){
   for (auto const& [tvs_id, channel] : channel_map) {
     stubs_[tvs_id] = tvs::TeeVerificationService::NewStub(channel);
   }
@@ -188,6 +190,7 @@ grpc::Status LauncherServer::FetchOrchestratorMetadata(
   }
   reply->set_tee_certificate(*std::move(certificate));
   reply->set_tvs_authentication_key(tvs_authentication_key_);
+  *reply->mutable_private_key_wrapping_keys() = private_key_wrapping_keys_;
   return grpc::Status::OK;
 }
 

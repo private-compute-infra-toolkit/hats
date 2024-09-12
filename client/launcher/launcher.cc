@@ -275,7 +275,8 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   (*deps).vmm_binary_path = (*option).vmm_binary;
 
   auto launcher_server = std::make_unique<client::LauncherServer>(
-      config.tvs_authentication_key_bytes, channel_map);
+      config.tvs_authentication_key_bytes, config.private_key_wrapping_keys,
+      channel_map);
 
   auto launcher_oak_server = std::make_unique<LauncherOakServer>(
       (*deps).oak_system_image_path, (*deps).container_bundle,

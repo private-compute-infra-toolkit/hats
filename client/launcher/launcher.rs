@@ -23,6 +23,7 @@ mod ffi {
         target: &'a str,
         access_token: &'a str,
         tvs_authentication_key: &'a str,
+        private_key_wrapping_keys: &'a [String],
         // Parc server options.
         enable_parc: bool,
         parc_parameters_file: &'a str,
@@ -45,6 +46,8 @@ struct Args {
     pub access_token: String,
     #[arg(long)]
     pub tvs_authentication_key: String,
+    #[arg(long, value_delimiter = ',')]
+    pub private_key_wrapping_keys: Vec<String>,
     #[arg(long)]
     pub enable_parc: bool,
     #[arg(long, default_value = "parc_data/parameters/parameters-local.json")]
@@ -66,6 +69,7 @@ async fn main() -> Result<(), anyhow::Error> {
             target: &args.tvs_address,
             access_token: &args.access_token,
             tvs_authentication_key: &args.tvs_authentication_key,
+            private_key_wrapping_keys: &args.private_key_wrapping_keys,
             enable_parc: args.enable_parc,
             parc_parameters_file: &args.parc_parameters_file,
             parc_blobstore_root: &args.parc_blobstore_root,
