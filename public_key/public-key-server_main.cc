@@ -81,6 +81,7 @@ int main(int argc, char* argv[]) {
           .port = *port,
           .aws_key_endpoint = absl::GetFlag(FLAGS_aws_key_endpoint),
           .gcp_key_endpoint = absl::GetFlag(FLAGS_gcp_key_endpoint),
+          .gcp_cloud_bucket_name = absl::GetFlag(FLAGS_bucket_name),
       },
       std::move(key_fetcher));
 }
