@@ -18,7 +18,7 @@
 #include <string.h>
 #include <sys/socket.h>
 
-#include <linux/vm_sockets.h>  // VMADDR_CID_ANY
+#include <linux/vm_sockets.h>
 
 #include <cstdlib>
 #include <fstream>
@@ -294,7 +294,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   std::string addr_uri =
       absl::StrFormat("0.0.0.0:%d", config.config.launcher_service_port());
   std::string vsock_uri = absl::StrFormat(
-      "vsock:%d:%d", VMADDR_CID_ANY, config.config.launcher_service_port());
+      "vsock:%d:%d", VMADDR_CID_HOST, config.config.launcher_service_port());
 
   return absl::WrapUnique(new HatsLauncher(
       addr_uri, vsock_uri, *std::move(deps), *std::move(qemu),
