@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(
              "/home/user/hats_kv/hats_kv/prebuilt/stage1.cpio -append  "
              "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 brd.max_part=1 "
              "ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- "
-             "--launcher-addr=vsock://2:36317"},
+             "--launcher-addr=vsock://2:36317 -serial stdio"},
         {
             .test_name = "SuccessSevEs",
             .options =
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(
                 "-bios stage0_binary -kernel kernel -initrd initrd -append  "
                 "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
                 "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
-                "-- --launcher-addr=vsock://2:8080",
+                "-- --launcher-addr=vsock://2:8080 -serial stdio",
         },
         {
             .test_name = "SuccessVmTypeDefault",
@@ -149,7 +149,7 @@ INSTANTIATE_TEST_SUITE_P(
                 "-bios stage0_binary -kernel kernel -initrd initrd -append  "
                 "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
                 "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
-                "-- --launcher-addr=vsock://2:8080",
+                "-- --launcher-addr=vsock://2:8080 -serial stdio",
         },
         {
             .test_name = "TelnetPort",
@@ -167,6 +167,7 @@ INSTANTIATE_TEST_SUITE_P(
                     .launcher_service_port = 8080,
                     .host_proxy_port = 4000,
                     .host_orchestrator_proxy_port = 1080,
+                    .telnet_port = 1234,
                 },
             .expected_output =
                 "vmm_binary vmm_binary -enable-kvm -cpu host -m 100G -smp 50 "
@@ -177,16 +178,17 @@ INSTANTIATE_TEST_SUITE_P(
                 "false -object "
                 "sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1,id-auth="
                 "1 -netdev "
-                "user,id=netdev,"
-                "hostfwd=tcp:127.0.0.1:1080-10.0.2.15:4000,guestfwd=tcp:"
-                "10.0.2.100:8080-cmd:nc 127.0.0.1 8080,"
-                "hostfwd=tcp:127.0.0.1:4000-10.0.2.15:8080 -device "
+                "user,id=netdev,hostfwd=tcp:127.0.0.1:1080-10.0.2.15:4000,"
+                "guestfwd=tcp:10.0.2.100:8080-cmd:nc 127.0.0.1 "
+                "8080,hostfwd=tcp:127.0.0.1:4000-10.0.2.15:8080 -device "
                 "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
                 "netdev,romfile= -device vhost-vsock-pci,guest-cid=80,rombar=0 "
                 "-bios _teststage0_binary -kernel test_kernel -initrd initrd "
-                "-append  console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=30 "
-                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
-                "-- --launcher-addr=vsock://2:8080",
+                "-append debug  console=ttyS0 panic=-1 brd.rd_nr=1 "
+                "brd.rd_size=30 brd.max_part=1 "
+                "ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- "
+                "--launcher-addr=vsock://2:8080 -serial "
+                "telnet:localhost:1234,server",
         },
         {
             .test_name = "OutboundNetwork",
@@ -223,7 +225,7 @@ INSTANTIATE_TEST_SUITE_P(
                 "-append  console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=30 "
                 "brd.max_part=1 "
                 "ip=10.0.2.15::10.0.2.2:255.255.255.0::enp0s1:off quiet -- "
-                "--launcher-addr=vsock://2:8080",
+                "--launcher-addr=vsock://2:8080 -serial stdio",
         },
     }));
 
@@ -231,7 +233,8 @@ TEST_P(QemuLauncherTest, Success) {
   const QemuLauncherTestCase& test_case = GetParam();
   absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(test_case.options);
   ASSERT_TRUE(qemu.ok());
-  EXPECT_EQ((*qemu)->GetCommand(), test_case.expected_output);
+  EXPECT_EQ((*qemu)->GetCommand(), test_case.expected_output)
+      << ": '" << test_case.test_name << "'";
 }
 
 // Separate test case for default options so we can fix the virtio_guest_cid
@@ -254,7 +257,7 @@ TEST(Qemu, SuccessDefaultOptions) {
       "-kernel bzImage -initrd ./target/stage1.cpio -append  "
       "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=3000000 brd.max_part=1 "
       "ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- "
-      "--launcher-addr=vsock://2:0");
+      "--launcher-addr=vsock://2:0 -serial stdio");
 }
 
 TEST(Qemu, kRoutableIp) {

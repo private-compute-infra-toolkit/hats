@@ -285,11 +285,14 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
 
   args.push_back(cmdline);
 
+  args.push_back("-serial");
   if (options.telnet_port.has_value()) {
-    args.push_back("-serial");
     args.push_back(
         absl::StrCat("telnet:localhost:", *options.telnet_port, ",server"));
+  } else {
+    args.push_back("stdio");
   }
+
   return absl::WrapUnique(new Qemu(std::move(binary), std::move(args)));
 }
 
@@ -349,15 +352,15 @@ absl::Status Qemu::Start(absl::string_view log_filename) {
     return absl::FailedPreconditionError(absl::StrCat(
         "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
   }
-  if (int r =
-          posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 2);
+  if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
+                                               STDERR_FILENO);
       r != 0) {
     ClosePosixObjects(file_actions, attr);
     return absl::FailedPreconditionError(absl::StrCat(
         "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
   }
-  if (int r =
-          posix_spawn_file_actions_adddup2(&file_actions, file_descriptor, 0);
+  if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
+                                               STDIN_FILENO);
       r != 0) {
     ClosePosixObjects(file_actions, attr);
     return absl::FailedPreconditionError(absl::StrCat(
