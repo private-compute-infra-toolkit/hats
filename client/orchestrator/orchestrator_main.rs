@@ -26,7 +26,7 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(default_value = "http://10.0.2.100:8080")]
+    #[arg(long, default_value = "http://10.0.2.100:8080")]
     launcher_addr: String,
 
     #[arg(default_value = "10.0.2.15:4000")]
@@ -43,9 +43,6 @@ struct Args {
 
     #[arg(long, default_value = "")]
     tvs_public_key: String,
-
-    #[arg(default_value = "http://10.0.2.100:8080")]
-    hats_launcher_addr: String,
 
     // For local testing, pass in the path to a file containing the tvs keys in the following format:
     // tvs_id1:tvs_public_key1 (0:1234567890abcde)
@@ -111,7 +108,7 @@ async fn main() -> anyhow::Result<()> {
         let tvs_id = &key[0..1].parse::<i64>()?;
         let pub_key = &key[2..];
         let tvs: tvs_grpc_client::TvsGrpcClient = tvs_grpc_client::TvsGrpcClient::create(
-            args.hats_launcher_addr.parse()?,
+            args.launcher_addr.parse()?,
             hex::decode(pub_key)?,
             *tvs_id,
         )
