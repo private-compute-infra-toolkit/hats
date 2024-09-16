@@ -315,30 +315,27 @@ absl::Status HatsLauncher::Start(absl::string_view qemu_log_filename) {
   if (absl::Status status = qemu_->Start(qemu_log_filename); !status.ok())
     return status;
   LOG(INFO) << "Qemu LogFilename:" << qemu_->LogFilename();
-  grpc::ServerBuilder builder;
+
   // All gRPC servers are owned by the HatsLauncher object.
-  builder.RegisterService(launcher_server_.get())
+  grpc::ServerBuilder vsock_builder;
+  vsock_builder.RegisterService(launcher_server_.get())
       .RegisterService(launcher_oak_server_.get())
       .RegisterService(&logs_service_);
-  builder.AddListeningPort(addr_uri_, grpc::InsecureServerCredentials());
-
-  if (parc_server_ != nullptr) {
-    LOG(INFO)
-        << "PARC server is enabled ( configured by parc_config existence )";
-    builder.RegisterService(parc_server_.get());
-  }
-
-  // Only Oak services are required for stage 1.
-  grpc::ServerBuilder vsock_builder;
-  vsock_builder.RegisterService(launcher_oak_server_.get());
-  vsock_builder.RegisterService(&logs_service_);
   vsock_builder.AddListeningPort(vsock_uri_, grpc::InsecureServerCredentials());
 
   vsock_server_ = vsock_builder.BuildAndStart();
-  tcp_server_ = builder.BuildAndStart();
-  LOG(INFO) << "Server listening on '" << addr_uri_ << "' and '" << vsock_uri_
-            << "'";
-
+  if (parc_server_ != nullptr) {
+    LOG(INFO)
+        << "PARC server is enabled ( configured by parc_config existence )";
+    grpc::ServerBuilder builder;
+    builder.RegisterService(parc_server_.get());
+    builder.AddListeningPort(addr_uri_, grpc::InsecureServerCredentials());
+    tcp_server_ = builder.BuildAndStart();
+    LOG(INFO) << "Server listening on '" << addr_uri_ << "' and '" << vsock_uri_
+              << "'";
+  } else {
+    LOG(INFO) << "Server listening on '" << vsock_uri_ << "'";
+  }
   // blocking
   return absl::OkStatus();
 }
@@ -351,9 +348,9 @@ void HatsLauncher::Wait() {
     }
   }
 
-  tcp_server_->Wait();
-  vsock_server_->Wait();
   qemu_->Wait();
+  vsock_server_->Wait();
+  if (tcp_server_ != nullptr) tcp_server_->Wait();
 }
 
 absl::StatusOr<std::shared_ptr<grpc::Channel>>
@@ -367,6 +364,8 @@ absl::StatusOr<std::shared_ptr<grpc::Channel>>
 HatsLauncher::TcpChannelForTest() {
   absl::MutexLock lock(&mu_);
   if (!started_) return absl::UnknownError("HatsLauncher is not started yet");
+  if (tcp_server_ == nullptr)
+    return absl::NotFoundError("No TCP server is found.");
   return tcp_server_->InProcessChannel(grpc::ChannelArguments());
 }
 
@@ -374,8 +373,8 @@ void HatsLauncher::Shutdown() {
   absl::MutexLock lock(&mu_);
   // Qemu object and gRPC servers have internal Mutex lock.
   qemu_->Shutdown();
-  tcp_server_->Shutdown();
   vsock_server_->Shutdown();
+  if (tcp_server_ != nullptr) tcp_server_->Shutdown();
 }
 
 void HatsLauncher::WaitUntilReady() {

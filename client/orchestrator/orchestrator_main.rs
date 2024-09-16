@@ -160,6 +160,7 @@ async fn main() -> anyhow::Result<()> {
     if let Some(path) = args.ipc_socket_path.parent() {
         tokio::fs::create_dir_all(path).await?;
     }
+
     let encoded_report: Vec<u8>;
     if tvs_grpc_clients.len() > 1 {
         let mut response_vec: Vec<VerifyReportResponse> = Vec::new();

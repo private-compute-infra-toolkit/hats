@@ -16,11 +16,14 @@ use crate::proto::privacy_sandbox::client::launcher_service_client;
 use crate::proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse;
 use crate::proto::privacy_sandbox::client::ForwardingTvsMessage;
 use crate::proto::privacy_sandbox::tvs::OpaqueMessage;
+use anyhow::Context;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
 use prost::Message;
+use tokio_vsock::{VsockAddr, VsockStream};
 use tonic::transport::Channel;
 use tonic::Request;
+use tower::service_fn;
 
 pub mod proto {
     pub mod privacy_sandbox {
@@ -51,7 +54,25 @@ impl TvsGrpcClient {
         tvs_public_key: Vec<u8>,
         tvs_id: i64,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let channel = Channel::builder(addr.clone()).connect().await?;
+        let channel = if addr.scheme_str() == Some("vsock") {
+            let vsock_addr = VsockAddr::new(
+                addr.host()
+                    .unwrap_or(format!("{}", tokio_vsock::VMADDR_CID_HOST).as_str())
+                    .parse()
+                    .context("invalid vsock CID")?,
+                addr.port_u16().context("invalid vsock port")?.into(),
+            );
+            // Channel builder does not handle non-TCP URIs very well.
+            // When passing vSock or UDS URI it creates a TCP channel.
+            // Here we pass a fake URI schema so that it fails and falls
+            // back to connect_with_connector where we create a vSock stream.
+            // https://github.com/hyperium/tonic/issues/608
+            Channel::builder(tonic::transport::Uri::from_static("http://0:0"))
+                .connect_with_connector(service_fn(move |_| VsockStream::connect(vsock_addr)))
+                .await?
+        } else {
+            Channel::builder(addr.clone()).connect().await?
+        };
         TvsGrpcClient::create_with_channel(channel.clone(), tvs_public_key, tvs_id).await
     }
 

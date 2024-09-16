@@ -106,7 +106,7 @@ class HatsLauncher final {
   absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
       parc_server_;
   // gRPC servers created during Start and shutdown when stop is called.
-  std::unique_ptr<grpc::Server> tcp_server_;
+  absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server_;
   std::unique_ptr<grpc::Server> vsock_server_;
 
   // Whether all underlying processes was started or not.

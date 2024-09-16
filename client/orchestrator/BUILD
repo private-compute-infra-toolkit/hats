@@ -43,7 +43,9 @@ rust_library(
         "@oak_crates_index//:prost-types",
         "@oak_crates_index//:tokio",
         "@oak_crates_index//:tokio-util",
+        "@oak_crates_index//:tokio-vsock",
         "@oak_crates_index//:tonic",
+        "@oak_crates_index//:tower",
     ],
 )
 
@@ -73,6 +75,7 @@ rust_test(
         "@oak_crates_index//:tokio",
         "@oak_crates_index//:tokio-stream",
         "@oak_crates_index//:tokio-util",
+        "@oak_crates_index//:tokio-vsock",
         "@oak_crates_index//:tonic",
         "@oak_crates_index//:tower",
     ],
