@@ -26,7 +26,7 @@ function build_cloud_hypervisor() {
   popd
 }
 
-function build_kv_service() {
+function build_kv_bundle() {
   local BUILD_DIR="$1"
   printf "\nBUILDING KV SERVICE..."
   pushd ../../submodules/kv-server
@@ -34,12 +34,13 @@ function build_kv_service() {
   pushd common
   git checkout af48964e3302d7d4f160641e02b55904ce9ea1c4
   popd
-  ./builders/tools/bazel-debian build //components/data_server/server:server \
+  ./builders/tools/bazel-debian build \
+    //production/packaging/hats/data_server:kv-bundle \
     --config=local_instance \
     --config=local_platform \
     --config=enable_parc \
     --config=enable_hats
-  rsync bazel-bin/components/data_server/server/server "$BUILD_DIR/kv-server"
+  rsync bazel-bin/production/packaging/hats/data_server/kv-bundle.tar "$BUILD_DIR"
   popd
 }
 
@@ -99,54 +100,6 @@ function build_oak_hello_world_container_bundle_tar() {
   # step; so here we copy after we call `just`.
   nix develop --command  bazel build --compilation_mode opt //oak_containers/examples/hello_world/trusted_app:bundle.tar && \
     rsync ./bazel-bin/oak_containers/examples/hello_world/trusted_app/bundle.tar "$BUILD_DIR/oak_container_example_oci_filesystem_bundle.tar"
-
-  popd
-}
-
-function build_oak_kv_container_bundle_tar() {
-  local BUILD_DIR="$1"
-  printf "\nBUILDING OAK KV CONTAINER BUNDLE TAR..."
-
-  pushd ..
-  readonly OCI_IMAGE_FILE="prebuilt/oak_container_kv_oci_image.tar"
-
-  # Export the container as an OCI Image.
-  # Ref: https://docs.docker.com/build/exporters/oci-docker/
-  BUILDER="$(docker buildx create --driver docker-container)"
-  readonly BUILDER
-  docker buildx \
-      --builder="${BUILDER}" \
-      build \
-      --file=kv.Dockerfile \
-      --tag="latest" \
-      --output="type=oci,dest=${OCI_IMAGE_FILE}" \
-      .
-
-  WORK_DIR="$(mktemp --directory)"
-  readonly WORK_DIR
-  readonly OUTPUT_OCI_BUNDLE_TAR="${BUILD_DIR}/oak_containers_kv_filesystem_bundle.tar"
-
-  echo "[INFO] Exporting the container as an OCI image"
-  readonly OCI_IMAGE_DIR="${WORK_DIR}/image"
-  mkdir "${OCI_IMAGE_DIR}"
-  tar --extract \
-    --file="${OCI_IMAGE_FILE}" \
-    --directory="${OCI_IMAGE_DIR}"
-
-  echo "Unpacking with umoci..."
-  readonly OCI_BUNDLE_DIR="${WORK_DIR}/bundle"
-  # Deterministically extract the OCI image into an OCI bundle.
-  # Note that in addition to this, umoci also creates an mtree spec in the same
-  # dir. This mtree is not deterministic. Ref: https://github.com/opencontainers/umoci/blob/main/doc/man/umoci-unpack.1.md
-  umoci unpack \
-    --rootless \
-    --image="${OCI_IMAGE_DIR}" \
-    "${OCI_BUNDLE_DIR}"
-
-  echo "[INFO] Creating runtime bundle"
-  # Bundle just the files and directories that constitute the deterministically
-  # generated OCI bundle.
-  tar --create --file="${OUTPUT_OCI_BUNDLE_TAR}" --directory="${OCI_BUNDLE_DIR}" ./rootfs ./config.json
 
   popd
 }

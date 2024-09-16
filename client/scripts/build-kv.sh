@@ -37,8 +37,7 @@ build_oak_containers_stage1 "$PREBUILT_DIR"
 build_oak_containers_kernel "$PREBUILT_DIR"
 build_oak_containers_syslogd "$PREBUILT_DIR"
 build_hats_containers_images "$PREBUILT_DIR"
-build_kv_service "$PREBUILT_DIR"
-build_oak_kv_container_bundle_tar "$PREBUILT_DIR"
+build_kv_bundle "$PREBUILT_DIR"
 
 # bundle everything nicely
 build_launch_bundle \
@@ -47,6 +46,6 @@ build_launch_bundle \
   "$PREBUILT_DIR/stage1.cpio" \
   "$PREBUILT_DIR/bzImage" \
   "$PREBUILT_DIR/hats_system_image.tar.xz" \
-  "$PREBUILT_DIR/oak_containers_kv_filesystem_bundle.tar" \
+  "$PREBUILT_DIR/kv-bundle.tar" \
   "../../tvs/appraisal_policies/kv.textproto" \
   "./launcher_configs/kv_launcher_config.textproto"
