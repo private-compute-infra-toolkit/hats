@@ -1,5 +1,5 @@
-diff --git a/oak_containers_syslogd/BUILD b/oak_containers_syslogd/BUILD
-index 6d16b4bc89..a450e03e69 100644
+diff --git a/oak_containers/syslogd/BUILD b/oak_containers/syslogd/BUILD
+index e95322bfd..1cbb98281 100644
 --- oak_containers/syslogd/BUILD
 +++ oak_containers/syslogd/BUILD
 @@ -15,6 +15,7 @@
@@ -9,36 +9,34 @@ index 6d16b4bc89..a450e03e69 100644
 +load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
  
  package(
-     default_visibility = ["//visibility:public"],
-@@ -27,8 +28,8 @@ rust_binary(
+     default_visibility = ["//:internal"],
+@@ -27,7 +28,6 @@ rust_binary(
      crate_features = ["bazel"],
      # TODO: b/335717840 - Fix systemd linker issue and remove this tag.
      tags = ["noci"],
 -    target_compatible_with = ["@platforms//:incompatible"],
      deps = [
-+        ":build",
          "//oak_containers_orchestrator:lib",
          "@oak_crates_index//:anyhow",
-         "@oak_crates_index//:bitflags",
-@@ -41,6 +42,12 @@ rust_binary(
+@@ -41,6 +41,12 @@ rust_binary(
          "@oak_crates_index//:signal-hook-tokio",
          "@oak_crates_index//:tokio",
          "@oak_crates_index//:tokio-stream",
 -        "@systemd",
-+    ],
-+)
+     ],
+ )
 +
 +cargo_build_script(
 +    name = "build",
 +    srcs = ["build.rs"],
-+    deps = [
-     ],
- )
-diff --git a/oak_containers_syslogd/build.rs b/oak_containers_syslogd/build.rs
++    deps = [],
++)
++
+diff --git a/oak_containers/syslogd/build.rs b/oak_containers/syslogd/build.rs
 new file mode 100644
-index 0000000000..aad5b46404
+index 000000000..aad5b4640
 --- /dev/null
-+++ oak_containers_syslogd/build.rs
++++ oak_containers/syslogd/build.rs
 @@ -0,0 +1,27 @@
 +use std::fs;
 +use std::path::Path;
