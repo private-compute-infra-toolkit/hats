@@ -28,8 +28,6 @@
 
 ABSL_FLAG(std::string, launcher_config_path, "./launcher_config.textproto",
           "path to read launcher configuration");
-ABSL_FLAG(std::string, tvs_address, "localhost:7779",
-          "TVS address to talk to to fetch private keys.");
 // MUST PASS ADDRESSES IN SAME ORDER AS ORCHESTRATOR WILL RECEIVE THEM
 ABSL_FLAG(std::vector<std::string>, tvs_addresses,
           std::vector<std::string>({""}),
