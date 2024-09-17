@@ -11,7 +11,6 @@ cvm_config {
   virtio_guest_cid: 38291
   network_config {
     inbound_only {
-      host_orchestrator_proxy_port: 4111
       host_enclave_app_proxy_port: 8111
     }
   }

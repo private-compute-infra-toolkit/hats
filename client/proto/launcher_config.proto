@@ -111,9 +111,6 @@ message HostVirtualBridgeConfig {
 }
 
 message HostPortFowardingConfig {
-  // Forward certain ports from the host.
-  // Forwarding port from host to orchestrator port at 4000 running inside CVM.
-  uint32 host_orchestrator_proxy_port = 1;
   // Forwarding port from host to enclave app port at 8080 running inside CVM.
-  uint32 host_enclave_app_proxy_port = 2;
+  uint32 host_enclave_app_proxy_port = 1;
 }

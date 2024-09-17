@@ -93,7 +93,6 @@ class Qemu final {
     // (http://shortn/_ngfzsMDl64)
     uint16_t launcher_service_port;
     uint16_t host_proxy_port;
-    uint16_t host_orchestrator_proxy_port;
 
     // Implements Options for root
     static Options Default();

@@ -10,7 +10,6 @@ cvm_config {
   vmm_binary: "/usr/local/bin/qemu-system-x86_64"
   network_config {
     inbound_only {
-      host_orchestrator_proxy_port: 4000
       host_enclave_app_proxy_port: 8000
     }
   }
