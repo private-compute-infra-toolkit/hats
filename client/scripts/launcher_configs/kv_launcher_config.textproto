@@ -1,4 +1,4 @@
-launcher_service_port: 8080
+launcher_service_port: 9999
 cvm_config {
   cvm_type: CVMTYPE_SEVSNP
   runc_runtime_bundle: "./runtime_bundle.tar"
@@ -9,8 +9,7 @@ cvm_config {
   vmm_binary: "./qemu-system-x86_64"
   network_config {
     inbound_only {
-      host_orchestrator_proxy_port: 4000
-      host_enclave_app_proxy_port: 8000
+      host_enclave_app_proxy_port: 8050
     }
   }
 }

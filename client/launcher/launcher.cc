@@ -193,17 +193,11 @@ absl::StatusOr<Qemu::Options> GetQemuOptions(
     option.host_proxy_port = cvm_config.network_config()
                                  .inbound_only()
                                  .host_enclave_app_proxy_port();
-    option.host_orchestrator_proxy_port = cvm_config.network_config()
-                                              .inbound_only()
-                                              .host_orchestrator_proxy_port();
   } else if (cvm_config.network_config().has_inbound_and_outbound()) {
     option.network_mode = Qemu::NetworkMode::kOutboundAllowed;
     option.host_proxy_port = cvm_config.network_config()
                                  .inbound_and_outbound()
                                  .host_enclave_app_proxy_port();
-    option.host_orchestrator_proxy_port = cvm_config.network_config()
-                                              .inbound_and_outbound()
-                                              .host_orchestrator_proxy_port();
   } else if (cvm_config.network_config().has_virtual_bridge()) {
     option.network_mode = Qemu::NetworkMode::kRoutableIp;
     option.virtual_bridge =
