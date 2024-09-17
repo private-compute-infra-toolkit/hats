@@ -17,7 +17,10 @@ pkg_tar(
 # and bake the TVS public key in the file.
 pkg_tar(
     name = "services",
-    srcs = ["oak-orchestrator.service"],
+    srcs = [
+        "oak-orchestrator.service",
+        "oak-syslogd.service",
+    ],
     package_dir = "/etc/systemd/system/",
     tags = ["nopresubmit"],
 )
