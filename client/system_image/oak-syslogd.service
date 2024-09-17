@@ -1,0 +1,22 @@
+# Patched version of https://github.com/project-oak/oak/blob/fdf380dfcc5a812befa3179f9cecea440a72b7b7/oak_containers/system_image/files/etc/systemd/system/oak-syslogd.service
+[Unit]
+Description=Oak Containers Log Forwarder
+Before=oak-orchestrator.service
+After=network-online.target
+Wants=network-online.target systemd-journald.service
+
+
+[Service]
+Type=exec
+Restart=always
+ExecStart=/usr/bin/oak_containers_syslogd ${LAUNCHER_ADDR}
+ProtectSystem=strict
+# If the log forwarder outputs something, print it directly to the emergency serial console. After
+# all, this is the tool that is supposed to make logs available to the launcher; if it fails, there
+# is no point in it writing to the log as the log will never be exported.
+StandardOutput=tty
+StandardError=tty
+PassEnvironment=LAUNCHER_ADDR
+
+[Install]
+WantedBy=multi-user.target
