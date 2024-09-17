@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -120,7 +121,14 @@ grpc::Status LauncherOakServer::SendAttestationEvidence(
 grpc::Status LauncherOakServer::NotifyAppReady(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     google::protobuf::Empty* response) {
+  absl::MutexLock lock(&ready_lock_);
+  is_app_ready_ = true;
   return grpc::Status::OK;
+}
+
+bool LauncherOakServer::IsAppReady() const {
+  absl::MutexLock lock(&ready_lock_);
+  return is_app_ready_;
 }
 
 LauncherServer::LauncherServer(

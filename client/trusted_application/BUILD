@@ -52,6 +52,23 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "trusted_application_client",
+    srcs = ["trusted_application_client.cc"],
+    hdrs = ["trusted_application_client.h"],
+    deps = [
+        "//client/proto:trusted_service_cc_grpc",
+        "//client/proto:trusted_service_cc_proto",
+        "//crypto:aead-crypter",
+        "//crypto:secret-data",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_github_grpc_grpc//:grpc++_reflection",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 pkg_tar(
     name = "tar",
     srcs = [":main"],

@@ -467,6 +467,10 @@ void HatsLauncher::WaitUntilReady() {
   }
 }
 
+bool HatsLauncher::IsAppReady() const {
+  return launcher_oak_server_->IsAppReady();
+}
+
 HatsLauncher::HatsLauncher(
     LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
     absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,

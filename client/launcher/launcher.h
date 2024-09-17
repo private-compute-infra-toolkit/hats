@@ -84,6 +84,8 @@ class HatsLauncher final {
   absl::Status Start(absl::string_view qemu_log_filename)
       ABSL_LOCKS_EXCLUDED(mu_);
 
+  bool IsAppReady() const;
+
  private:
   HatsLauncher(
       LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,

@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "client/proto/launcher.grpc.pb.h"
 #include "client/proto/launcher.pb.h"
@@ -69,11 +70,14 @@ class LauncherOakServer final : public oak::containers::Launcher::Service {
   grpc::Status NotifyAppReady(grpc::ServerContext* context,
                               const google::protobuf::Empty* request,
                               google::protobuf::Empty* response) override;
+  bool IsAppReady() const;
 
  private:
   const std::string oak_system_image_;
   const std::string container_bundle_;
   const size_t chunk_size_;
+  mutable absl::Mutex ready_lock_;
+  bool is_app_ready_ ABSL_GUARDED_BY(ready_lock_) = false;
 };
 
 class LauncherServer final
