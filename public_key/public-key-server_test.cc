@@ -180,34 +180,9 @@ constexpr absl::string_view kExpectedPublicKeys = R"pb(
   }
 )pb";
 
-// TODO(sidachen): Maybe move to testonly=True testutils package to avoid
-// duplication.
-absl::StatusOr<uint16_t> UnusedTcpPort() {
-  int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockfd < 0) {
-    return absl::FailedPreconditionError("Failed to create a socket");
-  }
-  sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = 0;  // Let the system assign an unused port
-
-  if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-    return absl::FailedPreconditionError("Failed to create bind a socket");
-  }
-
-  socklen_t addrlen = sizeof(addr);
-  if (getsockname(sockfd, (struct sockaddr*)&addr, &addrlen) < 0) {
-    return absl::FailedPreconditionError("Failed to create t get socket name");
-  }
-  return ntohs(addr.sin_port);
-}
-
 TEST(PublicKeyServer, ListPublicKeys) {
   // Start fake http server to handle key endpoints.
   httplib::Server server;
-  absl::StatusOr<uint16_t> port = UnusedTcpPort();
-  ASSERT_THAT(port, IsOk());
   server.Get("/aws",
              [&](const httplib::Request& request, httplib::Response& response) {
                if (request.method == "GET" && request.path == "/aws") {
@@ -222,11 +197,12 @@ TEST(PublicKeyServer, ListPublicKeys) {
                                       "application/json;charset=iso-8859-1");
                }
              });
-  std::thread server_thread([&] { server.listen("localhost", *port); });
+  int port = server.bind_to_any_port("0.0.0.0");
+  std::thread server_thread([&] { server.listen_after_bind(); });
   // Wait for the server to start before sending requests otherwise we might
   // deadlock.
   server.wait_until_ready();
-  absl::string_view server_address = absl::StrCat("localhost:", *port);
+  absl::string_view server_address = absl::StrCat("localhost:", port);
   std::shared_ptr<gcs::testing::MockClient> mock =
       std::make_shared<gcs::testing::MockClient>();
   PublicKeyServer public_key_server(
@@ -260,8 +236,6 @@ TEST(PublicKeyServer, ListPublicKeys) {
 TEST(PublicKeyServer, ListPublicKeysFailure) {
   // Start fake http server to handle key endpoints.
   httplib::Server server;
-  absl::StatusOr<uint16_t> port = UnusedTcpPort();
-  ASSERT_THAT(port, IsOk());
   // invalid aws response results in failure.
   server.Get("/aws", [&](const httplib::Request& request,
                          httplib::Response& response) {
@@ -276,11 +250,12 @@ TEST(PublicKeyServer, ListPublicKeysFailure) {
                                       "application/json;charset=iso-8859-1");
                }
              });
-  std::thread server_thread([&] { server.listen("localhost", *port); });
+  int port = server.bind_to_any_port("0.0.0.0");
+  std::thread server_thread([&] { server.listen_after_bind(); });
   // Wait for the server to start before sending requests otherwise we might
   // deadlock.
   server.wait_until_ready();
-  absl::string_view server_address = absl::StrCat("localhost:", *port);
+  absl::string_view server_address = absl::StrCat("localhost:", port);
   std::shared_ptr<gcs::testing::MockClient> mock =
       std::make_shared<gcs::testing::MockClient>();
   PublicKeyServer public_key_server(
@@ -322,8 +297,6 @@ TEST(PublicKeyServer, UpdateCloudBucket) {
           /*.object_metadata=*/expected_metadata}));
 
   httplib::Server server;
-  absl::StatusOr<uint16_t> port = UnusedTcpPort();
-  ASSERT_THAT(port, IsOk());
   server.Get("/aws",
              [&](const httplib::Request& request, httplib::Response& response) {
                if (request.method == "GET" && request.path == "/aws") {
@@ -338,11 +311,12 @@ TEST(PublicKeyServer, UpdateCloudBucket) {
                                       "application/json;charset=iso-8859-1");
                }
              });
-  std::thread server_thread([&] { server.listen("localhost", *port); });
+  int port = server.bind_to_any_port("0.0.0.0");
+  std::thread server_thread([&] { server.listen_after_bind(); });
   // Wait for the server to start before sending requests otherwise we might
   // deadlock.
   server.wait_until_ready();
-  absl::string_view server_address = absl::StrCat("localhost:", *port);
+  absl::string_view server_address = absl::StrCat("localhost:", port);
   PublicKeyServer public_key_server(
       {
           .port = -1,  // Not used in test.
@@ -381,8 +355,6 @@ TEST(PublicKeyServer, UpdateCloudBucketFailure) {
           google::cloud::Status(google::cloud::StatusCode::kInternal, "")));
 
   httplib::Server server;
-  absl::StatusOr<uint16_t> port = UnusedTcpPort();
-  ASSERT_THAT(port, IsOk());
   server.Get("/aws",
              [&](const httplib::Request& request, httplib::Response& response) {
                if (request.method == "GET" && request.path == "/aws") {
@@ -397,11 +369,12 @@ TEST(PublicKeyServer, UpdateCloudBucketFailure) {
                                       "application/json;charset=iso-8859-1");
                }
              });
-  std::thread server_thread([&] { server.listen("localhost", *port); });
+  int port = server.bind_to_any_port("0.0.0.0");
+  std::thread server_thread([&] { server.listen_after_bind(); });
   // Wait for the server to start before sending requests otherwise we might
   // deadlock.
   server.wait_until_ready();
-  absl::string_view server_address = absl::StrCat("localhost:", *port);
+  absl::string_view server_address = absl::StrCat("localhost:", port);
   PublicKeyServer public_key_server(
       {
           .port = -1,  // Not used in test.
