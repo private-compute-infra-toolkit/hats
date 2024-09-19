@@ -221,6 +221,7 @@ cc_library(
     hdrs = ["qemu.h"],
     deps = [
         "//client/proto:launcher_config_cc_proto",
+        "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",

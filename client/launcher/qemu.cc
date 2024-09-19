@@ -36,6 +36,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/status/status.h"
@@ -46,6 +47,8 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
+ABSL_FLAG(bool, qemu_use_microvm, false,
+          "Whether or not to use microvm for SEV-SNP CVMs.");
 // porting from oak qemu launcher: http://shortn/_LgMZgnCwOM
 // currently Start() is non-blocking, do not terminate process
 
@@ -146,7 +149,11 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
       break;
     case VmType::kSevSnp:
       args.push_back("-machine");
-      args.push_back(absl::StrCat(kMicroVmCommon, kSevMachineSuffix));
+      if (absl::GetFlag(FLAGS_qemu_use_microvm)) {
+        args.push_back(absl::StrCat(kMicroVmCommon, kSevMachineSuffix));
+      } else {
+        args.push_back(absl::StrCat("q35,acpi=on", kSevMachineSuffix));
+      }
       args.push_back("-object");
       args.push_back(sev_common_object);
       args.push_back("-object");
@@ -363,8 +370,8 @@ absl::Status Qemu::Start(absl::string_view log_filename) {
   }
 
   auto argv = std::unique_ptr<const char*[]>(new const char*[args_.size() + 1]);
-  // posix_spawn , similar to execvp, expects all arguments binary name in an array of c-strings. The array is terminated with
-  // nullptr.
+  // posix_spawn , similar to execvp, expects all arguments binary name in an
+  // array of c-strings. The array is terminated with nullptr.
   argv[args_.size()] = nullptr;
   for (size_t i = 0; i < args_.size(); ++i) {
     argv[i] = (char*)args_[i].c_str();

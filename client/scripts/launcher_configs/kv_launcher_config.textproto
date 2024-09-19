@@ -5,7 +5,7 @@ cvm_config {
   num_cpus: 4
   ramdrive_size_kb: 10485760
   ram_size_kb: 8000000
-  vmm_binary: "./qemu-system-x86_64"
+  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
   network_config {
     inbound_only {
       host_enclave_app_proxy_port: 8050

@@ -64,7 +64,7 @@ INSTANTIATE_TEST_SUITE_P(
             .expected_output =
                 "./qemu-system-x86_64 ./qemu-system-x86_64 -enable-kvm -cpu "
                 "host -m 8G -smp 1 -nodefaults -nographic -no-reboot -machine "
-                "microvm,acpi=on,pcie=on,memory-backend=ram1,confidential-"
+                "q35,acpi=on,memory-backend=ram1,confidential-"
                 "guest-support=sev0 -object "
                 "memory-backend-memfd,id=ram1,size=8G,share=true,reserve=false "
                 "-object "
@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(
             .expected_output =
                 "vmm_binary vmm_binary -enable-kvm -cpu host -m 100G -smp 50 "
                 "-nodefaults -nographic -no-reboot -machine "
-                "microvm,acpi=on,pcie=on,memory-backend=ram1,confidential-"
+                "q35,acpi=on,memory-backend=ram1,confidential-"
                 "guest-support=sev0 -object "
                 "memory-backend-memfd,id=ram1,size=100G,share=true,reserve="
                 "false -object "
@@ -204,7 +204,7 @@ INSTANTIATE_TEST_SUITE_P(
             .expected_output =
                 "vmm_binary vmm_binary -enable-kvm -cpu host -m 8G -smp 1 "
                 "-nodefaults -nographic -no-reboot -machine "
-                "microvm,acpi=on,pcie=on,memory-backend=ram1,confidential-"
+                "q35,acpi=on,memory-backend=ram1,confidential-"
                 "guest-support=sev0 -object "
                 "memory-backend-memfd,id=ram1,size=8G,share=true,reserve=false "
                 "-object "
@@ -221,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(
                 "--launcher-addr=vsock://2:2296799788 -serial stdio",
         },
         {
-            .test_name = "NoWroloadServicePort",
+            .test_name = "NoWorkloadServicePort",
             .options =
                 {
                     .vmm_binary = "./qemu-system-x86_64",
@@ -242,7 +242,7 @@ INSTANTIATE_TEST_SUITE_P(
             .expected_output =
                 "./qemu-system-x86_64 ./qemu-system-x86_64 -enable-kvm -cpu "
                 "host -m 8G -smp 1 -nodefaults -nographic -no-reboot -machine "
-                "microvm,acpi=on,pcie=on,memory-backend=ram1,confidential-"
+                "q35,acpi=on,memory-backend=ram1,confidential-"
                 "guest-support=sev0 -object "
                 "memory-backend-memfd,id=ram1,size=8G,share=true,reserve=false "
                 "-object "
