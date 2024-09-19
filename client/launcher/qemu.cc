@@ -362,14 +362,12 @@ absl::Status Qemu::Start(absl::string_view log_filename) {
         "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
   }
 
-  auto argv = std::unique_ptr<const char*[]>(new const char*[args_.size() + 2]);
-  // posix_spawn , similar to execvp, expects all arguments including the
-  // binary name in an array of c-strings. The array is terminated with
+  auto argv = std::unique_ptr<const char*[]>(new const char*[args_.size() + 1]);
+  // posix_spawn , similar to execvp, expects all arguments binary name in an array of c-strings. The array is terminated with
   // nullptr.
-  argv[args_.size() + 1] = nullptr;
-  argv[0] = binary_.c_str();
+  argv[args_.size()] = nullptr;
   for (size_t i = 0; i < args_.size(); ++i) {
-    argv[i + 1] = (char*)args_[i].c_str();
+    argv[i] = (char*)args_[i].c_str();
   }
   if (int status =
           posix_spawn(&process_id_, binary_.c_str(), &file_actions, &attr,
