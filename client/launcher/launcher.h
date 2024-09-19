@@ -86,34 +86,35 @@ class HatsLauncher final {
 
  private:
   HatsLauncher(
-      absl::string_view addr_uri, absl::string_view vsock_uri,
       LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
       absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
       absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
+      absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
+      absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
       absl::Nullable<
           std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-          parc_server);
+          parc_server,
+      absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server);
 
-  const std::string addr_uri_;
-  const std::string vsock_uri_;
   // The external dependencies are not owned by HatsLauncher but required
   // for system health.
   const LauncherExtDeps deps_;
   absl::Nonnull<std::unique_ptr<Qemu>> qemu_;
-  absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server_;
   absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server_;
-  // PARC server is null when it's not specified.
+  absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server_;
+  absl::Nonnull<std::unique_ptr<LogsService>> logs_service_;
+  std::unique_ptr<grpc::Server> vsock_server_;
+
+  // Parc server is null when it's not specified.
   absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
       parc_server_;
-  // gRPC servers created during Start and shutdown when stop is called.
+  // Tcp server is null when Parc is not enabled.
   absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server_;
-  std::unique_ptr<grpc::Server> vsock_server_;
 
   // Whether all underlying processes was started or not.
   // The mutex is only for controlling access to started_.
   mutable absl::Mutex mu_;
   bool started_ ABSL_GUARDED_BY(mu_) = false;
-  LogsService logs_service_;
 };
 }  // namespace privacy_sandbox::client
 

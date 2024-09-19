@@ -17,12 +17,10 @@ syntax = "proto3";
 package privacy_sandbox.client;
 
 message LauncherConfig {
-  // Port for providing Launcher services to the CVMs.
-  uint32 launcher_service_port = 1;
   // Address to talk to Tee Verification Service ( TVS ).
-  CVMConfig cvm_config = 2;
+  CVMConfig cvm_config = 1;
   // Configuration to optionally launch a local PARC server.
-  ParcConfig parc_config = 3;
+  ParcConfig parc_config = 2;
 }
 
 // Configuration for the local PARC server.

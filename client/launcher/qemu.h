@@ -89,9 +89,13 @@ class Qemu final {
     // SevSnp
     VmType vm_type;
 
-    // These 3 values are set by the launcher in the lib.rs file
-    // (http://shortn/_ngfzsMDl64)
-    uint16_t launcher_service_port;
+    // Vsock port that the launcher gRpc server is listening for.
+    uint32_t launcher_vsock_port;
+
+    // TCP port for the workload services.
+    std::optional<uint16_t> workload_service_port;
+
+    // Port to proxy traffic to the enclave listening to TCP 8080.
     uint16_t host_proxy_port;
 
     // Implements Options for root

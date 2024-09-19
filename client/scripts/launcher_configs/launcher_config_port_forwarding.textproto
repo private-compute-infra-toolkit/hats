@@ -1,4 +1,3 @@
-launcher_service_port: 8080
 cvm_config {
   cvm_type: CVMTYPE_SEVSNP
   runc_runtime_bundle: "./runtime_bundle.tar"

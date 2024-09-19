@@ -24,6 +24,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "absl/base/nullability.h"
 #include "absl/log/log.h"
@@ -44,6 +45,7 @@
 #include "grpcpp/server_builder.h"
 #include "libarchive/archive.h"
 #include "libarchive/archive_entry.h"
+#include "src/core/lib/iomgr/socket_mutator.h"
 
 namespace privacy_sandbox::client {
 
@@ -187,7 +189,6 @@ absl::StatusOr<Qemu::Options> GetQemuOptions(
   if (cvm_config.debug_telnet_port() != 0) {
     option.telnet_port = cvm_config.debug_telnet_port();
   }
-  option.launcher_service_port = launcher_config.launcher_service_port();
   if (cvm_config.network_config().has_inbound_only()) {
     option.network_mode = Qemu::NetworkMode::kRestricted;
     option.host_proxy_port = cvm_config.network_config()
@@ -249,6 +250,81 @@ absl::StatusOr<LauncherExtDeps> UnbundleHatsBundle(
   ext_deps.initrd_cpio_xz_path = absl::StrCat(tmp_dir, "/", kInitRdCpioXz);
   return ext_deps;
 }
+
+// Use Grpc socket mutator to get the vSock port used by a Grpc server.
+// We do not want to choose a port and pass it to Grpc as it might be bound
+// to another socket. Grpc offers a way to return the selected port via
+// passing a pointer to AddListeningPort(), however, it always returns 1
+// for vSock [1]. Furthermore, SO_REUSEPORT does not work with vSock.
+// Here we use a socket mutator to get the assigned port.
+// [1]
+// https://github.com/grpc/grpc/blob/f55bf225da0eafeeebffd507dcb57c625933d105/src/core/lib/address_utils/sockaddr_utils.cc#L371
+
+class GrpcSocketMutator : public grpc_socket_mutator {
+ public:
+  GrpcSocketMutator() {
+    static constexpr grpc_socket_mutator_vtable vt = {
+        .compare = [](grpc_socket_mutator* a, grpc_socket_mutator* b) -> int {
+          return reinterpret_cast<uintptr_t>(a) -
+                 reinterpret_cast<uintptr_t>(b);
+        },
+        .destroy =
+            [](grpc_socket_mutator* mutator) {
+              GrpcSocketMutator* self =
+                  static_cast<GrpcSocketMutator*>(mutator);
+              delete self;
+            },
+        .mutate_fd_2 =
+            [](const grpc_mutate_socket_info* info,
+               grpc_socket_mutator* mutator) {
+              if (info->usage != GRPC_FD_SERVER_LISTENER_USAGE) {
+                return true;
+              }
+              return static_cast<GrpcSocketMutator*>(mutator)->Mutate(info->fd);
+            },
+    };
+    grpc_socket_mutator_init(this, &vt);
+  }
+
+  bool Mutate(int fd) {
+    sock_fd_ = fd;
+    return true;
+  }
+
+  absl::StatusOr<uint32_t> GetPort() const {
+    sockaddr_vm addr;
+    memset(&addr, 0, sizeof(addr));
+    socklen_t len = sizeof(sockaddr_vm);
+    if (int r = getsockname(sock_fd_, (struct sockaddr*)&addr, &len); r < 0) {
+      return absl::UnknownError(
+          absl::StrCat("Failed to get socket name: ", strerror(r)));
+    }
+    return addr.svm_port;
+  }
+
+ private:
+  int sock_fd_;
+};
+
+class SocketMutatorServerBuilderOption : public grpc::ServerBuilderOption {
+ public:
+  SocketMutatorServerBuilderOption() {
+    grpc_socket_mutator_ = new GrpcSocketMutator();
+  }
+
+  void UpdateArguments(grpc::ChannelArguments* args) override {
+    args->SetSocketMutator(grpc_socket_mutator_);
+  }
+
+  void UpdatePlugins(
+      std::vector<std::unique_ptr<grpc::ServerBuilderPlugin>>*) override {}
+
+  const GrpcSocketMutator& GetMutator() const { return *grpc_socket_mutator_; }
+
+ private:
+  GrpcSocketMutator* grpc_socket_mutator_;
+};
+
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
@@ -261,12 +337,9 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
 
   (*deps).container_bundle = config.config.cvm_config().runc_runtime_bundle();
 
-  absl::StatusOr<Qemu::Options> option = GetQemuOptions(*deps, config.config);
-  if (!option.ok()) return option.status();
-
-  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(*option);
-  if (!qemu.ok()) return qemu.status();
-  (*deps).vmm_binary_path = (*option).vmm_binary;
+  absl::StatusOr<Qemu::Options> qemu_options =
+      GetQemuOptions(*deps, config.config);
+  if (!qemu_options.ok()) return qemu_options.status();
 
   auto launcher_server = std::make_unique<client::LauncherServer>(
       config.tvs_authentication_key_bytes, config.private_key_wrapping_keys,
@@ -275,26 +348,58 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   auto launcher_oak_server = std::make_unique<LauncherOakServer>(
       (*deps).oak_system_image_path, (*deps).container_bundle,
       kMaxGrpcResponseSize);
+  auto logs_service = std::make_unique<LogsService>();
 
-  // PARC server will be NULL when it's not specified.
-  absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-      parc_server_nullable = nullptr;
+  grpc::ServerBuilder vsock_builder;
+  vsock_builder.RegisterService(launcher_server.get())
+      .RegisterService(launcher_oak_server.get())
+      .RegisterService(logs_service.get());
+  vsock_builder.AddListeningPort(
+      absl::StrCat("vsock:", VMADDR_CID_HOST, ":", VMADDR_PORT_ANY),
+      grpc::InsecureServerCredentials());
+
+  auto socket_mutator_server_builder_options =
+      std::make_unique<SocketMutatorServerBuilderOption>();
+  const GrpcSocketMutator& grpc_socket_mutator =
+      socket_mutator_server_builder_options->GetMutator();
+  vsock_builder.SetOption(std::move(socket_mutator_server_builder_options));
+  std::unique_ptr<grpc::Server> vsock_server = vsock_builder.BuildAndStart();
+  absl::StatusOr<uint32_t> vsock_port = grpc_socket_mutator.GetPort();
+  if (!vsock_port.ok()) return vsock_port.status();
+  qemu_options->launcher_vsock_port = *vsock_port;
+
+  // parc and tcp servers are nullptr when they are not specified.
+  std::unique_ptr<privacysandbox::parc::local::v0::ParcServer> parc_server;
+  std::unique_ptr<grpc::Server> tcp_server;
+
   if (config.config.has_parc_config()) {
     absl::StatusOr<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-        parc_server = CreateParcServer(config.config.parc_config());
-    if (!parc_server.ok()) return parc_server.status();
-    parc_server_nullable = *std::move(parc_server);
+        parc_server_or = CreateParcServer(config.config.parc_config());
+    if (!parc_server_or.ok()) return parc_server_or.status();
+    parc_server = *std::move(parc_server_or);
+    grpc::ServerBuilder builder;
+    builder.RegisterService(parc_server.get());
+    int port;
+    // Pass wildcard port i.e 0 so that grpc chooses a port for us.
+    builder.AddListeningPort("0.0.0.0:0", grpc::InsecureServerCredentials(),
+                             &port);
+    tcp_server = builder.BuildAndStart();
+    qemu_options->workload_service_port = port;
+    LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
+              << *vsock_port << "' and '0.0.0.0:" << port << "'";
+  } else {
+    LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
+              << *vsock_port << "'";
   }
 
-  std::string addr_uri =
-      absl::StrFormat("0.0.0.0:%d", config.config.launcher_service_port());
-  std::string vsock_uri = absl::StrFormat(
-      "vsock:%d:%d", VMADDR_CID_HOST, config.config.launcher_service_port());
+  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(*qemu_options);
+  if (!qemu.ok()) return qemu.status();
+  (*deps).vmm_binary_path = (*qemu_options).vmm_binary;
 
   return absl::WrapUnique(new HatsLauncher(
-      addr_uri, vsock_uri, *std::move(deps), *std::move(qemu),
-      std::move(launcher_oak_server), std::move(launcher_server),
-      std::move(parc_server_nullable)));
+      *std::move(deps), *std::move(qemu), std::move(launcher_oak_server),
+      std::move(launcher_server), std::move(logs_service),
+      std::move(vsock_server), std::move(parc_server), std::move(tcp_server)));
 }
 
 absl::Status HatsLauncher::Start(absl::string_view qemu_log_filename) {
@@ -309,28 +414,6 @@ absl::Status HatsLauncher::Start(absl::string_view qemu_log_filename) {
   if (absl::Status status = qemu_->Start(qemu_log_filename); !status.ok())
     return status;
   LOG(INFO) << "Qemu LogFilename:" << qemu_->LogFilename();
-
-  // All gRPC servers are owned by the HatsLauncher object.
-  grpc::ServerBuilder vsock_builder;
-  vsock_builder.RegisterService(launcher_server_.get())
-      .RegisterService(launcher_oak_server_.get())
-      .RegisterService(&logs_service_);
-  vsock_builder.AddListeningPort(vsock_uri_, grpc::InsecureServerCredentials());
-
-  vsock_server_ = vsock_builder.BuildAndStart();
-  if (parc_server_ != nullptr) {
-    LOG(INFO)
-        << "PARC server is enabled ( configured by parc_config existence )";
-    grpc::ServerBuilder builder;
-    builder.RegisterService(parc_server_.get());
-    builder.AddListeningPort(addr_uri_, grpc::InsecureServerCredentials());
-    tcp_server_ = builder.BuildAndStart();
-    LOG(INFO) << "Server listening on '" << addr_uri_ << "' and '" << vsock_uri_
-              << "'";
-  } else {
-    LOG(INFO) << "Server listening on '" << vsock_uri_ << "'";
-  }
-  // blocking
   return absl::OkStatus();
 }
 
@@ -341,10 +424,7 @@ void HatsLauncher::Wait() {
       return;
     }
   }
-
   qemu_->Wait();
-  vsock_server_->Wait();
-  if (tcp_server_ != nullptr) tcp_server_->Wait();
 }
 
 absl::StatusOr<std::shared_ptr<grpc::Channel>>
@@ -384,18 +464,21 @@ void HatsLauncher::WaitUntilReady() {
 }
 
 HatsLauncher::HatsLauncher(
-    absl::string_view addr_uri, absl::string_view vsock_uri,
     LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
     absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
     absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
+    absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
+    absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
     absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-        parc_server)
-    : addr_uri_(addr_uri),
-      vsock_uri_(vsock_uri),
-      deps_(std::move(deps)),
+        parc_server,
+    absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server)
+    : deps_(std::move(deps)),
       qemu_(std::move(qemu)),
-      launcher_server_(std::move(launcher_server)),
       launcher_oak_server_(std::move(launcher_oak_server)),
-      parc_server_(std::move(parc_server)) {}
+      launcher_server_(std::move(launcher_server)),
+      logs_service_(std::move(logs_service)),
+      vsock_server_(std::move(vsock_server)),
+      parc_server_(std::move(parc_server)),
+      tcp_server_(std::move(tcp_server)) {}
 
 }  // namespace privacy_sandbox::client

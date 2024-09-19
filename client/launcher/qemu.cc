@@ -200,21 +200,20 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
   } else {
     // Set up the networking. `rombar=0` is so that QEMU wouldn't bother with
     // the `efi-virtio.rom` file, as we're not using EFI anyway.
-
+    std::string port_forwarding_rules = "user,id=netdev";
+    absl::StrAppend(&port_forwarding_rules, ",hostfwd=tcp:", kLocalHost, ":",
+                    options.host_proxy_port, "-", kVmLocalAddress, ":",
+                    kVmLocalPort);
     // Allow guest workload to talk to oak launcher service.
-    std::string guestfwd_hats_launcher = absl::StrFormat(
-        "guestfwd=tcp:%s:%u-cmd:nc %s %u", kVmLauncherAddress,
-        kVmHatsLauncherPort, kLocalHost, options.launcher_service_port);
-
-    // Allow host to talk to guest workload.
-    std::string hostfwd_guest_workload =
-        absl::StrFormat("hostfwd=tcp:%s:%u-%s:%u", kLocalHost,
-                        options.host_proxy_port, kVmLocalAddress, kVmLocalPort);
+    if (options.workload_service_port.has_value()) {
+      absl::StrAppend(&port_forwarding_rules,
+                      ",guestfwd=tcp:", kVmLauncherAddress, ":",
+                      kVmHatsLauncherPort, "-cmd:nc ", kLocalHost, " ",
+                      *options.workload_service_port);
+    }
 
     args.push_back("-netdev");
-    args.push_back(absl::StrFormat("user,id=netdev,%s,%s",
-                                   guestfwd_hats_launcher,
-                                   hostfwd_guest_workload));
+    args.push_back(port_forwarding_rules);
     args.push_back("-device");
     args.push_back(
         "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
@@ -277,7 +276,7 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
       break;
   }
   absl::StrAppend(&cmdline, " quiet -- ", "--launcher-addr=vsock://",
-                  kVmAddrCidHost, ":", options.launcher_service_port);
+                  kVmAddrCidHost, ":", options.launcher_vsock_port);
 
   args.push_back(cmdline);
 

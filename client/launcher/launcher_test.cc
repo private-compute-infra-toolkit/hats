@@ -126,14 +126,11 @@ TEST(HatsLauncher, Successful) {
   // Ensure all GRPC services are up and running even though they may return bad
   // result.
   // Hats is used for orchestrator is run.
-  absl::StatusOr<std::shared_ptr<grpc::Channel>> tcp_channel =
-      (*launcher)->TcpChannelForTest();
-  ASSERT_THAT(tcp_channel, IsOk());
   absl::StatusOr<std::shared_ptr<grpc::Channel>> vsock_channel =
       (*launcher)->VsockChannelForTest();
   ASSERT_THAT(vsock_channel, IsOk());
 
-  auto hats_stub = LauncherService::NewStub(*tcp_channel);
+  auto hats_stub = LauncherService::NewStub(*vsock_channel);
   // Vsock is used for stage1 oak launcher to run.
   auto oak_stub = oak::containers::Launcher::NewStub(*vsock_channel);
   // Simulated Stage 1 should get the system bundle image, which is empty in our
