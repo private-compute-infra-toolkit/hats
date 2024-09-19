@@ -39,10 +39,11 @@ which bazel
 
 KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 
-# Apply patch
+# Apply patches
 cd "${KOKORO_HATS_DIR}"
 source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
 patches::apply_common
+patches::apply_python
 
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 
@@ -62,14 +63,8 @@ args=(
   --noshow_progress
   --verbose_failures=true
   --symlink_prefix=/
-    # presubmit server complains as `tar_pkg` rules runs python
-    # and the presubmit runs as root. So here we exclude these
-    # rules that we tagged them with *nopresubmit*.
-    # https://screenshot.googleplex.com/3ThEtDfNQTE3YW4
+  # Skip builds/tests that fail on Kokoro
   --build_tag_filters=-nopresubmit
-  # presubmit server cannot bind to a port in kokoro environment
-  # and so we exclude those tests with *nopresubmit*.
-  # https://screenshot.googleplex.com/BXzFU3LAVqcTmTP
   --test_tag_filters=-nopresubmit
   --
   //...

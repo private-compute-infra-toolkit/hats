@@ -30,7 +30,6 @@ pkg_tar(
     name = "tvs_binary",
     srcs = ["//tvs/untrusted_tvs:tvs-server_main"],
     package_dir = "/usr/bin",
-    tags = ["nopresubmit"],
 )
 
 oci_image(
@@ -43,7 +42,6 @@ oci_image(
         "--instance_id=tvs-instance",
         "--database_id=tvs-db",
     ],
-    tags = ["nopresubmit"],
     tars = [
         ":tvs_binary",
     ],
@@ -58,7 +56,6 @@ oci_push(
     image = ":tvs_image",
     remote_tags = ["latest"],
     repository = "us-docker.pkg.dev/ps-hats-playground/gcr.io/tvs_image",
-    tags = ["nopresubmit"],
 )
 
 # Public key server
@@ -66,7 +63,6 @@ pkg_tar(
     name = "public_key_server_binary",
     srcs = ["//public_key:public-key-server_main"],
     package_dir = "/usr/bin",
-    tags = ["nopresubmit"],
 )
 
 oci_image(
@@ -81,7 +77,6 @@ oci_image(
         "--aws_key_endpoint=https://publickeyservice.pa.aws.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
         "--gcp_key_endpoint=https://publickeyservice.pa.gcp.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
     ],
-    tags = ["nopresubmit"],
     tars = [
         ":public_key_server_binary",
     ],
@@ -96,5 +91,4 @@ oci_push(
     image = ":public_key_server_image",
     remote_tags = ["latest"],
     repository = "us-docker.pkg.dev/ps-hats-playground/gcr.io/public_key_server_image",
-    tags = ["nopresubmit"],
 )

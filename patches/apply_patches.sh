@@ -56,3 +56,27 @@ function patches::revert_common() {
   # Delete local version
   sed -i "$((LAST_LINE+1)),$((LAST_LINE+1+3))d" WORKSPACE
 }
+
+### Python
+# Pkg_tar runs python in the background, which can't run as root.
+# So for docker-based builds, this registers toolchains.
+# builders/bazel/BUILD hard-codes the path to python3, so updates that if needed
+# Default state is to not register any toolchain, as that would default to the
+# builders submodule's path for bazel-debian. Once bazel-debian is default, it
+# can be the standard behavior (no patch), and only patch for Kokoro (or normal
+# bazel)
+
+function patches::apply_python() {
+  # Point to correct python path
+  sed -i "s@/opt/bin/python3@$(which python3)@" builders/bazel/BUILD
+  # Add register_toolchain
+  sed -i 's@python_deps()@python_deps()\nload("//builders/bazel:deps.bzl", "python_register_toolchains")\npython_register_toolchains("//builders/bazel")@' WORKSPACE
+}
+
+function patches::revert_python() {
+  # Reset path
+  sed -i "s@$(which python3)@/opt/bin/python3@" builders/bazel/BUILD
+  # Remove register toolchain
+  sed -i '/load("\/\/builders\/bazel:deps.bzl", "python_register_toolchains")/d' WORKSPACE
+  sed -i '/python_register_toolchains("\/\/builders\/bazel")/d' WORKSPACE
+}
