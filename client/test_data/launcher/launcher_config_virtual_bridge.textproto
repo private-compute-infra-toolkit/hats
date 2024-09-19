@@ -8,7 +8,6 @@ cvmConfig: {
   ram_size_kb: 1048576
   debug_telnet_port: 1234
   virtio_guest_cid: 3
-  pci_passthrough: "09:00.1"
   networkConfig: {
     virtual_bridge: {
       "virtual_bridge_device": "virbr2"

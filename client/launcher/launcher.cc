@@ -161,7 +161,6 @@ absl::StatusOr<Qemu::Options> GetQemuOptions(
       .memory_size = absl::StrFormat("%dk", cvm_config.ram_size_kb()),
       .num_cpus = cvm_config.num_cpus(),
       .ramdrive_size = cvm_config.ramdrive_size_kb(),
-      .pci_passthrough = cvm_config.pci_passthrough(),
   };
 
   if (cvm_config.has_virtio_guest_cid())

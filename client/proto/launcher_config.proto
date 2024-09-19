@@ -68,14 +68,10 @@ message CVMConfig {
   // Configuration for CVM networking.
   NetworkConfig network_config = 9;
 
-  // Optional virtio guest CID for virtio-vsock. If not assigned, defaults to
-  // the current thread ID.
+  // Optional virtio guest CID for virtio-vsock. If not assigned, choose
+  // an ID randomly.
   // Warning; This CID needs to be globally unique on the whole host!
   optional uint32 virtio_guest_cid = 10;
-
-  // Pass the specified host PCI device through to the virtual machine using
-  // VFIO.
-  string pci_passthrough = 11;
 }
 
 message NetworkConfig {

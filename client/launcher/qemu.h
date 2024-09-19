@@ -84,10 +84,6 @@ class Qemu final {
     // Warning; This CID needs to be globally unique on the whole host!
     std::optional<size_t> virtio_guest_cid = std::nullopt;
 
-    // Pass the specified host PCI device through to the virtual machine using
-    // VFIO.
-    std::string pci_passthrough;
-
     // Type of the confidential VM. It could be Default, Sev, SevEs,
     // SevSnp
     VmType vm_type;
