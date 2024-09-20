@@ -29,11 +29,20 @@ set -e
 
 KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 
+# In Kokoro, git meta files are stripped off. pre-commit only runs in
+# directories. We run this before patching to workspace as the patches
+# might leave files in a format that pre-commit does not like.
+git config --global --add safe.directory "${KOKORO_HATS_DIR}"
+cd "${KOKORO_HATS_DIR}"
+# Run pre-commit hooks.
+pre-commit run -a
+
 # Apply patches
 cd "${KOKORO_HATS_DIR}"
 source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
 patches::apply_common
 patches::apply_python
+
 
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 

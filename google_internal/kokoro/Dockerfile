@@ -3,7 +3,7 @@ ARG image_digest=sha256:dfc10878be8d8fc9c61cbff33166cb1d1fe44391539243703c727668
 FROM ubuntu:latest@${image_digest}
 
 RUN apt-get update && apt-get install --no-install-recommends --yes python3 \
-		      curl ca-certificates git gnupg2 patch
+       curl ca-certificates git gnupg2 patch pre-commit shellcheck
 
 # Required to install bazel.
 RUN echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" \
