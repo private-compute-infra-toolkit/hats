@@ -27,16 +27,6 @@ set -e
 # export PS4='+\t $(basename ${BASH_SOURCE[0]}):${LINENO} ' # xtrace prompt
 # set -x
 
-BAZEL_VERSION=bazel-7.2.0-linux-x86_64
-BAZEL_TMP_DIR=/tmpfs/tmp/bazel-release
-mkdir -p "${BAZEL_TMP_DIR}"
-echo "Bazel file: ${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}"
-ln -fs "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}" "${BAZEL_TMP_DIR}/bazel"
-chmod 755 "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}"
-export PATH="${BAZEL_TMP_DIR}:${PATH}"
-# This should show /tmpfs/tmp/bazel-release/bazel
-which bazel
-
 KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 
 # Apply patch
