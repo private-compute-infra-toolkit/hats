@@ -170,12 +170,41 @@ These are all stored under the `kokoro` sub-directory
 ## Other options, TODO
 
 ### Docker images
-Kokoro instances execute builds inside Docker containers.
-Currently it uses a general pre-provided default option, but also supports custom images.
-See go/kokoro-docker-image-options
-The codelab has also been recently updated to include instructions for "Container Build".
-This can help with coming pre-packaged with build dependencies, build tools, etc. to speed up building.
-There is also the option of using the builders library for bazel-debian to have bazel build in a docker image, see b/351201455.
+
+Kokoro instances execute builds inside Docker container from
+[ps-hats-playground presubmit Artificate Registry](https://pantheon.corp.google.com/artifacts/docker/ps-hats-playground/us-central1/presubmit/presubmit?project=ps-hats-playground).
+
+The image contains dependencies necessary to build the code e.g. vhost_vsock
+Linux kernel module.
+
+To update the image:
+
+1. Authenticate with GCP:
+
+  ```
+  $ gcloud auth login
+  $ gcloud config set project ps-hats-playground
+  $ gcloud auth configure-docker us-central1-docker.pkg.dev
+  ```
+
+1. Build a docker container:
+
+  ```
+  $ cd google_internal/kokoro
+  $ docker build . -t presubmit
+  ```
+
+1.  Tag docker container:
+
+  ```
+  $ docker tag presubmit us-docker.pkg.dev/ps-hats-playground/gcr.io/presubmit
+  ```
+
+1.  Push the container to presubmit Artifact Registry in ps-hats-playground:
+
+  ```
+  $ docker push us-docker.pkg.dev/ps-hats-playground/gcr.io/presubmit
+  ```
 
 ### Release builds
 
