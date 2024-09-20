@@ -27,7 +27,7 @@ git submodule update --init --recursive
 source ./build-lib.sh
 
 # build launcher / local TVS server / KeyGen
-build_hats_launcher_cc "$PREBUILT_DIR"
+build_hats_launcher "$PREBUILT_DIR"
 build_tvs "$PREBUILT_DIR"
 build_test_keygen "$PREBUILT_DIR"
 

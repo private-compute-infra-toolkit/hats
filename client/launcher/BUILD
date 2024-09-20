@@ -1,6 +1,4 @@
-load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
-load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -49,36 +47,11 @@ cc_library(
     ],
 )
 
-rust_binary(
-    name = "launcher",
-    srcs = [
-        "launcher.rs",
-    ],
-    deps = [
-        ":bridge",
-        ":server-ffi",
-        "@cxx.rs//:cxx",
-        "@oak//oak_client",
-        "@oak//oak_containers/launcher:lib",
-        "@oak//oak_crypto",
-        "@oak_crates_index//:anyhow",
-        "@oak_crates_index//:clap",
-        "@oak_crates_index//:env_logger",
-        "@oak_crates_index//:tokio",
-    ],
-)
-
-rust_cxx_bridge(
-    name = "bridge",
-    src = "launcher.rs",
-    deps = [":server-ffi-include"],
-)
-
 cc_binary(
     name = "launcher_main",
     srcs = ["launcher_main.cc"],
     deps = [
-        ":launcher_cc",
+        ":launcher",
         "//client/proto:launcher_config_cc_proto",
         "//tvs/credentials",
         "@com_google_absl//absl/flags:flag",
@@ -93,7 +66,7 @@ cc_binary(
 )
 
 cc_library(
-    name = "launcher_cc",
+    name = "launcher",
     srcs = ["launcher.cc"],
     hdrs = ["launcher.h"],
     deps = [
@@ -124,7 +97,7 @@ cc_test(
     # the test.
     tags = ["nopresubmit"],
     deps = [
-        ":launcher_cc",
+        ":launcher",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/untrusted_tvs:tvs-server",
         "@bazel_tools//tools/cpp/runfiles",
@@ -186,32 +159,6 @@ cc_test(
         "@com_google_protobuf//src/google/protobuf/io",
         "@oak//proto/containers:interfaces_cc_grpc",
         "@oak//proto/containers:interfaces_cc_proto",
-    ],
-)
-
-cc_library(
-    name = "server-ffi",
-    srcs = ["server-ffi.cc"],
-    hdrs = ["server-ffi.h"],
-    deps = [
-        ":launcher-server",
-        "//tvs/credentials",
-        "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-        "@cxx.rs//:cxx",
-        "@google_privacysandbox_servers_common//:local_parameters",
-        "@google_privacysandbox_servers_common//:local_parc_server",
-    ],
-)
-
-cc_library(
-    name = "server-ffi-include",
-    hdrs = ["server-ffi.h"],
-    deps = [
-        "@cxx.rs//:cxx",
     ],
 )
 

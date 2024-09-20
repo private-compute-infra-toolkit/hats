@@ -15,17 +15,6 @@
 
 set -e
 
-function build_cloud_hypervisor() {
-  local BUILD_DIR="$1"
-  echo "BUILDING CLOUD HYPERVISOR..."
-  pushd ../../submodules/oak/oak_on_prem_cloud_hypervisor
-  rm -rf ./cloud-hypervisor-39.0 && \
-    nix develop --command make && \
-    sudo setcap cap_net_admin+ep target/cloud-hypervisor && \
-    rsync target/cloud-hypervisor "$BUILD_DIR"
-  popd
-}
-
 function build_kv_bundle() {
   local BUILD_DIR="$1"
   printf "\nBUILDING KV SERVICE..."
@@ -113,16 +102,7 @@ function build_snphost() {
   popd
 }
 
-
 function build_hats_launcher() {
-  local BUILD_DIR="$1"
-  echo "BUILDING LAUNCHER"
-  bazel build -c opt //client/launcher:launcher
-  cp -f ../../bazel-bin/client/launcher/launcher "$BUILD_DIR"
-  cp -r ../test_data/parc_data "$BUILD_DIR"
-}
-
-function build_hats_launcher_cc() {
   local BUILD_DIR="$1"
   echo "BUILDING LAUNCHER CC"
   bazel build -c opt //client/launcher:launcher_main
