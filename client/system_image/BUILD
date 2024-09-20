@@ -10,7 +10,6 @@ pkg_tar(
     name = "tvs_public_keys",
     srcs = ["tvs_public_keys.txt"],
     package_dir = "/hats/",
-    tags = ["nopresubmit"],
 )
 
 # Change oak-orchestrator.service to load hats orchestrator
@@ -22,7 +21,6 @@ pkg_tar(
         "oak-syslogd.service",
     ],
     package_dir = "/etc/systemd/system/",
-    tags = ["nopresubmit"],
 )
 
 # Override the enp0s1 interface settings as we are setting
@@ -31,7 +29,6 @@ pkg_tar(
     name = "interface",
     srcs = ["10-enp0s1.network"],
     package_dir = "/etc/systemd/network/",
-    tags = ["nopresubmit"],
 )
 
 # Administrative binaries.
@@ -51,13 +48,11 @@ pkg_tar(
         "//conditions:default": [],
     }),
     package_dir = "/usr/bin/",
-    tags = ["nopresubmit"],
 )
 
 oci_image(
     name = "hats_system_oci_image",
     base = "@oak_containers_sysimage_base",
-    tags = ["nopresubmit"],
     tars = [
         ":admin_bin",
         ":services",
@@ -70,5 +65,4 @@ oci_runtime_bundle(
     name = "hats_system_image",
     image = ":hats_system_oci_image",
     rootfs_only = True,
-    tags = ["nopresubmit"],
 )

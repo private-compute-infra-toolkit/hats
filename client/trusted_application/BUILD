@@ -56,7 +56,6 @@ pkg_tar(
     name = "tar",
     srcs = [":main"],
     package_dir = "/usr/local/bin",
-    tags = ["nopresubmit"],
     visibility = [
         "//visibility:public",
     ],
@@ -66,12 +65,10 @@ oci_image(
     name = "image",
     base = "@distroless_cc_debian12",
     entrypoint = ["/usr/local/bin/main"],
-    tags = ["nopresubmit"],
     tars = [":tar"],
 )
 
 oci_runtime_bundle(
     name = "bundle",
     image = ":image",
-    tags = ["nopresubmit"],
 )
