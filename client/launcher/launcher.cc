@@ -296,7 +296,7 @@ class GrpcSocketMutator : public grpc_socket_mutator {
     socklen_t len = sizeof(sockaddr_vm);
     if (int r = getsockname(sock_fd_, (struct sockaddr*)&addr, &len); r < 0) {
       return absl::UnknownError(
-          absl::StrCat("Failed to get socket name: ", strerror(r)));
+          absl::StrCat("Failed to get socket name: ", strerror(errno)));
     }
     return addr.svm_port;
   }
