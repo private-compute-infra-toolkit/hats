@@ -43,7 +43,12 @@ source "patches/apply_patches.sh"
 patches::apply_common
 patches::apply_python
 
-builders/tools/bazel-debian "$@"
+# Always revert patches, even if bazel failure or sigint
+function cleanup() {
+  patches::revert_common
+  patches::revert_python
+}
 
-patches::revert_common
-patches::revert_python
+trap cleanup EXIT
+
+builders/tools/bazel-debian "$@"; \
