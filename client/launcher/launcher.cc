@@ -296,7 +296,9 @@ class GrpcSocketMutator : public grpc_socket_mutator {
     socklen_t len = sizeof(sockaddr_vm);
     if (int r = getsockname(sock_fd_, (struct sockaddr*)&addr, &len); r < 0) {
       return absl::UnknownError(
-          absl::StrCat("Failed to get socket name: ", strerror(errno)));
+          absl::StrCat("Failed to get socket name: ", strerror(errno),
+                       ". Check if kernel module vhost_vsock. You can load the "
+                       "module by running `sudo modprobe vhost_vsock`."));
     }
     return addr.svm_port;
   }
