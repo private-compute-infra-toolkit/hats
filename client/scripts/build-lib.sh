@@ -93,6 +93,20 @@ function build_oak_hello_world_container_bundle_tar() {
   popd
 }
 
+function build_test_application_container_bundle_tar() {
+  local BUILD_DIR="$1"
+  printf "\nBUILDING TEST APPLICATION CONTAINER BUNDLE TAR..."
+  bazel build -c opt //client/trusted_application:bundle
+  cp -f ../../bazel-bin/client/trusted_application/bundle.tar "$BUILD_DIR"
+}
+
+function build_test_main() {
+  local BUILD_DIR="$1"
+  printf "\nBUILDING TEST MAIN..."
+  bazel build -c opt //test_main:test_main
+  cp -f ../../bazel-bin/test_main/test_main "$BUILD_DIR"
+}
+
 function build_snphost() {
   local BUILD_DIR="$1"
   pushd ../../submodules/oak

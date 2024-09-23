@@ -1,0 +1,51 @@
+policy {
+  oak_containers {
+    root_layer {
+      amd_sev {
+        stage0 {
+          skip {
+          }
+        }
+        min_tcb_version {
+        }
+      }
+    }
+    kernel_layer {
+      kernel {
+        skip {
+        }
+      }
+      init_ram_fs {
+        skip {
+        }
+      }
+      memory_map {
+        skip {
+        }
+      }
+      acpi {
+        skip {
+        }
+      }
+      kernel_cmd_line_text {
+        skip {}
+      }
+    }
+    system_layer {
+      system_image {
+        skip {
+        }
+      }
+    }
+    container_layer {
+      binary {
+        skip {
+        }
+      }
+      configuration {
+        skip {
+        }
+      }
+    }
+  }
+}

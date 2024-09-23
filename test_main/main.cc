@@ -63,6 +63,9 @@ ABSL_FLAG(bool, enable_policy_signature, false,
 ABSL_FLAG(std::string, application_key, "",
           "This should be the same value as the user_secret passed to the "
           "local key fetcher");
+ABSL_FLAG(
+    bool, qemu_log_to_std, false,
+    "Whether to send qemu logs to stdout/stderr instead of a temporary file.");
 
 absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
     absl::string_view path) {
@@ -197,6 +200,7 @@ int main(int argc, char* argv[]) {
               std::move(tvs_authentication_key_bytes),
           .private_key_wrapping_keys = std::move(wrapping_keys),
           .tvs_channels = std::move(channel_map),
+          .qemu_log_to_std = absl::GetFlag(FLAGS_qemu_log_to_std),
       });
   if (!launcher.ok()) {
     LOG(ERROR) << "Failed to create launcher: " << launcher.status();
@@ -212,7 +216,7 @@ int main(int argc, char* argv[]) {
 
   // Now here we need to check if app is ready, if it is, start up app client
   // and talk to it.
-  while ((*launcher)->IsAppReady()) {
+  while (!(*launcher)->IsAppReady()) {
     std::cout << "Waiting for app to be ready" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
