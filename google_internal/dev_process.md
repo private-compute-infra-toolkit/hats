@@ -60,7 +60,7 @@ Use the **Clone with commit-msg hooks** command.
 To initialize the repo's submodules, or to refresh them:
 
 ```shell
-git submodule update ---init --remote --force
+git submodule update --init --remote --force
 ```
 
 ### Pre-commit checks
