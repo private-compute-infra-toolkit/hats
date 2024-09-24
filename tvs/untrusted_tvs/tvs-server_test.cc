@@ -207,7 +207,9 @@ TEST(TvsServer, Successful) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
+                       /*enable_policy_signature=*/true,
+                       /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
@@ -248,7 +250,9 @@ TEST(TvsServer, BadReportError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
+                       /*enable_policy_signature=*/true,
+                       /*accept_insecure_policies=*/false);
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
@@ -285,7 +289,9 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
+                       /*enable_policy_signature=*/true,
+                       /*accept_insecure_policies=*/false);
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
@@ -335,7 +341,9 @@ TEST(TvsServer, MalformedMessageError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
+                       /*enable_policy_signature=*/true,
+                       /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
   std::unique_ptr<TeeVerificationService::Stub> stub =
@@ -358,7 +366,9 @@ TEST(TvsServer, CreatingTrustedTvsServerError) {
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
   ASSERT_TRUE(appraisal_policies.ok());
-  TvsServer tvs_server("0000", *std::move(appraisal_policies));
+  TvsServer tvs_server("0000", *std::move(appraisal_policies),
+                       /*enable_policy_signature=*/true,
+                       /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
@@ -385,7 +395,9 @@ TEST(TvsServer, AuthenticationError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies));
+  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
+                       /*enable_policy_signature=*/true,
+                       /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
@@ -400,5 +412,112 @@ TEST(TvsServer, AuthenticationError) {
                        HasSubstr("Unauthenticated: Failed to lookup user")));
 }
 
+absl::StatusOr<AppraisalPolicies> GetInsecureAppraisalPolicies() {
+  AppraisalPolicies appraisal_policies;
+  if (!google::protobuf::TextFormat::ParseFromString(
+          R"pb(
+            signed_policy {
+              policy {
+                oak_containers {
+                  root_layer { insecure {} }
+                  kernel_layer {
+                    kernel {
+                      digests {
+                        image {
+                          digests {
+                            sha2_256: "\354\245\357A\366\334~\223\r\216\223v\347\215\031\200,I\365\242J\024\300\276\030\310\340\343\250\276>\204"
+                          }
+                        }
+                        setup_data {
+                          digests {
+                            sha2_256: "\301\002.}\321x\0026\t\242H9\321\303.\242htwXjTB\271 \233g\3676U\261\034"
+                          }
+                        }
+                      }
+                    }
+                    init_ram_fs {
+                      digests {
+                        digests {
+                          sha2_256: "^&\307\211\224#jf\032KR.\007\350\270\311po\374\020\005\330\304\365\314\265\320\306A\336\036\333"
+                        }
+                      }
+                    }
+                    memory_map {
+                      digests {
+                        digests {
+                          sha2_256: "s\354Xx\356\321\n\302W\350U2K\362b\036\276\330\365\202Td\306\257\342\360\025*\302>\247\373"
+                        }
+                      }
+                    }
+                    acpi {
+                      digests {
+                        digests {
+                          sha2_256: "f\213[M\267\237\2319\307A\326!\202\265\226.\031\301P\301\353x\372\202Hd\376\262\231\300\350\307"
+                        }
+                      }
+                    }
+                    kernel_cmd_line_text {
+                      regex {
+                        value: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+                      }
+                    }
+                  }
+                  system_layer {
+                    system_image {
+                      digests {
+                        digests {
+                          sha2_256: "\342\311aW\254\341|\224\020\2321\2355\370z\256=\302\007\353W\035\252\337\326\324 ]\273C\360w"
+                        }
+                      }
+                    }
+                  }
+                  container_layer {
+                    binary {
+                      digests {
+                        digests {
+                          sha2_256: "\3131\330\211\343>\257\236;C\315\276\263UI\003\303k^\003|Q\207\350v\246\236\214[]\206L"
+                        }
+                      }
+                    }
+                    configuration { skip {} }
+                  }
+                }
+              }
+              signature {
+                signature: "\xa4<\x9e\x89\xf1Lr\x06+\x14\xdf\xb0\xd5\x0b\xb1\xd4\x0e\\a\xbe/\xa4\x8e\xd6!C\x86\xed}L\x908\t\xfb\xee[L\x9c\x15^l\xdc\xd0\n5>\xb8Hr\x91\xba#\x9a\x85\xf7\xd1\x81\xd8\t+\xb3;_\xb3"
+                signer: ""
+              }
+            })pb",
+          &appraisal_policies)) {
+    return absl::UnknownError("Cannot parse test appraisal policy");
+  }
+  return appraisal_policies;
+}
+
+// Passing insecure policies in a secure mode.
+TEST(TvsServer, InsecurePoliciesError) {
+  key_manager::RegisterEchoKeyFetcherForTest();
+  absl::StatusOr<AppraisalPolicies> appraisal_policies =
+      GetInsecureAppraisalPolicies();
+  ASSERT_TRUE(appraisal_policies.ok());
+  TvsServer tvs_server("0000", *std::move(appraisal_policies),
+                       /*enable_policy_signature=*/true,
+                       /*accept_insecure_policies=*/false);
+  std::unique_ptr<grpc::Server> server =
+      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+
+  EXPECT_THAT(
+      TvsUntrustedClient::CreateClient({
+          .tvs_public_key = std::string(kTvsPublicKey),
+          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
+          .channel = server->InProcessChannel(grpc::ChannelArguments()),
+      }),
+      StatusIs(
+          absl::StatusCode::kUnknown,
+          AllOf(HasSubstr(
+                    "FAILED_PRECONDITION: Cannot create trusted TVS server"),
+                HasSubstr("Invalid primary private key. Key should be 32 bytes "
+                          "long."))));
+}
 }  // namespace
 }  // namespace privacy_sandbox::tvs

@@ -342,9 +342,12 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
       GetQemuOptions(*deps, config.config);
   if (!qemu_options.ok()) return qemu_options.status();
 
+  // Whether or not to fetch tee certificate.
+  const bool fetch_tee_certificate =
+      config.config.cvm_config().cvm_type() == CVMTYPE_SEVSNP;
   auto launcher_server = std::make_unique<client::LauncherServer>(
       config.tvs_authentication_key_bytes, config.private_key_wrapping_keys,
-      channel_map);
+      channel_map, fetch_tee_certificate);
 
   auto launcher_oak_server = std::make_unique<LauncherOakServer>(
       (*deps).oak_system_image_path, (*deps).container_bundle,

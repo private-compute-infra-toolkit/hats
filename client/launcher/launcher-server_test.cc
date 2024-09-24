@@ -447,7 +447,9 @@ TEST(LauncherServer, Successful) {
   ASSERT_TRUE(tvs_private_key.ok());
 
   // Real TVS server.
-  tvs::TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policies));
+  tvs::TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policies),
+                             /*enable_policy_signature=*/true,
+                             /*accept_insecure_policies=*/false);
 
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
@@ -461,7 +463,7 @@ TEST(LauncherServer, Successful) {
   channel_map[0] = tvs_server->InProcessChannel(grpc::ChannelArguments());
   LauncherServer launcher_service(
       /*tvs_authentication_key=*/kFakeKey, /*private_key_wrapping_keys=*/{},
-      channel_map);
+      channel_map, /*fetch_tee_certificate=*/true);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
@@ -499,16 +501,20 @@ TEST(LauncherServer, SplitSuccessful) {
       HexStringToBytes(kTvsPrivateKey3);
   ASSERT_TRUE(tvs_private_key3.ok());
 
-  // Real TVS server.
-  tvs::TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policies));
+  // TVS Server 1.
+  tvs::TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policies),
+                             /*enable_policy_signature=*/true,
+                             /*accept_insecure_policies=*/false);
 
   // TVS Server 2
-  tvs::TvsServer tvs_service2(*tvs_private_key2,
-                              *std::move(GetTestAppraisalPolicies()));
+  tvs::TvsServer tvs_service2(
+      *tvs_private_key2, *std::move(GetTestAppraisalPolicies()),
+      /*enable_policy_signature=*/true, /*accept_insecure_policies=*/false);
 
   // TVS Server 3
-  tvs::TvsServer tvs_service3(*tvs_private_key3,
-                              *std::move(GetTestAppraisalPolicies()));
+  tvs::TvsServer tvs_service3(
+      *tvs_private_key3, *std::move(GetTestAppraisalPolicies()),
+      /*enable_policy_signature=*/true, /*accept_insecure_policies=*/false);
 
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
@@ -530,7 +536,8 @@ TEST(LauncherServer, SplitSuccessful) {
   channel_map[2] = tvs_server3->InProcessChannel(grpc::ChannelArguments());
   LauncherServer launcher_service(
       /*tvs_authentication_key=*/kFakeKey,
-      /*private_key_wrapping_keys=*/{}, channel_map);
+      /*private_key_wrapping_keys=*/{}, channel_map,
+      /*fetch_tee_certificate=*/true);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
@@ -580,8 +587,9 @@ TEST(LauncherServer, BadReportError) {
       HexStringToBytes(kTvsPrivateKey1);
   ASSERT_TRUE(tvs_private_key.ok());
   // Real TVS server.
-  tvs::TvsServer tvs_service(*tvs_private_key, /*secret=*/"",
-                             *std::move(appraisal_policies));
+  tvs::TvsServer tvs_service(
+      *tvs_private_key, /*secret=*/"", *std::move(appraisal_policies),
+      /*enable_policy_signature=*/true, /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
@@ -594,7 +602,7 @@ TEST(LauncherServer, BadReportError) {
   channel_map[0] = tvs_server->InProcessChannel(grpc::ChannelArguments());
   LauncherServer launcher_service(
       /*tvs_authentication_key=*/kFakeKey, PrivateKeyWrappingKeys{},
-      channel_map);
+      channel_map, /*fetch_tee_certificate=*/true);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
 

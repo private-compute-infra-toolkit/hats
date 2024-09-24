@@ -361,6 +361,7 @@ mod tests {
             default_appraisal_policies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
@@ -451,6 +452,7 @@ mod tests {
             default_appraisal_policies().as_slice(),
             "test_user2",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 

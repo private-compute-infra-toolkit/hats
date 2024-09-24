@@ -23,6 +23,7 @@ use crate::proto::privacy_sandbox::tvs::{
 };
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
+use oak_proto_rust::oak::attestation::v1::reference_values::Type;
 use oak_proto_rust::oak::attestation::v1::{Endorsements, Evidence};
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use prost::Message;
@@ -78,6 +79,7 @@ mod ffi {
             policy: &[u8],
             user: &str,
             enable_policy_signature: bool,
+            accept_insecure_policies: bool,
         ) -> TrustedTvsCreationResult;
 
         #[cxx_name = "NewTrustedTvs"]
@@ -88,6 +90,7 @@ mod ffi {
             policy: &[u8],
             user: &str,
             enable_policy_signature: bool,
+            accept_insecure_policies: bool,
         ) -> TrustedTvsCreationResult;
 
         #[cxx_name = "VerifyReport"]
@@ -108,6 +111,7 @@ pub fn new_trusted_tvs_service(
     policies: &[u8],
     user: &str,
     enable_policy_signature: bool,
+    accept_insecure_policies: bool,
 ) -> ffi::TrustedTvsCreationResult {
     match TrustedTvs::new(
         time_milis,
@@ -116,6 +120,7 @@ pub fn new_trusted_tvs_service(
         policies,
         user,
         enable_policy_signature,
+        accept_insecure_policies,
     ) {
         Ok(trusted_tvs) => ffi::TrustedTvsCreationResult {
             value: Box::into_raw(Box::new(trusted_tvs)),
@@ -135,6 +140,7 @@ fn new_trusted_tvs_service_with_second_key(
     policies: &[u8],
     user: &str,
     enable_policy_signature: bool,
+    accept_insecure_policies: bool,
 ) -> ffi::TrustedTvsCreationResult {
     match TrustedTvs::new(
         time_milis,
@@ -143,6 +149,7 @@ fn new_trusted_tvs_service_with_second_key(
         policies,
         user,
         enable_policy_signature,
+        accept_insecure_policies,
     ) {
         Ok(trusted_tvs) => ffi::TrustedTvsCreationResult {
             value: Box::into_raw(Box::new(trusted_tvs)),
@@ -172,6 +179,7 @@ impl TrustedTvs {
         policies: &[u8],
         user: &str,
         enable_policy_signature: bool,
+        accept_insecure_policies: bool,
     ) -> Result<Self, String> {
         let primary_private_key_scalar: P256Scalar =
             primary_private_key.try_into().map_err(|_| {
@@ -192,21 +200,21 @@ impl TrustedTvs {
             (None, None)
         };
 
-        let appraisal_policies: Vec<oak_proto_rust::oak::attestation::v1::ReferenceValues>;
-        if enable_policy_signature {
+        let appraisal_policies = if enable_policy_signature {
             let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
-            appraisal_policies = policy_signature::decode_and_verify_policies(
+            policy_signature::decode_and_verify_policies(
                 policies,
                 vec![policy_verifying_key],
                 /*num_pass_required=*/ 1,
-            )?;
+            )
         } else {
-            appraisal_policies = policy_signature::decode_and_verify_policies(
+            policy_signature::decode_and_verify_policies(
                 policies,
                 /*verifying_keys*/ vec![],
                 /*num_pass_required=*/ 0,
-            )?;
-        }
+            )
+        }?;
+        verify_policy_tee(&appraisal_policies, accept_insecure_policies)?;
 
         Ok(Self {
             time_milis,
@@ -449,6 +457,38 @@ fn create_endorsements(
     }
 }
 
+// When running in secure mode, reject policies that doesn't require SEV-SNP.
+fn verify_policy_tee(
+    appraisal_policies: &[oak_proto_rust::oak::attestation::v1::ReferenceValues],
+    accept_insecure_policies: bool,
+) -> Result<(), String> {
+    if accept_insecure_policies {
+        return Ok(());
+    }
+    for policy in appraisal_policies {
+        let root_layer = match policy.r#type.as_ref() {
+            Some(Type::OakRestrictedKernel(r)) => {
+                r.root_layer.as_ref().ok_or("No root layer".to_string())
+            }
+            Some(Type::OakContainers(r)) => {
+                r.root_layer.as_ref().ok_or("No root layer".to_string())
+            }
+            Some(Type::Cb(r)) => r.root_layer.as_ref().ok_or("No root layer".to_string()),
+            None => Err("Cannot accept a policy without a type".to_string()),
+        }?;
+        if root_layer.insecure.is_some() {
+            return Err("Cannot accept insecure policies".to_string());
+        };
+        if root_layer.intel_tdx.is_some() {
+            return Err("Cannot accept intel TDX policies".to_string());
+        };
+        if root_layer.amd_sev.is_none() {
+            return Err("Cannot accept non AMD SEV SNP  policies".to_string());
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -487,6 +527,19 @@ mod tests {
     fn default_appraisal_policicies() -> Vec<u8> {
         let signed_policy = SignedAppraisalPolicy::decode(
             &include_bytes!("../test_data/on-perm-reference.binarypb")[..],
+        )
+        .unwrap();
+        let policies = AppraisalPolicies {
+            signed_policy: vec![signed_policy],
+        };
+        let mut buf: Vec<u8> = Vec::with_capacity(1024);
+        policies.encode(&mut buf).unwrap();
+        buf
+    }
+
+    fn insecure_appraisal_policies() -> Vec<u8> {
+        let signed_policy = SignedAppraisalPolicy::decode(
+            &include_bytes!("../test_data/insecure-reference.binarypb")[..],
         )
         .unwrap();
         let policies = AppraisalPolicies {
@@ -562,6 +615,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
@@ -660,6 +714,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user2",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
@@ -757,6 +812,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
@@ -871,6 +927,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
@@ -961,6 +1018,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
         let tvs_public_key = tvs_private_key.compute_public_key();
@@ -1044,6 +1102,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
@@ -1082,6 +1141,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
@@ -1118,6 +1178,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
@@ -1149,6 +1210,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
@@ -1184,6 +1246,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(
@@ -1201,6 +1264,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(
@@ -1218,6 +1282,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(
@@ -1235,9 +1300,24 @@ mod tests {
             &[1, 2, 3],
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
             Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
+        }
+
+        // Appraisal policies that accept reports from insecure hardware are rejected.
+        match TrustedTvs::new(
+            NOW_UTC_MILLIS,
+            &P256Scalar::generate().bytes(),
+            /*secondary_private_key=*/ None,
+            insecure_appraisal_policies().as_slice(),
+            "test_user",
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        ) {
+            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
+            Err(e) => assert_eq!(e, "Cannot accept insecure policies"),
         }
     }
 
@@ -1252,6 +1332,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
@@ -1274,6 +1355,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
         let client_handshake = handshake::client::HandshakeInitiator::new(
@@ -1312,6 +1394,7 @@ mod tests {
             default_appraisal_policicies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
         )
         .unwrap();
         match trusted_tvs.do_verify_report(b"aaa") {

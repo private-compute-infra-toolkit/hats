@@ -84,7 +84,8 @@ class LauncherServer final
       absl::string_view tvs_authentication_key,
       const PrivateKeyWrappingKeys& private_key_wrapping_keys,
       const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
-          channel_map);
+          channel_map,
+      bool fetch_tee_certificate);
 
   // Pipes messages between the client and the server.
   // This used to proxy communication between the orchestrator and Tvs.
@@ -104,6 +105,7 @@ class LauncherServer final
                      std::shared_ptr<tvs::TeeVerificationService::Stub>>
       stubs_;
   const PrivateKeyWrappingKeys private_key_wrapping_keys_;
+  const bool fetch_tee_certificate_;
 };
 
 }  // namespace privacy_sandbox::client

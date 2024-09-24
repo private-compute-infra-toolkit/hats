@@ -33,6 +33,9 @@
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
 ABSL_FLAG(bool, enable_policy_signature, false,
           "Whether to check signatures on policies");
+ABSL_FLAG(bool, accept_insecure_policies, false,
+          "Whether to accept policies allowing evidence from insecure "
+          "hardware. Enable for testing only.");
 
 namespace {
 
@@ -99,6 +102,10 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  if (absl::GetFlag(FLAGS_accept_insecure_policies)) {
+    LOG(WARNING) << "The server is accepting insecure policies. This should be "
+                    "enabled for testing only.";
+  }
   LOG(INFO) << "Starting TVS server on port " << port;
   privacy_sandbox::tvs::CreateAndStartTvsServer(
       privacy_sandbox::tvs::TvsServerOptions{
@@ -109,6 +116,9 @@ int main(int argc, char* argv[]) {
                                        : "",
           .appraisal_policies = *std::move(appraisal_policies),
           .enable_policy_signature =
-              absl::GetFlag(FLAGS_enable_policy_signature)});
+              absl::GetFlag(FLAGS_enable_policy_signature),
+          .accept_insecure_policies =
+              absl::GetFlag(FLAGS_accept_insecure_policies),
+      });
   return 0;
 }

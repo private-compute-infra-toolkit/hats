@@ -102,7 +102,9 @@ TEST(HatsLauncher, Successful) {
   absl::StatusOr<std::string> qemu_log = TouchTempFile("qemu_log");
   ASSERT_THAT(qemu_log, IsOk());
   // Empty TVS server that's just for providing an inprocess channel.
-  privacy_sandbox::tvs::TvsServer tvs_server("", {});
+  privacy_sandbox::tvs::TvsServer tvs_server(
+      "", {}, /*enable_policy_signature=*/true,
+      /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
@@ -170,8 +172,10 @@ TEST(HatsLauncherTest, Unsuccessful) {
   ASSERT_THAT(system_bundle, IsOk());
   (*config).mutable_cvm_config()->set_hats_system_bundle(*system_bundle);
   // Empty TVS server that's just for providing an inprocess channel.
-  privacy_sandbox::tvs::TvsServer tvs_server(/*primary_private_key=*/"",
-                                             /*appraisal_policy=*/{});
+  privacy_sandbox::tvs::TvsServer tvs_server(
+      /*primary_private_key=*/"",
+      /*appraisal_policy=*/{}, /*enable_policy_signature=*/true,
+      /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 

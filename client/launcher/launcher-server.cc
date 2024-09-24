@@ -127,9 +127,11 @@ LauncherServer::LauncherServer(
     absl::string_view tvs_authentication_key,
     const PrivateKeyWrappingKeys& private_key_wrapping_keys,
     const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
-        channel_map)
+        channel_map,
+    bool fetch_tee_certificate)
     : tvs_authentication_key_(tvs_authentication_key),
-      private_key_wrapping_keys_(private_key_wrapping_keys) {
+      private_key_wrapping_keys_(private_key_wrapping_keys),
+      fetch_tee_certificate_(fetch_tee_certificate) {
   for (auto const& [tvs_id, channel] : channel_map) {
     stubs_[tvs_id] = tvs::TeeVerificationService::NewStub(channel);
   }
@@ -183,14 +185,18 @@ grpc::Status LauncherServer::VerifyReport(
 grpc::Status LauncherServer::FetchOrchestratorMetadata(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply) {
+  reply->set_tvs_authentication_key(tvs_authentication_key_);
+  *reply->mutable_private_key_wrapping_keys() = private_key_wrapping_keys_;
+  // We don't fetch certificates in case we are not running in an SEV-SNP
+  // machine e.g. testing.
+  if (!fetch_tee_certificate_) return grpc::Status::OK;
+
   absl::StatusOr<std::string> certificate = DownloadCertificate();
   if (!certificate.ok()) {
     return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
                         std::string(certificate.status().message()));
   }
   reply->set_tee_certificate(*std::move(certificate));
-  reply->set_tvs_authentication_key(tvs_authentication_key_);
-  *reply->mutable_private_key_wrapping_keys() = private_key_wrapping_keys_;
   return grpc::Status::OK;
 }
 
