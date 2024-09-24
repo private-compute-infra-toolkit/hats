@@ -277,6 +277,11 @@ local_repository(
     path = "submodules/common",
 )
 
+local_repository(
+    name = "submodule4",
+    path = "submodules/bidding-auction-server",
+)
+
 http_file(
     name = "psp-sev",
     downloaded_file_path = "psp-sev.h",
