@@ -1,0 +1,62 @@
+//! The CXX code generator for constructing and compiling C++ code.
+//!
+//! This is intended as a mechanism for embedding the `cxx` crate into
+//! higher-level code generators. See [dtolnay/cxx#235] and
+//! [https://github.com/google/autocxx].
+//!
+//! [dtolnay/cxx#235]: https://github.com/dtolnay/cxx/issues/235
+//! [https://github.com/google/autocxx]: https://github.com/google/autocxx
+
+#![doc(html_root_url = "https://docs.rs/cxx-gen/0.7.126")]
+#![deny(missing_docs)]
+#![allow(dead_code)]
+#![cfg_attr(not(check_cfg), allow(unexpected_cfgs))]
+#![allow(
+    clippy::cast_sign_loss,
+    clippy::default_trait_access,
+    clippy::derive_partial_eq_without_eq,
+    clippy::enum_glob_use,
+    clippy::if_same_then_else,
+    clippy::inherent_to_string,
+    clippy::into_iter_without_iter,
+    clippy::items_after_statements,
+    clippy::match_bool,
+    clippy::match_on_vec_items,
+    clippy::match_same_arms,
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate,
+    clippy::needless_pass_by_value,
+    clippy::new_without_default,
+    clippy::nonminimal_bool,
+    clippy::or_fun_call,
+    clippy::redundant_else,
+    clippy::shadow_unrelated,
+    clippy::similar_names,
+    clippy::single_match_else,
+    clippy::struct_excessive_bools,
+    clippy::struct_field_names,
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    clippy::toplevel_ref_arg,
+    clippy::uninlined_format_args
+)]
+
+mod error;
+mod gen;
+mod syntax;
+
+pub use crate::error::Error;
+pub use crate::gen::include::{Include, HEADER};
+pub use crate::gen::{CfgEvaluator, CfgResult, GeneratedCode, Opt};
+pub use crate::syntax::IncludeKind;
+use proc_macro2::TokenStream;
+
+/// Generate C++ bindings code from a Rust token stream. This should be a Rust
+/// token stream which somewhere contains a `#[cxx::bridge] mod {}`.
+pub fn generate_header_and_cc(rust_source: TokenStream, opt: &Opt) -> Result<GeneratedCode, Error> {
+    let syntax = syn::parse2(rust_source)
+        .map_err(crate::gen::Error::from)
+        .map_err(Error::from)?;
+    gen::generate(syntax, opt).map_err(Error::from)
+}

@@ -288,3 +288,8 @@ http_file(
     sha256 = "bf5128577e19b2e95186a78d6f7e10eb5b1389919c94b0fd5224749e275afe0d",
     url = "https://raw.githubusercontent.com/torvalds/linux/3ec3f5fc4a91e389ea56b111a73d97ffc94f19c6/include/uapi/linux/psp-sev.h",
 )
+
+local_repository(
+    name = "cxx.rs",
+    path = "third_party/cxx.rs",
+)
