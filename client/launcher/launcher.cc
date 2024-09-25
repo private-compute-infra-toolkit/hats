@@ -376,6 +376,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   std::unique_ptr<privacysandbox::parc::local::v0::ParcServer> parc_server;
   std::unique_ptr<grpc::Server> tcp_server;
 
+  std::optional<uint16_t> tcp_port;
   if (config.config.has_parc_config()) {
     absl::StatusOr<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
         parc_server_or = CreateParcServer(config.config.parc_config());
@@ -389,6 +390,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
                              &port);
     tcp_server = builder.BuildAndStart();
     qemu_options->workload_service_port = port;
+    tcp_port = port;
     LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
               << *vsock_port << "' and '0.0.0.0:" << port << "'";
   } else {
@@ -403,7 +405,8 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   return absl::WrapUnique(new HatsLauncher(
       *std::move(deps), *std::move(qemu), std::move(launcher_oak_server),
       std::move(launcher_server), std::move(logs_service),
-      std::move(vsock_server), std::move(parc_server), std::move(tcp_server)));
+      std::move(vsock_server), *vsock_port, std::move(parc_server),
+      std::move(tcp_server), tcp_port));
 }
 
 absl::Status HatsLauncher::Start(absl::string_view qemu_log_filename) {
@@ -431,21 +434,9 @@ void HatsLauncher::Wait() {
   qemu_->Wait();
 }
 
-absl::StatusOr<std::shared_ptr<grpc::Channel>>
-HatsLauncher::VsockChannelForTest() {
-  absl::MutexLock lock(&mu_);
-  if (!started_) return absl::UnknownError("HatsLauncher is not started yet");
-  return vsock_server_->InProcessChannel(grpc::ChannelArguments());
-}
+uint32_t HatsLauncher::GetVsockPort() const { return vsock_port_; }
 
-absl::StatusOr<std::shared_ptr<grpc::Channel>>
-HatsLauncher::TcpChannelForTest() {
-  absl::MutexLock lock(&mu_);
-  if (!started_) return absl::UnknownError("HatsLauncher is not started yet");
-  if (tcp_server_ == nullptr)
-    return absl::NotFoundError("No TCP server is found.");
-  return tcp_server_->InProcessChannel(grpc::ChannelArguments());
-}
+std::optional<uint16_t> HatsLauncher::GetTcpPort() const { return tcp_port_; }
 
 void HatsLauncher::Shutdown() {
   absl::MutexLock lock(&mu_);
@@ -477,16 +468,20 @@ HatsLauncher::HatsLauncher(
     absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
     absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
     absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
+    uint32_t vsock_port,
     absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
         parc_server,
-    absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server)
+    absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server,
+    std::optional<uint16_t> tcp_port)
     : deps_(std::move(deps)),
       qemu_(std::move(qemu)),
       launcher_oak_server_(std::move(launcher_oak_server)),
       launcher_server_(std::move(launcher_server)),
       logs_service_(std::move(logs_service)),
       vsock_server_(std::move(vsock_server)),
+      vsock_port_(vsock_port),
       parc_server_(std::move(parc_server)),
-      tcp_server_(std::move(tcp_server)) {}
+      tcp_server_(std::move(tcp_server)),
+      tcp_port_(tcp_port) {}
 
 }  // namespace privacy_sandbox::client

@@ -56,6 +56,7 @@ class HatsLauncher final {
   HatsLauncher() = delete;
   HatsLauncher(const HatsLauncher&) = delete;
   HatsLauncher& operator=(const HatsLauncher&) = delete;
+
   static absl::StatusOr<std::unique_ptr<HatsLauncher>> Create(
       const HatsLauncherConfig& config,
       const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
@@ -64,12 +65,9 @@ class HatsLauncher final {
   // Terminate all services and subprocesses.
   void Shutdown() ABSL_LOCKS_EXCLUDED(mu_);
 
-  // InProcessChannel to the launcher services used only for testing purpose.
-  absl::StatusOr<std::shared_ptr<grpc::Channel>> VsockChannelForTest()
-      ABSL_LOCKS_EXCLUDED(mu_);
+  uint32_t GetVsockPort() const;
 
-  absl::StatusOr<std::shared_ptr<grpc::Channel>> TcpChannelForTest()
-      ABSL_LOCKS_EXCLUDED(mu_);
+  std::optional<uint16_t> GetTcpPort() const;
 
   absl::StatusOr<std::string> GetQemuLogFilename();
 
@@ -93,10 +91,12 @@ class HatsLauncher final {
       absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
       absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
       absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
+      uint32_t vsock_port,
       absl::Nullable<
           std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
           parc_server,
-      absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server);
+      absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server,
+      std::optional<uint16_t> tcp_port);
 
   // The external dependencies are not owned by HatsLauncher but required
   // for system health.
@@ -106,12 +106,13 @@ class HatsLauncher final {
   absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server_;
   absl::Nonnull<std::unique_ptr<LogsService>> logs_service_;
   std::unique_ptr<grpc::Server> vsock_server_;
-
+  uint32_t vsock_port_;
   // Parc server is null when it's not specified.
   absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
       parc_server_;
   // Tcp server is null when Parc is not enabled.
   absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server_;
+  std::optional<uint16_t> tcp_port_;
 
   // Whether all underlying processes was started or not.
   // The mutex is only for controlling access to started_.
