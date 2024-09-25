@@ -295,11 +295,14 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
     args.push_back("stdio");
   }
 
-  return absl::WrapUnique(new Qemu(std::move(binary), std::move(args)));
+  return absl::WrapUnique(
+      new Qemu(std::move(binary), std::move(args), options.log_to_std));
 }
 
-Qemu::Qemu(std::string binary, std::vector<std::string> args)
-    : binary_(std::move(binary)), args_(std::move(args)) {}
+Qemu::Qemu(std::string binary, std::vector<std::string> args, bool log_to_std)
+    : binary_(std::move(binary)),
+      args_(std::move(args)),
+      log_to_std_(log_to_std) {}
 
 namespace {
 
@@ -312,7 +315,7 @@ void ClosePosixObjects(posix_spawn_file_actions_t& file_actions,
 }  // namespace
 
 // This is a non-blocking op, you must make sure not to terminate your process
-absl::Status Qemu::Start(absl::string_view log_filename) {
+absl::Status Qemu::Start() {
   absl::MutexLock lock(&mu_);
   if (started_) {
     return absl::FailedPreconditionError("Qemu was already started");
@@ -320,11 +323,7 @@ absl::Status Qemu::Start(absl::string_view log_filename) {
 
   started_ = true;
   int file_descriptor = -1;
-  if (!log_filename.empty()) {
-    file_descriptor = open(log_filename.data(), O_RDWR);
-    log_filename_ = log_filename;
-    LOG(INFO) << "Writing to existing Log file: '" << log_filename_ << "'";
-  } else {
+  if (!log_to_std_) {
     char log_file_template[] = "/tmp/hatsXXXXXX";
     file_descriptor = mkstemp(log_file_template);
     if (file_descriptor == -1) {
@@ -346,27 +345,29 @@ absl::Status Qemu::Start(absl::string_view log_filename) {
     return absl::FailedPreconditionError("posix_spawnattr_init() failed.");
   }
 
-  // Redirect stdout and stderr to `log_filename_`.
-  if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
-                                               STDOUT_FILENO);
-      r != 0) {
-    ClosePosixObjects(file_actions, attr);
-    return absl::FailedPreconditionError(absl::StrCat(
-        "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
-  }
-  if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
-                                               STDERR_FILENO);
-      r != 0) {
-    ClosePosixObjects(file_actions, attr);
-    return absl::FailedPreconditionError(absl::StrCat(
-        "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
-  }
-  if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
-                                               STDIN_FILENO);
-      r != 0) {
-    ClosePosixObjects(file_actions, attr);
-    return absl::FailedPreconditionError(absl::StrCat(
-        "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
+  if (!log_to_std_) {
+    // Redirect stdout and stderr to `log_filename_`.
+    if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
+                                                 STDOUT_FILENO);
+        r != 0) {
+      ClosePosixObjects(file_actions, attr);
+      return absl::FailedPreconditionError(absl::StrCat(
+          "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
+    }
+    if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
+                                                 STDERR_FILENO);
+        r != 0) {
+      ClosePosixObjects(file_actions, attr);
+      return absl::FailedPreconditionError(absl::StrCat(
+          "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
+    }
+    if (int r = posix_spawn_file_actions_adddup2(&file_actions, file_descriptor,
+                                                 STDIN_FILENO);
+        r != 0) {
+      ClosePosixObjects(file_actions, attr);
+      return absl::FailedPreconditionError(absl::StrCat(
+          "posix_spawn_file_actions_adddup2() failed: ", strerror(r)));
+    }
   }
 
   auto argv = std::unique_ptr<const char*[]>(new const char*[args_.size() + 1]);
@@ -392,8 +393,15 @@ std::string Qemu::GetCommand() const {
   return absl::StrCat(binary_, " ", absl::StrJoin(args_, " "));
 }
 
-std::string Qemu::LogFilename() const {
+absl::StatusOr<std::string> Qemu::LogFilename() const {
   absl::MutexLock lock(&mu_);
+  if (!started_) {
+    return absl::FailedPreconditionError("Qemu has not started yet.");
+  }
+  if (log_to_std_) {
+    return absl::FailedPreconditionError(
+        "Qemu is setup to log to stdout/stderr.");
+  }
   return log_filename_;
 }
 

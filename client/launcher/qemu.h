@@ -115,6 +115,8 @@ class Qemu final {
     std::string vm_ip_address;
     // A gateway for the CVM to forward outbound packets to.
     std::string vm_gateway_address;
+    // Output log to stdout/stderr
+    bool log_to_std = false;
   };
 
   Qemu() = delete;
@@ -124,13 +126,13 @@ class Qemu final {
 
   // This function should be called once and only once.
   // The function returns an error if it was called multiple times.
-  absl::Status Start(absl::string_view log_filename) ABSL_LOCKS_EXCLUDED(mu_);
+  absl::Status Start() ABSL_LOCKS_EXCLUDED(mu_);
 
   // Exposed for unit test.
   std::string GetCommand() const;
 
   // Return the file where VMM stderr and stdout are written.
-  std::string LogFilename() ABSL_LOCKS_EXCLUDED(mu_) const;
+  absl::StatusOr<std::string> LogFilename() ABSL_LOCKS_EXCLUDED(mu_) const;
 
   // Wait until QEMU terminates.
   void Wait() ABSL_LOCKS_EXCLUDED(mu_);
@@ -139,7 +141,7 @@ class Qemu final {
   void Shutdown() ABSL_LOCKS_EXCLUDED(mu_);
 
  private:
-  Qemu(std::string binary, std::vector<std::string> args);
+  Qemu(std::string binary, std::vector<std::string> args, bool log_to_std);
 
   const std::string binary_;
   std::vector<std::string> args_;
@@ -150,6 +152,8 @@ class Qemu final {
   pid_t process_id_ ABSL_GUARDED_BY(mu_);
   // file name where qemu output is written to.
   std::string log_filename_ ABSL_GUARDED_BY(mu_);
+  // Whether to log to stdout/stderr.
+  const bool log_to_std_ = false;
 };
 
 }  // namespace privacy_sandbox::client

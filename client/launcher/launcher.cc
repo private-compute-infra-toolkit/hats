@@ -361,8 +361,7 @@ class HatsLauncherImpl final : public HatsLauncher {
 
   // Run QEMU server and launcher service.
   // This function should be called only once to ensure server states are clean.
-  absl::Status Start(absl::string_view qemu_log_filename) override
-      ABSL_LOCKS_EXCLUDED(mu_);
+  absl::Status Start() override ABSL_LOCKS_EXCLUDED(mu_);
 
   bool IsAppReady() const override;
 
@@ -402,7 +401,7 @@ class HatsLauncherImpl final : public HatsLauncher {
   bool started_ ABSL_GUARDED_BY(mu_) = false;
 };
 
-absl::Status HatsLauncherImpl::Start(absl::string_view qemu_log_filename) {
+absl::Status HatsLauncherImpl::Start() {
   absl::MutexLock lock(&mu_);
   if (started_) {
     return absl::UnknownError(
@@ -412,8 +411,9 @@ absl::Status HatsLauncherImpl::Start(absl::string_view qemu_log_filename) {
   started_ = true;
 
   LOG(INFO) << "Qemu command:" << qemu_->GetCommand();
-  if (absl::Status status = qemu_->Start(qemu_log_filename); !status.ok())
+  if (absl::Status status = qemu_->Start(); !status.ok()) {
     return status;
+  }
   LOG(INFO) << "Qemu LogFilename:" << qemu_->LogFilename();
   return absl::OkStatus();
 }
@@ -498,6 +498,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   absl::StatusOr<Qemu::Options> qemu_options =
       GetQemuOptions(*deps, config.config);
   if (!qemu_options.ok()) return qemu_options.status();
+  qemu_options->log_to_std = config.qemu_log_to_std;
 
   // Whether or not to fetch tee certificate.
   const bool fetch_tee_certificate =

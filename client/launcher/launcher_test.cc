@@ -52,18 +52,6 @@ using ::absl_testing::IsOk;
 using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 
-absl::StatusOr<std::string> TouchTempFile(absl::string_view filename) {
-  char tmp_format[] = "/tmp/hatstest-XXXXXXX";
-  char* tmp_dir = mkdtemp(tmp_format);
-  if (tmp_dir == nullptr)
-    return absl::InternalError(
-        "failed to create temporary folder to hold untarred hats "
-        "image bundle");
-  std::string tmp = absl::StrCat(tmp_dir, "/", filename);
-  std::ofstream output(tmp);
-  return tmp;
-}
-
 absl::StatusOr<std::string> GetRunfilePath(absl::string_view filename) {
   std::string runfiles_error;
   auto runfiles =
@@ -104,8 +92,6 @@ TEST(HatsLauncher, Successful) {
       GetRunfilePath("system_bundle.tar");
   ASSERT_THAT(system_bundle, IsOk());
   (*config).mutable_cvm_config()->set_hats_system_bundle(*system_bundle);
-  absl::StatusOr<std::string> qemu_log = TouchTempFile("qemu_log");
-  ASSERT_THAT(qemu_log, IsOk());
   // Empty TVS server that's just for providing an inprocess channel.
   privacy_sandbox::tvs::TvsServer tvs_server(
       "", {}, /*enable_policy_signature=*/true,
@@ -125,7 +111,7 @@ TEST(HatsLauncher, Successful) {
   // Bind to no port so that it works in hermetic test.
   // In this mode, we can only use in process channel.
   std::thread launcher_thread([&] {
-    ASSERT_THAT((*launcher)->Start(*qemu_log), IsOk());
+    ASSERT_THAT((*launcher)->Start(), IsOk());
     (*launcher)->Wait();
     std::cout << "launcher shutdown" << std::endl;
   });
@@ -159,6 +145,8 @@ TEST(HatsLauncher, Successful) {
   // Ensure that the QEMU is called with appropriate parameters.
   // In the test, we mock out the QEMU process with simple /usr/bin/echo to
   // capture the parameters.
+  absl::StatusOr<std::string> qemu_log = (*launcher)->GetQemuLogFilename();
+  ASSERT_TRUE(qemu_log.ok());
   std::ifstream qemu_log_file(*qemu_log);
   std::string qemu_log_content((std::istreambuf_iterator<char>(qemu_log_file)),
                                std::istreambuf_iterator<char>());

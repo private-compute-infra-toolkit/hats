@@ -46,9 +46,9 @@ ABSL_FLAG(std::vector<std::string>, private_key_wrapping_keys, {},
 ABSL_FLAG(std::string, tvs_access_token, "",
           "Oauth bearer token got from TVS hosting provider used to talk to "
           "TVS server");
-ABSL_FLAG(std::string, qemu_log_filename, "",
-          "When provided, qemu will send std logs into the specific log file "
-          "path instead of a randomly generated path in tmp");
+ABSL_FLAG(
+    bool, qemu_log_to_std, false,
+    "Whether to send qemu logs to stdout/stderr instead of a temporary file.");
 
 absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
     absl::string_view path) {
@@ -135,6 +135,7 @@ int main(int argc, char* argv[]) {
               std::move(tvs_authentication_key_bytes),
           .private_key_wrapping_keys = std::move(wrapping_keys),
           .tvs_channels = std::move(channel_map),
+          .qemu_log_to_std = absl::GetFlag(FLAGS_qemu_log_to_std),
       });
 
   if (!launcher.ok()) {
@@ -143,9 +144,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Generate the log file randomly.
-  if (absl::Status status =
-          (*launcher)->Start(absl::GetFlag(FLAGS_qemu_log_filename));
-      !status.ok()) {
+  if (absl::Status status = (*launcher)->Start(); !status.ok()) {
     LOG(ERROR) << "launcher terminated with abnormal status "
                << status.message();
     return 1;

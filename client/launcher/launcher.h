@@ -33,6 +33,7 @@ struct HatsLauncherConfig {
   std::string tvs_authentication_key_bytes;
   PrivateKeyWrappingKeys private_key_wrapping_keys;
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> tvs_channels;
+  bool qemu_log_to_std = false;
 };
 
 // HatsLauncher untars the hats bundle into a hosted location:
@@ -61,7 +62,7 @@ class HatsLauncher {
 
   // Run QEMU server and launcher service.
   // This function should be called only once to ensure server states are clean.
-  virtual absl::Status Start(absl::string_view qemu_log_filename) = 0;
+  virtual absl::Status Start() = 0;
 
   // Whether the enclave app ready for service.
   virtual bool IsAppReady() const = 0;
