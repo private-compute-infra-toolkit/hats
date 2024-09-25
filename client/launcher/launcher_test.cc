@@ -111,8 +111,7 @@ TEST(HatsLauncher, Successful) {
   HatsLauncherConfig hats_config{.config = *std::move(config),
                                  .tvs_authentication_key_bytes = "test"};
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  channel_map[0] =
-      std::move(server->InProcessChannel(grpc::ChannelArguments()));
+  channel_map[0] = server->InProcessChannel(grpc::ChannelArguments());
   absl::StatusOr<std::unique_ptr<HatsLauncher>> launcher =
       privacy_sandbox::client::HatsLauncher::Create(hats_config, channel_map);
   ASSERT_THAT(launcher, IsOk());
@@ -181,8 +180,7 @@ TEST(HatsLauncherTest, Unsuccessful) {
   HatsLauncherConfig hats_config{.config = *std::move(config),
                                  .tvs_authentication_key_bytes = "test"};
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  channel_map[0] =
-      std::move(server->InProcessChannel(grpc::ChannelArguments()));
+  channel_map[0] = server->InProcessChannel(grpc::ChannelArguments());
   absl::StatusOr<std::unique_ptr<HatsLauncher>> launcher =
       privacy_sandbox::client::HatsLauncher::Create(hats_config, channel_map);
   ASSERT_THAT(launcher, StatusIs(absl::StatusCode::kInternal));
