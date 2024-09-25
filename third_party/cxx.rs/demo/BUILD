@@ -25,11 +25,15 @@ cc_library(
     deps = [
         ":blobstore-include",
         ":bridge/include",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
 cc_library(
     name = "blobstore-include",
     hdrs = ["include/blobstore.h"],
-    deps = ["//:core"],
+    deps = [
+        "//:core",
+        "@com_google_absl//absl/status:statusor",
+    ],
 )

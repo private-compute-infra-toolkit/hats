@@ -48,6 +48,7 @@ cc_library(
     name = "core-lib",
     srcs = ["src/cxx.cc"],
     hdrs = ["include/cxx.h"],
+    deps = ["@com_google_absl//absl/status:statusor"],
 )
 
 rust_proc_macro(

@@ -172,6 +172,7 @@ pub(super) fn write(out: &mut OutFile) {
     if (basetsd || sys_types) && !cxx_header {
         writeln!(out, "#endif");
     }
+    writeln!(out, "#include \"absl/status/statusor.h\"");
 }
 
 impl<'i, 'a> Extend<&'i Include> for Includes<'a> {

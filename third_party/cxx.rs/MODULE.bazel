@@ -15,3 +15,9 @@ crate_repositories = use_extension("//tools/bazel:extension.bzl", "crate_reposit
 use_repo(crate_repositories, "crates.io")
 
 bazel_dep(name = "rules_cc", version = "0.0.9")
+bazel_dep(name = "abseil-cpp", version = "20240116.2", repo_name = "com_google_absl")
+git_override(
+    module_name = "abseil-cpp",
+    commit = "d9f501ef8482b3e6a41e3b544fde4569ad909c0b",
+    remote = "https://github.com/abseil/abseil-cpp",
+)

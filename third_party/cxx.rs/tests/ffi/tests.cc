@@ -9,6 +9,8 @@
 #include <string>
 #include <tuple>
 
+#include "absl/status/statusor.h"
+
 extern "C" void cxx_test_suite_set_correct() noexcept;
 extern "C" tests::R *cxx_test_suite_get_box() noexcept;
 extern "C" bool cxx_test_suite_r_is_correct(const tests::R *) noexcept;
@@ -804,12 +806,16 @@ extern "C" const char *cxx_run_test() noexcept {
   r_take_ref_empty_vector(empty_vector);
   r_take_enum(Enum::AVal);
 
-  ASSERT(r_try_return_primitive() == 2020);
-  try {
-    r_fail_return_primitive();
-    ASSERT(false);
-  } catch (const rust::Error &e) {
-    ASSERT(std::strcmp(e.what(), "rust error") == 0);
+  {
+    absl::StatusOr<long unsigned int> result = r_try_return_primitive();
+    ASSERT(result.ok());
+    ASSERT(*result == 2020);
+  }
+  {
+    absl::StatusOr<long unsigned int> result = r_fail_return_primitive();
+    ASSERT(!result.ok());
+    std::cout << result.status().ToString() << "|\n";
+    ASSERT(result.status().ToString() == "UNKNOWN: rust error");
   }
 
   auto r = r_return_box();

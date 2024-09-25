@@ -973,7 +973,19 @@ fn write_rust_function_shim_decl(
     indirect_call: bool,
 ) {
     begin_function_definition(out);
-    write_return_type(out, &sig.ret);
+    if sig.throws {
+        match sig.ret {
+            Some(_) => {
+                write!(out, "absl::StatusOr<");
+                write_return_type(out, &sig.ret);
+                write!(out, ">")
+            },
+            // Do not write return type if it's void
+            None => write!(out, "absl::Status "),
+        }
+    } else {
+        write_return_type(out, &sig.ret);
+    }
     write!(out, "{}(", local_name);
     for (i, arg) in sig.args.iter().enumerate() {
         if i > 0 {
@@ -1123,8 +1135,11 @@ fn write_rust_function_shim_impl(
     if sig.throws {
         out.builtin.rust_error = true;
         writeln!(out, "  if (error$.ptr) {{");
-        writeln!(out, "    throw ::rust::impl<::rust::Error>::error(error$);");
+        writeln!(out, "     return absl::UnknownError(static_cast<const char*>(error$.ptr));");
         writeln!(out, "  }}");
+        if sig.ret.is_none() {
+            writeln!(out, "return absl::OkStatus();");
+        }
     }
     if indirect_return {
         write!(out, "  return ");

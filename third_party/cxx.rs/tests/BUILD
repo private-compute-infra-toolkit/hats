@@ -39,6 +39,7 @@ cc_library(
         ":bridge/include",
         ":module/include",
         "//:core",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
