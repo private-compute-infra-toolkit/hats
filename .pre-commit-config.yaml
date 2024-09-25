@@ -21,7 +21,8 @@ exclude: (?x)^(
              submodules/.*|
              version.txt|
              .*\.crt|
-             .*\.patch
+             .*\.patch|
+            third_party/.*|
          )$
 
 fail_fast: true
