@@ -110,11 +110,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  privacy_sandbox::client::HatsLauncherConfig hats_config{
-      .config = *std::move(config),
-      .tvs_authentication_key_bytes = std::move(tvs_authentication_key_bytes),
-      .private_key_wrapping_keys = std::move(wrapping_keys)};
-
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   int64_t tvs_id = 0;
   for (const std::string& tvs_address : absl::GetFlag(FLAGS_tvs_addresses)) {
@@ -134,8 +129,14 @@ int main(int argc, char* argv[]) {
   }
 
   absl::StatusOr<std::unique_ptr<privacy_sandbox::client::HatsLauncher>>
-      launcher = privacy_sandbox::client::HatsLauncher::Create(
-          std::move(hats_config), std::move(channel_map));
+      launcher = privacy_sandbox::client::HatsLauncher::Create({
+          .config = *std::move(config),
+          .tvs_authentication_key_bytes =
+              std::move(tvs_authentication_key_bytes),
+          .private_key_wrapping_keys = std::move(wrapping_keys),
+          .tvs_channels = std::move(channel_map),
+      });
+
   if (!launcher.ok()) {
     LOG(ERROR) << "Failed to create launcher: " << launcher.status();
     return 1;

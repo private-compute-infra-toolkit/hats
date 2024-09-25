@@ -31,10 +31,15 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "client/launcher/launcher-server.h"
 #include "external/oak/proto/containers/interfaces.pb.h"
 #include "google/protobuf/empty.pb.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
+#include "grpcpp/channel.h"
+#include "grpcpp/create_channel.h"
+#include "grpcpp/server.h"
+#include "grpcpp/server_builder.h"
 #include "gtest/gtest.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/proto/appraisal_policies.pb.h"
@@ -108,12 +113,14 @@ TEST(HatsLauncher, Successful) {
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
-  HatsLauncherConfig hats_config{.config = *std::move(config),
-                                 .tvs_authentication_key_bytes = "test"};
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   channel_map[0] = server->InProcessChannel(grpc::ChannelArguments());
   absl::StatusOr<std::unique_ptr<HatsLauncher>> launcher =
-      privacy_sandbox::client::HatsLauncher::Create(hats_config, channel_map);
+      privacy_sandbox::client::HatsLauncher::Create({
+          .config = *std::move(config),
+          .tvs_authentication_key_bytes = "test",
+          .tvs_channels = std::move(channel_map),
+      });
   ASSERT_THAT(launcher, IsOk());
   // Bind to no port so that it works in hermetic test.
   // In this mode, we can only use in process channel.
@@ -177,13 +184,14 @@ TEST(HatsLauncherTest, Unsuccessful) {
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
 
-  HatsLauncherConfig hats_config{.config = *std::move(config),
-                                 .tvs_authentication_key_bytes = "test"};
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   channel_map[0] = server->InProcessChannel(grpc::ChannelArguments());
-  absl::StatusOr<std::unique_ptr<HatsLauncher>> launcher =
-      privacy_sandbox::client::HatsLauncher::Create(hats_config, channel_map);
-  ASSERT_THAT(launcher, StatusIs(absl::StatusCode::kInternal));
+  EXPECT_THAT(privacy_sandbox::client::HatsLauncher::Create({
+                  .config = *std::move(config),
+                  .tvs_authentication_key_bytes = "test",
+                  .tvs_channels = std::move(channel_map),
+              }),
+              StatusIs(absl::StatusCode::kInternal));
 }
 }  // namespace
 }  // namespace privacy_sandbox::client

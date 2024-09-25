@@ -19,27 +19,12 @@
 #include <string>
 #include <unordered_map>
 
-#include "absl/base/nullability.h"
-#include "absl/flags/declare.h"
 #include "absl/strings/string_view.h"
-#include "client/launcher/launcher-server.h"
-#include "client/launcher/logs-service.h"
-#include "client/launcher/qemu.h"
+#include "client/proto/launcher.pb.h"
 #include "client/proto/launcher_config.pb.h"
-#include "external/google_privacysandbox_servers_common/src/parc/servers/local/parc_server.h"
+#include "grpcpp/channel.h"
 
 namespace privacy_sandbox::client {
-
-// External dependencies to the file system or other places for the launcher to
-// be healthy.
-struct LauncherExtDeps {
-  std::string kernel_binary_path;
-  std::string stage0_binary_path;
-  std::string initrd_cpio_xz_path;
-  std::string oak_system_image_path;
-  std::string container_bundle;
-  std::string vmm_binary_path;
-};
 
 struct HatsLauncherConfig {
   // Config file provided configurations.
@@ -47,78 +32,41 @@ struct HatsLauncherConfig {
   // Flag provided configurations.
   std::string tvs_authentication_key_bytes;
   PrivateKeyWrappingKeys private_key_wrapping_keys;
+  std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> tvs_channels;
 };
 
 // HatsLauncher untars the hats bundle into a hosted location:
 // /tmp/hats-XXXXX/. The folder is owned by the process owner.
-class HatsLauncher final {
+class HatsLauncher {
  public:
-  HatsLauncher() = delete;
-  HatsLauncher(const HatsLauncher&) = delete;
-  HatsLauncher& operator=(const HatsLauncher&) = delete;
-
   static absl::StatusOr<std::unique_ptr<HatsLauncher>> Create(
-      const HatsLauncherConfig& config,
-      const std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>&
-          channel_map);
+      const HatsLauncherConfig& config);
+
+  virtual ~HatsLauncher() = default;
 
   // Terminate all services and subprocesses.
-  void Shutdown() ABSL_LOCKS_EXCLUDED(mu_);
+  virtual void Shutdown() = 0;
 
-  uint32_t GetVsockPort() const;
+  virtual uint32_t GetVsockPort() const = 0;
 
-  std::optional<uint16_t> GetTcpPort() const;
+  virtual std::optional<uint16_t> GetTcpPort() const = 0;
 
-  absl::StatusOr<std::string> GetQemuLogFilename();
+  virtual absl::StatusOr<std::string> GetQemuLogFilename() const = 0;
 
   // Wait for the process ready to receive requests.
-  void WaitUntilReady() ABSL_LOCKS_EXCLUDED(mu_);
+  virtual void WaitUntilReady() = 0;
 
   // Wait for termination. Return immediately if the server is not started.
-  void Wait() ABSL_LOCKS_EXCLUDED(mu_);
+  virtual void Wait() = 0;
 
   // Run QEMU server and launcher service.
   // This function should be called only once to ensure server states are clean.
-  absl::Status Start(absl::string_view qemu_log_filename)
-      ABSL_LOCKS_EXCLUDED(mu_);
+  virtual absl::Status Start(absl::string_view qemu_log_filename) = 0;
 
-  bool IsAppReady() const;
-
- private:
-  HatsLauncher(
-      LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
-      absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
-      absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
-      absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
-      absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
-      uint32_t vsock_port,
-      absl::Nullable<
-          std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-          parc_server,
-      absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server,
-      std::optional<uint16_t> tcp_port);
-
-  // The external dependencies are not owned by HatsLauncher but required
-  // for system health.
-  const LauncherExtDeps deps_;
-  absl::Nonnull<std::unique_ptr<Qemu>> qemu_;
-  absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server_;
-  absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server_;
-  absl::Nonnull<std::unique_ptr<LogsService>> logs_service_;
-  std::unique_ptr<grpc::Server> vsock_server_;
-  uint32_t vsock_port_;
-  // Parc server is null when it's not specified.
-  absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-      parc_server_;
-  // Tcp server is null when Parc is not enabled.
-  absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server_;
-  std::optional<uint16_t> tcp_port_;
-
-  // Whether all underlying processes was started or not.
-  // The mutex is only for controlling access to started_.
-  mutable absl::Mutex mu_;
-  bool started_ ABSL_GUARDED_BY(mu_) = false;
+  // Whether the enclave app ready for service.
+  virtual bool IsAppReady() const = 0;
 };
+
 }  // namespace privacy_sandbox::client
 
-#endif
+#endif  // HATS_CLIENT_LAUNCHER_LAUNCHER_H_
