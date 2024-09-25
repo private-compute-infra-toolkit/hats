@@ -38,61 +38,35 @@ pub mod proto {
 #[cxx::bridge(namespace = "privacy_sandbox::tvs")]
 #[cfg(not(feature = "noffi"))]
 mod ffi {
-    struct TvsClientCreationResult {
-        value: *mut TvsClient,
-        error: String,
-    }
-
-    struct VecU8Result {
-        value: Vec<u8>,
-        error: String,
-    }
-
     extern "Rust" {
         type TvsClient;
 
-        // This is to force cxx to generate full implementation
-        // for Box<TvsClient>::drop()
-        fn tvs_client_dummy() -> Result<Box<TvsClient>>;
-
         #[cxx_name = "NewTvsClient"]
-        fn new_tvs_client(private_key: &[u8], tvs_pub_key: &[u8]) -> TvsClientCreationResult;
+        fn new_tvs_client(private_key: &[u8], tvs_pub_key: &[u8]) -> Result<Box<TvsClient>>;
 
         #[cxx_name = "BuildInitialMessage"]
-        fn build_initial_message_ffi(&mut self) -> VecU8Result;
+        fn build_initial_message(&mut self) -> Result<Vec<u8>>;
 
         #[cxx_name = "ProcessHandshakeResponse"]
-        fn process_handshake_response_ffi(&mut self, response: &[u8]) -> String;
+        fn process_handshake_response(&mut self, response: &[u8]) -> Result<()>;
 
         #[cxx_name = "BuildVerifyReportRequest"]
-        fn build_verify_report_request_ffi(
+        fn build_verify_report_request(
             &mut self,
             evidence_bin: &[u8],
             vcek: &[u8],
             application_signing_key: &str,
-        ) -> VecU8Result;
+        ) -> Result<Vec<u8>>;
 
         #[cxx_name = "ProcessResponse"]
-        fn process_response_ffi(&mut self, response: &[u8]) -> VecU8Result;
+        fn process_response(&mut self, response: &[u8]) -> Result<Vec<u8>>;
     }
 }
 
-#[cfg(not(feature = "noffi"))]
-fn tvs_client_dummy() -> Result<Box<TvsClient>, String> {
-    Err("unimplemented".to_string())
-}
-
-#[cfg(not(feature = "noffi"))]
-fn new_tvs_client(private_key: &[u8], tvs_public_key: &[u8]) -> ffi::TvsClientCreationResult {
+pub fn new_tvs_client(private_key: &[u8], tvs_public_key: &[u8]) -> Result<Box<TvsClient>, String> {
     match TvsClient::new(private_key, tvs_public_key) {
-        Ok(tvs_client) => ffi::TvsClientCreationResult {
-            value: Box::into_raw(Box::new(tvs_client)),
-            error: "".to_string(),
-        },
-        Err(error) => ffi::TvsClientCreationResult {
-            value: std::ptr::null_mut(),
-            error: error,
-        },
+        Ok(tvs_client) => Ok(Box::new(tvs_client)),
+        Err(error) => Err(error),
     }
 }
 
@@ -126,21 +100,6 @@ impl TvsClient {
         })
     }
 
-    // Wrapper around `build_initial_message` to be used in C++.
-    #[cfg(not(feature = "noffi"))]
-    fn build_initial_message_ffi(&mut self) -> ffi::VecU8Result {
-        match self.build_initial_message() {
-            Ok(result) => ffi::VecU8Result {
-                value: result,
-                error: "".to_string(),
-            },
-            Err(error) => ffi::VecU8Result {
-                value: vec![],
-                error: error,
-            },
-        }
-    }
-
     pub fn build_initial_message(&mut self) -> Result<Vec<u8>, String> {
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
         AttestReportRequest {
@@ -158,15 +117,6 @@ impl TvsClient {
         .encode(&mut message_bin)
         .map_err(|_| "Error encoding handshake initial message to AttestReportRequest proto")?;
         Ok(message_bin)
-    }
-
-    // Wrapper around `process_handshake_response` to be used in C++.
-    #[cfg(not(feature = "noffi"))]
-    fn process_handshake_response_ffi(&mut self, response: &[u8]) -> String {
-        match self.process_handshake_response(response) {
-            Ok(_) => "".to_string(),
-            Err(error) => error,
-        }
     }
 
     pub fn process_handshake_response(&mut self, response: &[u8]) -> Result<(), String> {
@@ -187,26 +137,6 @@ impl TvsClient {
         self.crypter = Some(crypter);
         self.handshake_hash = handshake_hash;
         Ok(())
-    }
-
-    // Wrapper around `build_verify_report_request` to be used in C++.
-    #[cfg(not(feature = "noffi"))]
-    fn build_verify_report_request_ffi(
-        &mut self,
-        evidence_bin: &[u8],
-        vcek: &[u8],
-        application_signing_key: &str,
-    ) -> ffi::VecU8Result {
-        match self.build_verify_report_request(evidence_bin, vcek, application_signing_key) {
-            Ok(result) => ffi::VecU8Result {
-                value: result,
-                error: "".to_string(),
-            },
-            Err(error) => ffi::VecU8Result {
-                value: vec![],
-                error: error,
-            },
-        }
     }
 
     pub fn build_verify_report_request(
@@ -248,21 +178,6 @@ impl TvsClient {
             }
         } else {
             Err("Handshake initiation should be done before encrypting messages".to_string())
-        }
-    }
-
-    // Wrapper around `process_response` to be used in C++.
-    #[cfg(not(feature = "noffi"))]
-    fn process_response_ffi(&mut self, response: &[u8]) -> ffi::VecU8Result {
-        match self.process_response(response) {
-            Ok(result) => ffi::VecU8Result {
-                value: result,
-                error: "".to_string(),
-            },
-            Err(error) => ffi::VecU8Result {
-                value: vec![],
-                error: error,
-            },
         }
     }
 

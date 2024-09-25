@@ -164,13 +164,17 @@ int main(int argc, char* argv[]) {
     }
   }
   for (const auto& [key_id, shared_secret] : keys) {
-    privacy_sandbox::crypto::VecU8Result recovered_secret =
+    absl::StatusOr<rust::Vec<uint8_t>> recovered_secret =
         privacy_sandbox::crypto::RecoverSecret(
             StringVecToRustVec(shared_secret.secret_shares),
             tvs_addresses.size(), tvs_addresses.size() - 1);
+    if (!recovered_secret.ok()) {
+      LOG(ERROR) << "Failed to recover secret: " << recovered_secret.status();
+      return 1;
+    }
     std::string bytes;
     if (absl::GetFlag(FLAGS_user_dek) != "") {
-      std::string wrapped_key = RustVecToString(recovered_secret.value);
+      std::string wrapped_key = RustVecToString(*recovered_secret);
       SecretData wrapped_secret = SecretData(wrapped_key);
       std::string dec;
       if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_user_dek), &dec)) {
@@ -189,7 +193,7 @@ int main(int argc, char* argv[]) {
       }
       bytes = (*unwrapped_key).GetStringView();
     } else {
-      bytes = RustVecToString(recovered_secret.value);
+      bytes = RustVecToString(*recovered_secret);
     }
     absl::StatusOr<std::string> priv_key_hex = absl::BytesToHexString(bytes);
     if (!priv_key_hex.ok()) {

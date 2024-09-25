@@ -353,17 +353,18 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
   }
   std::vector<tvs::VerifyReportResponse> response_vec;
   for (auto const& [tvs_id, pub_key] : key_hex_map) {
-    tvs::TvsClientCreationResult tvs_client_result =
+    absl::StatusOr<rust::Box<tvs::TvsClient>> tvs_client =
         tvs::NewTvsClient(StringViewToRustSlice(tvs_authentication_key_bytes),
                           StringViewToRustSlice(pub_key));
-    if (!tvs_client_result.error.empty()) {
-      return absl::FailedPreconditionError(
-          absl::StrCat("Failed to create trusted TVS client. ",
-                       std::string(tvs_client_result.error)));
+    if (!tvs_client.ok()) {
+      return absl::FailedPreconditionError(absl::StrCat(
+          "Failed to create trusted TVS client. ", tvs_client.status()));
     }
-    auto tvs_client =
-        rust::Box<tvs::TvsClient>::from_raw(tvs_client_result.value);
-    const tvs::VecU8Result initial_message = tvs_client->BuildInitialMessage();
+    absl::StatusOr<rust::Vec<uint8_t>> initial_message =
+        (*tvs_client)->BuildInitialMessage();
+    if (!initial_message.ok()) {
+      return initial_message.status();
+    }
     std::unique_ptr<LauncherService::Stub> stub =
         LauncherService::NewStub(channel);
     auto context = std::make_unique<grpc::ClientContext>();
@@ -372,7 +373,7 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
         stream = stub->VerifyReport(context.get());
 
     tvs::OpaqueMessage opaque_message;
-    opaque_message.set_binary_message(RustVecToString(initial_message.value));
+    opaque_message.set_binary_message(RustVecToString(*initial_message));
     ForwardingTvsMessage orch_message;
     orch_message.set_tvs_id(tvs_id);
     *orch_message.mutable_opaque_message() = opaque_message;
@@ -389,26 +390,27 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
                        stream->Finish().error_message()));
     }
 
-    if (rust::String status =
-            tvs_client->ProcessHandshakeResponse(StringViewToRustSlice(
-                orch_message.mutable_opaque_message()->binary_message()));
-        !status.empty()) {
-      return absl::UnknownError(absl::StrCat(
-          "Failed to process handshake response: ", std::string(status)));
-    }
-    const tvs::VecU8Result encrypted_command =
-        tvs_client->BuildVerifyReportRequest(
-            StringViewToRustSlice(
-                verify_report_request.evidence().SerializeAsString()),
-            StringViewToRustSlice(verify_report_request.tee_certificate()),
-            std::string(application_signing_key));
-    if (!encrypted_command.error.empty()) {
+    if (absl::Status status =
+            (*tvs_client)
+                ->ProcessHandshakeResponse(StringViewToRustSlice(
+                    orch_message.mutable_opaque_message()->binary_message()));
+        !status.ok()) {
       return absl::UnknownError(
-          absl::StrCat("Failed to process response: ",
-                       std::string(encrypted_command.error)));
+          absl::StrCat("Failed to process handshake response: ", status));
+    }
+    absl::StatusOr<rust::Vec<uint8_t>> encrypted_command =
+        (*tvs_client)
+            ->BuildVerifyReportRequest(
+                StringViewToRustSlice(
+                    verify_report_request.evidence().SerializeAsString()),
+                StringViewToRustSlice(verify_report_request.tee_certificate()),
+                std::string(application_signing_key));
+    if (!encrypted_command.ok()) {
+      return absl::UnknownError(absl::StrCat("Failed to process response: ",
+                                             encrypted_command.status()));
     }
     orch_message.mutable_opaque_message()->set_binary_message(
-        RustVecToString(encrypted_command.value));
+        RustVecToString(*encrypted_command));
     // orch writing to launcher (forwarded to tvs)
     if (!stream->Write(orch_message)) {
       return absl::UnknownError(
@@ -421,15 +423,16 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
           absl::StrCat("Failed to write message to stream. ",
                        stream->Finish().error_message()));
     }
-    const tvs::VecU8Result secret =
-        tvs_client->ProcessResponse(StringViewToRustSlice(
-            orch_message.mutable_opaque_message()->binary_message()));
-    if (!secret.error.empty()) {
-      return absl::UnknownError(absl::StrCat("Failed to process response: ",
-                                             std::string(secret.error)));
+    absl::StatusOr<rust::Vec<uint8_t>> secret =
+        (*tvs_client)
+            ->ProcessResponse(StringViewToRustSlice(
+                orch_message.mutable_opaque_message()->binary_message()));
+    if (!secret.ok()) {
+      return absl::UnknownError(
+          absl::StrCat("Failed to process response: ", secret.status()));
     }
     tvs::VerifyReportResponse response;
-    if (!response.ParseFromArray(secret.value.data(), secret.value.size())) {
+    if (!response.ParseFromArray(secret->data(), secret->size())) {
       return absl::UnknownError("Cannot parse result into proto");
     }
     response_vec.push_back(response);

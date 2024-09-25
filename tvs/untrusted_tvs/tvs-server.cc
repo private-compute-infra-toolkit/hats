@@ -56,24 +56,27 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
     const std::string& secondary_private_key,
     const AppraisalPolicies& appraisal_policies, bool enable_policy_signature,
     bool accept_insecure_policies) {
-  TrustedTvsCreationResult trusted_tvs;
+  // TrustedTvsCreationResult trusted_tvs;
   if (secondary_private_key.empty()) {
-    trusted_tvs = NewTrustedTvs(
+    return NewTrustedTvs(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
         /*user=*/"default", enable_policy_signature, accept_insecure_policies);
   } else {
-    trusted_tvs = NewTrustedTvs(
+    return NewTrustedTvs(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(secondary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
         /*user=*/"default", enable_policy_signature, accept_insecure_policies);
   }
-  if (!trusted_tvs.error.empty()) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "Cannot create trusted TVS server. ", std::string(trusted_tvs.error)));
-  }
-  return rust::Box<TrustedTvs>::from_raw(trusted_tvs.value);
+  /*
+    if (!trusted_tvs.error.empty()) {
+      return absl::FailedPreconditionError(absl::StrCat(
+          "Cannot create trusted TVS server. ",
+    std::string(trusted_tvs.error)));
+    }
+    return rust::Box<TrustedTvs>::from_raw(trusted_tvs.value);
+  */
 }
 
 TvsServer::TvsServer(const std::string& primary_private_key,
@@ -104,20 +107,21 @@ grpc::Status TvsServer::VerifyReport(
       enable_policy_signature_, accept_insecure_policies_);
   if (!trusted_tvs.ok()) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
-                        trusted_tvs.status().ToString());
+                        absl::StrCat("Cannot create trusted TVS server. ",
+                                     trusted_tvs.status().ToString()));
   }
   OpaqueMessage request;
   while (stream->Read(&request) && !(*trusted_tvs)->IsTerminated()) {
-    const VecU8Result result =
+    absl::StatusOr<rust::Vec<uint8_t>> result =
         (*trusted_tvs)
             ->VerifyReport(StringToRustSlice(request.binary_message()));
-    if (!result.error.empty()) {
-      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                          absl::StrCat("Invalid or malformed command. ",
-                                       std::string(result.error)));
+    if (!result.ok()) {
+      return grpc::Status(
+          grpc::StatusCode::INVALID_ARGUMENT,
+          absl::StrCat("Invalid or malformed command. ", result.status()));
     }
     OpaqueMessage response;
-    response.set_binary_message(RustVecToString(result.value));
+    response.set_binary_message(RustVecToString(*result));
     if (!stream->Write(response)) {
       LOG(ERROR) << "Failed to write message to stream";
       return grpc::Status(grpc::StatusCode::UNKNOWN,

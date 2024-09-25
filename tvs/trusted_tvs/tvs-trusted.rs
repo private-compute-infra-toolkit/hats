@@ -55,22 +55,8 @@ pub struct TrustedTvs {
 // Export TrustedTvs and it's methods to C++.
 #[cxx::bridge(namespace = "privacy_sandbox::tvs")]
 mod ffi {
-    struct TrustedTvsCreationResult {
-        value: *mut TrustedTvs,
-        error: String,
-    }
-
-    struct VecU8Result {
-        value: Vec<u8>,
-        error: String,
-    }
-
     extern "Rust" {
         type TrustedTvs;
-
-        // This is to force cxx to generate full implementation
-        // for Box<TrustedTvs>::drop().
-        fn trusted_tvs_dummy() -> Result<Box<TrustedTvs>>;
 
         #[cxx_name = "NewTrustedTvs"]
         fn new_trusted_tvs_service(
@@ -80,7 +66,7 @@ mod ffi {
             user: &str,
             enable_policy_signature: bool,
             accept_insecure_policies: bool,
-        ) -> TrustedTvsCreationResult;
+        ) -> Result<Box<TrustedTvs>>; //TrustedTvsCreationResult;
 
         #[cxx_name = "NewTrustedTvs"]
         fn new_trusted_tvs_service_with_second_key(
@@ -91,18 +77,14 @@ mod ffi {
             user: &str,
             enable_policy_signature: bool,
             accept_insecure_policies: bool,
-        ) -> TrustedTvsCreationResult;
+        ) -> Result<Box<TrustedTvs>>; //TrustedTvsCreationResult;
 
         #[cxx_name = "VerifyReport"]
-        fn verify_report_ffi(self: &mut TrustedTvs, request: &[u8]) -> VecU8Result;
+        fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
 
         #[cxx_name = "IsTerminated"]
         fn is_terminated(self: &TrustedTvs) -> bool;
     }
-}
-
-pub fn trusted_tvs_dummy() -> Result<Box<TrustedTvs>, String> {
-    Err("unimplemented".to_string())
 }
 
 pub fn new_trusted_tvs_service(
@@ -112,7 +94,7 @@ pub fn new_trusted_tvs_service(
     user: &str,
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
-) -> ffi::TrustedTvsCreationResult {
+) -> Result<Box<TrustedTvs>, String> {
     match TrustedTvs::new(
         time_milis,
         primary_private_key,
@@ -122,18 +104,12 @@ pub fn new_trusted_tvs_service(
         enable_policy_signature,
         accept_insecure_policies,
     ) {
-        Ok(trusted_tvs) => ffi::TrustedTvsCreationResult {
-            value: Box::into_raw(Box::new(trusted_tvs)),
-            error: "".to_string(),
-        },
-        Err(error) => ffi::TrustedTvsCreationResult {
-            value: std::ptr::null_mut(),
-            error: error,
-        },
+        Ok(trusted_tvs) => Ok(Box::new(trusted_tvs)),
+        Err(error) => Err(error),
     }
 }
 
-fn new_trusted_tvs_service_with_second_key(
+pub fn new_trusted_tvs_service_with_second_key(
     time_milis: i64,
     primary_private_key: &[u8],
     secondary_private_key: &[u8],
@@ -141,7 +117,7 @@ fn new_trusted_tvs_service_with_second_key(
     user: &str,
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
-) -> ffi::TrustedTvsCreationResult {
+) -> Result<Box<TrustedTvs>, String> {
     match TrustedTvs::new(
         time_milis,
         primary_private_key,
@@ -151,14 +127,8 @@ fn new_trusted_tvs_service_with_second_key(
         enable_policy_signature,
         accept_insecure_policies,
     ) {
-        Ok(trusted_tvs) => ffi::TrustedTvsCreationResult {
-            value: Box::into_raw(Box::new(trusted_tvs)),
-            error: "".to_string(),
-        },
-        Err(error) => ffi::TrustedTvsCreationResult {
-            value: std::ptr::null_mut(),
-            error: error,
-        },
+        Ok(trusted_tvs) => Ok(Box::new(trusted_tvs)),
+        Err(error) => Err(error),
     }
 }
 
@@ -229,20 +199,6 @@ impl TrustedTvs {
             user_id: None,
             terminated: false,
         })
-    }
-
-    // Wrapper around `verify_report` to be used in C++.
-    fn verify_report_ffi(self: &mut TrustedTvs, request: &[u8]) -> ffi::VecU8Result {
-        match self.verify_report(request) {
-            Ok(result) => ffi::VecU8Result {
-                value: result,
-                error: "".to_string(),
-            },
-            Err(error) => ffi::VecU8Result {
-                value: vec![],
-                error: error,
-            },
-        }
     }
 
     pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>, String> {

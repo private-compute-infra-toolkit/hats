@@ -380,8 +380,7 @@ TEST(TvsServer, CreatingTrustedTvsServerError) {
       }),
       StatusIs(
           absl::StatusCode::kUnknown,
-          AllOf(HasSubstr(
-                    "FAILED_PRECONDITION: Cannot create trusted TVS server"),
+          AllOf(HasSubstr("Cannot create trusted TVS server"),
                 HasSubstr("Invalid primary private key. Key should be 32 bytes "
                           "long."))));
 }
@@ -514,8 +513,7 @@ TEST(TvsServer, InsecurePoliciesError) {
       }),
       StatusIs(
           absl::StatusCode::kUnknown,
-          AllOf(HasSubstr(
-                    "FAILED_PRECONDITION: Cannot create trusted TVS server"),
+          AllOf(HasSubstr("Cannot create trusted TVS server"),
                 HasSubstr("Invalid primary private key. Key should be 32 bytes "
                           "long."))));
 }
