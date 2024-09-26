@@ -132,7 +132,7 @@ class Qemu final {
   std::string GetCommand() const;
 
   // Return the file where VMM stderr and stdout are written.
-  absl::StatusOr<std::string> LogFilename() ABSL_LOCKS_EXCLUDED(mu_) const;
+  absl::StatusOr<std::string> LogFilename() const ABSL_LOCKS_EXCLUDED(mu_);
 
   // Wait until QEMU terminates.
   void Wait() ABSL_LOCKS_EXCLUDED(mu_);

@@ -118,7 +118,9 @@ class KeyFetcherLocal : public KeyFetcher {
     }};
   }
 
-  absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) { return false; }
+  absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) override {
+    return false;
+  }
 
  private:
   const std::string primary_private_key_;

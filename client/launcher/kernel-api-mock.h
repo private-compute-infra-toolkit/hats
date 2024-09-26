@@ -27,9 +27,9 @@
 namespace privacy_sandbox::client {
 class KernelApiMock : public KernelApiInterface {
  public:
-  int OpenSev() const { return 133; }
-  int Close(int fd) const { return 0; }
-  int Ioctl(int fd, sev_issue_cmd& cmd) const {
+  int OpenSev() const override { return 133; }
+  int Close(int fd) const override { return 0; }
+  int Ioctl(int fd, sev_issue_cmd& cmd) const override {
     // Fake execute the sev command:
     // Test only code. Really dangerous type casting from uint64_t to a memory
     // location.

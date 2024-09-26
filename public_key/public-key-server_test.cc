@@ -202,21 +202,20 @@ TEST(PublicKeyServer, ListPublicKeys) {
   // Wait for the server to start before sending requests otherwise we might
   // deadlock.
   server.wait_until_ready();
-  absl::string_view server_address = absl::StrCat("localhost:", port);
   std::shared_ptr<gcs::testing::MockClient> mock =
       std::make_shared<gcs::testing::MockClient>();
   PublicKeyServer public_key_server(
       {
           .port = -1,  // Not used in test.
-          .aws_key_endpoint = absl::StrCat(server_address, "/aws"),
-          .gcp_key_endpoint = absl::StrCat(server_address, "/gcp"),
+          .aws_key_endpoint = absl::StrCat("localhost:", port, "/aws"),
+          .gcp_key_endpoint = absl::StrCat("localhost:", port, "/gcp"),
           .gcp_cloud_bucket_name = "example",
       },
-      std::move(absl::WrapUnique(new FakePublicKeyFetcher(
+      absl::WrapUnique(new FakePublicKeyFetcher(
           /*user_key_id=*/4611686018427387904,
           /*user_public_key=*/
           "620b4313017f3a46f28c3c108490109d9f7e1f6ebbd4af3076500c78c142a50b",
-          /*user_origin=*/"http://example.com"))),
+          /*user_origin=*/"http://example.com")),
       gcs::testing::UndecoratedClientFromMock(mock));
   std::unique_ptr<grpc::Server> grpc_server =
       grpc::ServerBuilder().RegisterService(&public_key_server).BuildAndStart();
@@ -255,21 +254,20 @@ TEST(PublicKeyServer, ListPublicKeysFailure) {
   // Wait for the server to start before sending requests otherwise we might
   // deadlock.
   server.wait_until_ready();
-  absl::string_view server_address = absl::StrCat("localhost:", port);
   std::shared_ptr<gcs::testing::MockClient> mock =
       std::make_shared<gcs::testing::MockClient>();
   PublicKeyServer public_key_server(
       {
           .port = -1,  // Not used in test.
-          .aws_key_endpoint = absl::StrCat(server_address, "/aws"),
-          .gcp_key_endpoint = absl::StrCat(server_address, "/gcp"),
+          .aws_key_endpoint = absl::StrCat("localhost:", port, "/aws"),
+          .gcp_key_endpoint = absl::StrCat("localhost:", port, "/gcp"),
           .gcp_cloud_bucket_name = "example",
       },
-      std::move(absl::WrapUnique(new FakePublicKeyFetcher(
+      absl::WrapUnique(new FakePublicKeyFetcher(
           /*user_key_id=*/4611686018427387904,
           /*user_public_key=*/
           "620b4313017f3a46f28c3c108490109d9f7e1f6ebbd4af3076500c78c142a50b",
-          /*user_origin=*/"http://example.com"))),
+          /*user_origin=*/"http://example.com")),
       gcs::testing::UndecoratedClientFromMock(mock));
   std::unique_ptr<grpc::Server> grpc_server =
       grpc::ServerBuilder().RegisterService(&public_key_server).BuildAndStart();
@@ -316,19 +314,18 @@ TEST(PublicKeyServer, UpdateCloudBucket) {
   // Wait for the server to start before sending requests otherwise we might
   // deadlock.
   server.wait_until_ready();
-  absl::string_view server_address = absl::StrCat("localhost:", port);
   PublicKeyServer public_key_server(
       {
           .port = -1,  // Not used in test.
-          .aws_key_endpoint = absl::StrCat(server_address, "/aws"),
-          .gcp_key_endpoint = absl::StrCat(server_address, "/gcp"),
+          .aws_key_endpoint = absl::StrCat("localhost:", port, "/aws"),
+          .gcp_key_endpoint = absl::StrCat("localhost:", port, "/gcp"),
           .gcp_cloud_bucket_name = "example",
       },
-      std::move(absl::WrapUnique(new FakePublicKeyFetcher(
+      absl::WrapUnique(new FakePublicKeyFetcher(
           /*user_key_id=*/4611686018427387904,
           /*user_public_key=*/
           "620b4313017f3a46f28c3c108490109d9f7e1f6ebbd4af3076500c78c142a50b",
-          /*user_origin=*/"http://example.com"))),
+          /*user_origin=*/"http://example.com")),
       gcs::testing::UndecoratedClientFromMock(mock));
   std::unique_ptr<grpc::Server> grpc_server =
       grpc::ServerBuilder().RegisterService(&public_key_server).BuildAndStart();
@@ -374,19 +371,18 @@ TEST(PublicKeyServer, UpdateCloudBucketFailure) {
   // Wait for the server to start before sending requests otherwise we might
   // deadlock.
   server.wait_until_ready();
-  absl::string_view server_address = absl::StrCat("localhost:", port);
   PublicKeyServer public_key_server(
       {
           .port = -1,  // Not used in test.
-          .aws_key_endpoint = absl::StrCat(server_address, "/aws"),
-          .gcp_key_endpoint = absl::StrCat(server_address, "/gcp"),
+          .aws_key_endpoint = absl::StrCat("localhost:", port, "/aws"),
+          .gcp_key_endpoint = absl::StrCat("localhost:", port, "/gcp"),
           .gcp_cloud_bucket_name = "example",
       },
-      std::move(absl::WrapUnique(new FakePublicKeyFetcher(
+      absl::WrapUnique(new FakePublicKeyFetcher(
           /*user_key_id=*/4611686018427387904,
           /*user_public_key=*/
           "620b4313017f3a46f28c3c108490109d9f7e1f6ebbd4af3076500c78c142a50b",
-          /*user_origin=*/"http://example.com"))),
+          /*user_origin=*/"http://example.com")),
       gcs::testing::UndecoratedClientFromMock(mock));
   std::unique_ptr<grpc::Server> grpc_server =
       grpc::ServerBuilder().RegisterService(&public_key_server).BuildAndStart();

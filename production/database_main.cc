@@ -399,8 +399,8 @@ absl::StatusOr<TvsSecrets> GenerateTvsSecrets(
 
   // GCP KMS client.
   privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client(
-      google::cloud::kms_v1::KeyManagementServiceClient(
-          google::cloud::kms_v1::MakeKeyManagementServiceConnection()));
+      (google::cloud::kms_v1::KeyManagementServiceClient(
+          google::cloud::kms_v1::MakeKeyManagementServiceConnection())));
 
   // Wrap DEK with KEK in KMS.
   absl::StatusOr<std::string> wrapped_dek = gcp_kms_client.EncryptData(
@@ -672,8 +672,8 @@ absl::StatusOr<WrappedSecrets> WrapSecret(
                                        privacy_sandbox::crypto::kSecretAd);
   if (!wrapped_user_secret.ok()) return wrapped_user_secret.status();
   privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client(
-      google::cloud::kms_v1::KeyManagementServiceClient(
-          google::cloud::kms_v1::MakeKeyManagementServiceConnection()));
+      (google::cloud::kms_v1::KeyManagementServiceClient(
+          google::cloud::kms_v1::MakeKeyManagementServiceConnection())));
 
   // Wrap DEK with KEK in KMS.
   absl::StatusOr<std::string> wrapped_dek = gcp_kms_client.EncryptData(

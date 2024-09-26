@@ -60,7 +60,6 @@ constexpr char kVmLocalAddress[] = "10.0.2.15";
 constexpr char kVmLauncherAddress[] = "10.0.2.100";
 constexpr uint16_t kVmHatsLauncherPort = 8080;
 constexpr char kLocalHost[] = "127.0.0.1";
-constexpr uint16_t kVmOrchestratorLocalPort = 4000;
 constexpr uint16_t kVmLocalPort = 8080;
 // Host always has address of *2*.
 constexpr uint32_t kVmAddrCidHost = 2;

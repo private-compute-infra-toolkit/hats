@@ -52,8 +52,9 @@ grpc::Status StreamFile(
     grpc::ServerWriter<oak::containers::GetImageResponse>& writer) {
   std::ifstream input_stream(image_path.data(), std::ifstream::binary);
   if (!input_stream.is_open()) {
-    return grpc::Status(grpc::StatusCode::NOT_FOUND,
-                        absl::StrFormat("failed to open image path %s"));
+    return grpc::Status(
+        grpc::StatusCode::NOT_FOUND,
+        absl::StrCat("failed to open image path: ", image_path));
   }
 
   while (!input_stream.eof()) {
