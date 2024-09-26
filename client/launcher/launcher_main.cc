@@ -17,6 +17,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
@@ -46,9 +47,9 @@ ABSL_FLAG(std::vector<std::string>, private_key_wrapping_keys, {},
 ABSL_FLAG(std::string, tvs_access_token, "",
           "Oauth bearer token got from TVS hosting provider used to talk to "
           "TVS server");
-ABSL_FLAG(
-    bool, qemu_log_to_std, false,
-    "Whether to send qemu logs to stdout/stderr instead of a temporary file.");
+ABSL_FLAG(bool, qemu_log_to_std, false,
+          "Whether to send qemu logs to stdout/stderr instead of a temporary "
+          "file.");
 
 absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
     absl::string_view path) {
