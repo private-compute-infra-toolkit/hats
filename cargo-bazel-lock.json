@@ -1,5 +1,5 @@
 {
-  "checksum": "0c57bd60a8e15a701721b831b192da048d0c2f68954acdb34aa3fd7c5b19d35e",
+  "checksum": "7567121f3e0c1ed2ff98896f9cfb64c0b152b41e6e13ad4c249c98c922e65974",
   "crates": {
     "aead 0.5.2": {
       "name": "aead",
@@ -4143,7 +4143,6 @@
         ],
         "crate_features": {
           "common": [
-            "default",
             "derive",
             "serde_derive",
             "std"
