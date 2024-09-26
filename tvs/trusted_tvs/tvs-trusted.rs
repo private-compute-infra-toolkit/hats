@@ -37,14 +37,13 @@ pub mod proto {
 }
 
 pub struct TrustedTvs {
-    time_milis: i64,
     primary_private_key: P256Scalar,
     primary_public_key: [u8; P256_X962_LENGTH],
     secondary_private_key: Option<P256Scalar>,
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
-    appraisal_policies: Vec<oak_proto_rust::oak::attestation::v1::ReferenceValues>,
+    policy_manager: PolicyManager,
     // Authenticated user if any.
     #[allow(dead_code)]
     user: String,
@@ -141,6 +140,110 @@ fn get_policy_public_key() -> Result<VerifyingKey, String> {
     .map_err(|_| "Failed to parse policy PK")?)
 }
 
+struct PolicyManager {
+    time_milis: i64,
+    appraisal_policies: Vec<oak_proto_rust::oak::attestation::v1::ReferenceValues>,
+}
+
+impl PolicyManager {
+    pub fn new(
+        time_milis: i64,
+        policies: &[u8],
+        enable_policy_signature: bool,
+        accept_insecure_policies: bool,
+    ) -> Result<Self, String> {
+        let appraisal_policies = if enable_policy_signature {
+            let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
+            policy_signature::decode_and_verify_policies(
+                policies,
+                vec![policy_verifying_key],
+                /*num_pass_required=*/ 1,
+            )
+        } else {
+            policy_signature::decode_and_verify_policies(
+                policies,
+                /*verifying_keys*/ vec![],
+                /*num_pass_required=*/ 0,
+            )
+        }?;
+        verify_policy_tee(&appraisal_policies, accept_insecure_policies)?;
+        Ok(Self {
+            time_milis,
+            appraisal_policies,
+        })
+    }
+
+    // Check evidence against the appraisal policies.
+    pub fn check_evidence(
+        &self,
+        evidence: Evidence,
+        endorsement: Endorsements,
+    ) -> Result<(), String> {
+        for policy in &self.appraisal_policies {
+            match oak_attestation_verification::verifier::verify(
+                self.time_milis,
+                &evidence,
+                &endorsement,
+                &policy,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(_) => continue,
+            };
+        }
+        Err("Failed to verify report. No matching appraisal policy found".to_string())
+    }
+}
+
+fn create_endorsements(
+    tee_certificate: Vec<u8>,
+) -> oak_proto_rust::oak::attestation::v1::Endorsements {
+    let root_layer = oak_proto_rust::oak::attestation::v1::RootLayerEndorsements {
+        tee_certificate: tee_certificate,
+        stage0: None,
+    };
+    let ends = oak_proto_rust::oak::attestation::v1::OakContainersEndorsements {
+        root_layer: Some(root_layer),
+        container_layer: None,
+        kernel_layer: None,
+        system_layer: None,
+    };
+    oak_proto_rust::oak::attestation::v1::Endorsements {
+        r#type: Some(oak_proto_rust::oak::attestation::v1::endorsements::Type::OakContainers(ends)),
+    }
+}
+
+// When running in secure mode, reject policies that doesn't require SEV-SNP.
+fn verify_policy_tee(
+    appraisal_policies: &[oak_proto_rust::oak::attestation::v1::ReferenceValues],
+    accept_insecure_policies: bool,
+) -> Result<(), String> {
+    if accept_insecure_policies {
+        return Ok(());
+    }
+    for policy in appraisal_policies {
+        let root_layer = match policy.r#type.as_ref() {
+            Some(Type::OakRestrictedKernel(r)) => {
+                r.root_layer.as_ref().ok_or("No root layer".to_string())
+            }
+            Some(Type::OakContainers(r)) => {
+                r.root_layer.as_ref().ok_or("No root layer".to_string())
+            }
+            Some(Type::Cb(r)) => r.root_layer.as_ref().ok_or("No root layer".to_string()),
+            None => Err("Cannot accept a policy without a type".to_string()),
+        }?;
+        if root_layer.insecure.is_some() {
+            return Err("Cannot accept insecure policies".to_string());
+        };
+        if root_layer.intel_tdx.is_some() {
+            return Err("Cannot accept intel TDX policies".to_string());
+        };
+        if root_layer.amd_sev.is_none() {
+            return Err("Cannot accept non AMD SEV SNP  policies".to_string());
+        }
+    }
+    Ok(())
+}
+
 impl TrustedTvs {
     pub fn new(
         time_milis: i64,
@@ -170,29 +273,19 @@ impl TrustedTvs {
             (None, None)
         };
 
-        let appraisal_policies = if enable_policy_signature {
-            let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
-            policy_signature::decode_and_verify_policies(
-                policies,
-                vec![policy_verifying_key],
-                /*num_pass_required=*/ 1,
-            )
-        } else {
-            policy_signature::decode_and_verify_policies(
-                policies,
-                /*verifying_keys*/ vec![],
-                /*num_pass_required=*/ 0,
-            )
-        }?;
-        verify_policy_tee(&appraisal_policies, accept_insecure_policies)?;
+        let policy_manager = PolicyManager::new(
+            time_milis,
+            policies,
+            enable_policy_signature,
+            accept_insecure_policies,
+        )?;
 
         Ok(Self {
-            time_milis,
             primary_public_key: primary_private_key_scalar.compute_public_key(),
             primary_private_key: primary_private_key_scalar,
             secondary_private_key: secondary_private_key_scalar,
             secondary_public_key: secondary_public_key,
-            appraisal_policies,
+            policy_manager,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
             user: user.to_string(),
@@ -309,7 +402,7 @@ impl TrustedTvs {
         };
         self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
         let endorsement = create_endorsements(verify_report_request.tee_certificate);
-        self.check_evidence(evidence, endorsement)?;
+        self.policy_manager.check_evidence(evidence, endorsement)?;
 
         let Some(user_id) = self.user_id else {
             // This should not happen unless something went wrong internally
@@ -367,22 +460,6 @@ impl TrustedTvs {
             .map_err(|msg| format!("Signature does not match. {}", msg))
     }
 
-    // Check evidence against the appraisal policies.
-    fn check_evidence(&self, evidence: Evidence, endorsement: Endorsements) -> Result<(), String> {
-        for policy in &self.appraisal_policies {
-            match oak_attestation_verification::verifier::verify(
-                self.time_milis,
-                &evidence,
-                &endorsement,
-                &policy,
-            ) {
-                Ok(_) => return Ok(()),
-                Err(_) => continue,
-            };
-        }
-        Err("Failed to verify report. No matching appraisal policy found".to_string())
-    }
-
     // Drop crypter and handshake hash to force clients to re-initiate the session.
     fn terminate(&mut self) {
         self.crypter = None;
@@ -393,56 +470,6 @@ impl TrustedTvs {
     fn is_terminated(&self) -> bool {
         self.terminated
     }
-}
-
-fn create_endorsements(
-    tee_certificate: Vec<u8>,
-) -> oak_proto_rust::oak::attestation::v1::Endorsements {
-    let root_layer = oak_proto_rust::oak::attestation::v1::RootLayerEndorsements {
-        tee_certificate: tee_certificate,
-        stage0: None,
-    };
-    let ends = oak_proto_rust::oak::attestation::v1::OakContainersEndorsements {
-        root_layer: Some(root_layer),
-        container_layer: None,
-        kernel_layer: None,
-        system_layer: None,
-    };
-    oak_proto_rust::oak::attestation::v1::Endorsements {
-        r#type: Some(oak_proto_rust::oak::attestation::v1::endorsements::Type::OakContainers(ends)),
-    }
-}
-
-// When running in secure mode, reject policies that doesn't require SEV-SNP.
-fn verify_policy_tee(
-    appraisal_policies: &[oak_proto_rust::oak::attestation::v1::ReferenceValues],
-    accept_insecure_policies: bool,
-) -> Result<(), String> {
-    if accept_insecure_policies {
-        return Ok(());
-    }
-    for policy in appraisal_policies {
-        let root_layer = match policy.r#type.as_ref() {
-            Some(Type::OakRestrictedKernel(r)) => {
-                r.root_layer.as_ref().ok_or("No root layer".to_string())
-            }
-            Some(Type::OakContainers(r)) => {
-                r.root_layer.as_ref().ok_or("No root layer".to_string())
-            }
-            Some(Type::Cb(r)) => r.root_layer.as_ref().ok_or("No root layer".to_string()),
-            None => Err("Cannot accept a policy without a type".to_string()),
-        }?;
-        if root_layer.insecure.is_some() {
-            return Err("Cannot accept insecure policies".to_string());
-        };
-        if root_layer.intel_tdx.is_some() {
-            return Err("Cannot accept intel TDX policies".to_string());
-        };
-        if root_layer.amd_sev.is_none() {
-            return Err("Cannot accept non AMD SEV SNP  policies".to_string());
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]
