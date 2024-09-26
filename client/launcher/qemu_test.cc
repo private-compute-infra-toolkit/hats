@@ -14,11 +14,9 @@
 
 #include "client/launcher/qemu.h"
 
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
-#include <thread>
 
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"

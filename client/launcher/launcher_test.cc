@@ -14,7 +14,6 @@
 
 #include "client/launcher/launcher.h"
 
-#include <chrono>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -22,16 +21,14 @@
 #include <thread>
 #include <unordered_map>
 #include <utility>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/escaping.h"
-#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "client/launcher/launcher-server.h"
+#include "client/proto/launcher.grpc.pb.h"
+#include "external/oak/proto/containers/interfaces.grpc.pb.h"
 #include "external/oak/proto/containers/interfaces.pb.h"
 #include "google/protobuf/empty.pb.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"

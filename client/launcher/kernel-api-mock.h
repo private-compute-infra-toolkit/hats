@@ -12,14 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <unistd.h>
-
-#include <linux/types.h>
-
-#include <string>
-
 #include "absl/log/check.h"
-#include "client/launcher/certificates.h"
 #include "client/launcher/kernel-api.h"
 #include "client/launcher/snp-abi.h"
 #include "external/psp-sev/file/psp-sev.h"

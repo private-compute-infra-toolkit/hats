@@ -15,11 +15,9 @@
 #include "kernel-api.h"
 
 #include <cpuid.h>      // gcc api for compiling into assembly code.
-#include <fcntl.h>      // open / close
+#include <fcntl.h>      // open, O_RDWR
 #include <sys/ioctl.h>  // ioctl
-#include <unistd.h>
-
-#include <string>
+#include <unistd.h>     // open / close
 
 #include "external/psp-sev/file/psp-sev.h"
 

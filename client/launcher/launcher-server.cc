@@ -16,28 +16,20 @@
 
 #include <fcntl.h>
 
-#include <cstdint>
-#include <exception>
 #include <fstream>
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
-#include "absl/base/nullability.h"
-#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "client/launcher/certificates.h"
-#include "client/proto/launcher.grpc.pb.h"
 #include "external/oak/proto/containers/interfaces.pb.h"
 #include "google/protobuf/empty.pb.h"
 #include "grpcpp/channel.h"
 #include "grpcpp/server.h"
-#include "grpcpp/server_builder.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/tvs_messages.pb.h"

@@ -15,7 +15,6 @@
 #include "client/launcher/logs-service.h"
 
 #include "absl/log/log.h"
-#include "opentelemetry/proto/collector/logs/v1/logs_service.grpc.pb.h"
 #include "opentelemetry/proto/collector/logs/v1/logs_service.pb.h"
 #include "opentelemetry/proto/logs/v1/logs.pb.h"
 

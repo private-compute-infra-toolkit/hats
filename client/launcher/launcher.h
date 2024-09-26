@@ -19,7 +19,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "absl/strings/string_view.h"
 #include "client/proto/launcher.pb.h"
 #include "client/proto/launcher_config.pb.h"
 #include "grpcpp/channel.h"

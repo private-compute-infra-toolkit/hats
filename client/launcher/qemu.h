@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstdint>
-#include <cstdio>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "absl/flags/declare.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
 #ifndef HATS_CLIENT_LAUNCHER_QEMU_H_

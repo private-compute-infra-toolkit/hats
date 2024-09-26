@@ -30,7 +30,6 @@ cc_library(
     hdrs = ["kernel-api.h"],
     deps = [
         ":snp-abi",
-        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -42,8 +41,6 @@ cc_library(
         ":kernel-api",
         ":snp-abi",
         "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/strings",
-        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -73,8 +70,8 @@ cc_library(
         ":launcher-server",
         ":logs-service",
         ":qemu",
+        "//client/proto:launcher_cc_proto",
         "//client/proto:launcher_config_cc_proto",
-        "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
@@ -98,6 +95,7 @@ cc_test(
     tags = ["nopresubmit"],
     deps = [
         ":launcher",
+        "//client/proto:launcher_cc_grpc",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/untrusted_tvs:tvs-server",
         "@bazel_tools//tools/cpp/runfiles",
@@ -109,6 +107,8 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf_headers",
         "@com_google_protobuf//src/google/protobuf/io",
+        "@oak//proto/containers:interfaces_cc_grpc",
+        "@oak//proto/containers:interfaces_cc_proto",
     ],
 )
 
@@ -122,11 +122,10 @@ cc_library(
         "//client/proto:launcher_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
-        "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_protobuf//:empty_cc_proto",
         "@oak//proto/containers:interfaces_cc_grpc",
         "@oak//proto/containers:interfaces_cc_proto",
     ],
@@ -141,6 +140,7 @@ cc_test(
     ],
     deps = [
         ":launcher-server",
+        "//client/proto:launcher_cc_proto",
         "//key_manager:key-fetcher-wrapper",
         "//tvs/client:bridge",
         "//tvs/client:bridge/include",
@@ -148,7 +148,6 @@ cc_test(
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/untrusted_tvs:tvs-server",
         "@bazel_tools//tools/cpp/runfiles",
-        "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
@@ -167,7 +166,6 @@ cc_library(
     srcs = ["qemu.cc"],
     hdrs = ["qemu.h"],
     deps = [
-        "//client/proto:launcher_config_cc_proto",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/random",
@@ -199,9 +197,9 @@ cc_library(
     deps = [
         ":kernel-api",
         ":snp-abi",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
         "@curl",
     ],
 )

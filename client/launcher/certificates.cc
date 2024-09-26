@@ -15,13 +15,9 @@
 #include "client/launcher/certificates.h"
 
 #include <errno.h>
-#include <unistd.h>
 
-#include <iomanip>
-#include <iostream>
 #include <string>
 
-#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"

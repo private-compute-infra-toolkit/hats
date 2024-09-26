@@ -16,7 +16,7 @@
 #ifndef CLIENT_LAUNCHER_SNP_ABI_H_
 #define CLIENT_LAUNCHER_SNP_ABI_H_
 
-#include <unistd.h>
+#include <stdint.h>
 // Structs come from Archived tool:
 // https://github.com/AMDESE/sev-tool/blob/master/src/sevapi.h
 // The structs may not be available in linux kernel.

@@ -15,11 +15,8 @@
 #ifndef CLIENT_LAUNCHER_KERNEL_API_H_
 #define CLIENT_LAUNCHER_KERNEL_API_H_
 
-#include <unistd.h>
+#include <stdint.h>
 
-#include <string>
-
-#include "absl/strings/string_view.h"
 #include "external/psp-sev/file/psp-sev.h"
 
 namespace privacy_sandbox::client {

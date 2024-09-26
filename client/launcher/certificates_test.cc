@@ -23,8 +23,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
-#include "absl/types/optional.h"
-#include "curl/curl.h"
 #include "gmock/gmock-matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -32,6 +30,7 @@
 
 #include "httplib.h"
 #include "kernel-api-mock.h"
+
 namespace privacy_sandbox::client {
 namespace {
 using ::absl_testing::IsOk;
