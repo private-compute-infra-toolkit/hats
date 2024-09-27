@@ -23,3 +23,8 @@ build:clang --cxxopt='-Werror=switch'
 
 build:rustfmt --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
 build:rustfmt --output_groups=+rustfmt_checks
+
+# depend_on_what_you_use build check
+build:dwyu --aspects=//dwyu:dwyu.bzl%hats_dwyu_aspect
+build:dwyu --output_groups=dwyu
+build:dwyu --verbose_failures=false

@@ -238,3 +238,26 @@ Therefore 1091 errors specifically should be always be disabled with a directive
 This can still be tested locally using `shellcheck -x my-script.sh`
 Rather than the disable directive, the path to the file can be done with `# shellcheck source=path/to/lib.sh`.
 Note that this is just for local checking, and currently will not work with pre-commit.
+
+### Clangd
+
+clangd is a C++ analyzer that hooks into an editor.
+See go/clangd and [the external docs](https://clangd.llvm.org/installation#editor-plugins) for linking it to your editor.
+
+Use `bazel run @hedron_compile_commands//:refresh_all` to build `compile_commands.json`, which lets clangd know how to build code.
+If there are errors, it may sometimes help to do a normal `bazel build //...`.
+
+There are several issues that can be ignored.
+* `*.rs.h` includes it sometimes views as recursive. `#pramga once` fixes it while include guards don't.
+* The builtin `_mm_getcsr` that comes from `.pb.h` it flags. This is likely related to similar past issues (b/35888333) with clangd.
+
+### Depend what you use
+
+Depend-what-you-use tries to have dependencies match includes for C++.
+It can be run via `bazel_rbe build --config=dwyu //target`.
+Some of the issues it runs into are skipped via `dwyu_ignore_includes.json`, but this is unable to cover everything.
+This covers includes that are hard to add, may incorrectly think unnecessary, or come transitively.
+
+It is unable to handle `rust_cxx_bridge` builds.
+Generally, it can help to run it on more narrow targets to avoid rust bridges.
+`@com_github_grpc_grpc//:grpc++` may be incorrectly declared unnecessary. Make sure build still works.
