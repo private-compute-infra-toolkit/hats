@@ -80,7 +80,6 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "key_manager/gcp-kms-client.h"
-#include "openssl/aead.h"
 #include "openssl/bn.h"
 #include "openssl/ec_key.h"
 #include "openssl/hpke.h"
@@ -100,11 +99,11 @@ ABSL_FLAG(std::vector<std::string>, spanner_databases,
           "<project_id1>/<instance_id1>/<database_id1>,<project_id2>/"
           "<instance_id2>/<database_id2>");
 ABSL_FLAG(std::string, key_resource_name, "", "Key resource name.");
-ABSL_FLAG(
-    std::vector<std::string>, key_resource_names,
-    std::vector<std::string>({""}),
-    "Comma separated list of spanner databases to use in the following format"
-    "<Key resource name 1>, <Key resource name 2>");
+ABSL_FLAG(std::vector<std::string>, key_resource_names,
+          std::vector<std::string>({""}),
+          "Comma separated list of spanner databases to use in the following "
+          "format"
+          "<Key resource name 1>, <Key resource name 2>");
 ABSL_FLAG(std::string, appraisal_policy_path, "",
           "Path to an appraisal policy file");
 ABSL_FLAG(std::string, user_authentication_public_key, "",

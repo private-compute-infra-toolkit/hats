@@ -12,16 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
 #include <vector>
 
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "client/proto/orchestrator.grpc.pb.h"
 #include "client/proto/orchestrator.pb.h"
 #include "client/proto/trusted_service.grpc.pb.h"
 #include "client/proto/trusted_service.pb.h"
-#include "grpcpp/channel.h"
 
 namespace privacy_sandbox::client {
 

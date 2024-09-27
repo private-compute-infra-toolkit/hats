@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <cstdlib>
-#include <optional>
 #include <string>
 #include <utility>
 
@@ -26,7 +25,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
-#include "google/cloud/storage/client.h"
 #include "key_manager/public-key-fetcher.h"
 #include "public_key/public-key-server.h"
 

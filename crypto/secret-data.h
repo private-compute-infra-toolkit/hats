@@ -19,7 +19,7 @@
 
 #include <memory>
 
-#include "absl/status/statusor.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 
 namespace privacy_sandbox::crypto {

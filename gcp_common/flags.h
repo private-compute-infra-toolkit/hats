@@ -18,7 +18,6 @@
 #include <string>
 
 #include "absl/flags/declare.h"
-#include "absl/flags/flag.h"
 
 ABSL_DECLARE_FLAG(std::string, project_id);
 ABSL_DECLARE_FLAG(std::string, instance_id);

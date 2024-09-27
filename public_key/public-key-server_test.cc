@@ -14,17 +14,12 @@
 
 #include "public_key/public-key-server.h"
 
-#include <fstream>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "absl/flags/flag.h"
-#include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gmock/gmock.h"
@@ -37,7 +32,6 @@
 #include "gtest/gtest.h"
 #include "key_manager/public-key-fetcher.h"
 #include "src/google/protobuf/test_textproto.h"
-#include "tools/cpp/runfiles/runfiles.h"
 
 #include "httplib.h"
 namespace privacy_sandbox::public_key_service {

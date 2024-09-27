@@ -15,18 +15,12 @@
 #include "client/trusted_application/trusted_application.h"
 
 #include <string>
-#include <utility>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/escaping.h"
-#include "client/proto/orchestrator.grpc.pb.h"
 #include "client/proto/orchestrator.pb.h"
-#include "client/proto/trusted_service.grpc.pb.h"
 #include "client/proto/trusted_service.pb.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
-#include "grpcpp/channel.h"
 
 using privacy_sandbox::crypto::SecretData;
 using privacy_sandbox::server_common::Key;

@@ -16,7 +16,6 @@
 #define HATS_CLIENT_SDK_HATS_LIGHTWEIGHT_CLIENT_H_
 
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "absl/status/statusor.h"

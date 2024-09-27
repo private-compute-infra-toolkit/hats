@@ -17,16 +17,14 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/escaping.h"
+#include "absl/strings/string_view.h"
 #include "client/proto/trusted_service.grpc.pb.h"
 #include "client/proto/trusted_service.pb.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
-#include "grpcpp/channel.h"
 #include "grpcpp/create_channel.h"
 
 namespace privacy_sandbox::client {
