@@ -10,5 +10,6 @@ cc_library(
     hdrs = ["credentials.h"],
     deps = [
         "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/status:statusor",
     ],
 )

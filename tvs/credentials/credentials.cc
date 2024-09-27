@@ -17,6 +17,8 @@
 #include <memory>
 #include <string>
 
+#include "grpcpp/create_channel.h"
+
 namespace privacy_sandbox::tvs {
 
 absl::StatusOr<std::shared_ptr<grpc::Channel>> CreateGrpcChannel(

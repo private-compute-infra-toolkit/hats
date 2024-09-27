@@ -64,7 +64,6 @@ cc_test(
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/test_client:tvs-untrusted-client",
         "@bazel_tools//tools/cpp/runfiles",
-        "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",

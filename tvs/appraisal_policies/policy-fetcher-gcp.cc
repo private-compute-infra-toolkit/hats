@@ -25,7 +25,6 @@
 #include "gcp_common/flags.h"
 #include "gcp_common/gcp-status.h"
 #include "google/cloud/spanner/client.h"
-#include "proto/attestation/reference_value.pb.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
 namespace privacy_sandbox::tvs {

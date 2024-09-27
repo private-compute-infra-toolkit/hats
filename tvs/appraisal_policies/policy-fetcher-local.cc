@@ -19,7 +19,6 @@
 #include "absl/strings/string_view.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
-#include "proto/attestation/reference_value.pb.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 

@@ -36,18 +36,18 @@ ABSL_FLAG(std::string, tvs_address, "localhost:8081", "TVS server address.");
 ABSL_FLAG(std::string, tvs_public_key, "",
           "TVS public key in hex format e.g. deadbeef");
 ABSL_FLAG(bool, use_tls, false, "Whether to use TLS to connect to TVS or not.");
-ABSL_FLAG(
-    std::string, verify_report_request_file, "",
-    "File containing a VerifyReportRequest to be sent to TVS for validation");
+ABSL_FLAG(std::string, verify_report_request_file, "",
+          "File containing a VerifyReportRequest to be sent to TVS for "
+          "validation");
 ABSL_FLAG(std::string, application_signing_key, "",
           "Signing key in the application layer of the DICE certificate in hex "
           "format e.g. deadbeef. The key is used to sign the handshake hash "
           "and the evidence.");
 ABSL_FLAG(std::string, access_token, "",
           "Access token to pass in the GRPC request. TLS needs to be enabled");
-ABSL_FLAG(
-    std::string, tvs_authentication_key, "",
-    "Private key used to authenticate with TVS in hex format e.g. deadbeef");
+ABSL_FLAG(std::string, tvs_authentication_key, "",
+          "Private key used to authenticate with TVS in hex format "
+          "e.g. deadbeef");
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);

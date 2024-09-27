@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <cstdlib>
-#include <optional>
 #include <string>
 #include <utility>
 

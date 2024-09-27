@@ -14,8 +14,6 @@
 
 #include "tvs/test_client/tvs-untrusted-client.h"
 
-#include <cstdint>
-#include <exception>
 #include <string>
 #include <utility>
 

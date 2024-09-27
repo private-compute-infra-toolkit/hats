@@ -14,8 +14,6 @@
 
 #include "tvs/untrusted_tvs/tvs-server.h"
 
-#include <cstdint>
-#include <exception>
 #include <memory>
 #include <string>
 #include <utility>

@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "absl/status/statusor.h"
-#include "absl/strings/string_view.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
 namespace privacy_sandbox::tvs {

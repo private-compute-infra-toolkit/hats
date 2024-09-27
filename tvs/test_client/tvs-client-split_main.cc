@@ -45,21 +45,21 @@ ABSL_FLAG(std::vector<std::string>, tvs_public_keys,
           "Comma-separated List of TVS public key in hex format e.g. deadbeef");
 
 ABSL_FLAG(bool, use_tls, false, "Whether to use TLS to connect to TVS or not.");
-ABSL_FLAG(
-    std::string, verify_report_request_file, "",
-    "File containing a VerifyReportRequest to be sent to TVS for validation");
+ABSL_FLAG(std::string, verify_report_request_file, "",
+          "File containing a VerifyReportRequest to be sent to TVS for "
+          "validation");
 ABSL_FLAG(std::string, application_signing_key, "",
           "Signing key in the application layer of the DICE certificate in hex "
           "format e.g. deadbeef. The key is used to sign the handshake hash "
           "and the evidence.");
 ABSL_FLAG(std::string, access_token, "",
           "Access token to pass in the GRPC request. TLS needs to be enabled");
-ABSL_FLAG(
-    std::string, tvs_authentication_key, "",
-    "Private key used to authenticate with TVS in hex format e.g. deadbeef");
-ABSL_FLAG(
-    std::string, user_dek, "",
-    "Private key used to authenticate with TVS in hex format e.g. deadbeef");
+ABSL_FLAG(std::string, tvs_authentication_key, "",
+          "Private key used to authenticate with TVS in hex format "
+          "e.g. deadbeef");
+ABSL_FLAG(std::string, user_dek, "",
+          "Private key used to authenticate with TVS in hex format "
+          "e.g. deadbeef");
 
 rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
   return rust::Slice<const std::uint8_t>(

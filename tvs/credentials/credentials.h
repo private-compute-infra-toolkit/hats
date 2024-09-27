@@ -18,7 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "grpcpp/create_channel.h"
+#include "absl/status/statusor.h"
+#include "grpcpp/channel.h"
 
 namespace privacy_sandbox::tvs {
 

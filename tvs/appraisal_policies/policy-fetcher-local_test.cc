@@ -20,10 +20,8 @@
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "gmock/gmock.h"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
-#include "proto/attestation/reference_value.pb.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 

@@ -20,7 +20,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "google/cloud/spanner/client.h"
-#include "proto/attestation/reference_value.pb.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
@@ -28,7 +27,7 @@ namespace privacy_sandbox::tvs {
 
 class PolicyFetcherGcp final : public PolicyFetcher {
  public:
-  PolicyFetcherGcp() = default;
+  PolicyFetcherGcp() = delete;
   PolicyFetcherGcp(absl::string_view project_id, absl::string_view instance_id,
                    absl::string_view database_id);
   // For unit-tests only.
