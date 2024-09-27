@@ -40,7 +40,6 @@ git_override(
 # Used to support clangd
 # bazel run @hedron_compile_commands//:refresh_all
 # Note: clangd's _mm_getcsr warnings are external and not fixable here.
-#   (related: b/35888333)
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
     module_name = "hedron_compile_commands",

@@ -142,6 +142,7 @@ rust_library(
 
 rust_test(
     name = "policy-manager_test",
+    size = "small",
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = ":policy-manager",
 )
