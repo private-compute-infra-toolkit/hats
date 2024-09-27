@@ -65,7 +65,7 @@ mod ffi {
             user: &str,
             enable_policy_signature: bool,
             accept_insecure_policies: bool,
-        ) -> Result<Box<TrustedTvs>>; //TrustedTvsCreationResult;
+        ) -> Result<Box<TrustedTvs>>;
 
         #[cxx_name = "NewTrustedTvs"]
         fn new_trusted_tvs_service_with_second_key(
@@ -76,7 +76,7 @@ mod ffi {
             user: &str,
             enable_policy_signature: bool,
             accept_insecure_policies: bool,
-        ) -> Result<Box<TrustedTvs>>; //TrustedTvsCreationResult;
+        ) -> Result<Box<TrustedTvs>>;
 
         #[cxx_name = "VerifyReport"]
         fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
