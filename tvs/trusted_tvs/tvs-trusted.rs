@@ -401,6 +401,7 @@ mod tests {
         .unwrap();
         let policies = AppraisalPolicies {
             signed_policy: vec![signed_policy],
+            policies: vec![],
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
@@ -414,6 +415,7 @@ mod tests {
         .unwrap();
         let policies = AppraisalPolicies {
             signed_policy: vec![signed_policy],
+            policies: vec![],
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();

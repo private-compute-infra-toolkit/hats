@@ -43,6 +43,7 @@ proto_library(
     srcs = ["appraisal_policies.proto"],
     deps = [
         "@oak//proto/attestation:reference_value_proto",
+        "@oak//proto/attestation:tcb_version_proto",
     ],
 )
 

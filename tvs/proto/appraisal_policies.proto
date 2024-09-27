@@ -17,6 +17,7 @@ syntax = "proto3";
 package privacy_sandbox.tvs;
 
 import "proto/attestation/reference_value.proto";
+import "proto/attestation/tcb_version.proto";
 
 message AppraisalPolicies {
   message Signature {
@@ -31,4 +32,46 @@ message AppraisalPolicies {
   }
 
   repeated SignedAppraisalPolicy signed_policy = 1;
+  // TODO(b/344012112): change the prototag.
+  repeated AppraisalPolicy policies = 2;
+}
+
+message AppraisalPolicy {
+  Measurement measurement = 1;
+  repeated Signature signature = 2;
+}
+
+message Signature {
+  // Signature is in hex format.
+  string signature = 1;
+  // When multiple signatures, for identifying the signer and therefore which
+  // verifying key to use
+  string signer = 2;
+}
+
+message AmdSev {
+  // Sha384 digest of stage0 is in hex string format.
+  string sha384 = 1;
+  // Minimum accepted versions of all TCB components.
+  oak.attestation.v1.TcbVersion min_tcb_version = 2;
+}
+
+message Stage0Measurement {
+  oneof type {
+    AmdSev amd_sev = 1;
+    oak.attestation.v1.InsecureReferenceValues insecure = 2;
+  }
+}
+
+message Measurement {
+  Stage0Measurement stage0_measurement = 1;
+  // Sha256 digests are in hex string format.
+  string kernel_image_sha256 = 2;
+  string kernel_setup_data_sha256 = 3;
+  string init_ram_fs_sha256 = 4;
+  string memory_map_sha256 = 5;
+  string acpi_table_sha256 = 6;
+  string kernel_cmd_line_regex = 7;
+  string system_image_sha256 = 8;
+  string container_binary_sha256 = 9;
 }
