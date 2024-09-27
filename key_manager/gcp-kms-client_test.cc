@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "key_manager/gcp-kms-client.h"
+#include "gcp-kms-client.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <fstream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -25,13 +24,9 @@
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "google/cloud/kms/v1/key_management_client.h"
-#include "google/cloud/kms/v1/key_management_connection.h"
 #include "google/cloud/kms/v1/mocks/mock_key_management_connection.h"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
-#include "google/protobuf/text_format.h"
 #include "key_manager/kms-client.h"
 
 namespace privacy_sandbox::key_manager {

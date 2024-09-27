@@ -32,9 +32,9 @@ ABSL_FLAG(std::string, user_public_key, "some public key",
           "Public part of the secret.");
 ABSL_FLAG(std::string, user_secret, "736563726574",
           "A secret to be returned to client passing attestation validation.");
-ABSL_FLAG(
-    std::string, user_authentication_public_key, "",
-    "Public portion of the key used by the user to authenticate with TVS.");
+ABSL_FLAG(std::string, user_authentication_public_key, "",
+          "Public portion of the key used by the user to authenticate with "
+          "TVS.");
 
 namespace privacy_sandbox::key_manager {
 

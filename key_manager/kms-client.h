@@ -17,10 +17,8 @@
 
 #include <string>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "key_manager/kms-client.h"
 
 // Defines an interface for interacting with a Key Management System (KMS)
 // service.  This abstraction allows for the implementation to be swapped

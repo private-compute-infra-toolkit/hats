@@ -15,10 +15,8 @@ cc_library(
     ],
     deps = [
         "//gcp_common:gcp-status",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-        "@google_cloud_cpp//:common",
+        "@com_google_absl//absl/strings:string_view",
         "@google_cloud_cpp//:kms",
     ],
 )
@@ -35,8 +33,6 @@ cc_test(
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "@com_google_protobuf//:protobuf_headers",
-        "@com_google_protobuf//src/google/protobuf/io",
         "@google_cloud_cpp//:kms",
         "@google_cloud_cpp//:kms_mocks",
     ],
@@ -57,25 +53,12 @@ rust_binary(
 )
 
 cc_library(
-    name = "key-fetcher-local",
-    srcs = ["key-fetcher-local.cc"],
-    hdrs = ["key-fetcher.h"],
-    deps = [
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-    ],
-)
-
-cc_library(
     name = "public-key-fetcher",
     hdrs = [
         "public-key-fetcher.h",
     ],
     deps = [
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -90,7 +73,6 @@ cc_library(
         "//gcp_common:flags",
         "//gcp_common:gcp-status",
         "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@google_cloud_cpp//:spanner",
@@ -104,11 +86,22 @@ cc_test(
     deps = [
         ":public-key-fetcher-gcp",
         "@com_google_absl//absl/status:status_matchers",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "@google_cloud_cpp//:common",
         "@google_cloud_cpp//:spanner",
         "@google_cloud_cpp//:spanner_mocks",
+    ],
+)
+
+cc_library(
+    name = "key-fetcher-local",
+    srcs = ["key-fetcher-local.cc"],
+    hdrs = ["key-fetcher.h"],
+    deps = [
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )
 

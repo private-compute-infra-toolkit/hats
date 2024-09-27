@@ -11,19 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include "key_manager/public-key-fetcher-gcp.h"
 
 #include <memory>
 #include <string>
 #include <tuple>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "absl/flags/flag.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "gcp_common/flags.h"
 #include "gcp_common/gcp-status.h"

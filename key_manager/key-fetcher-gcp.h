@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef HATS_KEY_MANAGER_KEY_FETCHER_GCP_H_
 #define HATS_KEY_MANAGER_KEY_FETCHER_GCP_H_
 
@@ -18,11 +19,8 @@
 #include <string>
 #include <vector>
 
-#include "absl/flags/flag.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "crypto/secret-data.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/spanner/client.h"
 #include "key_manager/gcp-kms-client.h"

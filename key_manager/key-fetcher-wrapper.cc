@@ -15,7 +15,6 @@
 #include "key_manager/key-fetcher-wrapper.h"
 
 #include <algorithm>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -28,7 +27,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
-#include "include/cxx.h"
 #include "key_manager/key-fetcher.h"
 #include "key_manager/rust-key-fetcher.rs.h"
 #include "tvs/proto/tvs_messages.pb.h"

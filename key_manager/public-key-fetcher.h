@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "absl/strings/string_view.h"
 
 namespace privacy_sandbox::key_manager {
 

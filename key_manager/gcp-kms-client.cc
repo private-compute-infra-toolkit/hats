@@ -16,19 +16,13 @@
 
 #include "key_manager/gcp-kms-client.h"
 
-#include <cstdint>
-#include <exception>
-#include <memory>
 #include <string>
 #include <utility>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gcp_common/gcp-status.h"
 #include "google/cloud/kms/v1/key_management_client.h"
-#include "google/cloud/status.h"
 
 namespace privacy_sandbox::key_manager {
 

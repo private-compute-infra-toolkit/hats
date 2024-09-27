@@ -356,7 +356,7 @@ TEST(KeyFetcherGcp, GetSecretForUserId) {
 
   constexpr int64_t kUserId = 1234;
   EXPECT_CALL(*mock_connection, ExecuteQuery)
-      .WillOnce([&mock_result_set_source, &kUserId](
+      .WillOnce([&mock_result_set_source](
                     const google::cloud::spanner::Connection::SqlParams&
                         sql_params) -> google::cloud::spanner::RowStream {
         // Make sure the right parameter is specified in the code.

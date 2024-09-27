@@ -11,15 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef HATS_KEY_MANAGER_PUBLIC_KEY_FETCHER_GCP_H_
 #define HATS_KEY_MANAGER_PUBLIC_KEY_FETCHER_GCP_H_
 
 #include <memory>
-#include <string>
 #include <vector>
 
-#include "absl/flags/flag.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "google/cloud/spanner/client.h"

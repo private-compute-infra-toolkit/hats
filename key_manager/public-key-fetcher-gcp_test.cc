@@ -17,7 +17,6 @@
 #include <utility>
 
 #include "absl/status/status_matchers.h"
-#include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "google/cloud/spanner/client.h"
 #include "google/cloud/spanner/mocks/mock_spanner_connection.h"
