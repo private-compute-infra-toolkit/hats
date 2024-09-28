@@ -1,71 +1,19 @@
-policy {
-  oak_containers {
-    root_layer {
+policies {
+  measurement {
+    stage0_measurement {
       insecure {}
     }
-    kernel_layer {
-      kernel {
-        digests {
-          image {
-            digests {
-              sha2_256: "\354\245\357A\366\334~\223\r\216\223v\347\215\031\200,I\365\242J\024\300\276\030\310\340\343\250\276>\204"
-            }
-          }
-          setup_data {
-            digests {
-              sha2_256: "\301\002.}\321x\0026\t\242H9\321\303.\242htwXjTB\271 \233g\3676U\261\034"
-            }
-          }
-        }
-      }
-      init_ram_fs {
-        digests {
-          digests {
-            sha2_256: "^&\307\211\224#jf\032KR.\007\350\270\311po\374\020\005\330\304\365\314\265\320\306A\336\036\333"
-          }
-        }
-      }
-      memory_map {
-        digests {
-          digests {
-            sha2_256: "s\354Xx\356\321\n\302W\350U2K\362b\036\276\330\365\202Td\306\257\342\360\025*\302>\247\373"
-          }
-        }
-      }
-      acpi {
-        digests {
-          digests {
-            sha2_256: "f\213[M\267\237\2319\307A\326!\202\265\226.\031\301P\301\353x\372\202Hd\376\262\231\300\350\307"
-          }
-        }
-      }
-      kernel_cmd_line_text {
-        regex {
-          value: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-        }
-      }
-    }
-    system_layer {
-      system_image {
-        digests {
-          digests {
-            sha2_256: "&\rn/\377Es\\\006\234od.\000\026\201\\\234\256\242\035\033\243:\020\312\205NwMU\026"
-          }
-        }
-      }
-    }
-    container_layer {
-      binary {
-        digests {
-          digests {
-            sha2_256: "\3131\330\211\343>\257\236;C\315\276\263UI\003\303k^\003|Q\207\350v\246\236\214[]\206L"
-          }
-        }
-      }
-      configuration {
-        skip {
-        }
-      }
-    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "5e26c78994236a661a4b522e07e8b8c9706ffc1005d8c4f5ccb5d0c641de1edb"
+    memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+    acpi_table_sha256: "668b5b4db79f9939c741d62182b5962e19c150c1eb78fa824864feb299c0e8c7"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "b8519a766ae542d6d2816749d88428462f2e78b9ca15204a9c02253fc78094b2"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "11fa74d7544733b695f6f4e13ff972e5c1890551555529404a17ed8d7fe99f849f35a3c48373ef2cdf32a7d4279900d275e1ae2b151f7753a27c62f51af84a4c"
+    signer: "hats"
   }
 }

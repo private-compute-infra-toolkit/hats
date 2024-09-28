@@ -91,87 +91,26 @@ absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
   AppraisalPolicies appraisal_policies;
   if (!google::protobuf::TextFormat::ParseFromString(
           R"pb(
-            signed_policy {
-              policy {
-                oak_containers {
-                  root_layer {
-                    amd_sev {
-                      stage0 { skip {} }
-                      min_tcb_version { boot_loader: 7 snp: 15 microcode: 62 }
-                    }
-                  }
-                  kernel_layer {
-                    kernel {
-                      digests {
-                        image {
-                          digests {
-                            sha2_256: "D*6\221>.)\235\242\265\026\201D\203\266\254\357\021\266>\003\3675a\003A\250V\0223\367\277"
-                          }
-                        }
-                        setup_data {
-                          digests {
-                            sha2_256: "h\313Bj\372\242\224e\367\307\037&\324\371\253Z\202\302\341\222b6d\213\354\"j\201\224C\035\271"
-                          }
-                        }
-                      }
-                    }
-                    init_ram_fs {
-                      digests {
-                        digests {
-                          sha2_256: ";0y=\1778\210t*\326?\023\353\346\240\003\274\233v4\231,dx\246\020\037\236\363#\265\256"
-                        }
-                      }
-                    }
-                    memory_map {
-                      digests {
-                        digests {
-                          sha2_256: "L\230T(\375\306\020\034q\314&\335\303\023\315\202!\274\274TG\031\221\3549\261\276\002m\016\034("
-                        }
-                      }
-                    }
-                    acpi {
-                      digests {
-                        digests {
-                          sha2_256: "\244\337\235\212d\334\271\247\023\316\300(\327\r+\025\231\372\357\007\314\320\320\341\201i1IkH\230\310"
-                        }
-                      }
-                    }
-                    kernel_cmd_line_text {
-                      string_literals {
-                        value: " console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off"
-                      }
-                    }
-                  }
-                  system_layer {
-                    system_image {
-                      digests {
-                        digests {
-                          sha2_256: "\343\336\331\347\317\331S\264\356cs\373\213A*v\276\020*n\335N\005\252\177\211p\342\013\374K\315"
-                        }
-                      }
-                    }
-                  }
-                  container_layer {
-                    binary {
-                      digests {
-                        digests {
-                          sha2_256: "\277\027=\204ld\345\312\364\221\336\233^\242\337\2544\234\376\"\245\346\360:\330\004\213\270\n\336C\014"
-                        }
-                      }
-                    }
-                    configuration {
-                      digests {
-                        digests {
-                          sha2_256: "\343\260\304B\230\374\034\024\232\373\364\310\231o\271$\'\256A\344d\233\223L\244\225\231\033xR\270U"
-                        }
-                      }
-                    }
+            policies {
+              measurement {
+                stage0_measurement {
+                  amd_sev {
+                    sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95"
+                    min_tcb_version { boot_loader: 7 snp: 15 microcode: 62 }
                   }
                 }
+                kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"
+                kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"
+                init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"
+                memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"
+                acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"
+                kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"
+                system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"
+                container_binary_sha256: "bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"
               }
-              signature: {
-                signature: "\x8f\xaa?\xda\xd7[_W\x17\xd4\xaf\xa0\xa7\x13\xc0\x0c\x0b\x8d%\xe0\xbbK\xebGa\xb2\x01\xa8\xd1\xe6\xbf\x04\x89\xaf\xd5\xc1Wg,\x03\x0f\xb2\xc8\x8e\xcc\xbe\xbc\xc2(\x83\x8a!\x94\xf9)\x013\x9d\xdfu\xaf\x9fK\xae"
-                signer: ""
+              signature {
+                signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c"
+                signer: "hats"
               }
             })pb",
           &appraisal_policies)) {
@@ -415,76 +354,21 @@ absl::StatusOr<AppraisalPolicies> GetInsecureAppraisalPolicies() {
   AppraisalPolicies appraisal_policies;
   if (!google::protobuf::TextFormat::ParseFromString(
           R"pb(
-            signed_policy {
-              policy {
-                oak_containers {
-                  root_layer { insecure {} }
-                  kernel_layer {
-                    kernel {
-                      digests {
-                        image {
-                          digests {
-                            sha2_256: "\354\245\357A\366\334~\223\r\216\223v\347\215\031\200,I\365\242J\024\300\276\030\310\340\343\250\276>\204"
-                          }
-                        }
-                        setup_data {
-                          digests {
-                            sha2_256: "\301\002.}\321x\0026\t\242H9\321\303.\242htwXjTB\271 \233g\3676U\261\034"
-                          }
-                        }
-                      }
-                    }
-                    init_ram_fs {
-                      digests {
-                        digests {
-                          sha2_256: "^&\307\211\224#jf\032KR.\007\350\270\311po\374\020\005\330\304\365\314\265\320\306A\336\036\333"
-                        }
-                      }
-                    }
-                    memory_map {
-                      digests {
-                        digests {
-                          sha2_256: "s\354Xx\356\321\n\302W\350U2K\362b\036\276\330\365\202Td\306\257\342\360\025*\302>\247\373"
-                        }
-                      }
-                    }
-                    acpi {
-                      digests {
-                        digests {
-                          sha2_256: "f\213[M\267\237\2319\307A\326!\202\265\226.\031\301P\301\353x\372\202Hd\376\262\231\300\350\307"
-                        }
-                      }
-                    }
-                    kernel_cmd_line_text {
-                      regex {
-                        value: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-                      }
-                    }
-                  }
-                  system_layer {
-                    system_image {
-                      digests {
-                        digests {
-                          sha2_256: "\342\311aW\254\341|\224\020\2321\2355\370z\256=\302\007\353W\035\252\337\326\324 ]\273C\360w"
-                        }
-                      }
-                    }
-                  }
-                  container_layer {
-                    binary {
-                      digests {
-                        digests {
-                          sha2_256: "\3131\330\211\343>\257\236;C\315\276\263UI\003\303k^\003|Q\207\350v\246\236\214[]\206L"
-                        }
-                      }
-                    }
-                    configuration { skip {} }
-                  }
-                }
+            policies {
+              measurement {
+                stage0_measurement { insecure {} }
+                kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+                kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+                init_ram_fs_sha256: "5e26c78994236a661a4b522e07e8b8c9706ffc1005d8c4f5ccb5d0c641de1edb"
+                memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+                acpi_table_sha256: "668b5b4db79f9939c741d62182b5962e19c150c1eb78fa824864feb299c0e8c7"
+                kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+                system_image_sha256: "bb3bdaa18daa6a6bcb90cc00ca7213c20cefec9b894f612baeafd569281766e1"
+                container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
               }
               signature {
-                signature: "\xa4<\x9e\x89\xf1Lr\x06+\x14\xdf\xb0\xd5\x0b\xb1\xd4\x0e\\a\xbe/\xa4\x8e\xd6!C\x86\xed}L\x908\t\xfb\xee[L\x9c\x15^l\xdc\xd0\n5>\xb8Hr\x91\xba#\x9a\x85\xf7\xd1\x81\xd8\t+\xb3;_\xb3"
-                signer: ""
+                signature: "82422b8c775c51498fab8252c956597e88ba6d6f7045c9815c08b617f4302c70a748a911222e241fad516113307a695d62d65cde98916c094b634d047dc22d60"
+                signer: "hats"
               }
             })pb",
           &appraisal_policies)) {

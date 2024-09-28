@@ -81,12 +81,10 @@ rust_library(
     crate_name = "policy_signature",
     deps = [
         ":build",
+        "@hats_crate_index//:hex",
         "@hats_crate_index//:p256",
-        # Use the same version oak uses protos generated from a different
-        # prost version are not compatible. Here we are referring to the
-        # attestation messages.
-        "@oak_crates_index//:prost",
         "@oak//oak_proto_rust",
+        "@oak_crates_index//:prost",
     ],
 )
 
@@ -95,9 +93,6 @@ rust_test(
     size = "small",
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = "policy-signature",
-    deps = [
-        "@hats_crate_index//:hex",
-    ],
 )
 
 cargo_build_script(
@@ -131,6 +126,7 @@ rust_library(
         "@hats_crate_index//:p256",
         "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",
         "@oak//oak_proto_rust",
+        "@oak_crates_index//:prost",
     ],
 )
 
@@ -138,7 +134,4 @@ rust_test(
     name = "policy-manager_test",
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = ":policy-manager",
-    deps = [
-        "@oak_crates_index//:prost",
-    ],
 )

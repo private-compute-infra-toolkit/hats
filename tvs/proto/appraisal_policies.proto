@@ -20,20 +20,7 @@ import "proto/attestation/reference_value.proto";
 import "proto/attestation/tcb_version.proto";
 
 message AppraisalPolicies {
-  message Signature {
-    bytes signature = 1;
-    // When multiple signatures, for identifying the signer and therefore which
-    // verifying key to use
-    string signer = 2;
-  }
-  message SignedAppraisalPolicy {
-    oak.attestation.v1.ReferenceValues policy = 1;
-    repeated Signature signature = 2;
-  }
-
-  repeated SignedAppraisalPolicy signed_policy = 1;
-  // TODO(b/344012112): change the prototag.
-  repeated AppraisalPolicy policies = 2;
+  repeated AppraisalPolicy policies = 1;
 }
 
 message AppraisalPolicy {

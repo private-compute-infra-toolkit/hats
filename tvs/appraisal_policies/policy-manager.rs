@@ -13,14 +13,24 @@
 // limitations under the License.
 
 use oak_proto_rust::oak::attestation::v1::{
-    endorsements, reference_values, Endorsements, Evidence, OakContainersEndorsements,
-    ReferenceValues, RootLayerEndorsements,
+    binary_reference_value, endorsements, kernel_binary_reference_value, reference_values,
+    text_reference_value, AmdSevReferenceValues, BinaryReferenceValue,
+    ContainerLayerReferenceValues, Digests, Endorsements, Evidence, InsecureReferenceValues,
+    KernelBinaryReferenceValue, KernelDigests, KernelLayerReferenceValues,
+    OakContainersEndorsements, OakContainersReferenceValues, ReferenceValues, Regex,
+    RootLayerEndorsements, RootLayerReferenceValues, SkipVerification, SystemLayerReferenceValues,
+    TextReferenceValue,
 };
+use oak_proto_rust::oak::RawDigest;
 use p256::ecdsa::VerifyingKey;
+use policy_signature::proto::privacy_sandbox::tvs::{
+    stage0_measurement, AppraisalPolicies, AppraisalPolicy, Measurement,
+};
+use prost::Message;
 
 pub struct PolicyManager {
     time_milis: i64,
-    appraisal_policies: Vec<ReferenceValues>,
+    reference_values: Vec<ReferenceValues>,
 }
 
 impl PolicyManager {
@@ -30,27 +40,29 @@ impl PolicyManager {
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
     ) -> Result<Self, String> {
-        let appraisal_policies = if enable_policy_signature {
+        let appraisal_policies = AppraisalPolicies::decode(policies)
+            .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
+        let reference_values = if enable_policy_signature {
             let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
-            policy_signature::decode_and_verify_policies(
-                policies,
-                vec![policy_verifying_key],
+            process_and_validate_policies(
+                appraisal_policies,
+                &vec![&policy_verifying_key],
                 /*num_pass_required=*/ 1,
+                accept_insecure_policies,
             )
         } else {
-            policy_signature::decode_and_verify_policies(
-                policies,
-                /*verifying_keys*/ vec![],
+            process_and_validate_policies(
+                appraisal_policies,
+                &vec![],
                 /*num_pass_required=*/ 0,
+                accept_insecure_policies,
             )
         }?;
-        verify_policy_tee(&appraisal_policies, accept_insecure_policies)?;
         Ok(Self {
             time_milis,
-            appraisal_policies,
+            reference_values,
         })
     }
-
     // Check evidence against the appraisal policies.
     pub fn check_evidence(
         &self,
@@ -58,7 +70,7 @@ impl PolicyManager {
         tee_certificate: &[u8],
     ) -> Result<(), String> {
         let endorsement = create_endorsements(tee_certificate);
-        for policy in &self.appraisal_policies {
+        for policy in &self.reference_values {
             match oak_attestation_verification::verifier::verify(
                 self.time_milis,
                 &evidence,
@@ -71,40 +83,6 @@ impl PolicyManager {
         }
         Err("Failed to verify report. No matching appraisal policy found".to_string())
     }
-}
-
-// When running in secure mode, reject policies that doesn't require SEV-SNP.
-fn verify_policy_tee(
-    appraisal_policies: &[ReferenceValues],
-    accept_insecure_policies: bool,
-) -> Result<(), String> {
-    if accept_insecure_policies {
-        return Ok(());
-    }
-    for policy in appraisal_policies {
-        let root_layer = match policy.r#type.as_ref() {
-            Some(reference_values::Type::OakRestrictedKernel(r)) => {
-                r.root_layer.as_ref().ok_or("No root layer".to_string())
-            }
-            Some(reference_values::Type::OakContainers(r)) => {
-                r.root_layer.as_ref().ok_or("No root layer".to_string())
-            }
-            Some(reference_values::Type::Cb(r)) => {
-                r.root_layer.as_ref().ok_or("No root layer".to_string())
-            }
-            None => Err("Cannot accept a policy without a type".to_string()),
-        }?;
-        if root_layer.insecure.is_some() {
-            return Err("Cannot accept insecure policies".to_string());
-        };
-        if root_layer.intel_tdx.is_some() {
-            return Err("Cannot accept intel TDX policies".to_string());
-        };
-        if root_layer.amd_sev.is_none() {
-            return Err("Cannot accept non AMD SEV SNP  policies".to_string());
-        }
-    }
-    Ok(())
 }
 
 // TODO(b/358413924): Actually fetch key
@@ -132,22 +110,227 @@ fn create_endorsements(tee_certificate: &[u8]) -> Endorsements {
     }
 }
 
+fn process_and_validate_policies(
+    policies: AppraisalPolicies,
+    verifying_keys: &Vec<&VerifyingKey>,
+    num_pass_required: u32,
+    accept_insecure_policies: bool,
+) -> Result<Vec<ReferenceValues>, String> {
+    policies
+        .policies
+        .into_iter()
+        .map(|policy| {
+            if num_pass_required == 0 {
+                Ok(policy)
+            } else {
+                match policy_signature::verify_policy_signature(
+                    &policy,
+                    verifying_keys,
+                    num_pass_required,
+                ) {
+                    Ok(_) => Ok(policy),
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .map(|policy| appraisal_policy_to_reference_values(&policy?, accept_insecure_policies))
+        .collect()
+}
+
+fn appraisal_policy_to_reference_values(
+    policy: &AppraisalPolicy,
+    accept_insecure_policies: bool,
+) -> Result<ReferenceValues, String> {
+    let Some(measurement) = &policy.measurement else {
+        return Err("Policy does not have measurement field set".to_string());
+    };
+
+    Ok(ReferenceValues {
+        r#type: Some(reference_values::Type::OakContainers(
+            OakContainersReferenceValues {
+                root_layer: Some(get_root_layer(&measurement, accept_insecure_policies)?),
+                kernel_layer: Some(get_kernel_layer(&measurement)?),
+                system_layer: Some(get_system_layer(&measurement)?),
+                container_layer: Some(get_container_layer(&measurement)?),
+            },
+        )),
+    })
+}
+
+fn get_root_layer(
+    measurement: &Measurement,
+    accept_insecure_policies: bool,
+) -> Result<RootLayerReferenceValues, String> {
+    let Some(stage0_measurement) = &measurement.stage0_measurement else {
+        return Err("stage0_measurement field is not set".to_string());
+    };
+    match stage0_measurement.r#type.as_ref() {
+        Some(stage0_measurement::Type::AmdSev(stage0)) => {
+            if stage0.min_tcb_version.is_none() {
+                return Err("min_tcb_version is not set".to_string());
+            }
+            Ok(RootLayerReferenceValues {
+                amd_sev: Some(AmdSevReferenceValues {
+                    allow_debug: false,
+                    min_tcb_version: stage0.min_tcb_version.clone(),
+                    stage0: Some(BinaryReferenceValue {
+                        r#type: Some(binary_reference_value::Type::Digests(Digests {
+                            digests: vec![RawDigest {
+                                sha2_384: hex::decode(&stage0.sha384).map_err(|err| {
+                                    format!("failed to decode sha256_hex: {}", err)
+                                })?,
+                                psha2: vec![],
+                                sha1: vec![],
+                                sha2_256: vec![],
+                                sha2_512: vec![],
+                                sha3_512: vec![],
+                                sha3_384: vec![],
+                                sha3_256: vec![],
+                                sha3_224: vec![],
+                            }],
+                        })),
+                    }),
+                }),
+                insecure: None,
+                intel_tdx: None,
+            })
+        }
+        Some(stage0_measurement::Type::Insecure(_)) => {
+            if !accept_insecure_policies {
+                return Err("Cannot accept insecure policies".to_string());
+            }
+            Ok(RootLayerReferenceValues {
+                insecure: Some(InsecureReferenceValues {}),
+                amd_sev: None,
+                intel_tdx: None,
+            })
+        }
+        None => Err("stage0_measurement field is not set".to_string()),
+    }
+}
+
+fn get_kernel_layer(measurement: &Measurement) -> Result<KernelLayerReferenceValues, String> {
+    // A number of deprecated field that we have to set, and when we do we get warned.
+    // So we suppress the warning.
+    #[allow(deprecated)]
+    Ok(KernelLayerReferenceValues {
+        kernel: Some(KernelBinaryReferenceValue {
+            r#type: Some(kernel_binary_reference_value::Type::Digests(
+                KernelDigests {
+                    image: Some(sha256_hex_to_digest(&measurement.kernel_image_sha256)?),
+                    setup_data: Some(sha256_hex_to_digest(&measurement.kernel_setup_data_sha256)?),
+                },
+            )),
+        }),
+        kernel_cmd_line_text: Some(TextReferenceValue {
+            r#type: Some(text_reference_value::Type::Regex(Regex {
+                value: measurement.kernel_cmd_line_regex.clone(),
+            })),
+        }),
+        init_ram_fs: Some(BinaryReferenceValue {
+            r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
+                &measurement.init_ram_fs_sha256,
+            )?)),
+        }),
+        memory_map: Some(BinaryReferenceValue {
+            r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
+                &measurement.memory_map_sha256,
+            )?)),
+        }),
+        acpi: Some(BinaryReferenceValue {
+            r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
+                &measurement.acpi_table_sha256,
+            )?)),
+        }),
+        // Deprecated fields that are not used anymore.
+        kernel_setup_data: None,
+        kernel_image: None,
+        kernel_cmd_line_regex: None,
+        kernel_cmd_line: None,
+    })
+}
+
+fn get_system_layer(measurement: &Measurement) -> Result<SystemLayerReferenceValues, String> {
+    Ok(SystemLayerReferenceValues {
+        system_image: Some(BinaryReferenceValue {
+            r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
+                &measurement.system_image_sha256,
+            )?)),
+        }),
+    })
+}
+
+fn get_container_layer(measurement: &Measurement) -> Result<ContainerLayerReferenceValues, String> {
+    Ok(ContainerLayerReferenceValues {
+        binary: Some(BinaryReferenceValue {
+            r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
+                &measurement.container_binary_sha256,
+            )?)),
+        }),
+        // Skip configuration verification as we are not using it.
+        configuration: Some(BinaryReferenceValue {
+            r#type: Some(binary_reference_value::Type::Skip(SkipVerification {})),
+        }),
+    })
+}
+
+fn sha256_hex_to_digest(sha256_hex: &str) -> Result<Digests, String> {
+    Ok(Digests {
+        digests: vec![RawDigest {
+            sha2_256: hex::decode(sha256_hex)
+                .map_err(|err| format!("failed to decode sha256_hex: {}", err))?,
+            psha2: vec![],
+            sha1: vec![],
+            sha2_512: vec![],
+            sha3_512: vec![],
+            sha3_384: vec![],
+            sha3_256: vec![],
+            sha3_224: vec![],
+            sha2_384: vec![],
+        }],
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use policy_signature::proto::privacy_sandbox::tvs::{
-        appraisal_policies::SignedAppraisalPolicy, AppraisalPolicies,
+        stage0_measurement, AmdSev, Signature, Stage0Measurement,
     };
     use prost::Message;
 
-    fn default_appraisal_policicies() -> Vec<u8> {
-        let signed_policy = SignedAppraisalPolicy::decode(
-            &include_bytes!("../test_data/on-perm-reference.binarypb")[..],
-        )
-        .unwrap();
+    fn default_appraisal_policies() -> Vec<u8> {
         let policies = AppraisalPolicies {
-            signed_policy: vec![signed_policy],
-            policies: vec![],
+            policies: vec![AppraisalPolicy{
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                            sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95".to_string(),
+                            min_tcb_version: Some(TcbVersion{
+                                boot_loader: 7,
+                                microcode: 62,
+                                snp: 15,
+                                tee: 0,
+                            }),
+                        })),
+                    }),
+                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
+                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
+                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
+                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
+                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
+                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
+                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
+                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
+
+                }),
+                signature: vec![Signature{
+                    signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c".to_string(),
+                    signer: "".to_string(),
+                    },
+                    ],
+            }],
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
@@ -155,13 +338,28 @@ mod tests {
     }
 
     fn insecure_appraisal_policies() -> Vec<u8> {
-        let signed_policy = SignedAppraisalPolicy::decode(
-            &include_bytes!("../test_data/insecure-reference.binarypb")[..],
-        )
-        .unwrap();
         let policies = AppraisalPolicies {
-            signed_policy: vec![signed_policy],
-            policies: vec![],
+            policies: vec![AppraisalPolicy{
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::Insecure(InsecureReferenceValues{})),
+                    }),
+                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
+                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
+                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
+                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
+                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
+                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
+                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
+                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
+
+                }),
+                signature: vec![Signature{
+                    signature: "6870ebf5f55debe04cd66d47ea3b2a878edd436aba59be30b1f52478bb4e12e4d40c223664ee3c0f13ce27e159bc8e7726cce52520f4fb171d6622a26169dcb6".to_string(),
+                    signer: "".to_string(),
+                    },
+                    ],
+            }],
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
@@ -191,7 +389,7 @@ mod tests {
     fn check_evidence_successful() {
         let policy_manager = PolicyManager::new(
             NOW_UTC_MILLIS,
-            &default_appraisal_policicies(),
+            &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
@@ -205,7 +403,7 @@ mod tests {
     fn check_evidence_error() {
         let policy_manager = PolicyManager::new(
             NOW_UTC_MILLIS,
-            &default_appraisal_policicies(),
+            &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
