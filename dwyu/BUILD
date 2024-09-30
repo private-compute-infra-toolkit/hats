@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@depend_on_what_you_use//:defs.bzl", "dwyu_aspect_factory")
-
-hats_dwyu_aspect = dwyu_aspect_factory(skipped_tags = ["rust-bridge", "grpc"], skip_external_targets = True)
+filegroup(
+    name = "dwyu_ignore_includes",
+    srcs = ["dwyu_ignore_includes.json"],
+    visibility = ["//third_party:__subpackages__"],
+)

@@ -22,4 +22,7 @@
 prebuilt/
 
 # Rust Analyzer
-rust-project.json
+**/rust-project.json
+
+# clangd analyzer
+**/compile_commands.json
