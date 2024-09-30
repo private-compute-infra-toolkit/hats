@@ -71,6 +71,27 @@ repos:
     - -mode=fix
     - -warnings=all
 
+  - id: addlicense
+    name: addlicense
+    language: golang
+    additional_dependencies:
+    - github.com/google/addlicense@v1.1.1
+    always_run: false
+    pass_filenames: true
+    entry: addlicense -v
+    types_or:
+    - text
+  - id: addlicense-check
+    name: addlicense check
+    language: golang
+    additional_dependencies:
+    - github.com/google/addlicense@v1.1.1
+    always_run: false
+    pass_filenames: true
+    entry: addlicense -check
+    types_or:
+    - text
+
 - repo: https://github.com/jumanjihouse/pre-commit-hooks
   rev: 3.0.0
   hooks:
