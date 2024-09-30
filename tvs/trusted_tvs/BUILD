@@ -23,7 +23,6 @@ package(
 rust_library(
     name = "tvs-trusted",
     srcs = ["tvs-trusted.rs"],
-    compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
         ":build",
         "//tvs/appraisal_policies:policy-manager",
