@@ -34,91 +34,33 @@ using ::testing::HasSubstr;
 using ::testing::Return;
 using ::testing::StrEq;
 
-constexpr absl::string_view kTestAppraisalPolicy = R"pb(
-  signed_policy {
-    policy {
-      oak_containers {
-        root_layer {
-          amd_sev {
-            stage0 { skip {} }
-            min_tcb_version { boot_loader: 7 snp: 15 microcode: 62 }
-          }
-        }
-        kernel_layer {
-          kernel {
-            digests {
-              image {
-                digests {
-                  sha2_256: "D*6\221>.)\235\242\265\026\201D\203\266\254\357\021\266>\003\3675a\003A\250V\0223\367\277"
-                }
-              }
-              setup_data {
-                digests {
-                  sha2_256: "h\313Bj\372\242\224e\367\307\037&\324\371\253Z\202\302\341\222b6d\213\354\"j\201\224C\035\271"
-                }
-              }
-            }
-          }
-          init_ram_fs {
-            digests {
-              digests {
-                sha2_256: ";0y=\1778\210t*\326?\023\353\346\240\003\274\233v4\231,dx\246\020\037\236\363#\265\256"
-              }
-            }
-          }
-          memory_map {
-            digests {
-              digests {
-                sha2_256: "L\230T(\375\306\020\034q\314&\335\303\023\315\202!\274\274TG\031\221\3549\261\276\002m\016\034("
-              }
-            }
-          }
-          acpi {
-            digests {
-              digests {
-                sha2_256: "\244\337\235\212d\334\271\247\023\316\300(\327\r+\025\231\372\357\007\314\320\320\341\201i1IkH\230\310"
-              }
-            }
-          }
-          kernel_cmd_line_text {
-            string_literals {
-              value: " console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off"
-            }
-          }
-        }
-        system_layer {
-          system_image {
-            digests {
-              digests {
-                sha2_256: "\343\336\331\347\317\331S\264\356cs\373\213A*v\276\020*n\335N\005\252\177\211p\342\013\374K\315"
-              }
-            }
-          }
-        }
-        container_layer {
-          binary {
-            digests {
-              digests {
-                sha2_256: "\277\027=\204ld\345\312\364\221\336\233^\242\337\2544\234\376\"\245\346\360:\330\004\213\270\n\336C\014"
-              }
-            }
-          }
-          configuration {
-            digests {
-              digests {
-                sha2_256: "\343\260\304B\230\374\034\024\232\373\364\310\231o\271$\'\256A\344d\233\223L\244\225\231\033xR\270U"
-              }
-            }
-          }
-        }
-      }
-    }
-  })pb";
-
 absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
   AppraisalPolicies appraisal_policies;
-  if (!google::protobuf::TextFormat::ParseFromString(kTestAppraisalPolicy,
-                                                     &appraisal_policies)) {
+  if (!google::protobuf::TextFormat::ParseFromString(
+          R"pb(
+            policies {
+              measurement {
+                stage0_measurement {
+                  amd_sev {
+                    sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95"
+                    min_tcb_version { boot_loader: 7 snp: 15 microcode: 62 }
+                  }
+                }
+                kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"
+                kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"
+                init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"
+                memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"
+                acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"
+                kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"
+                system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"
+                container_binary_sha256: "bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"
+              }
+              signature {
+                signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c"
+                signer: "hats"
+              }
+            })pb",
+          &appraisal_policies)) {
     return absl::UnknownError("Cannot parse test appraisal policies");
   }
   return appraisal_policies;
@@ -148,7 +90,7 @@ TEST(KeyFetcherGcp, GetLatestNPolicies) {
       .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
           {{"Policy",
             google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                expected_policies->signed_policy(0).SerializeAsString()))}})))
+                expected_policies->policies(0).SerializeAsString()))}})))
       .WillOnce(Return(google::cloud::spanner::Row()));
 
   auto mock_connection =

@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::proto::privacy_sandbox::tvs::{
-    appraisal_policies::Signature as SignatureWrapper, appraisal_policies::SignedAppraisalPolicy,
-    AppraisalPolicies,
-};
+use crate::proto::privacy_sandbox::tvs::AppraisalPolicy;
 use p256::ecdsa::{signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey};
-use prost::Message;
 
 pub mod proto {
     pub mod privacy_sandbox {
@@ -27,103 +23,141 @@ pub mod proto {
     }
 }
 
-pub fn decode_and_verify_policies(
-    policies: &[u8],
-    verifying_keys: Vec<VerifyingKey>,
-    num_pass_required: usize,
-) -> Result<Vec<oak_proto_rust::oak::attestation::v1::ReferenceValues>, String> {
-    if num_pass_required > verifying_keys.len() {
-        return Err("Requesting more signature passes than provided verifying keys".to_string());
-    }
-    AppraisalPolicies::decode(policies)
-        .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?
-        .signed_policy
-        .into_iter()
-        .map(|policy| verify_policy_signature(&policy, &verifying_keys, num_pass_required))
-        .collect()
+// TODO(b/358413924): Support signature id, multiple signatures
+pub fn sign_policy(policy: &AppraisalPolicy, signing_key: &SigningKey) -> Result<Vec<u8>, String> {
+    let signature: Signature = signing_key.sign(&policy_to_bytes(&policy)?);
+    Ok(signature.to_vec())
 }
 
 // TODO(b/358413924): Support signature id, multiple signatures
-pub fn sign_policy(
-    reference_values: oak_proto_rust::oak::attestation::v1::ReferenceValues,
-    signing_key: SigningKey,
-) -> Result<SignedAppraisalPolicy, String> {
-    let policy_binary: Vec<u8> = encode_raw_policy(&reference_values)?;
-    let signature: Signature = signing_key.sign(&policy_binary);
-    Ok(SignedAppraisalPolicy {
-        policy: Some(reference_values),
-        signature: vec![SignatureWrapper {
-            signature: signature.to_vec(),
-            signer: "".to_string(),
-        }],
-    })
-}
-
-// TODO(b/358413924): Support signature id, multiple signatures
-fn verify_policy_signature(
-    signed_policy: &SignedAppraisalPolicy,
-    verifying_keys: &Vec<VerifyingKey>,
-    num_pass_required: usize,
-) -> Result<oak_proto_rust::oak::attestation::v1::ReferenceValues, String> {
+pub fn verify_policy_signature(
+    policy: &AppraisalPolicy,
+    verifying_keys: &Vec<&VerifyingKey>,
+    num_pass_required: u32,
+) -> Result<(), String> {
     if num_pass_required > 1 {
         return Err("Currently doesn't support checking multiple signatures".to_string());
     }
-    let policy: oak_proto_rust::oak::attestation::v1::ReferenceValues =
-        extract_raw_policy(signed_policy)?;
     if num_pass_required == 0 {
-        return Ok(policy);
-    } else {
-        let signature: Signature = extract_signature(signed_policy)?;
-        let policy_binary: Vec<u8> = encode_raw_policy(&policy)?;
-        match verifying_keys[0].verify(policy_binary.as_slice(), &signature) {
-            Ok(()) => Ok(policy),
-            Err(e) => Err(format!("Failed to verify policy signature: {e}")),
-        }
+        return Err("num_pass_required should be greater than zero.".to_string());
     }
+    if num_pass_required != 0 {
+        let signature: Signature = extract_signature(policy)?;
+        let policy_binary = policy_to_bytes(policy)?;
+        verifying_keys[0]
+            .verify(policy_binary.as_slice(), &signature)
+            .map_err(|err| format!("Failed to verify policy signature: {err}"))?;
+    }
+    Ok(())
 }
 
 // TODO(b/358413924): Support signature id, multiple signatures
-fn extract_signature(signed_policy: &SignedAppraisalPolicy) -> Result<Signature, String> {
-    if signed_policy.signature.is_empty() {
+fn policy_to_bytes(policy: &AppraisalPolicy) -> Result<Vec<u8>, String> {
+    let Some(measurement) = &policy.measurement else {
+        return Err("Policy does not have measurement field set".to_string());
+    };
+    let Some(stage0_measurement) = &measurement.stage0_measurement else {
+        return Err("stage0_measurement field is not set".to_string());
+    };
+
+    let mut binary_data = vec![];
+    match stage0_measurement.r#type.as_ref() {
+        Some(proto::privacy_sandbox::tvs::stage0_measurement::Type::AmdSev(stage0)) => {
+            let Some(min_tcb_version) = &stage0.min_tcb_version else {
+                return Err("min_tcb_version is not set".to_string());
+            };
+            binary_data.extend(
+                hex::decode(&stage0.sha384)
+                    .map_err(|err| format!("Failed to decode stage0 sha384: {err}"))?,
+            );
+            binary_data.extend(min_tcb_version.boot_loader.to_be_bytes());
+            binary_data.extend(min_tcb_version.tee.to_be_bytes());
+            binary_data.extend(min_tcb_version.snp.to_be_bytes());
+            binary_data.extend(min_tcb_version.microcode.to_be_bytes());
+        }
+        Some(_) | None => {}
+    }
+
+    binary_data.extend(
+        hex::decode(&measurement.kernel_image_sha256)
+            .map_err(|err| format!("Failed to decode kernel_image_sha256: {err}"))?,
+    );
+    binary_data.extend(
+        hex::decode(&measurement.kernel_setup_data_sha256)
+            .map_err(|err| format!("Failed to decode kernel_setup_data_sha256: {err}"))?,
+    );
+    binary_data.extend(
+        hex::decode(&measurement.init_ram_fs_sha256)
+            .map_err(|err| format!("Failed to decode init_ram_fs_sha256: {err}"))?,
+    );
+    binary_data.extend(
+        hex::decode(&measurement.memory_map_sha256)
+            .map_err(|err| format!("Failed to decode memory_map_sha256: {err}"))?,
+    );
+    binary_data.extend(
+        hex::decode(&measurement.acpi_table_sha256)
+            .map_err(|err| format!("Failed to decode acpi_table_sha256: {err}"))?,
+    );
+    binary_data.extend(measurement.kernel_cmd_line_regex.bytes());
+    binary_data.extend(
+        hex::decode(&measurement.system_image_sha256)
+            .map_err(|err| format!("Failed to decode system_image_sha256: {err}"))?,
+    );
+    binary_data.extend(
+        hex::decode(&measurement.container_binary_sha256)
+            .map_err(|err| format!("Failed to decode container_binary_sha256: {err}"))?,
+    );
+    Ok(binary_data)
+}
+
+// TODO(b/358413924): Support signature id, multiple signatures
+fn extract_signature(policy: &AppraisalPolicy) -> Result<Signature, String> {
+    if policy.signature.is_empty() {
         return Err("No signature found.".to_string());
     }
-    Signature::from_slice(signed_policy.signature[0].signature.as_slice())
-        .map_err(|_| "Failed to parse signature.".to_string())
-}
-
-fn extract_raw_policy(
-    signed_policy: &SignedAppraisalPolicy,
-) -> Result<oak_proto_rust::oak::attestation::v1::ReferenceValues, String> {
-    match signed_policy.policy.as_ref() {
-        Some(x) => Ok(x.clone()),
-        None => return Err("Failed to get policy as ref".to_string()),
-    }
-}
-
-fn encode_raw_policy(
-    policy: &oak_proto_rust::oak::attestation::v1::ReferenceValues,
-) -> Result<Vec<u8>, String> {
-    let mut policy_binary: Vec<u8> = Vec::with_capacity(1024);
-    policy
-        .encode(&mut policy_binary)
-        .map_err(|e| format!("Failed to re-encode policy: {e}"))?;
-    Ok(policy_binary)
+    Signature::from_slice(
+        &hex::decode(&policy.signature[0].signature)
+            .map_err(|err| format!("Failed to decode signature: {err}"))?,
+    )
+    .map_err(|err| format!("Failed to parse signature: {err}"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::privacy_sandbox::tvs::appraisal_policies::SignedAppraisalPolicy;
-    use p256::ecdsa::{signature::Signer, signature::Verifier, SigningKey, VerifyingKey};
-    use prost::Message;
+    use crate::proto::privacy_sandbox::tvs::{
+        stage0_measurement, AmdSev, Measurement, Signature as SignatureWrapper, Stage0Measurement,
+    };
+    use oak_proto_rust::oak::attestation::v1::TcbVersion;
 
-    // Edit this to generate signatures for different policies
-    // TODO: read this in as raw text (optional?), so that it's easier to manually enter a policy
-    fn get_test_policy() -> SignedAppraisalPolicy {
-        SignedAppraisalPolicy::decode(
-            &include_bytes!("../test_data/on-perm-reference.binarypb")[..],
-        )
-        .unwrap()
+    fn get_test_policy() -> AppraisalPolicy {
+        AppraisalPolicy{
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                            sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95".to_string(),
+                            min_tcb_version: Some(TcbVersion{
+                                boot_loader: 7,
+                                microcode: 62,
+                                snp: 15,
+                                tee: 0,
+                            }),
+                        })),
+                    }),
+                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
+                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
+                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
+                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
+                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
+                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
+                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
+                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
+                }),
+                signature: vec![SignatureWrapper{
+                    signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c".to_string(),
+                    signer: "".to_string(),
+                    }],
+            }
     }
 
     fn get_test_signing_key() -> SigningKey {
@@ -142,148 +176,68 @@ mod tests {
         .unwrap()
     }
 
-    // Escaped string for copying into textprotos for bytes fields
-    fn to_escaped_string(s: &[u8]) -> String {
-        String::from_utf8_lossy(
-            s.iter()
-                .flat_map(|b| std::ascii::escape_default(*b))
-                .collect::<Vec<u8>>()
-                .as_slice(),
-        )
-        .to_string()
+    #[test]
+    fn test_verify_signature_success() {
+        assert!(
+            verify_policy_signature(&get_test_policy(), &vec![&get_test_verifying_key()], 1)
+                .is_ok()
+        );
     }
 
     #[test]
-    fn test_testing_keys_match() {
-        let signing_key: SigningKey = get_test_signing_key();
-        let verifying_key = get_test_verifying_key();
-
-        assert_eq!(verifying_key, VerifyingKey::from(&signing_key));
-    }
-
-    // This test also prints out expected signatures on failure.
-    // Use this to manually sign policies for now.
-    // TODO(b/358413924): have a separate tool/helper that can be used to sign policies instead. Currently having a main causes issues.
-    #[test]
-    fn test_extraction_correct() {
-        let signed_policy: SignedAppraisalPolicy = get_test_policy();
-
-        let signing_key: SigningKey = get_test_signing_key();
-        let verifying_key: VerifyingKey = get_test_verifying_key();
-
-        let raw_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues =
-            extract_raw_policy(&signed_policy).unwrap();
-        let raw_policy_binary: Vec<u8> = encode_raw_policy(&raw_policy).unwrap();
-        let expected_signature: Signature = signing_key.sign(&raw_policy_binary);
-
-        match extract_signature(&signed_policy) {
-            Ok(sig) => {
-                assert!(
-                    verifying_key
-                        .verify(raw_policy_binary.as_slice(), &sig)
-                        .is_ok(),
-                    "Signature is incorrect.\nExpected signature: {}",
-                    to_escaped_string(&expected_signature.to_bytes())
-                );
-            }
-            Err(_e) => {
-                println!(
-                    "Failed to parse original signature.\nExpected signature: {}",
-                    to_escaped_string(&expected_signature.to_bytes())
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_decode_and_verify_correct() {
-        let mut policies: Vec<u8> = Vec::with_capacity(1024);
-        AppraisalPolicies {
-            signed_policy: vec![get_test_policy()],
-        }
-        .encode(&mut policies)
-        .unwrap();
-        let verifying_keys = vec![get_test_verifying_key()];
-        let decoded_policy = decode_and_verify_policies(&policies, verifying_keys, 1).unwrap();
-        assert_eq!(decoded_policy.len(), 1);
-        assert_eq!(get_test_policy().policy.unwrap(), decoded_policy[0]);
-    }
-
-    #[test]
-    fn test_decode_and_verify_nocheck_correct() {
-        let mut signed_policy: SignedAppraisalPolicy = get_test_policy();
-        signed_policy.signature = vec![];
-        let mut policies: Vec<u8> = Vec::with_capacity(1024);
-        AppraisalPolicies {
-            signed_policy: vec![signed_policy],
-        }
-        .encode(&mut policies)
-        .unwrap();
-        let decoded_policy = decode_and_verify_policies(&policies, vec![], 0).unwrap();
-        assert_eq!(decoded_policy.len(), 1);
-        assert_eq!(get_test_policy().policy.unwrap(), decoded_policy[0]);
-    }
-
-    #[test]
-    fn test_extract_signature_parse_error() {
-        let mut policy: SignedAppraisalPolicy = get_test_policy();
-        policy.signature[0].signature = b"asfd".to_vec();
-
-        match extract_signature(&policy) {
-            Ok(_) => assert!(false, "Should fail to parse signature."),
-            Err(e) => assert_eq!(e, "Failed to parse signature.".to_string()),
-        }
-    }
-
-    #[test]
-    fn test_extract_signature_none_error() {
-        let mut policy: SignedAppraisalPolicy = get_test_policy();
-        policy.signature = vec![];
-
-        match extract_signature(&policy) {
-            Ok(_) => assert!(false, "Should complain about no signatures."),
-            Err(e) => assert_eq!(e, "No signature found.".to_string()),
-        }
-    }
-
-    #[test]
-    fn test_decode_and_verify_bad_decode() {
-        let policies = b"foo";
-        let verifying_keys = vec![get_test_verifying_key()];
-        match decode_and_verify_policies(policies, verifying_keys, 1) {
-            Ok(_) => assert!(false, "Should fail to decode policies."),
+    fn test_verify_signature_error() {
+        let mut policy: AppraisalPolicy = get_test_policy();
+        policy.measurement.as_mut().unwrap().kernel_image_sha256 =
+            "zzzzz6913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7ba".to_string();
+        match verify_policy_signature(&policy, &vec![&get_test_verifying_key()], 1) {
+            Ok(_) => assert!(false, "Should fail to with malformed signature."),
             Err(e) => assert_eq!(
                 e,
-                "Failed to decode (serialize) appraisal policy.".to_string()
+                "Failed to decode kernel_image_sha256: Invalid character 'z' at position 0"
+                    .to_string()
             ),
         }
-    }
 
-    #[test]
-    fn test_verify_signature_incorrect() {
-        let mut policy: SignedAppraisalPolicy = get_test_policy();
+        let mut policy: AppraisalPolicy = get_test_policy();
         let sig_length = policy.signature[0].signature.len();
-        policy.signature[0].signature = vec![b'0'; sig_length];
+        policy.signature[0].signature = "0".repeat(sig_length);
+        match verify_policy_signature(&policy, &vec![&get_test_verifying_key()], 1) {
+            Ok(_) => assert!(false, "Should fail to with malformed signature."),
+            Err(e) => assert_eq!(e, "Failed to parse signature: signature error".to_string()),
+        }
 
-        let verifying_keys = vec![get_test_verifying_key()];
-        match verify_policy_signature(&policy, &verifying_keys, 1) {
+        let mut policy: AppraisalPolicy = get_test_policy();
+        policy.measurement.as_mut().unwrap().kernel_image_sha256 =
+            "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7ba".to_string();
+        match verify_policy_signature(&policy, &vec![&get_test_verifying_key()], 1) {
             Ok(_) => assert!(false, "Should fail to with incorrect signature."),
             Err(e) => assert_eq!(
                 e,
                 "Failed to verify policy signature: signature error".to_string()
             ),
         }
+
+        let mut policy: AppraisalPolicy = get_test_policy();
+        policy.signature = vec![];
+        match verify_policy_signature(&policy, &vec![&get_test_verifying_key()], 1) {
+            Ok(_) => assert!(false, "Should fail with no signature."),
+            Err(e) => assert_eq!(e, "No signature found.".to_string(),),
+        }
+
+        match verify_policy_signature(&get_test_policy(), &vec![&get_test_verifying_key()], 0) {
+            Ok(_) => assert!(false, "Should fail to with zero signature threshold."),
+            Err(e) => assert_eq!(
+                e,
+                "num_pass_required should be greater than zero.".to_string(),
+            ),
+        }
     }
 
     #[test]
     fn test_sign_policy() {
-        let signed_policy: SignedAppraisalPolicy = get_test_policy();
+        let mut policy: AppraisalPolicy = get_test_policy();
+        policy.signature = vec![];
         let signing_key: SigningKey = get_test_signing_key();
-
-        let raw_policy: oak_proto_rust::oak::attestation::v1::ReferenceValues =
-            extract_raw_policy(&signed_policy).unwrap();
-        let new_signed_policy: SignedAppraisalPolicy =
-            sign_policy(raw_policy, signing_key).unwrap();
-        assert_eq!(signed_policy, new_signed_policy);
+        assert_eq!(hex::encode(sign_policy(&policy, &signing_key).unwrap()), "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c");
     }
 }

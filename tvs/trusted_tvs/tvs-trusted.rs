@@ -23,9 +23,9 @@ use crate::proto::privacy_sandbox::tvs::{
 };
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
-use oak_proto_rust::oak::attestation::v1::reference_values::Type;
-use oak_proto_rust::oak::attestation::v1::{Endorsements, Evidence};
+use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
+use policy_manager::PolicyManager;
 use prost::Message;
 
 pub mod proto {
@@ -129,119 +129,6 @@ pub fn new_trusted_tvs_service_with_second_key(
         Ok(trusted_tvs) => Ok(Box::new(trusted_tvs)),
         Err(error) => Err(error),
     }
-}
-
-// TODO(b/358413924): Actually fetch key
-fn get_policy_public_key() -> Result<VerifyingKey, String> {
-    Ok(VerifyingKey::from_sec1_bytes(
-        &hex::decode("048fa2c25d3d3368b23f7877c9ac84866f440f9dd7a94e7ca5440ef1bc611f77db2940cca2233d06c9cfbf503ee73fdf5cf1f4c637f376bb7daaf637faf05656e4")
-        .map_err(|_| "Failed to decode policy PK hex")?
-    )
-    .map_err(|_| "Failed to parse policy PK")?)
-}
-
-struct PolicyManager {
-    time_milis: i64,
-    appraisal_policies: Vec<oak_proto_rust::oak::attestation::v1::ReferenceValues>,
-}
-
-impl PolicyManager {
-    pub fn new(
-        time_milis: i64,
-        policies: &[u8],
-        enable_policy_signature: bool,
-        accept_insecure_policies: bool,
-    ) -> Result<Self, String> {
-        let appraisal_policies = if enable_policy_signature {
-            let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
-            policy_signature::decode_and_verify_policies(
-                policies,
-                vec![policy_verifying_key],
-                /*num_pass_required=*/ 1,
-            )
-        } else {
-            policy_signature::decode_and_verify_policies(
-                policies,
-                /*verifying_keys*/ vec![],
-                /*num_pass_required=*/ 0,
-            )
-        }?;
-        verify_policy_tee(&appraisal_policies, accept_insecure_policies)?;
-        Ok(Self {
-            time_milis,
-            appraisal_policies,
-        })
-    }
-
-    // Check evidence against the appraisal policies.
-    pub fn check_evidence(
-        &self,
-        evidence: Evidence,
-        endorsement: Endorsements,
-    ) -> Result<(), String> {
-        for policy in &self.appraisal_policies {
-            match oak_attestation_verification::verifier::verify(
-                self.time_milis,
-                &evidence,
-                &endorsement,
-                &policy,
-            ) {
-                Ok(_) => return Ok(()),
-                Err(_) => continue,
-            };
-        }
-        Err("Failed to verify report. No matching appraisal policy found".to_string())
-    }
-}
-
-fn create_endorsements(
-    tee_certificate: Vec<u8>,
-) -> oak_proto_rust::oak::attestation::v1::Endorsements {
-    let root_layer = oak_proto_rust::oak::attestation::v1::RootLayerEndorsements {
-        tee_certificate: tee_certificate,
-        stage0: None,
-    };
-    let ends = oak_proto_rust::oak::attestation::v1::OakContainersEndorsements {
-        root_layer: Some(root_layer),
-        container_layer: None,
-        kernel_layer: None,
-        system_layer: None,
-    };
-    oak_proto_rust::oak::attestation::v1::Endorsements {
-        r#type: Some(oak_proto_rust::oak::attestation::v1::endorsements::Type::OakContainers(ends)),
-    }
-}
-
-// When running in secure mode, reject policies that doesn't require SEV-SNP.
-fn verify_policy_tee(
-    appraisal_policies: &[oak_proto_rust::oak::attestation::v1::ReferenceValues],
-    accept_insecure_policies: bool,
-) -> Result<(), String> {
-    if accept_insecure_policies {
-        return Ok(());
-    }
-    for policy in appraisal_policies {
-        let root_layer = match policy.r#type.as_ref() {
-            Some(Type::OakRestrictedKernel(r)) => {
-                r.root_layer.as_ref().ok_or("No root layer".to_string())
-            }
-            Some(Type::OakContainers(r)) => {
-                r.root_layer.as_ref().ok_or("No root layer".to_string())
-            }
-            Some(Type::Cb(r)) => r.root_layer.as_ref().ok_or("No root layer".to_string()),
-            None => Err("Cannot accept a policy without a type".to_string()),
-        }?;
-        if root_layer.insecure.is_some() {
-            return Err("Cannot accept insecure policies".to_string());
-        };
-        if root_layer.intel_tdx.is_some() {
-            return Err("Cannot accept intel TDX policies".to_string());
-        };
-        if root_layer.amd_sev.is_none() {
-            return Err("Cannot accept non AMD SEV SNP  policies".to_string());
-        }
-    }
-    Ok(())
 }
 
 impl TrustedTvs {
@@ -401,8 +288,8 @@ impl TrustedTvs {
             return Err("Request does not have `evidence` proto.".to_string());
         };
         self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
-        let endorsement = create_endorsements(verify_report_request.tee_certificate);
-        self.policy_manager.check_evidence(evidence, endorsement)?;
+        self.policy_manager
+            .check_evidence(&evidence, verify_report_request.tee_certificate.as_slice())?;
 
         let Some(user_id) = self.user_id else {
             // This should not happen unless something went wrong internally
@@ -476,10 +363,12 @@ impl TrustedTvs {
 mod tests {
     use super::*;
     use crate::proto::privacy_sandbox::tvs::{
-        appraisal_policies::SignedAppraisalPolicy, AppraisalPolicies, InitSessionRequest, Secret,
+        stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, InitSessionRequest,
+        Measurement, Secret, Signature as PolicySignature, Stage0Measurement,
         VerifyReportRequestEncrypted, VerifyReportResponse,
     };
     use crypto::P256Scalar;
+    use oak_proto_rust::oak::attestation::v1::{InsecureReferenceValues, TcbVersion};
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 
     fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
@@ -507,13 +396,37 @@ mod tests {
         include_bytes!("../test_data/vcek_genoa.crt").to_vec()
     }
 
-    fn default_appraisal_policicies() -> Vec<u8> {
-        let signed_policy = SignedAppraisalPolicy::decode(
-            &include_bytes!("../test_data/on-perm-reference.binarypb")[..],
-        )
-        .unwrap();
+    fn default_appraisal_policies() -> Vec<u8> {
         let policies = AppraisalPolicies {
-            signed_policy: vec![signed_policy],
+            policies: vec![AppraisalPolicy{
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                            sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95".to_string(),
+                            min_tcb_version: Some(TcbVersion{
+                                boot_loader: 7,
+                                microcode: 62,
+                                snp: 15,
+                                tee: 0,
+                            }),
+                        })),
+                    }),
+                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
+                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
+                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
+                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
+                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
+                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
+                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
+                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
+
+                }),
+                signature: vec![PolicySignature{
+                    signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c".to_string(),
+                    signer: "".to_string(),
+                    },
+                    ],
+            }],
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
@@ -521,12 +434,28 @@ mod tests {
     }
 
     fn insecure_appraisal_policies() -> Vec<u8> {
-        let signed_policy = SignedAppraisalPolicy::decode(
-            &include_bytes!("../test_data/insecure-reference.binarypb")[..],
-        )
-        .unwrap();
         let policies = AppraisalPolicies {
-            signed_policy: vec![signed_policy],
+            policies: vec![AppraisalPolicy{
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::Insecure(InsecureReferenceValues{})),
+                    }),
+                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
+                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
+                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
+                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
+                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
+                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
+                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
+                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
+
+                }),
+                signature: vec![PolicySignature{
+                    signature: "6870ebf5f55debe04cd66d47ea3b2a878edd436aba59be30b1f52478bb4e12e4d40c223664ee3c0f13ce27e159bc8e7726cce52520f4fb171d6622a26169dcb6".to_string(),
+                    signer: "".to_string(),
+                    },
+                    ],
+            }],
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
@@ -595,7 +524,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -694,7 +623,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             Some(&secondary_tvs_private_key.bytes()),
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user2",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -792,7 +721,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -907,7 +836,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -998,7 +927,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1082,7 +1011,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1121,7 +1050,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1158,7 +1087,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1190,7 +1119,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1226,7 +1155,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &[1, 2, 3],
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1244,7 +1173,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &[b'f'; P256_SCALAR_LENGTH * 3],
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1262,7 +1191,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &P256Scalar::generate().bytes(),
             Some(&[1, 3]),
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1312,7 +1241,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1335,7 +1264,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1374,7 +1303,7 @@ mod tests {
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
-            default_appraisal_policicies().as_slice(),
+            default_appraisal_policies().as_slice(),
             "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,

@@ -46,22 +46,12 @@ rust_library(
 rust_test(
     name = "trusted-client_test",
     size = "small",
-    srcs = ["trusted-client.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
+    crate = ":trusted-client",
     crate_features = ["noffi"],
     deps = [
-        "//tvs/trusted_tvs:tvs-trusted",
-        ":build",
-        "@hats_crate_index//:hex",
-        "@hats_crate_index//:p256",
-        # Use the same version oak uses protos generated from a different
-        # prost version are not compatible. Here we are referring to the
-        # attestation messages.
-        "@oak_crates_index//:prost",
-        "@enclave//crypto",
-        "@enclave//handshake",
-        "@oak//oak_proto_rust",
         "//key_manager:rust-key-fetcher",
+        "//tvs/trusted_tvs:tvs-trusted",
     ],
 )
 

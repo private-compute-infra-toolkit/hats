@@ -60,13 +60,13 @@ absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPolicies(int n) {
     if (!row.ok()) {
       return gcp_common::GcpToAbslStatus(row.status());
     }
-    AppraisalPolicies::SignedAppraisalPolicy signed_policy;
-    if (!signed_policy.ParseFromString(std::get<0>(*row).get<std::string>())) {
+    AppraisalPolicy policy;
+    if (!policy.ParseFromString(std::get<0>(*row).get<std::string>())) {
       return absl::FailedPreconditionError("Failed to parse a policy");
     }
-    *appraisal_policies.add_signed_policy() = signed_policy;
+    *appraisal_policies.add_policies() = std::move(policy);
   }
-  if (appraisal_policies.signed_policy_size() == 0) {
+  if (appraisal_policies.policies_size() == 0) {
     return absl::NotFoundError("No policies found");
   }
   return appraisal_policies;

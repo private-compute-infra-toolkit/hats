@@ -540,42 +540,41 @@ absl::Status CreateTvsKeys(absl::string_view spanner_database,
   return absl::OkStatus();
 }
 
-absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies::SignedAppraisalPolicy>
-ReadAppraisalPolicy(absl::string_view filename) {
+absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies> ReadAppraisalPolicies(
+    absl::string_view filename) {
   std::ifstream if_stream({std::string(filename)});
   if (!if_stream.is_open()) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to open: ", filename));
   }
   google::protobuf::io::IstreamInputStream istream(&if_stream);
-  privacy_sandbox::tvs::AppraisalPolicies::SignedAppraisalPolicy
-      appraisal_policy;
-  if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policy)) {
+  privacy_sandbox::tvs::AppraisalPolicies appraisal_policies;
+  if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policies)) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to parse: ", filename));
   }
-  return appraisal_policy;
+  return appraisal_policies;
 }
 
 absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
                                    absl::string_view appraisal_policy_path) {
   absl::StatusOr<google::cloud::spanner::Database> database =
       CreateSpannerDatabase(spanner_database);
-  if (!database.ok()) return database.status();
-  absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies::SignedAppraisalPolicy>
-      appraisal_policy = ReadAppraisalPolicy(appraisal_policy_path);
-  if (!appraisal_policy.ok()) return appraisal_policy.status();
+  absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies> appraisal_policies =
+      ReadAppraisalPolicies(appraisal_policy_path);
+  if (!appraisal_policies.ok()) return appraisal_policies.status();
 
   // Spanner client.
   google::cloud::spanner::Client spanner_client(
       google::cloud::spanner::MakeConnection(*database));
 
   auto commit = spanner_client.Commit(
-      [&spanner_client, &appraisal_policy = *appraisal_policy](
+      [&spanner_client, &appraisal_policies = *appraisal_policies](
           google::cloud::spanner::Transaction transaction)
           -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
-        // Insert the appraisal policy.
-        {
+        for (const privacy_sandbox::tvs::AppraisalPolicy& appraisal_policy :
+             appraisal_policies.policies()) {
+          // Insert the appraisal policy.
           google::cloud::spanner::SqlStatement sql(
               R"sql(INSERT INTO  AppraisalPolicies(UpdateTimestamp, Policy)
               VALUES (CURRENT_TIMESTAMP(), @policy))sql",

@@ -29,7 +29,7 @@ namespace privacy_sandbox::tvs {
 
 namespace {
 
-absl::StatusOr<AppraisalPolicies::SignedAppraisalPolicy> ReadAppraisalPolicy(
+absl::StatusOr<AppraisalPolicies> ReadAppraisalPolicies(
     absl::string_view filename) {
   std::ifstream if_stream({std::string(filename)});
   if (!if_stream.is_open()) {
@@ -37,38 +37,41 @@ absl::StatusOr<AppraisalPolicies::SignedAppraisalPolicy> ReadAppraisalPolicy(
         absl::StrCat("Failed to open: ", filename));
   }
   google::protobuf::io::IstreamInputStream istream(&if_stream);
-  AppraisalPolicies::SignedAppraisalPolicy appraisal_policy;
-  if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policy)) {
+  AppraisalPolicies appraisal_policies;
+  if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policies)) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to parse: ", filename));
   }
-  return appraisal_policy;
+  return appraisal_policies;
 }
-
-}  // namespace
 
 class PolicyFetcherLocal final : public PolicyFetcher {
  public:
   PolicyFetcherLocal() = delete;
-  PolicyFetcherLocal(AppraisalPolicies::SignedAppraisalPolicy policy)
-      : policy_(std::move(policy)) {}
+  PolicyFetcherLocal(AppraisalPolicies policies)
+      : policies_(std::move(policies)) {}
 
-  // Always return one same policy.
+  // Arbitrary return `n` policies as we don't have update timestamp
+  // in the file, and we don't need them as we can always create new
   absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) {
-    AppraisalPolicies appraisal_policies;
-    *appraisal_policies.add_signed_policy() = policy_;
-    return appraisal_policies;
+    AppraisalPolicies result;
+    for (int i = 0; i < n && i < policies_.policies_size(); ++i) {
+      *result.add_policies() = policies_.policies()[i];
+    }
+    return policies_;
   }
 
  private:
-  AppraisalPolicies::SignedAppraisalPolicy policy_;
+  const AppraisalPolicies policies_;
 };
 
+}  // namespace
+
 absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create() {
-  absl::StatusOr<AppraisalPolicies::SignedAppraisalPolicy> policy =
-      ReadAppraisalPolicy(absl::GetFlag(FLAGS_appraisal_policy_file));
-  if (!policy.ok()) return policy.status();
-  return std::make_unique<PolicyFetcherLocal>(*std::move(policy));
+  absl::StatusOr<AppraisalPolicies> policies =
+      ReadAppraisalPolicies(absl::GetFlag(FLAGS_appraisal_policy_file));
+  if (!policies.ok()) return policies.status();
+  return std::make_unique<PolicyFetcherLocal>(*std::move(policies));
 }
 
 }  // namespace privacy_sandbox::tvs
