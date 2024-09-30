@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """bazel_wrapper.py helps user populate configs for BES and foundry.
 
 This is a modified copy of google3/devtools/kokoro/scripts/bazel_wrapper.py
