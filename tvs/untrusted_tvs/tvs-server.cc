@@ -67,14 +67,6 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
         StringToRustSlice(appraisal_policies.SerializeAsString()),
         /*user=*/"default", enable_policy_signature, accept_insecure_policies);
   }
-  /*
-    if (!trusted_tvs.error.empty()) {
-      return absl::FailedPreconditionError(absl::StrCat(
-          "Cannot create trusted TVS server. ",
-    std::string(trusted_tvs.error)));
-    }
-    return rust::Box<TrustedTvs>::from_raw(trusted_tvs.value);
-  */
 }
 
 TvsServer::TvsServer(const std::string& primary_private_key,
