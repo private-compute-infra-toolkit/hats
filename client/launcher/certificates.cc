@@ -15,6 +15,7 @@
 #include "client/launcher/certificates.h"
 
 #include <errno.h>
+#include <stdint.h>
 
 #include <string>
 
@@ -26,6 +27,7 @@
 #include "client/launcher/snp-abi.h"
 #include "curl/curl.h"
 #include "external/psp-sev/file/psp-sev.h"
+
 namespace privacy_sandbox::client {
 namespace {
 size_t ResponseHandler(char* contents, size_t byte_size, size_t num_bytes,

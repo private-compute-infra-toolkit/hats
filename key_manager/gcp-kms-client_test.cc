@@ -14,9 +14,6 @@
 
 #include "gcp-kms-client.h"
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -25,8 +22,10 @@
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "gmock/gmock.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/kms/v1/mocks/mock_key_management_connection.h"
+#include "gtest/gtest.h"
 #include "key_manager/kms-client.h"
 
 namespace privacy_sandbox::key_manager {

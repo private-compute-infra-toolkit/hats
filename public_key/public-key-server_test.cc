@@ -34,6 +34,7 @@
 #include "src/google/protobuf/test_textproto.h"
 
 #include "httplib.h"
+
 namespace privacy_sandbox::public_key_service {
 namespace {
 namespace gcs = ::google::cloud::storage;
