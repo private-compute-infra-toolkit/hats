@@ -434,9 +434,9 @@ TEST(LauncherServer, SplitSuccessful) {
   absl::StatusOr<tvs::AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
   ASSERT_TRUE(appraisal_policies.ok());
-  absl::StatusOr<std::string> tvs_private_key =
+  absl::StatusOr<std::string> tvs_private_key1 =
       HexStringToBytes(kTvsPrivateKey1);
-  ASSERT_TRUE(tvs_private_key.ok());
+  ASSERT_TRUE(tvs_private_key1.ok());
   absl::StatusOr<std::string> tvs_private_key2 =
       HexStringToBytes(kTvsPrivateKey2);
   ASSERT_TRUE(tvs_private_key2.ok());
@@ -445,22 +445,22 @@ TEST(LauncherServer, SplitSuccessful) {
   ASSERT_TRUE(tvs_private_key3.ok());
 
   // TVS Server 1.
-  tvs::TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policies),
-                             /*enable_policy_signature=*/true,
-                             /*accept_insecure_policies=*/false);
+  tvs::TvsServer tvs_service1(*tvs_private_key1, *appraisal_policies,
+                              /*enable_policy_signature=*/true,
+                              /*accept_insecure_policies=*/false);
 
   // TVS Server 2
-  tvs::TvsServer tvs_service2(
-      *tvs_private_key2, *std::move(GetTestAppraisalPolicies()),
-      /*enable_policy_signature=*/true, /*accept_insecure_policies=*/false);
+  tvs::TvsServer tvs_service2(*tvs_private_key2, *appraisal_policies,
+                              /*enable_policy_signature=*/true,
+                              /*accept_insecure_policies=*/false);
 
   // TVS Server 3
-  tvs::TvsServer tvs_service3(
-      *tvs_private_key3, *std::move(GetTestAppraisalPolicies()),
-      /*enable_policy_signature=*/true, /*accept_insecure_policies=*/false);
+  tvs::TvsServer tvs_service3(*tvs_private_key3, *appraisal_policies,
+                              /*enable_policy_signature=*/true,
+                              /*accept_insecure_policies=*/false);
 
-  std::unique_ptr<grpc::Server> tvs_server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
+  std::unique_ptr<grpc::Server> tvs_server1 =
+      grpc::ServerBuilder().RegisterService(&tvs_service1).BuildAndStart();
 
   std::unique_ptr<grpc::Server> tvs_server2 =
       grpc::ServerBuilder().RegisterService(&tvs_service2).BuildAndStart();
@@ -474,7 +474,7 @@ TEST(LauncherServer, SplitSuccessful) {
       "4583ed91df564f17c0726f7fa4d7e00ec2da067ad3c92448794c5982f6150ba7";
   // Forwarding TVS server.
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  channel_map[0] = tvs_server->InProcessChannel(grpc::ChannelArguments());
+  channel_map[0] = tvs_server1->InProcessChannel(grpc::ChannelArguments());
   channel_map[1] = tvs_server2->InProcessChannel(grpc::ChannelArguments());
   channel_map[2] = tvs_server3->InProcessChannel(grpc::ChannelArguments());
   LauncherServer launcher_service(
