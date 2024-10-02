@@ -392,6 +392,22 @@ TEST(WithExtraMessagePolicyTest, AppendsToExtraMessage) {
       Eq(absl::AbortedError("hello; world!")));
 }
 
+TEST(StatusBuilderTest, PrependWithCorrect) {
+  StatusBuilder builder(absl::AbortedError("world"), SourceLocation());
+  EXPECT_THAT(ToStatus(builder.PrependWith("hello ")),
+              Eq(absl::AbortedError("hello world")));
+}
+
+TEST_F(StatusBuilderTestWithLog, LogErrorAndExitCorrect) {
+  EXPECT_CALL(scoped_mock_log_,
+              Log(absl::LogSeverity::kError, HasSubstr("/foo/secret.cc"),
+                  HasSubstr("maybe?")))
+      .Times(1);
+  scoped_mock_log_.StartCapturingLogs();
+  StatusBuilder builder(absl::AbortedError("maybe?"), Locs::kSecret);
+  EXPECT_THAT(builder.LogErrorAndExit(), Eq(1));
+}
+
 #line 1337 "/foo/secret.cc"
 const SourceLocation Locs::kSecret = SourceLocation::current();
 

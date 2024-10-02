@@ -25,12 +25,14 @@
 
 #include <utility>
 
+#include "gcp_common/gcp-status.h"  // IWYU pragma: keep for type conversion
 #include "status_macro/status_builder.h"
 #include "status_macro/status_util.h"  // IWYU pragma: keep
 
 // Evaluates an expression that produces a `absl::Status`. If the
 // status is not ok, returns it from the current function.
-// This also supports expressions that return grpc::Status
+// This also supports expressions that return grpc::Status or
+// google::cloud::Status
 //
 // For example:
 //   absl::Status MultiStepFunction() {
@@ -264,6 +266,9 @@ constexpr bool HasPotentialConditionalOperator(const char* lhs, int index) {
 namespace grpc {
 class Status;
 }
+namespace google::cloud::v2_29 {
+class Status;
+}
 
 namespace privacy_sandbox::status_macro {
 namespace status_macro_internal {
@@ -276,6 +281,11 @@ class StatusAdaptorForMacros {
 
   StatusAdaptorForMacros(const grpc::Status& grpc_status, SourceLocation loc)
       : builder_(ToAbslStatus(grpc_status), loc) {}
+
+  StatusAdaptorForMacros(const google::cloud::v2_29::Status& cloud_status,
+                         SourceLocation loc)
+      : builder_(::privacy_sandbox::gcp_common::GcpToAbslStatus(cloud_status),
+                 loc) {}
 
   StatusAdaptorForMacros(absl::Status&& status, SourceLocation loc)
       : builder_(std::move(status), loc) {}

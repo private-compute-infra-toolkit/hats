@@ -44,6 +44,7 @@ cc_library(
     deps = [
         ":status_builder",
         ":status_util",
+        "//gcp_common:gcp-status",
     ],
 )
 

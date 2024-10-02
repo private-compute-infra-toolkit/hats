@@ -175,6 +175,17 @@ class [[nodiscard]] StatusBuilder {
   template <typename Enum>
   ABSL_MUST_USE_RESULT StatusBuilder&& SetErrorCode(Enum code) &&;
 
+  ////// Convenient wrappers for common use cases
+
+  // Sets prepend, and the message to prepend with
+  StatusBuilder& PrependWith(std::string s) &;
+  [[nodiscard]] StatusBuilder&& PrependWith(std::string s) &&;
+
+  // Sets logging to error, and returns 1.
+  // Useful for exiting out of main functions.
+  // Terminal, so must be the last call of a chain.
+  int LogErrorAndExit();
+
   ///////////////////////////////// Adaptors /////////////////////////////////
   //
   // A StatusBuilder `adaptor` is a functor which can be included in a builder
@@ -612,6 +623,21 @@ inline StatusBuilder::operator absl::Status() && {
 }
 
 inline SourceLocation StatusBuilder::source_location() const { return loc_; }
+
+inline StatusBuilder& StatusBuilder::PrependWith(std::string s) & {
+  if (rep_ == nullptr) return *this;
+  this->SetPrepend();
+  *this = *this << s;
+  return (*this);
+}
+
+inline StatusBuilder&& StatusBuilder::PrependWith(std::string s) && {
+  return std::move(PrependWith(s));
+}
+
+inline int StatusBuilder::LogErrorAndExit() {
+  return (*this).LogError().With([](const absl::Status _) -> int { return 1; });
+}
 
 }  // namespace privacy_sandbox::status_macro
 #endif  // HATS_STATUS_MACRO_STATUS_BUILDER_H_
