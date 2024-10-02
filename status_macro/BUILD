@@ -108,3 +108,25 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "return",
+    hdrs = ["return.h"],
+    deps = [
+        "@com_google_absl//absl/meta:type_traits",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+cc_test(
+    name = "return_test",
+    size = "small",
+    srcs = ["return_test.cc"],
+    deps = [
+        ":return",
+        ":status_macros",
+        "@com_google_absl//absl/status",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
