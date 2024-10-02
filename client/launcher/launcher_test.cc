@@ -40,7 +40,7 @@
 #include "gtest/gtest.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/proto/appraisal_policies.pb.h"
-#include "tvs/untrusted_tvs/tvs-server.h"
+#include "tvs/untrusted_tvs/tvs-service.h"
 
 namespace privacy_sandbox::client {
 namespace {
@@ -90,11 +90,11 @@ TEST(HatsLauncher, Successful) {
   ASSERT_THAT(system_bundle, IsOk());
   (*config).mutable_cvm_config()->set_hats_system_bundle(*system_bundle);
   // Empty TVS server that's just for providing an inprocess channel.
-  privacy_sandbox::tvs::TvsServer tvs_server(
+  privacy_sandbox::tvs::TvsService tvs_service(
       "", {}, /*enable_policy_signature=*/true,
       /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   channel_map[0] = server->InProcessChannel(grpc::ChannelArguments());
@@ -161,13 +161,13 @@ TEST(HatsLauncherTest, Unsuccessful) {
       GetRunfilePath("missing_bundle.tar");
   ASSERT_THAT(system_bundle, IsOk());
   (*config).mutable_cvm_config()->set_hats_system_bundle(*system_bundle);
-  // Empty TVS server that's just for providing an inprocess channel.
-  privacy_sandbox::tvs::TvsServer tvs_server(
+  // Empty TVS service that's just for providing an inprocess channel.
+  privacy_sandbox::tvs::TvsService tvs_service(
       /*primary_private_key=*/"",
       /*appraisal_policy=*/{}, /*enable_policy_signature=*/true,
       /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   channel_map[0] = server->InProcessChannel(grpc::ChannelArguments());

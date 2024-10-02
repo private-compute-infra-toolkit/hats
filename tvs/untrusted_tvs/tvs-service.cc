@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tvs/untrusted_tvs/tvs-server.h"
+#include "tvs/untrusted_tvs/tvs-service.h"
 
 #include <memory>
 #include <string>
@@ -47,14 +47,11 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
   return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
 }
 
-}  // namespace
-
 absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
     const std::string& primary_private_key,
     const std::string& secondary_private_key,
     const AppraisalPolicies& appraisal_policies, bool enable_policy_signature,
     bool accept_insecure_policies) {
-  // TrustedTvsCreationResult trusted_tvs;
   if (secondary_private_key.empty()) {
     return NewTrustedTvs(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
@@ -69,27 +66,29 @@ absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
   }
 }
 
-TvsServer::TvsServer(const std::string& primary_private_key,
-                     AppraisalPolicies appraisal_policies,
-                     bool enable_policy_signature,
-                     bool accept_insecure_policies)
+}  // namespace
+
+TvsService::TvsService(const std::string& primary_private_key,
+                       AppraisalPolicies appraisal_policies,
+                       bool enable_policy_signature,
+                       bool accept_insecure_policies)
     : primary_private_key_(primary_private_key),
       appraisal_policies_(std::move(appraisal_policies)),
       enable_policy_signature_(enable_policy_signature),
       accept_insecure_policies_(accept_insecure_policies) {}
 
-TvsServer::TvsServer(const std::string& primary_private_key,
-                     const std::string& secondary_private_key,
-                     AppraisalPolicies appraisal_policies,
-                     bool enable_policy_signature,
-                     bool accept_insecure_policies)
+TvsService::TvsService(const std::string& primary_private_key,
+                       const std::string& secondary_private_key,
+                       AppraisalPolicies appraisal_policies,
+                       bool enable_policy_signature,
+                       bool accept_insecure_policies)
     : primary_private_key_(primary_private_key),
       secondary_private_key_(secondary_private_key),
       appraisal_policies_(std::move(appraisal_policies)),
       enable_policy_signature_(enable_policy_signature),
       accept_insecure_policies_(accept_insecure_policies) {}
 
-grpc::Status TvsServer::VerifyReport(
+grpc::Status TvsService::VerifyReport(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) {
   absl::StatusOr<rust::Box<TrustedTvs>> trusted_tvs = CreateTrustedTvsService(
@@ -123,14 +122,14 @@ grpc::Status TvsServer::VerifyReport(
 
 void CreateAndStartTvsServer(TvsServerOptions options) {
   const std::string server_address = absl::StrCat("0.0.0.0:", options.port);
-  TvsServer tvs_server(
+  TvsService tvs_service(
       options.primary_private_key, options.secondary_private_key,
       std::move(options.appraisal_policies), options.enable_policy_signature,
       options.accept_insecure_policies);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()
           .AddListeningPort(server_address, grpc::InsecureServerCredentials())
-          .RegisterService(&tvs_server)
+          .RegisterService(&tvs_service)
           .BuildAndStart();
   LOG(INFO) << "Server listening on " << server_address;
   server->Wait();

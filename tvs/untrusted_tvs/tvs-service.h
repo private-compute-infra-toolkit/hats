@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HATS_TVS_UNTRUSTED_TVS_SERVER_
-#define HATS_TVS_UNTRUSTED_TVS_SERVER_
+#ifndef HATS_TVS_UNTRUSTED_TVS_SERVICE_
+#define HATS_TVS_UNTRUSTED_TVS_SERVICE_
 
 #include <string>
 
@@ -36,20 +36,21 @@ namespace privacy_sandbox::tvs {
 // 2. Server responds to the handshake with an ephemeral public key.
 // 3. Client sends attestation report.
 // 4. Server verifies the report and returns a secret.
-class TvsServer final : public TeeVerificationService::Service {
+class TvsService final : public TeeVerificationService::Service {
  public:
   // Pass appraisal_policy by value as we expect the caller to use std::move().
-  explicit TvsServer(const std::string& primary_private_key,
-                     AppraisalPolicies appraisal_policies,
-                     bool enable_policy_signature,
-                     bool accept_insecure_policies);
-  explicit TvsServer(const std::string& primary_private_key,
-                     const std::string& secondary_private_key,
-                     AppraisalPolicies appraisal_policies,
-                     bool enable_policy_signature,
-                     bool accept_insecure_policies);
+  explicit TvsService(const std::string& primary_private_key,
+                      AppraisalPolicies appraisal_policies,
+                      bool enable_policy_signature,
+                      bool accept_insecure_policies);
+  explicit TvsService(const std::string& primary_private_key,
+                      const std::string& secondary_private_key,
+                      AppraisalPolicies appraisal_policies,
+                      bool enable_policy_signature,
+                      bool accept_insecure_policies);
 
-  TvsServer() = delete;
+  TvsService() = delete;
+
   grpc::Status VerifyReport(
       grpc::ServerContext* context,
       grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) override;
@@ -77,4 +78,4 @@ void CreateAndStartTvsServer(TvsServerOptions options);
 
 }  // namespace privacy_sandbox::tvs
 
-#endif  // HATS_TVS_UNTRUSTED_TVS_SERVER_
+#endif  // HATS_TVS_UNTRUSTED_TVS_SERVICE_

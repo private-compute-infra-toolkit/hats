@@ -22,7 +22,7 @@ cc_binary(
     name = "tvs-server_main",
     srcs = ["tvs-server_main.cc"],
     deps = [
-        ":tvs-server",
+        ":tvs-service",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/trusted_tvs:bridge",
         "@com_google_absl//absl/flags:flag",
@@ -46,9 +46,9 @@ cc_binary(
 )
 
 cc_library(
-    name = "tvs-server",
-    srcs = ["tvs-server.cc"],
-    hdrs = ["tvs-server.h"],
+    name = "tvs-service",
+    srcs = ["tvs-service.cc"],
+    hdrs = ["tvs-service.h"],
     deps = [
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
@@ -65,14 +65,14 @@ cc_library(
 )
 
 cc_test(
-    name = "tvs-server_test",
+    name = "tvs-service_test",
     size = "small",
-    srcs = ["tvs-server_test.cc"],
+    srcs = ["tvs-service_test.cc"],
     data = [
         "//tvs/test_data:tvs_test_data",
     ],
     deps = [
-        ":tvs-server",
+        ":tvs-service",
         "//key_manager:key-fetcher-wrapper",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_messages_cc_proto",

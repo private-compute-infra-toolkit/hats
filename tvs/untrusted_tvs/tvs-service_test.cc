@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tvs/untrusted_tvs/tvs-server.h"
+#include "tvs/untrusted_tvs/tvs-service.h"
 
 #include <fstream>
 #include <memory>
@@ -137,7 +137,7 @@ absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
   return bytes;
 }
 
-TEST(TvsServer, Successful) {
+TEST(TvsService, Successful) {
   key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
@@ -146,11 +146,11 @@ TEST(TvsServer, Successful) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
-                       /*enable_policy_signature=*/true,
-                       /*accept_insecure_policies=*/false);
+  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
+                         /*enable_policy_signature=*/true,
+                         /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
@@ -180,7 +180,7 @@ TEST(TvsServer, Successful) {
             })pb")));
 }
 
-TEST(TvsServer, BadReportError) {
+TEST(TvsService, BadReportError) {
   key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
@@ -189,12 +189,12 @@ TEST(TvsServer, BadReportError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
-                       /*enable_policy_signature=*/true,
-                       /*accept_insecure_policies=*/false);
+  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
+                         /*enable_policy_signature=*/true,
+                         /*accept_insecure_policies=*/false);
 
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
@@ -219,7 +219,7 @@ TEST(TvsServer, BadReportError) {
                      HasSubstr("No matching appraisal policy found"))));
 }
 
-TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
+TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
   key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
@@ -228,12 +228,12 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
-                       /*enable_policy_signature=*/true,
-                       /*accept_insecure_policies=*/false);
+  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
+                         /*enable_policy_signature=*/true,
+                         /*accept_insecure_policies=*/false);
 
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
@@ -270,7 +270,7 @@ TEST(TvsServer, SessionTerminationAfterVerifyReportRequest) {
                HasSubstr("Failed to write message to stream.")));
 }
 
-TEST(TvsServer, MalformedMessageError) {
+TEST(TvsService, MalformedMessageError) {
   key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
@@ -280,11 +280,11 @@ TEST(TvsServer, MalformedMessageError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
-                       /*enable_policy_signature=*/true,
-                       /*accept_insecure_policies=*/false);
+  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
+                         /*enable_policy_signature=*/true,
+                         /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
   std::unique_ptr<TeeVerificationService::Stub> stub =
       TeeVerificationService::NewStub(
           server->InProcessChannel(grpc::ChannelArguments()));
@@ -300,16 +300,16 @@ TEST(TvsServer, MalformedMessageError) {
               HasSubstr("Invalid or malformed command."));
 }
 
-TEST(TvsServer, CreatingTrustedTvsServerError) {
+TEST(TvsService, CreatingTrustedTvsServiceError) {
   key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
   ASSERT_TRUE(appraisal_policies.ok());
-  TvsServer tvs_server("0000", *std::move(appraisal_policies),
-                       /*enable_policy_signature=*/true,
-                       /*accept_insecure_policies=*/false);
+  TvsService tvs_service("0000", *std::move(appraisal_policies),
+                         /*enable_policy_signature=*/true,
+                         /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   EXPECT_THAT(
       TvsUntrustedClient::CreateClient({
@@ -324,7 +324,7 @@ TEST(TvsServer, CreatingTrustedTvsServerError) {
                           "long."))));
 }
 
-TEST(TvsServer, AuthenticationError) {
+TEST(TvsService, AuthenticationError) {
   key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
@@ -333,11 +333,11 @@ TEST(TvsServer, AuthenticationError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsServer tvs_server(*tvs_private_key, *std::move(appraisal_policies),
-                       /*enable_policy_signature=*/true,
-                       /*accept_insecure_policies=*/false);
+  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
+                         /*enable_policy_signature=*/true,
+                         /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   constexpr absl::string_view kBadAuthenticationKey =
       "4583ed91df564f17c0726f7fa4d7e00ec2da067ad3c92448794c5982f6150ba7";
@@ -378,16 +378,16 @@ absl::StatusOr<AppraisalPolicies> GetInsecureAppraisalPolicies() {
 }
 
 // Passing insecure policies in a secure mode.
-TEST(TvsServer, InsecurePoliciesError) {
+TEST(TvsService, InsecurePoliciesError) {
   key_manager::RegisterEchoKeyFetcherForTest();
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetInsecureAppraisalPolicies();
   ASSERT_TRUE(appraisal_policies.ok());
-  TvsServer tvs_server("0000", *std::move(appraisal_policies),
-                       /*enable_policy_signature=*/true,
-                       /*accept_insecure_policies=*/false);
+  TvsService tvs_service("0000", *std::move(appraisal_policies),
+                         /*enable_policy_signature=*/true,
+                         /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_server).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   EXPECT_THAT(
       TvsUntrustedClient::CreateClient({

@@ -47,7 +47,7 @@
 #include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/untrusted_tvs/tvs-server.h"
+#include "tvs/untrusted_tvs/tvs-service.h"
 
 namespace privacy_sandbox::client {
 namespace {
@@ -390,9 +390,9 @@ TEST(LauncherServer, Successful) {
   ASSERT_TRUE(tvs_private_key.ok());
 
   // Real TVS server.
-  tvs::TvsServer tvs_service(*tvs_private_key, *std::move(appraisal_policies),
-                             /*enable_policy_signature=*/true,
-                             /*accept_insecure_policies=*/false);
+  tvs::TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
+                              /*enable_policy_signature=*/true,
+                              /*accept_insecure_policies=*/false);
 
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
@@ -444,20 +444,20 @@ TEST(LauncherServer, SplitSuccessful) {
       HexStringToBytes(kTvsPrivateKey3);
   ASSERT_TRUE(tvs_private_key3.ok());
 
-  // TVS Server 1.
-  tvs::TvsServer tvs_service1(*tvs_private_key1, *appraisal_policies,
-                              /*enable_policy_signature=*/true,
-                              /*accept_insecure_policies=*/false);
+  // TVS Service 1.
+  tvs::TvsService tvs_service1(*tvs_private_key1, *appraisal_policies,
+                               /*enable_policy_signature=*/true,
+                               /*accept_insecure_policies=*/false);
 
-  // TVS Server 2
-  tvs::TvsServer tvs_service2(*tvs_private_key2, *appraisal_policies,
-                              /*enable_policy_signature=*/true,
-                              /*accept_insecure_policies=*/false);
+  // TVS Service 2
+  tvs::TvsService tvs_service2(*tvs_private_key2, *appraisal_policies,
+                               /*enable_policy_signature=*/true,
+                               /*accept_insecure_policies=*/false);
 
-  // TVS Server 3
-  tvs::TvsServer tvs_service3(*tvs_private_key3, *appraisal_policies,
-                              /*enable_policy_signature=*/true,
-                              /*accept_insecure_policies=*/false);
+  // TVS Service 3
+  tvs::TvsService tvs_service3(*tvs_private_key3, *appraisal_policies,
+                               /*enable_policy_signature=*/true,
+                               /*accept_insecure_policies=*/false);
 
   std::unique_ptr<grpc::Server> tvs_server1 =
       grpc::ServerBuilder().RegisterService(&tvs_service1).BuildAndStart();
@@ -530,7 +530,7 @@ TEST(LauncherServer, BadReportError) {
       HexStringToBytes(kTvsPrivateKey1);
   ASSERT_TRUE(tvs_private_key.ok());
   // Real TVS server.
-  tvs::TvsServer tvs_service(
+  tvs::TvsService tvs_service(
       *tvs_private_key, /*secret=*/"", *std::move(appraisal_policies),
       /*enable_policy_signature=*/true, /*accept_insecure_policies=*/false);
   std::unique_ptr<grpc::Server> tvs_server =

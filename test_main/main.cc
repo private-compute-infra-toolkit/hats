@@ -40,7 +40,7 @@
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/credentials/credentials.h"
 #include "tvs/proto/appraisal_policies.pb.h"
-#include "tvs/untrusted_tvs/tvs-server.h"
+#include "tvs/untrusted_tvs/tvs-service.h"
 
 ABSL_FLAG(std::string, launcher_config_path, "",
           "path to read launcher configuration");
@@ -127,14 +127,14 @@ int main(int argc, char* argv[]) {
   }
 
   LOG(INFO) << "Starting TVS server on port " << tvs_listening_port;
-  privacy_sandbox::tvs::TvsServer tvs_server_obj(
+  privacy_sandbox::tvs::TvsService tvs_service(
       *std::move(primary_private_key), *std::move(appraisal_policies),
       absl::GetFlag(FLAGS_enable_policy_signature), false);
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder()
           .AddListeningPort(absl::StrCat("0.0.0.0:", tvs_listening_port),
                             grpc::InsecureServerCredentials())
-          .RegisterService(&tvs_server_obj)
+          .RegisterService(&tvs_service)
           .BuildAndStart();
   // we sleep here because otherwise, the launcher was trying to communicate
   // with the tvs before the port was bound
