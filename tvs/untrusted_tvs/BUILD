@@ -54,7 +54,6 @@ cc_library(
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/trusted_tvs:bridge",
-        "//tvs/trusted_tvs:bridge/include",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",

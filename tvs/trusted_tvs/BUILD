@@ -21,12 +21,15 @@ package(
 )
 
 rust_library(
-    name = "tvs-trusted",
-    srcs = ["tvs-trusted.rs"],
+    name = "trusted-tvs",
+    srcs = [
+        "request_handler.rs",
+        "trusted_tvs.rs",
+    ],
+    crate_root = "trusted_tvs.rs",
     deps = [
         ":build",
         "//tvs/appraisal_policies:policy-manager",
-        "@cxx.rs//:cxx",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the
@@ -37,14 +40,15 @@ rust_library(
         "@enclave//crypto",
         "@enclave//handshake",
         "//key_manager:rust-key-fetcher",
+        "@cxx.rs//:cxx",
     ],
 )
 
 rust_test(
-    name = "tvs-trusted_test",
+    name = "trusted-tvs_test",
     size = "small",
     compile_data = ["//tvs/test_data:tvs_test_data"],
-    crate = ":tvs-trusted",
+    crate = ":trusted-tvs",
     deps = [
         "@hats_crate_index//:hex",
     ],
@@ -79,8 +83,8 @@ cargo_build_script(
 
 rust_cxx_bridge(
     name = "bridge",
-    src = "tvs-trusted.rs",
+    src = "trusted_tvs.rs",
     deps = [
-        ":tvs-trusted",
+        ":trusted-tvs",
     ],
 )

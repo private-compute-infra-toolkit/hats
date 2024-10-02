@@ -72,7 +72,7 @@ rust_test(
         ":build-for-test",
         "//key_manager:rust-key-fetcher",
         "//tvs/client:trusted-client-noffi",
-        "//tvs/trusted_tvs:tvs-trusted",
+        "//tvs/trusted_tvs:trusted-tvs",
         "@enclave//crypto",
         "@enclave//handshake",
         "@oak//oak_containers/orchestrator:lib",

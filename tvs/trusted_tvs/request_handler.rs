@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Required for prost
-#![feature(never_type)]
-
 extern crate handshake;
 
 use crate::proto::privacy_sandbox::tvs::{
@@ -28,15 +25,7 @@ use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use policy_manager::PolicyManager;
 use prost::Message;
 
-pub mod proto {
-    pub mod privacy_sandbox {
-        pub mod tvs {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
-        }
-    }
-}
-
-pub struct TrustedTvs {
+pub struct RequestHandler {
     primary_private_key: P256Scalar,
     primary_public_key: [u8; P256_X962_LENGTH],
     secondary_private_key: Option<P256Scalar>,
@@ -51,50 +40,15 @@ pub struct TrustedTvs {
     terminated: bool,
 }
 
-// Export TrustedTvs and it's methods to C++.
-#[cxx::bridge(namespace = "privacy_sandbox::tvs")]
-mod ffi {
-    extern "Rust" {
-        type TrustedTvs;
-
-        #[cxx_name = "NewTrustedTvs"]
-        fn new_trusted_tvs_service(
-            time_milis: i64,
-            primary_private_key: &[u8],
-            policy: &[u8],
-            user: &str,
-            enable_policy_signature: bool,
-            accept_insecure_policies: bool,
-        ) -> Result<Box<TrustedTvs>>;
-
-        #[cxx_name = "NewTrustedTvs"]
-        fn new_trusted_tvs_service_with_second_key(
-            time_milis: i64,
-            primary_private_key: &[u8],
-            secondary_private_key: &[u8],
-            policy: &[u8],
-            user: &str,
-            enable_policy_signature: bool,
-            accept_insecure_policies: bool,
-        ) -> Result<Box<TrustedTvs>>;
-
-        #[cxx_name = "VerifyReport"]
-        fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>>;
-
-        #[cxx_name = "IsTerminated"]
-        fn is_terminated(self: &TrustedTvs) -> bool;
-    }
-}
-
-pub fn new_trusted_tvs_service(
+pub fn new_request_handler(
     time_milis: i64,
     primary_private_key: &[u8],
     policies: &[u8],
     user: &str,
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
-) -> Result<Box<TrustedTvs>, String> {
-    match TrustedTvs::new(
+) -> Result<Box<RequestHandler>, String> {
+    match RequestHandler::new(
         time_milis,
         primary_private_key,
         /*secondary_private_key*/ None,
@@ -103,12 +57,12 @@ pub fn new_trusted_tvs_service(
         enable_policy_signature,
         accept_insecure_policies,
     ) {
-        Ok(trusted_tvs) => Ok(Box::new(trusted_tvs)),
+        Ok(request_handler) => Ok(Box::new(request_handler)),
         Err(error) => Err(error),
     }
 }
 
-pub fn new_trusted_tvs_service_with_second_key(
+pub fn new_request_handler_with_second_key(
     time_milis: i64,
     primary_private_key: &[u8],
     secondary_private_key: &[u8],
@@ -116,8 +70,8 @@ pub fn new_trusted_tvs_service_with_second_key(
     user: &str,
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
-) -> Result<Box<TrustedTvs>, String> {
-    match TrustedTvs::new(
+) -> Result<Box<RequestHandler>, String> {
+    match RequestHandler::new(
         time_milis,
         primary_private_key,
         Some(secondary_private_key),
@@ -126,12 +80,12 @@ pub fn new_trusted_tvs_service_with_second_key(
         enable_policy_signature,
         accept_insecure_policies,
     ) {
-        Ok(trusted_tvs) => Ok(Box::new(trusted_tvs)),
+        Ok(request_handler) => Ok(Box::new(request_handler)),
         Err(error) => Err(error),
     }
 }
 
-impl TrustedTvs {
+impl RequestHandler {
     pub fn new(
         time_milis: i64,
         primary_private_key: &[u8],
@@ -181,7 +135,7 @@ impl TrustedTvs {
         })
     }
 
-    pub fn verify_report(self: &mut TrustedTvs, request: &[u8]) -> Result<Vec<u8>, String> {
+    pub fn verify_report(&mut self, request: &[u8]) -> Result<Vec<u8>, String> {
         if self.is_terminated() {
             return Err("The session is terminated.".to_string());
         }
@@ -354,7 +308,7 @@ impl TrustedTvs {
         self.terminated = true;
     }
 
-    fn is_terminated(&self) -> bool {
+    pub fn is_terminated(&self) -> bool {
         self.terminated
     }
 }
@@ -476,15 +430,13 @@ mod tests {
     ) -> Result<Vec<u8>, String> {
         // Test initial handshake.
         let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::InitSessionRequest(
-                    InitSessionRequest {
-                        client_message: handshake,
-                        tvs_public_key: tvs_public_key.to_vec(),
-                        client_public_key: client_public_key.to_vec(),
-                    },
-                ),
-            ),
+            request: Some(attest_report_request::Request::InitSessionRequest(
+                InitSessionRequest {
+                    client_message: handshake,
+                    tvs_public_key: tvs_public_key.to_vec(),
+                    client_public_key: client_public_key.to_vec(),
+                },
+            )),
         };
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
         message
@@ -520,7 +472,7 @@ mod tests {
     fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -539,7 +491,7 @@ mod tests {
             Some(client_private_key.bytes()),
         );
         // Ask TVS to do its handshake part
-        let handshake_bin = trusted_tvs
+        let handshake_bin = request_handler
             .verify_report(
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
@@ -584,20 +536,20 @@ mod tests {
             .unwrap();
 
         let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
-                    VerifyReportRequestEncrypted {
-                        client_message: encrypted_report,
-                    },
-                ),
-            ),
+            request: Some(attest_report_request::Request::VerifyReportRequest(
+                VerifyReportRequestEncrypted {
+                    client_message: encrypted_report,
+                },
+            )),
         };
 
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
         message.encode(&mut message_bin).unwrap();
 
         // Get the report.
-        let secret_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let secret_bin = request_handler
+            .verify_report(message_bin.as_slice())
+            .unwrap();
         let message_reponse: AttestReportResponse =
             AttestReportResponse::decode(secret_bin.as_slice()).unwrap();
 
@@ -619,7 +571,7 @@ mod tests {
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
         let client_private_key = get_good_client_private_key();
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             Some(&secondary_tvs_private_key.bytes()),
@@ -637,7 +589,7 @@ mod tests {
         );
 
         // Ask TVS to do its handshake part
-        let handshake_bin = trusted_tvs
+        let handshake_bin = request_handler
             .verify_report(
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
@@ -682,20 +634,20 @@ mod tests {
             .unwrap();
 
         let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
-                    VerifyReportRequestEncrypted {
-                        client_message: encrypted_report,
-                    },
-                ),
-            ),
+            request: Some(attest_report_request::Request::VerifyReportRequest(
+                VerifyReportRequestEncrypted {
+                    client_message: encrypted_report,
+                },
+            )),
         };
 
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
         message.encode(&mut message_bin).unwrap();
 
         // Get the report.
-        let secret_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let secret_bin = request_handler
+            .verify_report(message_bin.as_slice())
+            .unwrap();
         let message_reponse: AttestReportResponse =
             AttestReportResponse::decode(secret_bin.as_slice()).unwrap();
 
@@ -717,7 +669,7 @@ mod tests {
     fn verify_report_session_termination_on_successful_session() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -736,7 +688,7 @@ mod tests {
         );
 
         // Ask TVS to do its handshake part
-        let handshake_bin = trusted_tvs
+        let handshake_bin = request_handler
             .verify_report(
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
@@ -781,20 +733,20 @@ mod tests {
             .unwrap();
 
         let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
-                    VerifyReportRequestEncrypted {
-                        client_message: encrypted_report,
-                    },
-                ),
-            ),
+            request: Some(attest_report_request::Request::VerifyReportRequest(
+                VerifyReportRequestEncrypted {
+                    client_message: encrypted_report,
+                },
+            )),
         };
 
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
         message.encode(&mut message_bin).unwrap();
 
         // Get the report.
-        let secret_bin = trusted_tvs.verify_report(message_bin.as_slice()).unwrap();
+        let secret_bin = request_handler
+            .verify_report(message_bin.as_slice())
+            .unwrap();
         let message_reponse: AttestReportResponse =
             AttestReportResponse::decode(secret_bin.as_slice()).unwrap();
 
@@ -809,12 +761,12 @@ mod tests {
         let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
         assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
 
-        match trusted_tvs.verify_report(message_bin.as_slice()) {
+        match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => assert!(e.contains("The session is terminated.")),
         }
 
-        match trusted_tvs.verify_report(
+        match request_handler.verify_report(
             create_attest_report_request(
                 client.build_initial_message().unwrap(),
                 &tvs_public_key,
@@ -832,7 +784,7 @@ mod tests {
     fn verify_report_invalid_report_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -851,7 +803,7 @@ mod tests {
             Some(client_private_key.bytes()),
         );
         // Ask TVS to do its handshake part
-        let handshake_bin = trusted_tvs
+        let handshake_bin = request_handler
             .verify_report(
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
@@ -892,13 +844,11 @@ mod tests {
             .encrypt(verify_report_request_bin.as_slice())
             .unwrap();
         let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
-                    VerifyReportRequestEncrypted {
-                        client_message: encrypted_report,
-                    },
-                ),
-            ),
+            request: Some(attest_report_request::Request::VerifyReportRequest(
+                VerifyReportRequestEncrypted {
+                    client_message: encrypted_report,
+                },
+            )),
         };
 
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
@@ -906,14 +856,14 @@ mod tests {
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
         message.encode(&mut message_bin).unwrap();
 
-        match trusted_tvs.verify_report(message_bin.as_slice()) {
+        match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => {
                 assert!(e.contains("Failed to verify report. No matching appraisal policy found"))
             }
         }
 
-        match trusted_tvs.verify_report(message_bin.as_slice()) {
+        match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => assert!(e.contains("The session is terminated.")),
         }
@@ -923,7 +873,7 @@ mod tests {
     fn verify_report_system_layer_verification_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -941,7 +891,7 @@ mod tests {
             Some(client_private_key.bytes()),
         );
         // Ask TVS to do its handshake part
-        let handshake_bin = trusted_tvs
+        let handshake_bin = request_handler
             .verify_report(
                 create_attest_report_request(
                     client.build_initial_message().unwrap(),
@@ -982,19 +932,17 @@ mod tests {
             .encrypt(verify_report_request_bin.as_slice())
             .unwrap();
         let message = AttestReportRequest {
-            request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
-                    VerifyReportRequestEncrypted {
-                        client_message: encrypted_report,
-                    },
-                ),
-            ),
+            request: Some(attest_report_request::Request::VerifyReportRequest(
+                VerifyReportRequestEncrypted {
+                    client_message: encrypted_report,
+                },
+            )),
         };
 
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
         message.encode(&mut message_bin).unwrap();
 
-        match trusted_tvs.verify_report(message_bin.as_slice()) {
+        match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => {
                 assert!(e.contains("Failed to verify report. No matching appraisal policy found"))
@@ -1007,7 +955,7 @@ mod tests {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -1026,7 +974,7 @@ mod tests {
             Some(client_private_key.bytes()),
         );
 
-        match trusted_tvs.verify_report(
+        match request_handler.verify_report(
             create_attest_report_request(
                 client.build_initial_message().unwrap(),
                 &secondary_tvs_public_key,
@@ -1046,7 +994,7 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         // Test that unregistered client keys are rejected.
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -1065,7 +1013,7 @@ mod tests {
         );
 
         // Ask TVS to do its handshake part
-        match trusted_tvs.verify_report(
+        match request_handler.verify_report(
             create_attest_report_request(
                 client.build_initial_message().unwrap(),
                 &tvs_public_key,
@@ -1083,7 +1031,7 @@ mod tests {
 
         // Test that requests where requests with client public key in the proto doesn't match
         // the one used in the handshake fail.
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -1102,7 +1050,7 @@ mod tests {
         );
 
         // Ask TVS to do its handshake part
-        match trusted_tvs.verify_report(
+        match request_handler.verify_report(
             create_attest_report_request(
                 client.build_initial_message().unwrap(),
                 &tvs_public_key,
@@ -1115,7 +1063,7 @@ mod tests {
             Err(e) => assert_eq!(e, "Invalid handshake."),
         }
         // Test that clients using Nk are rejected.
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -1134,7 +1082,7 @@ mod tests {
         );
 
         // Ask TVS to do its handshake part
-        match trusted_tvs.verify_report(
+        match request_handler.verify_report(
             create_attest_report_request(
                 client.build_initial_message().unwrap(),
                 &tvs_public_key,
@@ -1149,9 +1097,9 @@ mod tests {
     }
 
     #[test]
-    fn trusted_tvs_creation_error() {
+    fn request_handler_creation_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
-        match TrustedTvs::new(
+        match RequestHandler::new(
             NOW_UTC_MILLIS,
             &[1, 2, 3],
             /*secondary_private_key=*/ None,
@@ -1160,7 +1108,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
+            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
             Err(e) => assert_eq!(
                 e,
                 format!(
@@ -1169,7 +1117,7 @@ mod tests {
             ),
         }
 
-        match TrustedTvs::new(
+        match RequestHandler::new(
             NOW_UTC_MILLIS,
             &[b'f'; P256_SCALAR_LENGTH * 3],
             /*secondary_private_key=*/ None,
@@ -1178,7 +1126,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
+            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
             Err(e) => assert_eq!(
                 e,
                 format!(
@@ -1187,7 +1135,7 @@ mod tests {
             ),
         }
 
-        match TrustedTvs::new(
+        match RequestHandler::new(
             NOW_UTC_MILLIS,
             &P256Scalar::generate().bytes(),
             Some(&[1, 3]),
@@ -1196,7 +1144,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
+            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
             Err(e) => assert_eq!(
                 e,
                 format!(
@@ -1205,7 +1153,7 @@ mod tests {
             ),
         }
 
-        match TrustedTvs::new(
+        match RequestHandler::new(
             NOW_UTC_MILLIS,
             &P256Scalar::generate().bytes(),
             /*secondary_private_key=*/ None,
@@ -1214,12 +1162,12 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
+            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
             Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
         }
 
         // Appraisal policies that accept reports from insecure hardware are rejected.
-        match TrustedTvs::new(
+        match RequestHandler::new(
             NOW_UTC_MILLIS,
             &P256Scalar::generate().bytes(),
             /*secondary_private_key=*/ None,
@@ -1228,7 +1176,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "TrustedTvs::new() should fail."),
+            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
             Err(e) => assert_eq!(e, "Cannot accept insecure policies"),
         }
     }
@@ -1237,7 +1185,7 @@ mod tests {
     fn handshake_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -1251,7 +1199,7 @@ mod tests {
         let tvs_public_key = tvs_private_key.compute_public_key();
         let client_private_key = get_good_client_private_key();
         // Test invalid initiator handshake error.
-        match trusted_tvs.do_init_session(
+        match request_handler.do_init_session(
             b"ab",
             &tvs_public_key,
             &client_private_key.compute_public_key(),
@@ -1260,7 +1208,7 @@ mod tests {
             Err(e) => assert_eq!(e, "Invalid handshake.".to_string()),
         }
 
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -1277,7 +1225,7 @@ mod tests {
         )
         .build_initial_message()
         .unwrap();
-        assert!(trusted_tvs
+        assert!(request_handler
             .do_init_session(
                 client_handshake.as_slice(),
                 &tvs_public_key,
@@ -1285,7 +1233,7 @@ mod tests {
             )
             .is_ok());
         // Test duplicate initiator handshake error.
-        match trusted_tvs.do_init_session(
+        match request_handler.do_init_session(
             client_handshake.as_slice(),
             &tvs_public_key,
             &client_private_key.compute_public_key(),
@@ -1299,7 +1247,7 @@ mod tests {
     fn verify_report_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs = TrustedTvs::new(
+        let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -1309,7 +1257,7 @@ mod tests {
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
-        match trusted_tvs.do_verify_report(b"aaa") {
+        match request_handler.do_verify_report(b"aaa") {
             Ok(_) => assert!(false, "do_verify_command() should fail."),
             Err(e) => assert_eq!(
                 e,

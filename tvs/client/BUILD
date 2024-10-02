@@ -65,7 +65,7 @@ rust_test(
     crate_features = ["noffi"],
     deps = [
         "//key_manager:rust-key-fetcher",
-        "//tvs/trusted_tvs:tvs-trusted",
+        "//tvs/trusted_tvs:trusted-tvs",
     ],
 )
 

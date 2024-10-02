@@ -272,7 +272,7 @@ mod tests {
     use tokio_stream::wrappers::TcpListenerStream;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::Response;
-    use tvs_trusted::proto::privacy_sandbox::tvs::{
+    use trusted_tvs::proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
         Signature as PolicySignature, Stage0Measurement, VerifyReportResponse,
     };
@@ -302,7 +302,7 @@ mod tests {
             request: tonic::Request<tonic::Streaming<ForwardingTvsMessage>>,
         ) -> Result<tonic::Response<Self::VerifyReportStream>, tonic::Status> {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
-            let Ok(mut trusted_tvs) = tvs_trusted::TrustedTvs::new(
+            let Ok(mut trusted_tvs) = trusted_tvs::request_handler::RequestHandler::new(
                 NOW_UTC_MILLIS,
                 &self.tvs_private_key,
                 /*secondary_private_key=*/ None,

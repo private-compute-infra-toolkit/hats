@@ -217,7 +217,7 @@ mod tests {
     use super::*;
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
-    use tvs_trusted::proto::privacy_sandbox::tvs::{
+    use trusted_tvs::proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
         Signature as PolicySignature, Stage0Measurement, VerifyReportResponse,
     };
@@ -295,7 +295,7 @@ mod tests {
     fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs_service = tvs_trusted::TrustedTvs::new(
+        let mut trusted_tvs_service = trusted_tvs::request_handler::RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
@@ -386,7 +386,7 @@ mod tests {
             ),
         }
 
-        let mut trusted_tvs_service = tvs_trusted::TrustedTvs::new(
+        let mut trusted_tvs_service = trusted_tvs::request_handler::RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,

@@ -32,7 +32,7 @@
 #include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/trusted_tvs/tvs-trusted.rs.h"
+#include "tvs/trusted_tvs/trusted_tvs.rs.h"
 
 namespace privacy_sandbox::tvs {
 
@@ -47,18 +47,18 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
   return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
 }
 
-absl::StatusOr<rust::Box<TrustedTvs>> CreateTrustedTvsService(
+absl::StatusOr<rust::Box<RequestHandler>> CreateRequestHandlerService(
     const std::string& primary_private_key,
     const std::string& secondary_private_key,
     const AppraisalPolicies& appraisal_policies, bool enable_policy_signature,
     bool accept_insecure_policies) {
   if (secondary_private_key.empty()) {
-    return NewTrustedTvs(
+    return NewRequestHandler(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
         /*user=*/"default", enable_policy_signature, accept_insecure_policies);
   } else {
-    return NewTrustedTvs(
+    return NewRequestHandler(
         absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
         StringToRustSlice(secondary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
@@ -91,9 +91,10 @@ TvsService::TvsService(const std::string& primary_private_key,
 grpc::Status TvsService::VerifyReport(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) {
-  absl::StatusOr<rust::Box<TrustedTvs>> trusted_tvs = CreateTrustedTvsService(
-      primary_private_key_, secondary_private_key_, appraisal_policies_,
-      enable_policy_signature_, accept_insecure_policies_);
+  absl::StatusOr<rust::Box<RequestHandler>> trusted_tvs =
+      CreateRequestHandlerService(primary_private_key_, secondary_private_key_,
+                                  appraisal_policies_, enable_policy_signature_,
+                                  accept_insecure_policies_);
   if (!trusted_tvs.ok()) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         absl::StrCat("Cannot create trusted TVS server. ",
