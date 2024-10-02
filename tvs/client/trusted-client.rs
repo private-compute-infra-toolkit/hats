@@ -295,16 +295,16 @@ mod tests {
     fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut trusted_tvs_service = trusted_tvs::request_handler::RequestHandler::new(
-            NOW_UTC_MILLIS,
+        let tvs_service = trusted_tvs::service::Service::new(
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
             default_appraisal_policies().as_slice(),
-            "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
+        let mut tvs_request_handler =
+            tvs_service.create_request_handler(NOW_UTC_MILLIS, /*user=*/ "test_user1");
 
         let client_private_key = get_good_client_private_key();
         let mut tvs_client = TvsClient::new(
@@ -314,7 +314,7 @@ mod tests {
         .unwrap();
         let initial_message = tvs_client.build_initial_message().unwrap();
 
-        let handshake_response = trusted_tvs_service
+        let handshake_response = tvs_request_handler
             .verify_report(initial_message.as_slice())
             .unwrap();
         tvs_client
@@ -328,7 +328,7 @@ mod tests {
                 "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
             )
             .unwrap();
-        let secret = trusted_tvs_service
+        let secret = tvs_request_handler
             .verify_report(report.as_slice())
             .unwrap();
 
@@ -386,21 +386,22 @@ mod tests {
             ),
         }
 
-        let mut trusted_tvs_service = trusted_tvs::request_handler::RequestHandler::new(
-            NOW_UTC_MILLIS,
+        let tvs_service = trusted_tvs::service::Service::new(
             &tvs_private_key.bytes(),
             /*secondary_private_key=*/ None,
             default_appraisal_policies().as_slice(),
-            "test_user2",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
+        let mut tvs_request_handler =
+            tvs_service.create_request_handler(NOW_UTC_MILLIS, /*user=*/ "test_user2");
+
         // Perform handshake now so we get to the next error.
         let initial_message = tvs_client.build_initial_message().unwrap();
 
-        let handshake_response = trusted_tvs_service
+        let handshake_response = tvs_request_handler
             .verify_report(initial_message.as_slice())
             .unwrap();
         tvs_client

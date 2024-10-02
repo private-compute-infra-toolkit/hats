@@ -149,6 +149,7 @@ impl TvsGrpcClient {
         )
         .await
     }
+
     async fn send_evidence_internal(
         &self,
         evidence: Evidence,
@@ -302,23 +303,24 @@ mod tests {
             request: tonic::Request<tonic::Streaming<ForwardingTvsMessage>>,
         ) -> Result<tonic::Response<Self::VerifyReportStream>, tonic::Status> {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
-            let Ok(mut trusted_tvs) = trusted_tvs::request_handler::RequestHandler::new(
-                NOW_UTC_MILLIS,
+            let Ok(tvs_service) = trusted_tvs::service::Service::new(
                 &self.tvs_private_key,
                 /*secondary_private_key=*/ None,
                 default_appraisal_policies().as_slice(),
-                "test_user",
                 /*enable_policy_signature=*/ true,
                 /*accept_insecure_policies=*/ false,
             ) else {
                 return Err(tonic::Status::internal("Error creating TVS Server"));
             };
+
             let mut stream = request.into_inner();
             let _ = tokio::spawn(async move {
+                let mut tvs_request_handler =
+                    tvs_service.create_request_handler(NOW_UTC_MILLIS, "test_user");
                 while let Some(message) = stream.next().await {
                     match message {
                         Ok(message) => {
-                            let Ok(report) = trusted_tvs.verify_report(
+                            let Ok(report) = tvs_request_handler.verify_report(
                                 message.opaque_message.unwrap().binary_message.as_slice(),
                             ) else {
                                 let _ =

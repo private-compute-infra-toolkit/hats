@@ -15,6 +15,7 @@
 #ifndef HATS_TVS_UNTRUSTED_TVS_SERVICE_
 #define HATS_TVS_UNTRUSTED_TVS_SERVICE_
 
+#include <memory>
 #include <string>
 
 #include "grpcpp/server_context.h"
@@ -23,6 +24,7 @@
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
+#include "tvs/trusted_tvs/trusted_tvs.rs.h"
 
 namespace privacy_sandbox::tvs {
 
@@ -38,43 +40,26 @@ namespace privacy_sandbox::tvs {
 // 4. Server verifies the report and returns a secret.
 class TvsService final : public TeeVerificationService::Service {
  public:
-  // Pass appraisal_policy by value as we expect the caller to use std::move().
-  explicit TvsService(const std::string& primary_private_key,
-                      AppraisalPolicies appraisal_policies,
-                      bool enable_policy_signature,
-                      bool accept_insecure_policies);
-  explicit TvsService(const std::string& primary_private_key,
-                      const std::string& secondary_private_key,
-                      AppraisalPolicies appraisal_policies,
-                      bool enable_policy_signature,
-                      bool accept_insecure_policies);
+  struct Options {
+    std::string primary_private_key;
+    std::string secondary_private_key;
+    AppraisalPolicies appraisal_policies;
+    bool enable_policy_signature = true;
+    bool accept_insecure_policies = false;
+  };
 
+  explicit TvsService(rust::Box<trusted::Service> trusted_service);
   TvsService() = delete;
+  static absl::StatusOr<std::unique_ptr<TvsService>> Create(
+      const Options& options);
 
   grpc::Status VerifyReport(
       grpc::ServerContext* context,
       grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) override;
 
  private:
-  const std::string primary_private_key_;
-  const std::string secondary_private_key_;
-  const AppraisalPolicies appraisal_policies_;
-  const bool enable_policy_signature_;
-  const bool accept_insecure_policies_ = false;
+  rust::Box<trusted::Service> trusted_service_;
 };
-
-struct TvsServerOptions {
-  int port;
-  std::string primary_private_key;
-  std::string secondary_private_key;
-  AppraisalPolicies appraisal_policies;
-  bool enable_policy_signature;
-  bool accept_insecure_policies = false;
-};
-
-// Starts a server and blocks forever.
-// Pass by value as we expect the caller to use std::move() or use temporaries.
-void CreateAndStartTvsServer(TvsServerOptions options);
 
 }  // namespace privacy_sandbox::tvs
 

@@ -29,13 +29,11 @@ use policy_signature::proto::privacy_sandbox::tvs::{
 use prost::Message;
 
 pub struct PolicyManager {
-    time_milis: i64,
     reference_values: Vec<ReferenceValues>,
 }
 
 impl PolicyManager {
     pub fn new(
-        time_milis: i64,
         policies: &[u8],
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
@@ -58,21 +56,19 @@ impl PolicyManager {
                 accept_insecure_policies,
             )
         }?;
-        Ok(Self {
-            time_milis,
-            reference_values,
-        })
+        Ok(Self { reference_values })
     }
     // Check evidence against the appraisal policies.
     pub fn check_evidence(
         &self,
+        time_milis: i64,
         evidence: &Evidence,
         tee_certificate: &[u8],
     ) -> Result<(), String> {
         let endorsement = create_endorsements(tee_certificate);
         for policy in &self.reference_values {
             match oak_attestation_verification::verifier::verify(
-                self.time_milis,
+                time_milis,
                 &evidence,
                 &endorsement,
                 &policy,
@@ -388,27 +384,26 @@ mod tests {
     #[test]
     fn check_evidence_successful() {
         let policy_manager = PolicyManager::new(
-            NOW_UTC_MILLIS,
             &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
         assert!(policy_manager
-            .check_evidence(&get_good_evidence(), &get_genoa_vcek())
+            .check_evidence(NOW_UTC_MILLIS, &get_good_evidence(), &get_genoa_vcek())
             .is_ok());
     }
 
     #[test]
     fn check_evidence_error() {
         let policy_manager = PolicyManager::new(
-            NOW_UTC_MILLIS,
             &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
-        match policy_manager.check_evidence(&get_bad_evidence(), &get_genoa_vcek()) {
+        match policy_manager.check_evidence(NOW_UTC_MILLIS, &get_bad_evidence(), &get_genoa_vcek())
+        {
             Ok(_) => assert!(false, "check_evidence() should fail."),
             Err(e) => assert_eq!(
                 e,
@@ -420,7 +415,6 @@ mod tests {
     #[test]
     fn policy_manager_creation_error() {
         match PolicyManager::new(
-            NOW_UTC_MILLIS,
             /*policies=*/ &[1, 2, 3],
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -430,7 +424,6 @@ mod tests {
         }
 
         match PolicyManager::new(
-            NOW_UTC_MILLIS,
             &insecure_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,

@@ -25,6 +25,9 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "grpcpp/security/server_credentials.h"
+#include "grpcpp/server.h"
+#include "grpcpp/server_builder.h"
 #include "key_manager/key-fetcher.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
@@ -106,10 +109,9 @@ int main(int argc, char* argv[]) {
     LOG(WARNING) << "The server is accepting insecure policies. This should be "
                     "enabled for testing only.";
   }
-  LOG(INFO) << "Starting TVS server on port " << port;
-  privacy_sandbox::tvs::CreateAndStartTvsServer(
-      privacy_sandbox::tvs::TvsServerOptions{
-          .port = *std::move(port),
+
+  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsService>>
+      tvs_service = privacy_sandbox::tvs::TvsService::Create({
           .primary_private_key = *std::move(primary_private_key),
           .secondary_private_key = secondary_private_key.ok()
                                        ? *std::move(secondary_private_key)
@@ -120,5 +122,21 @@ int main(int argc, char* argv[]) {
           .accept_insecure_policies =
               absl::GetFlag(FLAGS_accept_insecure_policies),
       });
+
+  if (!tvs_service.ok()) {
+    LOG(ERROR) << "Failed to create TVS server: " << tvs_service;
+    return 1;
+  }
+
+  LOG(INFO) << "Starting TVS server on port " << port;
+  const std::string server_address = absl::StrCat("0.0.0.0:", *port);
+  std::unique_ptr<grpc::Server> server =
+      grpc::ServerBuilder()
+          .AddListeningPort(server_address, grpc::InsecureServerCredentials())
+          .RegisterService(tvs_service->get())
+          .BuildAndStart();
+  LOG(INFO) << "Server listening on " << server_address;
+  server->Wait();
+
   return 0;
 }

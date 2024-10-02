@@ -24,9 +24,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "grpcpp/security/server_credentials.h"
-#include "grpcpp/server.h"
-#include "grpcpp/server_builder.h"
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
@@ -47,64 +44,54 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
   return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
 }
 
-absl::StatusOr<rust::Box<RequestHandler>> CreateRequestHandlerService(
+absl::StatusOr<rust::Box<trusted::Service>> CreateTrustedService(
     const std::string& primary_private_key,
     const std::string& secondary_private_key,
     const AppraisalPolicies& appraisal_policies, bool enable_policy_signature,
     bool accept_insecure_policies) {
   if (secondary_private_key.empty()) {
-    return NewRequestHandler(
-        absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
+    return trusted::NewService(
+        StringToRustSlice(primary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
-        /*user=*/"default", enable_policy_signature, accept_insecure_policies);
+        enable_policy_signature, accept_insecure_policies);
   } else {
-    return NewRequestHandler(
-        absl::ToUnixMillis(absl::Now()), StringToRustSlice(primary_private_key),
+    return trusted::NewService(
+        StringToRustSlice(primary_private_key),
         StringToRustSlice(secondary_private_key),
         StringToRustSlice(appraisal_policies.SerializeAsString()),
-        /*user=*/"default", enable_policy_signature, accept_insecure_policies);
+        enable_policy_signature, accept_insecure_policies);
   }
 }
 
 }  // namespace
 
-TvsService::TvsService(const std::string& primary_private_key,
-                       AppraisalPolicies appraisal_policies,
-                       bool enable_policy_signature,
-                       bool accept_insecure_policies)
-    : primary_private_key_(primary_private_key),
-      appraisal_policies_(std::move(appraisal_policies)),
-      enable_policy_signature_(enable_policy_signature),
-      accept_insecure_policies_(accept_insecure_policies) {}
+TvsService::TvsService(rust::Box<trusted::Service> trusted_service)
+    : trusted_service_(std::move(trusted_service)) {}
 
-TvsService::TvsService(const std::string& primary_private_key,
-                       const std::string& secondary_private_key,
-                       AppraisalPolicies appraisal_policies,
-                       bool enable_policy_signature,
-                       bool accept_insecure_policies)
-    : primary_private_key_(primary_private_key),
-      secondary_private_key_(secondary_private_key),
-      appraisal_policies_(std::move(appraisal_policies)),
-      enable_policy_signature_(enable_policy_signature),
-      accept_insecure_policies_(accept_insecure_policies) {}
+absl::StatusOr<std::unique_ptr<TvsService>> TvsService::Create(
+    const Options& options) {
+  absl::StatusOr<rust::Box<trusted::Service>> trusted_service =
+      CreateTrustedService(
+          options.primary_private_key, options.secondary_private_key,
+          options.appraisal_policies, options.enable_policy_signature,
+          options.accept_insecure_policies);
+  if (!trusted_service.ok()) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "Cannot create trusted TVS server: ", trusted_service.status()));
+  }
+  return std::make_unique<TvsService>(*std::move(trusted_service));
+}
 
 grpc::Status TvsService::VerifyReport(
     grpc::ServerContext* context,
     grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) {
-  absl::StatusOr<rust::Box<RequestHandler>> trusted_tvs =
-      CreateRequestHandlerService(primary_private_key_, secondary_private_key_,
-                                  appraisal_policies_, enable_policy_signature_,
-                                  accept_insecure_policies_);
-  if (!trusted_tvs.ok()) {
-    return grpc::Status(grpc::StatusCode::INTERNAL,
-                        absl::StrCat("Cannot create trusted TVS server. ",
-                                     trusted_tvs.status().ToString()));
-  }
+  rust::Box<trusted::RequestHandler> request_handler =
+      trusted_service_->CreateRequestHandler(absl::ToUnixMillis(absl::Now()),
+                                             /*user=*/"default");
   OpaqueMessage request;
-  while (stream->Read(&request) && !(*trusted_tvs)->IsTerminated()) {
-    absl::StatusOr<rust::Vec<uint8_t>> result =
-        (*trusted_tvs)
-            ->VerifyReport(StringToRustSlice(request.binary_message()));
+  while (stream->Read(&request) && !request_handler->IsTerminated()) {
+    absl::StatusOr<rust::Vec<uint8_t>> result = request_handler->VerifyReport(
+        StringToRustSlice(request.binary_message()));
     if (!result.ok()) {
       return grpc::Status(
           grpc::StatusCode::INVALID_ARGUMENT,
@@ -119,21 +106,6 @@ grpc::Status TvsService::VerifyReport(
     }
   }
   return grpc::Status::OK;
-}
-
-void CreateAndStartTvsServer(TvsServerOptions options) {
-  const std::string server_address = absl::StrCat("0.0.0.0:", options.port);
-  TvsService tvs_service(
-      options.primary_private_key, options.secondary_private_key,
-      std::move(options.appraisal_policies), options.enable_policy_signature,
-      options.accept_insecure_policies);
-  std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder()
-          .AddListeningPort(server_address, grpc::InsecureServerCredentials())
-          .RegisterService(&tvs_service)
-          .BuildAndStart();
-  LOG(INFO) << "Server listening on " << server_address;
-  server->Wait();
 }
 
 }  // namespace privacy_sandbox::tvs

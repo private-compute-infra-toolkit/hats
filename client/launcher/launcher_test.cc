@@ -40,7 +40,6 @@
 #include "gtest/gtest.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/proto/appraisal_policies.pb.h"
-#include "tvs/untrusted_tvs/tvs-service.h"
 
 namespace privacy_sandbox::client {
 namespace {
@@ -89,20 +88,11 @@ TEST(HatsLauncher, Successful) {
       GetRunfilePath("system_bundle.tar");
   ASSERT_THAT(system_bundle, IsOk());
   (*config).mutable_cvm_config()->set_hats_system_bundle(*system_bundle);
-  // Empty TVS server that's just for providing an inprocess channel.
-  privacy_sandbox::tvs::TvsService tvs_service(
-      "", {}, /*enable_policy_signature=*/true,
-      /*accept_insecure_policies=*/false);
-  std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
-  std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  channel_map[0] = server->InProcessChannel(grpc::ChannelArguments());
   absl::StatusOr<std::unique_ptr<HatsLauncher>> launcher =
       privacy_sandbox::client::HatsLauncher::Create({
           .config = *std::move(config),
           .tvs_authentication_key_bytes = "test",
-          .tvs_channels = std::move(channel_map),
       });
   ASSERT_THAT(launcher, IsOk());
   // Bind to no port so that it works in hermetic test.
@@ -161,20 +151,10 @@ TEST(HatsLauncherTest, Unsuccessful) {
       GetRunfilePath("missing_bundle.tar");
   ASSERT_THAT(system_bundle, IsOk());
   (*config).mutable_cvm_config()->set_hats_system_bundle(*system_bundle);
-  // Empty TVS service that's just for providing an inprocess channel.
-  privacy_sandbox::tvs::TvsService tvs_service(
-      /*primary_private_key=*/"",
-      /*appraisal_policy=*/{}, /*enable_policy_signature=*/true,
-      /*accept_insecure_policies=*/false);
-  std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
-  std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  channel_map[0] = server->InProcessChannel(grpc::ChannelArguments());
   EXPECT_THAT(privacy_sandbox::client::HatsLauncher::Create({
                   .config = *std::move(config),
                   .tvs_authentication_key_bytes = "test",
-                  .tvs_channels = std::move(channel_map),
               }),
               StatusIs(absl::StatusCode::kInternal));
 }

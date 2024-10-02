@@ -24,6 +24,7 @@ rust_library(
     name = "trusted-tvs",
     srcs = [
         "request_handler.rs",
+        "service.rs",
         "trusted_tvs.rs",
     ],
     crate_root = "trusted_tvs.rs",

@@ -111,7 +111,6 @@ cc_test(
         ":launcher",
         "//client/proto:launcher_cc_grpc",
         "//tvs/proto:appraisal_policies_cc_proto",
-        "//tvs/untrusted_tvs:tvs-service",
         "@bazel_tools//tools/cpp/runfiles",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",

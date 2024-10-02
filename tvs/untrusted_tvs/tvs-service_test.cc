@@ -146,11 +146,16 @@ TEST(TvsService, Successful) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
-                         /*enable_policy_signature=*/true,
-                         /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<TvsService>> tvs_service = TvsService::Create({
+      .primary_private_key = *std::move(tvs_private_key),
+      .appraisal_policies = *std::move(appraisal_policies),
+      .enable_policy_signature = true,
+      .accept_insecure_policies = false,
+  });
+  ASSERT_TRUE(tvs_service.ok());
+
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
 
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
@@ -189,12 +194,16 @@ TEST(TvsService, BadReportError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
-                         /*enable_policy_signature=*/true,
-                         /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<TvsService>> tvs_service = TvsService::Create({
+      .primary_private_key = *std::move(tvs_private_key),
+      .appraisal_policies = *std::move(appraisal_policies),
+      .enable_policy_signature = true,
+      .accept_insecure_policies = false,
+  });
+  ASSERT_TRUE(tvs_service.ok());
 
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
 
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
@@ -228,12 +237,16 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
-                         /*enable_policy_signature=*/true,
-                         /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<TvsService>> tvs_service = TvsService::Create({
+      .primary_private_key = *std::move(tvs_private_key),
+      .appraisal_policies = *std::move(appraisal_policies),
+      .enable_policy_signature = true,
+      .accept_insecure_policies = false,
+  });
+  ASSERT_TRUE(tvs_service.ok());
 
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
 
   absl::StatusOr<std::unique_ptr<TvsUntrustedClient>> tvs_client =
       TvsUntrustedClient::CreateClient({
@@ -280,11 +293,16 @@ TEST(TvsService, MalformedMessageError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
-                         /*enable_policy_signature=*/true,
-                         /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<TvsService>> tvs_service = TvsService::Create({
+      .primary_private_key = *std::move(tvs_private_key),
+      .appraisal_policies = *std::move(appraisal_policies),
+      .enable_policy_signature = true,
+      .accept_insecure_policies = false,
+  });
+  ASSERT_TRUE(tvs_service.ok());
+
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
   std::unique_ptr<TeeVerificationService::Stub> stub =
       TeeVerificationService::NewStub(
           server->InProcessChannel(grpc::ChannelArguments()));
@@ -305,20 +323,16 @@ TEST(TvsService, CreatingTrustedTvsServiceError) {
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetTestAppraisalPolicies();
   ASSERT_TRUE(appraisal_policies.ok());
-  TvsService tvs_service("0000", *std::move(appraisal_policies),
-                         /*enable_policy_signature=*/true,
-                         /*accept_insecure_policies=*/false);
-  std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
 
   EXPECT_THAT(
-      TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kTvsPublicKey),
-          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
-          .channel = server->InProcessChannel(grpc::ChannelArguments()),
+      TvsService::Create({
+          .primary_private_key = "0000",
+          .appraisal_policies = *std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
       }),
       StatusIs(
-          absl::StatusCode::kUnknown,
+          absl::StatusCode::kFailedPrecondition,
           AllOf(HasSubstr("Cannot create trusted TVS server"),
                 HasSubstr("Invalid primary private key. Key should be 32 bytes "
                           "long."))));
@@ -333,11 +347,16 @@ TEST(TvsService, AuthenticationError) {
       HexStringToBytes(kTvsPrivateKey);
   ASSERT_TRUE(tvs_private_key.ok());
 
-  TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
-                         /*enable_policy_signature=*/true,
-                         /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<TvsService>> tvs_service = TvsService::Create({
+      .primary_private_key = *std::move(tvs_private_key),
+      .appraisal_policies = *std::move(appraisal_policies),
+      .enable_policy_signature = true,
+      .accept_insecure_policies = false,
+  });
+  ASSERT_TRUE(tvs_service.ok());
+
   std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
 
   constexpr absl::string_view kBadAuthenticationKey =
       "4583ed91df564f17c0726f7fa4d7e00ec2da067ad3c92448794c5982f6150ba7";
@@ -380,26 +399,23 @@ absl::StatusOr<AppraisalPolicies> GetInsecureAppraisalPolicies() {
 // Passing insecure policies in a secure mode.
 TEST(TvsService, InsecurePoliciesError) {
   key_manager::RegisterEchoKeyFetcherForTest();
+  absl::StatusOr<std::string> tvs_private_key =
+      HexStringToBytes(kTvsPrivateKey);
+  ASSERT_TRUE(tvs_private_key.ok());
+
   absl::StatusOr<AppraisalPolicies> appraisal_policies =
       GetInsecureAppraisalPolicies();
   ASSERT_TRUE(appraisal_policies.ok());
-  TvsService tvs_service("0000", *std::move(appraisal_policies),
-                         /*enable_policy_signature=*/true,
-                         /*accept_insecure_policies=*/false);
-  std::unique_ptr<grpc::Server> server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
-
-  EXPECT_THAT(
-      TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kTvsPublicKey),
-          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
-          .channel = server->InProcessChannel(grpc::ChannelArguments()),
-      }),
-      StatusIs(
-          absl::StatusCode::kUnknown,
-          AllOf(HasSubstr("Cannot create trusted TVS server"),
-                HasSubstr("Invalid primary private key. Key should be 32 bytes "
-                          "long."))));
+  EXPECT_THAT(TvsService::Create({
+                  .primary_private_key = *std::move(tvs_private_key),
+                  .appraisal_policies = *std::move(appraisal_policies),
+                  .enable_policy_signature = true,
+                  .accept_insecure_policies = false,
+              }),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       AllOf(HasSubstr("Cannot create trusted TVS server"),
+                             HasSubstr("Cannot accept insecure policies"))));
 }
+
 }  // namespace
 }  // namespace privacy_sandbox::tvs

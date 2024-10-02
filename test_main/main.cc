@@ -126,16 +126,29 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsService>>
+      tvs_service = privacy_sandbox::tvs::TvsService::Create({
+          .primary_private_key = *std::move(primary_private_key),
+          .appraisal_policies = *std::move(appraisal_policies),
+          .enable_policy_signature =
+              absl::GetFlag(FLAGS_enable_policy_signature),
+          .accept_insecure_policies = false,
+      });
+
+  if (!tvs_service.ok()) {
+    LOG(ERROR) << "Failed to create TVS server: " << tvs_service;
+    return 1;
+  }
+
   LOG(INFO) << "Starting TVS server on port " << tvs_listening_port;
-  privacy_sandbox::tvs::TvsService tvs_service(
-      *std::move(primary_private_key), *std::move(appraisal_policies),
-      absl::GetFlag(FLAGS_enable_policy_signature), false);
+
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder()
           .AddListeningPort(absl::StrCat("0.0.0.0:", tvs_listening_port),
                             grpc::InsecureServerCredentials())
-          .RegisterService(&tvs_service)
+          .RegisterService(tvs_service->get())
           .BuildAndStart();
+
   // we sleep here because otherwise, the launcher was trying to communicate
   // with the tvs before the port was bound
   std::this_thread::sleep_for(std::chrono::seconds(5));

@@ -390,12 +390,17 @@ TEST(LauncherServer, Successful) {
   ASSERT_TRUE(tvs_private_key.ok());
 
   // Real TVS server.
-  tvs::TvsService tvs_service(*tvs_private_key, *std::move(appraisal_policies),
-                              /*enable_policy_signature=*/true,
-                              /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service =
+      tvs::TvsService::Create({
+          .primary_private_key = *std::move(tvs_private_key),
+          .appraisal_policies = *std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      });
+  ASSERT_TRUE(tvs_service.ok());
 
   std::unique_ptr<grpc::Server> tvs_server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
 
   // A key to be returned by the launcher service by `FetchOrchestratorMetadata`
   // rpc. We are not using this key in the test.
@@ -445,28 +450,49 @@ TEST(LauncherServer, SplitSuccessful) {
   ASSERT_TRUE(tvs_private_key3.ok());
 
   // TVS Service 1.
-  tvs::TvsService tvs_service1(*tvs_private_key1, *appraisal_policies,
-                               /*enable_policy_signature=*/true,
-                               /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service1 =
+      tvs::TvsService::Create({
+          .primary_private_key = *std::move(tvs_private_key1),
+          .appraisal_policies = *appraisal_policies,
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      });
+  ASSERT_TRUE(tvs_service1.ok());
 
   // TVS Service 2
-  tvs::TvsService tvs_service2(*tvs_private_key2, *appraisal_policies,
-                               /*enable_policy_signature=*/true,
-                               /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service2 =
+      tvs::TvsService::Create({
+          .primary_private_key = *std::move(tvs_private_key2),
+          .appraisal_policies = *appraisal_policies,
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      });
+  ASSERT_TRUE(tvs_service2.ok());
 
   // TVS Service 3
-  tvs::TvsService tvs_service3(*tvs_private_key3, *appraisal_policies,
-                               /*enable_policy_signature=*/true,
-                               /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service3 =
+      tvs::TvsService::Create({
+          .primary_private_key = *std::move(tvs_private_key3),
+          .appraisal_policies = *appraisal_policies,
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      });
+  ASSERT_TRUE(tvs_service3.ok());
 
   std::unique_ptr<grpc::Server> tvs_server1 =
-      grpc::ServerBuilder().RegisterService(&tvs_service1).BuildAndStart();
+      grpc::ServerBuilder()
+          .RegisterService(tvs_service1->get())
+          .BuildAndStart();
 
   std::unique_ptr<grpc::Server> tvs_server2 =
-      grpc::ServerBuilder().RegisterService(&tvs_service2).BuildAndStart();
+      grpc::ServerBuilder()
+          .RegisterService(tvs_service2->get())
+          .BuildAndStart();
 
   std::unique_ptr<grpc::Server> tvs_server3 =
-      grpc::ServerBuilder().RegisterService(&tvs_service3).BuildAndStart();
+      grpc::ServerBuilder()
+          .RegisterService(tvs_service3->get())
+          .BuildAndStart();
 
   // A key to be returned by the launcher service by `FetchOrchestratorMetadata`
   // rpc. We are not using this key in the test.
@@ -530,11 +556,17 @@ TEST(LauncherServer, BadReportError) {
       HexStringToBytes(kTvsPrivateKey1);
   ASSERT_TRUE(tvs_private_key.ok());
   // Real TVS server.
-  tvs::TvsService tvs_service(
-      *tvs_private_key, /*secret=*/"", *std::move(appraisal_policies),
-      /*enable_policy_signature=*/true, /*accept_insecure_policies=*/false);
+  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service =
+      tvs::TvsService::Create({
+          .primary_private_key = *std::move(tvs_private_key),
+          .appraisal_policies = *std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      });
+  ASSERT_TRUE(tvs_service.ok());
+
   std::unique_ptr<grpc::Server> tvs_server =
-      grpc::ServerBuilder().RegisterService(&tvs_service).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
 
   // A key to be returned by the launcher service by `FetchOrchestratorMetadata`
   // rpc. We are not using this key in the test.

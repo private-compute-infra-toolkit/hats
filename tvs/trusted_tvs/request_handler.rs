@@ -12,27 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate handshake;
-
 use crate::proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
-use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
+use crypto::{P256Scalar, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use policy_manager::PolicyManager;
 use prost::Message;
 
-pub struct RequestHandler {
-    primary_private_key: P256Scalar,
-    primary_public_key: [u8; P256_X962_LENGTH],
-    secondary_private_key: Option<P256Scalar>,
-    secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
+pub struct RequestHandler<'a> {
+    time_milis: i64,
+    primary_private_key: &'a P256Scalar,
+    primary_public_key: &'a [u8; P256_X962_LENGTH],
+    secondary_private_key: Option<&'a P256Scalar>,
+    secondary_public_key: Option<&'a [u8; P256_X962_LENGTH]>,
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
-    policy_manager: PolicyManager,
+    policy_manager: &'a PolicyManager,
     // Authenticated user if any.
     #[allow(dead_code)]
     user: String,
@@ -40,91 +39,21 @@ pub struct RequestHandler {
     terminated: bool,
 }
 
-pub fn new_request_handler(
-    time_milis: i64,
-    primary_private_key: &[u8],
-    policies: &[u8],
-    user: &str,
-    enable_policy_signature: bool,
-    accept_insecure_policies: bool,
-) -> Result<Box<RequestHandler>, String> {
-    match RequestHandler::new(
-        time_milis,
-        primary_private_key,
-        /*secondary_private_key*/ None,
-        policies,
-        user,
-        enable_policy_signature,
-        accept_insecure_policies,
-    ) {
-        Ok(request_handler) => Ok(Box::new(request_handler)),
-        Err(error) => Err(error),
-    }
-}
-
-pub fn new_request_handler_with_second_key(
-    time_milis: i64,
-    primary_private_key: &[u8],
-    secondary_private_key: &[u8],
-    policies: &[u8],
-    user: &str,
-    enable_policy_signature: bool,
-    accept_insecure_policies: bool,
-) -> Result<Box<RequestHandler>, String> {
-    match RequestHandler::new(
-        time_milis,
-        primary_private_key,
-        Some(secondary_private_key),
-        policies,
-        user,
-        enable_policy_signature,
-        accept_insecure_policies,
-    ) {
-        Ok(request_handler) => Ok(Box::new(request_handler)),
-        Err(error) => Err(error),
-    }
-}
-
-impl RequestHandler {
-    pub fn new(
+impl<'a> RequestHandler<'a> {
+    pub(crate) fn new(
         time_milis: i64,
-        primary_private_key: &[u8],
-        secondary_private_key: Option<&[u8]>,
-        policies: &[u8],
+        primary_private_key: &'a P256Scalar,
+        primary_public_key: &'a [u8; P256_X962_LENGTH],
+        secondary_private_key: Option<&'a P256Scalar>,
+        secondary_public_key: Option<&'a [u8; P256_X962_LENGTH]>,
+        policy_manager: &'a PolicyManager,
         user: &str,
-        enable_policy_signature: bool,
-        accept_insecure_policies: bool,
-    ) -> Result<Self, String> {
-        let primary_private_key_scalar: P256Scalar =
-            primary_private_key.try_into().map_err(|_| {
-                format!(
-                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
-                )
-            })?;
-
-        let (secondary_public_key, secondary_private_key_scalar) = if secondary_private_key
-            .is_some()
-        {
-            // Using `unwrap()` since we already check `is_some()` is true above.
-            let key_scalar : P256Scalar = secondary_private_key.unwrap().try_into().map_err(|_| {
-            format!("Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
-        })?;
-            (Some(key_scalar.compute_public_key()), Some(key_scalar))
-        } else {
-            (None, None)
-        };
-
-        let policy_manager = PolicyManager::new(
+    ) -> Self {
+        Self {
             time_milis,
-            policies,
-            enable_policy_signature,
-            accept_insecure_policies,
-        )?;
-
-        Ok(Self {
-            primary_public_key: primary_private_key_scalar.compute_public_key(),
-            primary_private_key: primary_private_key_scalar,
-            secondary_private_key: secondary_private_key_scalar,
+            primary_private_key: primary_private_key,
+            primary_public_key: primary_public_key,
+            secondary_private_key: secondary_private_key,
             secondary_public_key: secondary_public_key,
             policy_manager,
             crypter: None,
@@ -132,7 +61,7 @@ impl RequestHandler {
             user: user.to_string(),
             user_id: None,
             terminated: false,
-        })
+        }
     }
 
     pub fn verify_report(&mut self, request: &[u8]) -> Result<Vec<u8>, String> {
@@ -242,8 +171,11 @@ impl RequestHandler {
             return Err("Request does not have `evidence` proto.".to_string());
         };
         self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
-        self.policy_manager
-            .check_evidence(&evidence, verify_report_request.tee_certificate.as_slice())?;
+        self.policy_manager.check_evidence(
+            self.time_milis,
+            &evidence,
+            verify_report_request.tee_certificate.as_slice(),
+        )?;
 
         let Some(user_id) = self.user_id else {
             // This should not happen unless something went wrong internally
@@ -322,7 +254,7 @@ mod tests {
         VerifyReportRequestEncrypted, VerifyReportResponse,
     };
     use crypto::P256Scalar;
-    use oak_proto_rust::oak::attestation::v1::{InsecureReferenceValues, TcbVersion};
+    use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 
     fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
@@ -377,35 +309,6 @@ mod tests {
                 }),
                 signature: vec![PolicySignature{
                     signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c".to_string(),
-                    signer: "".to_string(),
-                    },
-                    ],
-            }],
-        };
-        let mut buf: Vec<u8> = Vec::with_capacity(1024);
-        policies.encode(&mut buf).unwrap();
-        buf
-    }
-
-    fn insecure_appraisal_policies() -> Vec<u8> {
-        let policies = AppraisalPolicies {
-            policies: vec![AppraisalPolicy{
-                measurement: Some(Measurement {
-                    stage0_measurement: Some(Stage0Measurement{
-                        r#type: Some(stage0_measurement::Type::Insecure(InsecureReferenceValues{})),
-                    }),
-                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
-                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
-                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
-                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
-                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
-                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
-                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
-                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
-
-                }),
-                signature: vec![PolicySignature{
-                    signature: "6870ebf5f55debe04cd66d47ea3b2a878edd436aba59be30b1f52478bb4e12e4d40c223664ee3c0f13ce27e159bc8e7726cce52520f4fb171d6622a26169dcb6".to_string(),
                     signer: "".to_string(),
                     },
                     ],
@@ -472,18 +375,24 @@ mod tests {
     fn verify_report_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
-        let tvs_public_key = tvs_private_key.compute_public_key();
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &tvs_private_key,
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            &policy_manager,
+            "test_user1",
+        );
+
         let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
@@ -569,18 +478,27 @@ mod tests {
     fn verify_report_with_secondary_key_successful() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
+        let primary_tvs_public_key = primary_tvs_private_key.compute_public_key();
         let secondary_tvs_private_key = P256Scalar::generate();
-        let client_private_key = get_good_client_private_key();
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &primary_tvs_private_key.bytes(),
-            Some(&secondary_tvs_private_key.bytes()),
+        let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user2",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
+
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &primary_tvs_private_key,
+            &primary_tvs_public_key,
+            Some(&secondary_tvs_private_key),
+            Some(&secondary_tvs_public_key),
+            &policy_manager,
+            "test_user2",
+        );
+
+        let client_private_key = get_good_client_private_key();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
@@ -669,17 +587,24 @@ mod tests {
     fn verify_report_session_termination_on_successful_session() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
-        let tvs_public_key = tvs_private_key.compute_public_key();
+
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &tvs_private_key,
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            &policy_manager,
+            "test_user1",
+        );
+
         let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
@@ -784,18 +709,24 @@ mod tests {
     fn verify_report_invalid_report_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
-        let tvs_public_key = tvs_private_key.compute_public_key();
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &tvs_private_key,
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            &policy_manager,
+            "test_user",
+        );
+
         let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
@@ -871,19 +802,25 @@ mod tests {
 
     #[test]
     fn verify_report_system_layer_verification_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
-        let tvs_public_key = tvs_private_key.compute_public_key();
+
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &tvs_private_key,
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            &policy_manager,
+            "test_user",
+        );
+
         let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
@@ -954,19 +891,26 @@ mod tests {
     fn verify_report_unknown_public_key_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
+        let primary_tvs_public_key = primary_tvs_private_key.compute_public_key();
         let secondary_tvs_private_key = P256Scalar::generate();
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &primary_tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
-        let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &primary_tvs_private_key,
+            &primary_tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            &policy_manager,
+            "test_user",
+        );
+
         let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
@@ -994,16 +938,23 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         // Test that unregistered client keys are rejected.
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user1",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
+
+        // Test that unregistered client keys are rejected.
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &tvs_private_key,
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            &policy_manager,
+            "test_user1",
+        );
 
         let client_private_key = P256Scalar::generate();
         let mut client = handshake::client::HandshakeInitiator::new(
@@ -1033,14 +984,13 @@ mod tests {
         // the one used in the handshake fail.
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
+            &tvs_private_key,
+            &tvs_public_key,
             /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
+            /*secondary_public_key=*/ None,
+            &policy_manager,
             "test_user1",
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
+        );
 
         let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
@@ -1062,17 +1012,17 @@ mod tests {
             Ok(_) => assert!(false, "create_attest_report_request() should fail."),
             Err(e) => assert_eq!(e, "Invalid handshake."),
         }
+
         // Test that clients using Nk are rejected.
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
+            &tvs_private_key,
+            &tvs_public_key,
             /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
+            /*secondary_public_key=*/ None,
+            &policy_manager,
             "test_user1",
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
+        );
 
         let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
@@ -1097,106 +1047,27 @@ mod tests {
     }
 
     #[test]
-    fn request_handler_creation_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
-        match RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &[1, 2, 3],
-            /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
-            "test_user",
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        ) {
-            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
-            Err(e) => assert_eq!(
-                e,
-                format!(
-                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
-                )
-            ),
-        }
-
-        match RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &[b'f'; P256_SCALAR_LENGTH * 3],
-            /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
-            "test_user",
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        ) {
-            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
-            Err(e) => assert_eq!(
-                e,
-                format!(
-                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
-                )
-            ),
-        }
-
-        match RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &P256Scalar::generate().bytes(),
-            Some(&[1, 3]),
-            default_appraisal_policies().as_slice(),
-            "test_user",
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        ) {
-            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
-            Err(e) => assert_eq!(
-                e,
-                format!(
-                    "Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
-                )
-            ),
-        }
-
-        match RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &P256Scalar::generate().bytes(),
-            /*secondary_private_key=*/ None,
-            &[1, 2, 3],
-            "test_user",
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        ) {
-            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
-            Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
-        }
-
-        // Appraisal policies that accept reports from insecure hardware are rejected.
-        match RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &P256Scalar::generate().bytes(),
-            /*secondary_private_key=*/ None,
-            insecure_appraisal_policies().as_slice(),
-            "test_user",
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        ) {
-            Ok(_) => assert!(false, "RequestHandler::new() should fail."),
-            Err(e) => assert_eq!(e, "Cannot accept insecure policies"),
-        }
-    }
-
-    #[test]
     fn handshake_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
-        let tvs_public_key = tvs_private_key.compute_public_key();
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &tvs_private_key,
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            &policy_manager,
+            "test_user",
+        );
+
         let client_private_key = get_good_client_private_key();
         // Test invalid initiator handshake error.
         match request_handler.do_init_session(
@@ -1210,14 +1081,14 @@ mod tests {
 
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
+            &tvs_private_key,
+            &tvs_public_key,
             /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
+            /*secondary_public_key=*/ None,
+            &policy_manager,
             "test_user",
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
+        );
+
         let client_handshake = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &tvs_private_key.compute_public_key(),
@@ -1247,16 +1118,25 @@ mod tests {
     fn verify_report_error() {
         key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let mut request_handler = RequestHandler::new(
-            NOW_UTC_MILLIS,
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let tvs_public_key = tvs_private_key.compute_public_key();
+
+        let policy_manager = PolicyManager::new(
             default_appraisal_policies().as_slice(),
-            "test_user",
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
+
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            &tvs_private_key,
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            &policy_manager,
+            "test_user",
+        );
+
         match request_handler.do_verify_report(b"aaa") {
             Ok(_) => assert!(false, "do_verify_command() should fail."),
             Err(e) => assert_eq!(

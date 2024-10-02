@@ -25,6 +25,7 @@ cc_binary(
         ":tvs-service",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/trusted_tvs:bridge",
+        "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",

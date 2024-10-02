@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use request_handler::{new_request_handler, new_request_handler_with_second_key, RequestHandler};
+use request_handler::RequestHandler;
+use service::{new_service, new_service_with_second_key, Service};
 
 pub mod request_handler;
+pub mod service;
 pub mod proto {
     pub mod privacy_sandbox {
         pub mod tvs {
@@ -23,33 +25,35 @@ pub mod proto {
     }
 }
 
-// Export RequestHandler and it's methods to C++.
-#[cxx::bridge(namespace = "privacy_sandbox::tvs")]
+#[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 mod ffi {
     extern "Rust" {
-        type RequestHandler;
-
-        #[cxx_name = "NewRequestHandler"]
-        fn new_request_handler(
-            time_milis: i64,
+        type Service;
+        #[cxx_name = "NewService"]
+        fn new_service(
             primary_private_key: &[u8],
             policy: &[u8],
-            user: &str,
             enable_policy_signature: bool,
             accept_insecure_policies: bool,
-        ) -> Result<Box<RequestHandler>>;
+        ) -> Result<Box<Service>>;
 
-        #[cxx_name = "NewRequestHandler"]
-        fn new_request_handler_with_second_key(
-            time_milis: i64,
+        #[cxx_name = "NewService"]
+        fn new_service_with_second_key(
             primary_private_key: &[u8],
             secondary_private_key: &[u8],
             policy: &[u8],
-            user: &str,
             enable_policy_signature: bool,
             accept_insecure_policies: bool,
-        ) -> Result<Box<RequestHandler>>;
+        ) -> Result<Box<Service>>;
 
+        #[cxx_name = "CreateRequestHandler"]
+        unsafe fn create_request_handler<'a>(
+            self: &'a Service,
+            time_milis: i64,
+            user: &str,
+        ) -> Box<RequestHandler<'a>>;
+
+        type RequestHandler<'a>;
         #[cxx_name = "VerifyReport"]
         fn verify_report(self: &mut RequestHandler, request: &[u8]) -> Result<Vec<u8>>;
 
