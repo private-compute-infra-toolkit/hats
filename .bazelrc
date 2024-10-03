@@ -42,3 +42,6 @@ build:rustfmt --output_groups=+rustfmt_checks
 build:dwyu --aspects=//dwyu:dwyu.bzl%hats_dwyu_aspect
 build:dwyu --output_groups=dwyu
 build:dwyu --verbose_failures=false
+
+# this rule is to enable the rust analyzer in vs code
+build --@rules_rust//:rustc_output_diagnostics=true --output_groups=+rust_lib_rustc_output,+rust_metadata_rustc_output

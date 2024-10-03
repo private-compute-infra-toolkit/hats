@@ -261,3 +261,11 @@ This covers includes that are hard to add, may incorrectly think unnecessary, or
 It is unable to handle `rust_cxx_bridge` builds.
 Generally, it can help to run it on more narrow targets to avoid rust bridges.
 `@com_github_grpc_grpc//:grpc++` may be incorrectly declared unnecessary. Make sure build still works.
+
+### VS Code Development
+
+The rust analyzer plugin doesn't recognize a rust project through bazel build
+files (only cargo files by default). We must run
+'bazel run @rules_rust//tools/rus
+t_analyzer:gen_rust_project' and restart the rust-analyzer server to
+[enable this](https://bazelbuild.github.io/rules_rust/rust_analyzer.html).
