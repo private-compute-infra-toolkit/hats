@@ -20,6 +20,7 @@ cc_binary(
     deps = [
         "//client/launcher",
         "//client/proto:launcher_config_cc_proto",
+        "//client/proto:trusted_service_cc_proto",
         "//client/trusted_application:trusted_application_client",
         "//tvs/credentials",
         "//tvs/proto:appraisal_policies_cc_proto",
