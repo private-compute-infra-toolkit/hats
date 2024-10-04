@@ -22,6 +22,7 @@ cc_binary(
     deps = [
         "//crypto:aead-crypter",
         "//crypto:bridge",
+        "//crypto:ec-key",
         "//crypto:secret-data",
         "//gcp_common:gcp-status",
         "//key_manager:gcp-kms-client",
