@@ -72,6 +72,7 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "crypto/aead-crypter.h"
+#include "crypto/ec-key.h"
 #include "crypto/secret-data.h"
 #include "crypto/secret-sharing.rs.h"
 #include "gcp_common/gcp-status.h"
@@ -81,9 +82,7 @@
 #include "google/protobuf/text_format.h"
 #include "key_manager/gcp-kms-client.h"
 #include "openssl/bn.h"
-#include "openssl/ec_key.h"
 #include "openssl/hpke.h"
-#include "openssl/nid.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
 ABSL_FLAG(std::string, operation, "create_database",
@@ -299,58 +298,6 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   return absl::OkStatus();
 }
 
-// Helper class to generate EC keys.
-class ECKey final {
- public:
-  ECKey(const ECKey&) = delete;
-  ECKey(ECKey&&) = default;
-  ECKey& operator=(const ECKey&) = delete;
-  ECKey& operator=(ECKey&&) = default;
-
-  static absl::StatusOr<std::unique_ptr<ECKey>> Create() {
-    EC_KEY* ec_key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-    if (ec_key == nullptr) {
-      return absl::InternalError("EC_KEY_new_by_curve_name() failed");
-    }
-    if (EC_KEY_generate_key(ec_key) != 1) {
-      return absl::InternalError("EC Key generation failed");
-    }
-    return absl::WrapUnique(new ECKey(ec_key));
-  }
-  ~ECKey() { EC_KEY_free(ec_key_); }
-
-  absl::StatusOr<std::string> WrapPrivateKey(
-      const SecretData& wrapping_key) const {
-    const BIGNUM* private_key_bn = EC_KEY_get0_private_key(ec_key_);
-    SecretData private_key(BN_num_bytes(private_key_bn));
-    if (!BN_bn2bin(private_key_bn, private_key.GetData())) {
-      return absl::InternalError("BN_bn2bin() failed");
-    }
-    return privacy_sandbox::crypto::Encrypt(
-        wrapping_key, private_key, privacy_sandbox::crypto::kTvsPrivateKeyAd);
-  }
-
-  absl::StatusOr<std::string> GetPublicKeyInHex() const {
-    const EC_POINT* public_key = EC_KEY_get0_public_key(ec_key_);
-    const EC_GROUP* key_group = EC_KEY_get0_group(ec_key_);
-    std::vector<uint8_t> key_data(65);
-    size_t length =
-        EC_POINT_point2oct(key_group, public_key, POINT_CONVERSION_UNCOMPRESSED,
-                           reinterpret_cast<uint8_t*>(key_data.data()),
-                           key_data.size(), /*ctx=*/nullptr);
-    if (length != key_data.size()) {
-      return absl::InternalError("EC_POINT_point2oct() failed.");
-    }
-    return absl::BytesToHexString(
-        std::string(key_data.begin(), key_data.end()));
-  }
-
- private:
-  ECKey(EC_KEY* ec_key) : ec_key_(ec_key) {}
-
-  EC_KEY* ec_key_;
-};
-
 struct TvsSecrets {
   std::string primary_ec_public_key;
   std::string secondary_ec_public_key;
@@ -363,12 +310,14 @@ struct TvsSecrets {
 absl::StatusOr<TvsSecrets> GenerateTvsSecrets(
     absl::string_view kms_key_resource_name) {
   // Create EC Keys for TVS handshake.
-  absl::StatusOr<std::unique_ptr<ECKey>> primary_ec_key = ECKey::Create();
+  absl::StatusOr<std::unique_ptr<privacy_sandbox::crypto::EcKey>>
+      primary_ec_key = privacy_sandbox::crypto::EcKey::Create();
   if (!primary_ec_key.ok()) {
     return primary_ec_key.status();
   }
 
-  absl::StatusOr<std::unique_ptr<ECKey>> secondary_ec_key = ECKey::Create();
+  absl::StatusOr<std::unique_ptr<privacy_sandbox::crypto::EcKey>>
+      secondary_ec_key = privacy_sandbox::crypto::EcKey::Create();
   if (!secondary_ec_key.ok()) {
     return secondary_ec_key.status();
   }
@@ -387,12 +336,14 @@ absl::StatusOr<TvsSecrets> GenerateTvsSecrets(
 
   // Wrap EC private keys with `dek`.
   absl::StatusOr<std::string> wrapped_primary_ec_private_key =
-      (*primary_ec_key)->WrapPrivateKey(dek);
+      (*primary_ec_key)
+          ->WrapPrivateKey(dek, privacy_sandbox::crypto::kTvsPrivateKeyAd);
   if (!wrapped_primary_ec_private_key.ok())
     return wrapped_primary_ec_private_key.status();
 
   absl::StatusOr<std::string> wrapped_secondary_ec_private_key =
-      (*secondary_ec_key)->WrapPrivateKey(dek);
+      (*secondary_ec_key)
+          ->WrapPrivateKey(dek, privacy_sandbox::crypto::kTvsPrivateKeyAd);
   if (!wrapped_secondary_ec_private_key.ok())
     return wrapped_secondary_ec_private_key.status();
 

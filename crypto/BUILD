@@ -137,3 +137,28 @@ rust_cxx_bridge(
         ":secret-sharing",
     ],
 )
+
+cc_library(
+    name = "ec-key",
+    srcs = ["ec-key.cc"],
+    hdrs = ["ec-key.h"],
+    deps = [
+        ":aead-crypter",
+        ":secret-data",
+        "@boringssl//:crypto",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "ec-key_test",
+    srcs = ["ec-key_test.cc"],
+    deps = [
+        ":aead-crypter",
+        ":ec-key",
+        ":secret-data",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
