@@ -229,6 +229,13 @@ This currently must be done through a wrapper, for example
 
 ## Additional information
 
+### Status macros
+
+Codebase has useful macros for dealing with Status and StatusOr.
+Based on submodules/common and //util
+
+For more details see Readme in status_macros folder
+
 ### Shellcheck
 
 Shellcheck code descriptions can be seen on the wiki, e.g. at
