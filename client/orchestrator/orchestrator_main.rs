@@ -74,7 +74,7 @@ pub fn recover_secrets(response_vec: &Vec<VerifyReportResponse>) -> Result<Vec<u
     for (key_id, key_shares) in share_map {
         // we set the threshold to be 1 less than number of shares
         let numshares = key_shares.shares.len();
-        let mut sham = secret_sharing::SecretSharing {
+        let sham = secret_sharing::SecretSharing {
             numshares: numshares,
             prime: secret_sharing::get_prime(),
             threshold: numshares - 1,

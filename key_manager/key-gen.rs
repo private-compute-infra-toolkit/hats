@@ -98,7 +98,7 @@ fn main() {
     };
 
     if Args::parse().split {
-        let mut sham = SecretSharing {
+        let sham = SecretSharing {
             numshares: Args::parse().numshares,
             threshold: Args::parse().threshold,
             prime: secret_sharing::get_prime(),

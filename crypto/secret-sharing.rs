@@ -14,7 +14,6 @@
 extern crate alloc;
 
 use anyhow::Result;
-use bssl_crypto::hpke;
 use num_bigint::{BigInt, RandBigInt, Sign};
 use serde::{Deserialize, Serialize};
 
@@ -40,6 +39,7 @@ pub enum Error {
     SecretMustBeInRangePrime,
     ImproperCoeffs,
     NotAShareObject,
+    MalformedSecret,
 }
 
 // Do not use cxx:bridge if `noffi` is enabled. This is to avoid
@@ -77,22 +77,19 @@ pub fn split_wrap(
     threshold: usize,
     wrapped: bool,
 ) -> Result<Vec<String>, String> {
-    let mut sham = SecretSharing {
+    let sham = SecretSharing {
         numshares: numshares,
         threshold: threshold,
         prime: get_prime(),
     };
-    let Ok(shares) = sham.split(&secret_bytes.to_vec(), wrapped) else {
-        return Err("Error splitting secret".to_string());
-    };
-
+    let shares = sham
+        .split(secret_bytes, wrapped)
+        .map_err(|err| format!("Error splitting secret: {:#?}", err))?;
     let mut serialized_shares: Vec<String> = Vec::new();
     for share in shares {
-        if let Ok(ser_share) = serde_json::to_string(&share) {
-            serialized_shares.push(ser_share);
-        } else {
-            return Err("Error splitting secret".to_string());
-        }
+        let ser_share = serde_json::to_string(&share)
+            .map_err(|err| format!("Error splitting secret: {err}"))?;
+        serialized_shares.push(ser_share);
     }
     Ok(serialized_shares)
 }
@@ -103,7 +100,7 @@ pub fn recover_wrap(
     numshares: usize,
     threshold: usize,
 ) -> Result<Vec<u8>, String> {
-    let mut sham = SecretSharing {
+    let sham = SecretSharing {
         numshares: numshares,
         threshold: threshold,
         prime: get_prime(),
@@ -125,12 +122,6 @@ pub fn desearialize_share(serialized_share: &Vec<u8>) -> Result<Share, Error> {
     let share: Share = serde_json::from_value(serde_json::from_str(&string).unwrap())
         .map_err(|_| Error::NotAShareObject)?;
     Ok(share)
-}
-
-pub fn get_valid_private_key() -> Vec<u8> {
-    let kem = hpke::Kem::X25519HkdfSha256;
-    let (private, _) = kem.generate_keypair();
-    private.to_vec()
 }
 
 fn eval(poly: Vec<BigInt>, x: usize, prime: &BigInt) -> Vec<u8> {
@@ -196,18 +187,20 @@ pub fn get_prime() -> BigInt {
 }
 
 fn not_in_range_prime(bi_key: &BigInt, prime: &BigInt) -> bool {
-    *bi_key >= *prime || *bi_key < BigInt::from(0)
+    bi_key >= prime || *bi_key < BigInt::from(0)
 }
 
+const LABEL: &[u8; 4] = b"hats";
+
 impl SecretSharing {
-    pub fn split(&mut self, secret_bytes: &Vec<u8>, wrapped: bool) -> Result<Vec<Share>, Error> {
+    pub fn split(&self, secret_bytes: &[u8], wrapped: bool) -> Result<Vec<Share>, Error> {
         if self.numshares < self.threshold {
             return Err(Error::ThresholdGreaterThanNumShares);
         }
         if self.numshares < 2 || self.threshold < 2 {
             return Err(Error::MustSplitTrust);
         }
-        let secret = BigInt::from_bytes_be(Sign::Plus, secret_bytes);
+        let secret = BigInt::from_bytes_be(Sign::Plus, &[LABEL, secret_bytes].concat());
         if not_in_range_prime(&secret, &self.prime) {
             return Err(Error::SecretMustBeInRangePrime);
         }
@@ -231,7 +224,7 @@ impl SecretSharing {
         Ok(output)
     }
 
-    pub fn recover(&mut self, shares: &Vec<Share>) -> Result<Vec<u8>, Error> {
+    pub fn recover(&self, shares: &[Share]) -> Result<Vec<u8>, Error> {
         if shares.len() < self.threshold.try_into().unwrap() {
             return Err(Error::BelowThreshold);
         }
@@ -242,29 +235,43 @@ impl SecretSharing {
             share.push(shares[i].value.clone());
         }
         let sum: BigInt = interpolate(indices, share, &self.prime);
-        if sum < BigInt::from(0) {
-            Ok((sum + &self.prime).to_bytes_be().1)
+        let result = if sum < BigInt::from(0) {
+            (sum + &self.prime).to_bytes_be().1
         } else {
-            Ok(sum.to_bytes_be().1)
-        }
+            sum.to_bytes_be().1
+        };
+        remove_label(result)
     }
+}
+
+fn remove_label(secret_with_size: Vec<u8>) -> Result<Vec<u8>, Error> {
+    if secret_with_size.len() <= 4 {
+        return Err(Error::MalformedSecret);
+    }
+    Ok(secret_with_size[4..].to_vec())
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use bssl_crypto::hpke;
     use crypto::P256Scalar;
+
+    fn get_valid_private_key() -> Vec<u8> {
+        let kem = hpke::Kem::X25519HkdfSha256;
+        let (private, _) = kem.generate_keypair();
+        private.to_vec()
+    }
 
     #[test]
     fn test_shamir2of3() {
-        let mut sham = SecretSharing {
+        let sham = SecretSharing {
             threshold: 2,
             numshares: 3,
             prime: get_prime(),
         };
 
         let secret = get_valid_private_key();
-
         let shares = sham.split(&secret, false).unwrap();
 
         let recovered_secret12 = sham.recover(&shares[0..2].to_vec()).unwrap();
@@ -279,7 +286,7 @@ mod test {
 
     #[test]
     fn test_shamir3of5() {
-        let mut sham = SecretSharing {
+        let sham = SecretSharing {
             threshold: 3,
             numshares: 5,
             prime: get_prime(),
@@ -303,7 +310,7 @@ mod test {
 
     #[test]
     fn test_shamir4of4() {
-        let mut sham = SecretSharing {
+        let sham = SecretSharing {
             threshold: 4,
             numshares: 4,
             prime: get_prime(),
@@ -328,7 +335,7 @@ mod test {
 
     #[test]
     fn test_more_than_threshold() {
-        let mut sham = SecretSharing {
+        let sham = SecretSharing {
             threshold: 2,
             numshares: 5,
             prime: get_prime(),
@@ -358,7 +365,7 @@ mod test {
     #[test]
     fn test_errors() {
         let secret = get_valid_private_key();
-        let mut sham = SecretSharing {
+        let sham = SecretSharing {
             threshold: 3,
             numshares: 2,
             prime: get_prime(),
@@ -367,7 +374,7 @@ mod test {
         let e = sham.split(&secret, false).unwrap_err();
         assert_eq!(e, Error::ThresholdGreaterThanNumShares);
 
-        sham = SecretSharing {
+        let sham = SecretSharing {
             threshold: 1,
             numshares: 1,
             prime: get_prime(),
@@ -375,7 +382,7 @@ mod test {
         let e = sham.split(&secret, false).unwrap_err();
         assert_eq!(e, Error::MustSplitTrust);
 
-        sham = SecretSharing {
+        let sham = SecretSharing {
             threshold: 3,
             numshares: 5,
             prime: get_prime(),
@@ -390,17 +397,11 @@ mod test {
 
     #[test]
     fn test_shamir4of4_wrap() {
-        let sham = SecretSharing {
-            threshold: 4,
-            numshares: 4,
-            prime: get_prime(),
-        };
-
         let secret = get_valid_private_key();
 
-        let shares = split_wrap(&secret, sham.numshares, sham.threshold, false).unwrap();
+        let shares = split_wrap(&secret, /*numshares=*/ 4, /*threshold=*/ 4, false).unwrap();
 
-        let recovered_secret = recover_wrap(&shares, sham.numshares, sham.threshold).unwrap();
+        let recovered_secret = recover_wrap(&shares, /*numshares=*/ 4, /*threshold=*/ 4).unwrap();
         assert_eq!(secret, recovered_secret);
     }
 
@@ -411,15 +412,83 @@ mod test {
             numshares: 4,
             prime: get_prime(),
         };
+
         // 65bytes = 520bits, need to shorten
         // using public key here to represent an encrypted secret > 32 bytes
         let public: [u8; 60] = P256Scalar::generate().compute_public_key()[5..]
             .try_into()
             .unwrap();
         let secret = public.to_vec();
-        let shares = split_wrap(&secret, sham.numshares, sham.threshold, false).unwrap();
+        let shares = sham.split(&secret, false).unwrap();
 
-        let recovered_secret = recover_wrap(&shares, sham.numshares, sham.threshold).unwrap();
+        let recovered_secret = sham.recover(&shares).unwrap();
         assert_eq!(secret, recovered_secret);
+    }
+
+    #[test]
+    fn secret_with_leading_zeros() {
+        let sham = SecretSharing {
+            threshold: 2,
+            numshares: 3,
+            prime: get_prime(),
+        };
+
+        let secret =
+            hex::decode("00000000000000000000000000000000000000000000dc663a8ceba6108c0840")
+                .unwrap();
+        let shares = sham.split(&secret, false).unwrap();
+
+        let recovered_secret12 = sham.recover(&shares[0..2].to_vec()).unwrap();
+        let recovered_secret23 = sham.recover(&shares[1..3].to_vec()).unwrap();
+        assert_eq!(secret, recovered_secret12);
+        assert_eq!(secret, recovered_secret23);
+
+        let shares31 = vec![shares[2].clone(), shares[0].clone()];
+        let recovered_secret31 = sham.recover(&shares31).unwrap();
+        assert_eq!(secret, recovered_secret31);
+    }
+
+    #[test]
+    fn secret_all_zeros() {
+        let sham = SecretSharing {
+            threshold: 2,
+            numshares: 3,
+            prime: get_prime(),
+        };
+
+        let secret =
+            hex::decode("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+        let shares = sham.split(&secret, false).unwrap();
+
+        let recovered_secret12 = sham.recover(&shares[0..2].to_vec()).unwrap();
+        let recovered_secret23 = sham.recover(&shares[1..3].to_vec()).unwrap();
+        assert_eq!(secret, recovered_secret12);
+        assert_eq!(secret, recovered_secret23);
+
+        let shares31 = vec![shares[2].clone(), shares[0].clone()];
+        let recovered_secret31 = sham.recover(&shares31).unwrap();
+        assert_eq!(secret, recovered_secret31);
+    }
+
+    #[test]
+    fn recover_malformed_secret_error() {
+        let sham = SecretSharing {
+            threshold: 2,
+            numshares: 3,
+            prime: get_prime(),
+        };
+
+        assert_eq!(sham.recover(&[Share {
+        index: 1,
+        value: hex::decode("64bb92a1cb8933d951d8ab8a75e8089ba1ddac8d89266dc59ae4dc2e2670d35f970fc784405c01453f4eaf539fe6ad9a0c401433d9652856f53cb50ea4a54fb0").unwrap(),
+        wrapped: false,
+        },
+        Share {
+            index: 3,
+            value: hex::decode("6522dd434132d95730c3a013e0dbfd01bc96b7a0110b7cdccea2d5e4383edefb6b0bfcc811576518256cf1602c35c674933777e3afcd0f4caede1693f7a4ccb7").unwrap(),
+            wrapped: false,
+        },
+        ]).unwrap_err(), Error::MalformedSecret);
     }
 }
