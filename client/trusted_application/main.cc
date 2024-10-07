@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
-#include "absl/log/log.h"
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "client/proto/orchestrator.grpc.pb.h"
 #include "client/proto/orchestrator.pb.h"
@@ -27,6 +26,7 @@
 #include "grpcpp/security/server_credentials.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
+#include "status_macro/status_macros.h"
 
 ABSL_FLAG(std::string, port, "8080",
           "port used for making grpc calls to this service");
@@ -39,10 +39,11 @@ int main(int argc, char* argv[]) {
   privacy_sandbox::server_common::HatsOrchestratorClient client =
       privacy_sandbox::server_common::HatsOrchestratorClient();
 
-  absl::StatusOr<std::vector<privacy_sandbox::server_common::Key>> keys =
-      client.GetKeys();
+  HATS_ASSIGN_OR_RETURN(
+      std::vector<privacy_sandbox::server_common::Key> keys, client.GetKeys(),
+      _.PrependWith("Could not get keys: ").LogErrorAndExit());
 
-  privacy_sandbox::client::TrustedApplication service(*std::move(keys));
+  privacy_sandbox::client::TrustedApplication service(std::move(keys));
 
   grpc::ServerBuilder builder;
   builder.AddListeningPort(absl::StrCat("[::]:", port_to_use),
@@ -50,12 +51,9 @@ int main(int argc, char* argv[]) {
   builder.RegisterService(&service);
   std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
 
-  absl::Status app_ready = client.NotifyAppReady();
-  if (!app_ready.ok()) {
-    LOG(ERROR) << "Failed to notify launcher that app is ready: "
-               << app_ready.message();
-    return 1;
-  }
+  HATS_RETURN_IF_ERROR(client.NotifyAppReady())
+      .PrependWith("Failed to notify launcher that app is ready: ")
+      .LogErrorAndExit();
 
   std::cout << "Trusted Application is running on port " << port_to_use
             << std::endl;

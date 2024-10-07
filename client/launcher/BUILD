@@ -64,6 +64,7 @@ cc_binary(
     deps = [
         ":launcher",
         "//client/proto:launcher_config_cc_proto",
+        "//status_macro:status_macros",
         "//tvs/credentials",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -86,6 +87,7 @@ cc_library(
         ":qemu",
         "//client/proto:launcher_cc_proto",
         "//client/proto:launcher_config_cc_proto",
+        "//status_macro:status_macros",
         "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
@@ -210,6 +212,7 @@ cc_library(
     deps = [
         ":kernel-api",
         ":snp-abi",
+        "//status_macro:status_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",

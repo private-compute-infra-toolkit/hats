@@ -99,6 +99,7 @@ cc_library(
     hdrs = ["aead-crypter.h"],
     deps = [
         ":secret-data",
+        "//status_macro:status_macros",
         "@boringssl//:crypto",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -137,6 +138,7 @@ cc_library(
     deps = [
         ":aead-crypter",
         ":secret-data",
+        "//status_macro:status_macros",
         "@boringssl//:crypto",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

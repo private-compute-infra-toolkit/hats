@@ -16,11 +16,12 @@
 
 #include <string>
 
-#include "absl/status/statusor.h"
 #include "client/proto/orchestrator.pb.h"
 #include "client/proto/trusted_service.pb.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
+#include "status_macro/status_macros.h"
+#include "status_macro/status_util.h"
 
 using privacy_sandbox::crypto::SecretData;
 using privacy_sandbox::server_common::Key;
@@ -49,16 +50,14 @@ grpc::Status TrustedApplication::Echo(grpc::ServerContext* context,
   SecretData decryption_key = SecretData(key_to_use.private_key());
 
   SecretData encrypted_data = SecretData(request->encrypted_message());
-  absl::StatusOr<SecretData> decrypted = privacy_sandbox::crypto::Decrypt(
-      decryption_key, encrypted_data, privacy_sandbox::crypto::kSecretAd);
+  HATS_ASSIGN_OR_RETURN(
+      SecretData decrypted,
+      privacy_sandbox::crypto::Decrypt(decryption_key, encrypted_data,
+                                       privacy_sandbox::crypto::kSecretAd),
+      _.PrependWith("Failed to decrypt message: ")
+          .With(status_macro::FromAbslStatus));
 
-  if (!decrypted.ok()) {
-    return grpc::Status(
-        grpc::StatusCode::UNKNOWN,
-        absl::StrCat("Failed to decrypt message: ", decrypted.status()));
-  }
-
-  *response->mutable_response() = (*decrypted).GetStringView();
+  *response->mutable_response() = decrypted.GetStringView();
 
   return grpc::Status::OK;
 }

@@ -25,6 +25,7 @@
 #include "grpcpp/support/interceptor.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
+#include "status_macro/status_macros.h"
 #include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
@@ -45,15 +46,12 @@ rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
 absl::Status PerformNoiseHandshake(
     grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>& stream,
     TvsClient& tvs_client) {
-  absl::StatusOr<rust::Vec<uint8_t>> initial_message =
-      tvs_client.BuildInitialMessage();
-  if (!initial_message.ok()) {
-    return absl::UnknownError(absl::StrCat("Failed to build initial message: ",
-                                           initial_message.status()));
-  }
+  HATS_ASSIGN_OR_RETURN(rust::Vec<uint8_t> initial_message,
+                        tvs_client.BuildInitialMessage(),
+                        _.PrependWith("Failed to build initial message: "));
 
   OpaqueMessage opaque_message;
-  opaque_message.set_binary_message(RustVecToString(*initial_message));
+  opaque_message.set_binary_message(RustVecToString(initial_message));
   if (!stream.Write(opaque_message)) {
     return absl::UnknownError(
         absl::StrCat("Failed to write message to stream. ",
@@ -65,12 +63,9 @@ absl::Status PerformNoiseHandshake(
                      stream.Finish().error_message()));
   }
 
-  if (absl::Status status = tvs_client.ProcessHandshakeResponse(
-          StringToRustSlice(opaque_message.binary_message()));
-      !status.ok()) {
-    return absl::UnknownError(
-        absl::StrCat("Failed to process handshake response: ", status));
-  }
+  HATS_RETURN_IF_ERROR(tvs_client.ProcessHandshakeResponse(
+                           StringToRustSlice(opaque_message.binary_message())))
+      .PrependWith("Failed to process handshake response: ");
   return absl::OkStatus();
 }
 
@@ -104,13 +99,10 @@ TvsUntrustedClient::CreateClient(const Options& options) {
         "string format");
   }
 
-  absl::StatusOr<rust::Box<TvsClient>> tvs_client =
-      NewTvsClient(StringToRustSlice(tvs_authentication_key),
-                   StringToRustSlice(tvs_public_key));
-  if (!tvs_client.ok()) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "Failed to create trusted TVS client. ", tvs_client.status()));
-  }
+  HATS_ASSIGN_OR_RETURN(rust::Box<TvsClient> tvs_client,
+                        NewTvsClient(StringToRustSlice(tvs_authentication_key),
+                                     StringToRustSlice(tvs_public_key)),
+                        _.PrependWith("Failed to create trusted TVS client: "));
 
   // Perform handshake.
   std::unique_ptr<TeeVerificationService::Stub> stub =
@@ -118,31 +110,26 @@ TvsUntrustedClient::CreateClient(const Options& options) {
   auto context = std::make_unique<grpc::ClientContext>();
   std::unique_ptr<grpc::ClientReaderWriter<OpaqueMessage, OpaqueMessage>>
       stream = stub->VerifyReport(context.get());
-  if (absl::Status status = PerformNoiseHandshake(*stream, **tvs_client);
-      !status.ok()) {
-    return status;
-  }
+  HATS_RETURN_IF_ERROR(PerformNoiseHandshake(*stream, *tvs_client));
   return absl::WrapUnique(
       new TvsUntrustedClient(std::move(stub), std::move(context),
-                             std::move(stream), *std::move(tvs_client)));
+                             std::move(stream), std::move(tvs_client)));
 }
 
 absl::StatusOr<VerifyReportResponse>
 TvsUntrustedClient::VerifyReportAndGetSecrets(
     const std::string& application_signing_key,
     const VerifyReportRequest& verify_report_request) {
-  absl::StatusOr<rust::Vec<uint8_t>> encrypted_command =
+  HATS_ASSIGN_OR_RETURN(
+      rust::Vec<uint8_t> encrypted_command,
       tvs_client_->BuildVerifyReportRequest(
           StringToRustSlice(
               verify_report_request.evidence().SerializeAsString()),
           StringToRustSlice(verify_report_request.tee_certificate()),
-          application_signing_key);
-  if (!encrypted_command.ok()) {
-    return absl::UnknownError(absl::StrCat("Failed to process response: ",
-                                           encrypted_command.status()));
-  }
+          application_signing_key),
+      _.PrependWith("Failed to process response: "));
   OpaqueMessage opaque_message;
-  opaque_message.set_binary_message(RustVecToString(*encrypted_command));
+  opaque_message.set_binary_message(RustVecToString(encrypted_command));
 
   if (!stream_->Write(opaque_message)) {
     return absl::UnknownError(
@@ -156,14 +143,12 @@ TvsUntrustedClient::VerifyReportAndGetSecrets(
                      stream_->Finish().error_message()));
   }
 
-  absl::StatusOr<rust::Vec<uint8_t>> secret = tvs_client_->ProcessResponse(
-      StringToRustSlice(opaque_message.binary_message()));
-  if (!secret.ok()) {
-    return absl::UnknownError(
-        absl::StrCat("Failed to process response: ", secret.status()));
-  }
+  HATS_ASSIGN_OR_RETURN(rust::Vec<uint8_t> secret,
+                        tvs_client_->ProcessResponse(
+                            StringToRustSlice(opaque_message.binary_message())),
+                        _.PrependWith("Failed to process response: "));
   VerifyReportResponse response;
-  if (!response.ParseFromArray(secret->data(), secret->size())) {
+  if (!response.ParseFromArray(secret.data(), secret.size())) {
     return absl::UnknownError("Cannot parse result into proto");
   }
   return response;

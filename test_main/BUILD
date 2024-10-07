@@ -22,6 +22,7 @@ cc_binary(
         "//client/proto:launcher_config_cc_proto",
         "//client/proto:trusted_service_cc_proto",
         "//client/trusted_application:trusted_application_client",
+        "//status_macro:status_macros",
         "//tvs/credentials",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/trusted_tvs:bridge",

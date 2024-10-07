@@ -22,12 +22,11 @@
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/channel.h"
+#include "status_macro/status_macros.h"
 #include "tvs/credentials/credentials.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
@@ -85,48 +84,36 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  absl::StatusOr<std::shared_ptr<grpc::Channel>> channel =
+  HATS_ASSIGN_OR_RETURN(
+      std::shared_ptr<grpc::Channel> channel,
       privacy_sandbox::tvs::CreateGrpcChannel({
           .use_tls = absl::GetFlag(FLAGS_use_tls),
           .target = absl::GetFlag(FLAGS_tvs_address),
           .access_token = absl::GetFlag(FLAGS_access_token),
-      });
-  if (!channel.ok()) {
-    LOG(ERROR) << "Error creating GRPC channel: " << channel;
-    return 1;
-  }
+      }),
+      _.PrependWith("Error creating GRPC channel: ").LogErrorAndExit());
 
   const std::string tvs_address = absl::GetFlag(FLAGS_tvs_address);
   LOG(INFO) << "Creating TVS client to : " << tvs_address;
-  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient>>
-      tvs_client = privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
+  HATS_ASSIGN_OR_RETURN(
+      std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient> tvs_client,
+      privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = absl::GetFlag(FLAGS_tvs_public_key),
           .tvs_authentication_key = absl::GetFlag(FLAGS_tvs_authentication_key),
-          .channel = std::move(channel).value(),
-      });
-  if (!tvs_client.ok()) {
-    LOG(ERROR) << "Couldn't create TVS client: " << tvs_client.status();
-    return 1;
-  }
-  absl::StatusOr<privacy_sandbox::tvs::VerifyReportResponse> response =
-      (*tvs_client)
-          ->VerifyReportAndGetSecrets(application_signing_key,
-                                      verify_report_request);
-  if (!response.ok()) {
-    std::cout << "TVS rejected the report: " << response.status() << std::endl;
-  }
+          .channel = channel,
+      }),
+      _.PrependWith("Couldn't create TVS client: ").LogErrorAndExit());
+  HATS_ASSIGN_OR_RETURN(
+      privacy_sandbox::tvs::VerifyReportResponse response,
+      tvs_client->VerifyReportAndGetSecrets(application_signing_key,
+                                            verify_report_request),
+      _.PrependWith("TVS rejected the report: ").LogErrorAndExit());
 
-  for (const privacy_sandbox::tvs::Secret& secret : response->secrets()) {
+  for (const privacy_sandbox::tvs::Secret& secret : response.secrets()) {
     std::cout << "Key id: " << secret.key_id() << std::endl;
     std::cout << "Public key: " << secret.public_key() << std::endl;
-    if (absl::StatusOr<std::string> private_key_hex =
-            absl::BytesToHexString(secret.private_key());
-        private_key_hex.ok()) {
-      std::cout << "Prvate key in hex format: " << private_key_hex << std::endl;
-    } else {
-      std::cout << "Failed to convert private key to hex; token in bytes is: "
-                << secret.private_key() << std::endl;
-    }
+    std::string private_key_hex = absl::BytesToHexString(secret.private_key());
+    std::cout << "Private key in hex format: " << private_key_hex << std::endl;
   }
   return 0;
 }

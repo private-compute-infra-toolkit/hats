@@ -20,13 +20,13 @@
 #include "absl/flags/parse.h"
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
-#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "key_manager/public-key-fetcher.h"
 #include "public_key/public-key-server.h"
+#include "status_macro/status_macros.h"
 
 ABSL_FLAG(int, port, -1, "Port public key server listens to.");
 ABSL_FLAG(std::string, aws_key_endpoint,
@@ -66,18 +66,17 @@ absl::StatusOr<int> GetPort() {
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
-  absl::StatusOr<int> port = GetPort();
-  if (!port.ok()) {
-    LOG(ERROR) << "failed to get port from env or commandline: "
-               << port.status();
-    return 1;
-  }
+
+  HATS_ASSIGN_OR_RETURN(
+      int port, GetPort(),
+      _.PrependWith("Failed to get port from env or commandline: ")
+          .LogErrorAndExit());
 
   std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> key_fetcher =
       privacy_sandbox::key_manager::PublicKeyFetcher::Create();
   privacy_sandbox::public_key_service::CreateAndStartPublicKeyServer(
       {
-          .port = *port,
+          .port = port,
           .aws_key_endpoint = absl::GetFlag(FLAGS_aws_key_endpoint),
           .gcp_key_endpoint = absl::GetFlag(FLAGS_gcp_key_endpoint),
           .gcp_cloud_bucket_name = absl::GetFlag(FLAGS_bucket_name),

@@ -23,6 +23,7 @@ cc_binary(
     srcs = ["tvs-server_main.cc"],
     deps = [
         ":tvs-service",
+        "//status_macro:status_macros",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/trusted_tvs:bridge",
         "@com_github_grpc_grpc//:grpc++",
@@ -31,7 +32,6 @@ cc_binary(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:flags",
         "@com_google_absl//absl/log:initialize",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ] + select({
@@ -51,6 +51,8 @@ cc_library(
     srcs = ["tvs-service.cc"],
     hdrs = ["tvs-service.h"],
     deps = [
+        "//status_macro:status_macros",
+        "//status_macro:status_util",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",

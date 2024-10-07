@@ -19,6 +19,7 @@
 #include "absl/strings/string_view.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
+#include "status_macro/status_macros.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
@@ -68,10 +69,10 @@ class PolicyFetcherLocal final : public PolicyFetcher {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create() {
-  absl::StatusOr<AppraisalPolicies> policies =
-      ReadAppraisalPolicies(absl::GetFlag(FLAGS_appraisal_policy_file));
-  if (!policies.ok()) return policies.status();
-  return std::make_unique<PolicyFetcherLocal>(*std::move(policies));
+  HATS_ASSIGN_OR_RETURN(
+      AppraisalPolicies policies,
+      ReadAppraisalPolicies(absl::GetFlag(FLAGS_appraisal_policy_file)));
+  return std::make_unique<PolicyFetcherLocal>(policies);
 }
 
 }  // namespace privacy_sandbox::tvs

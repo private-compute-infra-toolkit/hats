@@ -24,6 +24,7 @@
 #include "client/launcher/launcher.h"
 #include "client/proto/launcher_config.pb.h"
 #include "google/protobuf/text_format.h"
+#include "status_macro/status_macros.h"
 #include "tvs/credentials/credentials.h"
 
 ABSL_FLAG(std::string, launcher_config_path, "./launcher_config.textproto",
@@ -102,54 +103,44 @@ int main(int argc, char* argv[]) {
     wrapping_keys.add_active(key_bytes);
   }
 
-  absl::StatusOr<privacy_sandbox::client::LauncherConfig> config =
-      LoadConfig(absl::GetFlag(FLAGS_launcher_config_path));
-  if (!config.ok()) {
-    LOG(ERROR) << "Failed to fetch launcher config with error: "
-               << config.status();
-    return 1;
-  }
+  HATS_ASSIGN_OR_RETURN(
+      privacy_sandbox::client::LauncherConfig config,
+      LoadConfig(absl::GetFlag(FLAGS_launcher_config_path)),
+      _.PrependWith("Failed to fetch launcher config with error: ")
+          .LogErrorAndExit());
 
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   int64_t tvs_id = 0;
   for (const std::string& tvs_address : absl::GetFlag(FLAGS_tvs_addresses)) {
-    absl::StatusOr<std::shared_ptr<grpc::Channel>> tvs_channel =
+    HATS_ASSIGN_OR_RETURN(
+        std::shared_ptr<grpc::Channel> tvs_channel,
         privacy_sandbox::tvs::CreateGrpcChannel(
             privacy_sandbox::tvs::CreateGrpcChannelOptions{
                 .use_tls = absl::GetFlag(FLAGS_use_tls),
                 .target = tvs_address,
                 .access_token = absl::GetFlag(FLAGS_tvs_access_token),
-            });
-    if (!tvs_channel.ok()) {
-      LOG(ERROR) << "Failed to establish gRPC channel to TVS server"
-                 << tvs_channel.status();
-      return 1;
-    }
-    channel_map[tvs_id++] = *std::move(tvs_channel);
+            }),
+        _.PrependWith("Failed to establish gRPC channel to TVS server")
+            .LogErrorAndExit());
+    channel_map[tvs_id++] = std::move(tvs_channel);
   }
 
-  absl::StatusOr<std::unique_ptr<privacy_sandbox::client::HatsLauncher>>
-      launcher = privacy_sandbox::client::HatsLauncher::Create({
-          .config = *std::move(config),
+  HATS_ASSIGN_OR_RETURN(
+      std::unique_ptr<privacy_sandbox::client::HatsLauncher> launcher,
+      privacy_sandbox::client::HatsLauncher::Create({
+          .config = std::move(config),
           .tvs_authentication_key_bytes =
               std::move(tvs_authentication_key_bytes),
           .private_key_wrapping_keys = std::move(wrapping_keys),
           .tvs_channels = std::move(channel_map),
           .qemu_log_to_std = absl::GetFlag(FLAGS_qemu_log_to_std),
-      });
+      }),
+      _.PrependWith("Failed to create launcher: ").LogErrorAndExit());
 
-  if (!launcher.ok()) {
-    LOG(ERROR) << "Failed to create launcher: " << launcher.status();
-    return 1;
-  }
+  HATS_RETURN_IF_ERROR(launcher->Start())
+      .PrependWith("Launcher terminated with abnormal status: ")
+      .LogErrorAndExit();
 
-  // Generate the log file randomly.
-  if (absl::Status status = (*launcher)->Start(); !status.ok()) {
-    LOG(ERROR) << "launcher terminated with abnormal status "
-               << status.message();
-    return 1;
-  }
-
-  (*launcher)->Wait();
+  launcher->Wait();
   return 0;
 }

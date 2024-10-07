@@ -21,19 +21,17 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "gcp_common/gcp-status.h"
 #include "google/cloud/kms/v1/key_management_client.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::key_manager {
 
 absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(absl::string_view key_id) {
   google::cloud::kms::v1::GetPublicKeyRequest request;
   request.set_name(key_id);
-  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::PublicKey> result =
+  google::cloud::StatusOr<google::cloud::kms::v1::PublicKey> result =
       client_.GetPublicKey(request);
-  if (!result.ok()) {
-    return gcp_common::GcpToAbslStatus(result.status());
-  }
+  HATS_RETURN_IF_ERROR(result.status());
   PublicKey custom_key;
   custom_key.pem_key = result->pem();
   return custom_key;
@@ -53,9 +51,7 @@ absl::StatusOr<CryptoKey> GcpKmsClient::CreateAsymmetricKey(
   *request.mutable_crypto_key() = std::move(gcp_key);
   google::cloud::v2_29::StatusOr<google::cloud::kms::v1::CryptoKey> result =
       client_.CreateCryptoKey(request);
-  if (!result.ok()) {
-    return gcp_common::GcpToAbslStatus(result.status());
-  }
+  HATS_RETURN_IF_ERROR(result.status());
   CryptoKey custom_key;
   custom_key.key_id = result->name();
   return custom_key;
@@ -68,12 +64,10 @@ absl::StatusOr<std::string> GcpKmsClient::EncryptData(
   request.set_name(key_id);
   request.set_plaintext(plaintext);
   request.set_additional_authenticated_data(associated_data);
+
   google::cloud::v2_29::StatusOr<google::cloud::kms::v1::EncryptResponse>
       result = client_.Encrypt(request);
-
-  if (!result.ok()) {
-    return gcp_common::GcpToAbslStatus(result.status());
-  }
+  HATS_RETURN_IF_ERROR(result.status());
 
   return result->ciphertext();
 }
@@ -88,10 +82,8 @@ absl::StatusOr<std::string> GcpKmsClient::DecryptData(
 
   google::cloud::v2_29::StatusOr<google::cloud::kms::v1::DecryptResponse>
       result = client_.Decrypt(request);
+  HATS_RETURN_IF_ERROR(result.status());
 
-  if (!result.ok()) {
-    return gcp_common::GcpToAbslStatus(result.status());
-  }
   return result->plaintext();
 }
 

@@ -28,7 +28,7 @@ cc_library(
         "kms-client.h",
     ],
     deps = [
-        "//gcp_common:gcp-status",
+        "//status_macro:status_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
         "@google_cloud_cpp//:kms",
@@ -86,6 +86,7 @@ cc_library(
     deps = [
         "//gcp_common:flags",
         "//gcp_common:gcp-status",
+        "//status_macro:status_macros",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -145,6 +146,7 @@ cc_library(
         "//gcp_common:flags",
         "//gcp_common:gcp-status",
         "//key_manager:gcp-kms-client",
+        "//status_macro:status_macros",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

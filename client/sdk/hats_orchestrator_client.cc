@@ -19,60 +19,14 @@
 #include <utility>
 #include <vector>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "client/proto/orchestrator.grpc.pb.h"
 #include "client/proto/orchestrator.pb.h"
 #include "external/oak/cc/containers/sdk/common.h"
 #include "grpcpp/channel.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::server_common {
-
-namespace {
-
-absl::Status GrpcToAbslStatus(const grpc::Status& status) {
-  switch (status.error_code()) {
-    case grpc::StatusCode::OK:
-      return absl::OkStatus();
-    case grpc::StatusCode::INTERNAL:
-      return absl::InternalError(status.error_message());
-    case grpc::StatusCode::UNAVAILABLE:
-      return absl::UnavailableError(status.error_message());
-    case grpc::StatusCode::ABORTED:
-      return absl::AbortedError(status.error_message());
-    case grpc::StatusCode::OUT_OF_RANGE:
-      return absl::OutOfRangeError(status.error_message());
-    case grpc::StatusCode::UNIMPLEMENTED:
-      return absl::UnimplementedError(status.error_message());
-    case grpc::StatusCode::FAILED_PRECONDITION:
-      return absl::FailedPreconditionError(status.error_message());
-    case grpc::StatusCode::UNAUTHENTICATED:
-      return absl::UnauthenticatedError(status.error_message());
-    case grpc::StatusCode::PERMISSION_DENIED:
-      return absl::PermissionDeniedError(status.error_message());
-    case grpc::StatusCode::RESOURCE_EXHAUSTED:
-      return absl::ResourceExhaustedError(status.error_message());
-    case grpc::StatusCode::DATA_LOSS:
-      return absl::DataLossError(status.error_message());
-    case grpc::StatusCode::INVALID_ARGUMENT:
-      return absl::InvalidArgumentError(status.error_message());
-    case grpc::StatusCode::DEADLINE_EXCEEDED:
-      return absl::DeadlineExceededError(status.error_message());
-    case grpc::StatusCode::NOT_FOUND:
-      return absl::NotFoundError(status.error_message());
-    case grpc::StatusCode::ALREADY_EXISTS:
-      return absl::AlreadyExistsError(status.error_message());
-    case grpc::StatusCode::CANCELLED:
-      return absl::CancelledError(status.error_message());
-    case grpc::StatusCode::UNKNOWN:
-      return absl::UnknownError(status.error_message());
-    case grpc::StatusCode::DO_NOT_USE:
-      return absl::UnknownError(status.error_message());
-  }
-  return absl::UnknownError(status.error_message());
-}
-
-}  // namespace
 
 HatsOrchestratorClient::HatsOrchestratorClient()
     : hats_stub_(HatsOrchestrator::NewStub(
@@ -87,10 +41,7 @@ absl::StatusOr<std::vector<Key>> HatsOrchestratorClient::GetKeys() const {
   grpc::ClientContext context;
   context.set_authority(oak::containers::sdk::kContextAuthority);
   GetKeysResponse response;
-  if (grpc::Status status = hats_stub_->GetKeys(&context, {}, &response);
-      !status.ok()) {
-    return GrpcToAbslStatus(status);
-  }
+  HATS_RETURN_IF_ERROR(hats_stub_->GetKeys(&context, {}, &response));
   std::vector<Key> keys;
   // Non-const to allow effective moving.
   for (Key& key : *response.mutable_keys()) {

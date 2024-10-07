@@ -27,6 +27,7 @@
 #include "client/launcher/snp-abi.h"
 #include "curl/curl.h"
 #include "external/psp-sev/file/psp-sev.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::client {
 namespace {
@@ -101,11 +102,8 @@ absl::StatusOr<snp_tcb_version> GetTcbVersion(const KernelApiInterface& api,
                                               int sev_fd) {
   snp_platform_status_buffer buffer;
   memset(&buffer, 0, sizeof(buffer));
-  if (absl::Status status = SevIoCtl(api, sev_fd, SNP_PLATFORM_STATUS,
-                                     reinterpret_cast<uint64_t>(&buffer));
-      !status.ok()) {
-    return status;
-  }
+  HATS_RETURN_IF_ERROR(SevIoCtl(api, sev_fd, SNP_PLATFORM_STATUS,
+                                reinterpret_cast<uint64_t>(&buffer)));
   // Parse the reported_tcb.
   snp_tcb_version version;
   version.val = buffer.reported_tcb;
@@ -118,11 +116,8 @@ absl::StatusOr<std::string> GetCpuId(const KernelApiInterface& api,
   memset(&buffer, 0, sizeof(buffer));
   sev_user_data_get_id2 id_buf{.address = reinterpret_cast<uint64_t>(&buffer),
                                .length = sizeof(buffer)};
-  if (absl::Status status = SevIoCtl(api, sev_fd, SEV_GET_ID2,
-                                     reinterpret_cast<uint64_t>(&id_buf));
-      !status.ok()) {
-    return status;
-  }
+  HATS_RETURN_IF_ERROR(
+      SevIoCtl(api, sev_fd, SEV_GET_ID2, reinterpret_cast<uint64_t>(&id_buf)));
 
   // buffer.socket1 is of type __u8[64]
   const std::string socket1_bytes(reinterpret_cast<const char*>(buffer.socket1),
@@ -132,31 +127,27 @@ absl::StatusOr<std::string> GetCpuId(const KernelApiInterface& api,
 }  // namespace
 
 absl::StatusOr<std::string> GetCertificateUrl(const KernelApiInterface& api) {
-  absl::StatusOr<std::string> cpu_model = GetCpuModel(api);
-  if (!cpu_model.ok()) {
-    return cpu_model.status();
-  }
+  HATS_ASSIGN_OR_RETURN(std::string cpu_model, GetCpuModel(api));
 
   int sev_fd = api.OpenSev();
   if (sev_fd < 0) {
     return absl::UnknownError("failed to open /dev/sev fd with O_RDWR mode");
   }
-  absl::StatusOr<std::string> cpu_id = GetCpuId(api, sev_fd);
-  if (!cpu_id.ok()) {
+  // Ensure it always closes
+  auto close = [&api, &sev_fd](auto x) {
     api.Close(sev_fd);
-    return cpu_id.status();
-  }
-  absl::StatusOr<snp_tcb_version> tcb_version = GetTcbVersion(api, sev_fd);
+    return x;
+  };
+  HATS_ASSIGN_OR_RETURN(std::string cpu_id, GetCpuId(api, sev_fd), close(_));
+  HATS_ASSIGN_OR_RETURN(snp_tcb_version tcb_version, GetTcbVersion(api, sev_fd),
+                        close(_));
   api.Close(sev_fd);
-  if (!tcb_version.ok()) {
-    return tcb_version.status();
-  }
 
   return absl::StrFormat(
       "https://kdsintf.amd.com/vcek/v1/%s/"
       "%s?blSPL=%02d&teeSPL=%02d&snpSPL=%02d&ucodeSPL=%02d",
-      *cpu_model, *cpu_id, (*tcb_version).f.boot_loader, (*tcb_version).f.tee,
-      (*tcb_version).f.snp, (*tcb_version).f.microcode);
+      cpu_model, cpu_id, tcb_version.f.boot_loader, tcb_version.f.tee,
+      tcb_version.f.snp, tcb_version.f.microcode);
 }
 
 absl::StatusOr<std::string> DownloadCertificate(const std::string& url) {
@@ -179,9 +170,7 @@ absl::StatusOr<std::string> DownloadCertificate(const std::string& url) {
 
 absl::StatusOr<std::string> DownloadCertificate() {
   KernelApi api;
-  absl::StatusOr<std::string> url = GetCertificateUrl(api);
-  if (!url.ok()) return url.status();
-
-  return DownloadCertificate(*url);
+  HATS_ASSIGN_OR_RETURN(std::string url, GetCertificateUrl(api));
+  return DownloadCertificate(url);
 }
 }  // namespace privacy_sandbox::client

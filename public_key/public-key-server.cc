@@ -34,6 +34,8 @@
 #include "grpcpp/support/status.h"
 #include "key_manager/public-key-fetcher.h"
 #include "public_key/proto/public_key_service.pb.h"
+#include "status_macro/status_macros.h"
+#include "status_macro/status_util.h"
 
 namespace privacy_sandbox::public_key_service {
 namespace {
@@ -64,9 +66,10 @@ absl::StatusOr<ListPublicKeysResponse> ParseKeyJson(
     privacy_sandbox::public_key_service::ExecutionEnvironment
         execution_environment) {
   ListPublicKeysResponse resp;
-  if (!google::protobuf::util::JsonStringToMessage(content, &resp).ok())
-    return absl::UnknownError(absl::StrCat(
-        "failed to parse public keys from upstream json with status"));
+  HATS_RETURN_IF_ERROR(
+      google::protobuf::util::JsonStringToMessage(content, &resp))
+      .PrependWith(
+          "Failed to parse public keys from upstream json with status: ");
   for (auto& public_key : *resp.mutable_public_keys()) {
     public_key.set_execution_environment(execution_environment);
   }
@@ -92,6 +95,7 @@ grpc::Status PublicKeyServer::ListPublicKeys(
   aws_download.join();
   gcp_download.join();
   onprem_download.join();
+  // Not simple to do threads + multiple status checks with the macros
   if (!aws_public_key.ok() || !gcp_public_key.ok() || !onprem_public_key.ok()) {
     return grpc::Status(
         grpc::StatusCode::UNAVAILABLE,
@@ -100,26 +104,23 @@ grpc::Status PublicKeyServer::ListPublicKeys(
                      " ONPREM: ", onprem_public_key.status()));
   }
 
-  absl::StatusOr<ListPublicKeysResponse> aws_keys =
-      ParseKeyJson(*aws_public_key, EXECUTION_ENVIRONMENT_AWS);
-  if (!aws_keys.ok())
-    // Upstream breaks the json format assumption and therefore it's a severe
-    // issue.
-    return grpc::Status(grpc::StatusCode::INTERNAL,
-                        absl::StrCat("failed to parse AWS json with error ",
-                                     aws_keys.status()));
-  absl::StatusOr<ListPublicKeysResponse> gcp_keys =
-      ParseKeyJson(*gcp_public_key, EXECUTION_ENVIRONMENT_GCP);
-  if (!gcp_keys.ok())
-    // Upstream breaks the json format assumption and therefore it's a severe
-    // issue.
-    return grpc::Status(grpc::StatusCode::INTERNAL,
-                        absl::StrCat("failed to parse GCP json with error ",
-                                     gcp_keys.status()));
+  // Upstream breaks the json format assumption and therefore it's a severe
+  // issue.
+  HATS_ASSIGN_OR_RETURN(
+      ListPublicKeysResponse aws_keys,
+      ParseKeyJson(*aws_public_key, EXECUTION_ENVIRONMENT_AWS),
+      _.PrependWith("Failed to parse AWS json with error: ")
+          .With(status_macro::FromAbslStatus));
+  HATS_ASSIGN_OR_RETURN(
+      ListPublicKeysResponse gcp_keys,
+      ParseKeyJson(*gcp_public_key, EXECUTION_ENVIRONMENT_GCP),
+      _.PrependWith("Failed to parse GCP json with error: ")
+          .With(status_macro::FromAbslStatus));
+
   (*response->mutable_public_keys())
-      .Add((*aws_keys).public_keys().begin(), (*aws_keys).public_keys().end());
+      .Add(aws_keys.public_keys().begin(), aws_keys.public_keys().end());
   (*response->mutable_public_keys())
-      .Add((*gcp_keys).public_keys().begin(), (*gcp_keys).public_keys().end());
+      .Add(gcp_keys.public_keys().begin(), gcp_keys.public_keys().end());
   for (const privacy_sandbox::key_manager::PerOriginPublicKey& key :
        (*onprem_public_key)) {
     PublicKey* onprem_key = response->add_public_keys();
@@ -150,13 +151,14 @@ grpc::Status PublicKeyServer::UpdateCloudBucket(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     google::protobuf::Empty* response) {
   ListPublicKeysResponse list_response;
-  grpc::Status list_keys_status =
-      ListPublicKeys(context, request, &list_response);
-  if (!list_keys_status.ok()) return list_keys_status;
+  HATS_RETURN_IF_ERROR(ListPublicKeys(context, request, &list_response))
+      .With(status_macro::FromAbslStatus);
 
   std::string json;
-  if (!google::protobuf::util::MessageToJsonString(list_response, &json).ok())
-    return grpc::Status(grpc::StatusCode::INTERNAL, "failed to serialize json");
+  HATS_RETURN_IF_ERROR(
+      google::protobuf::util::MessageToJsonString(list_response, &json))
+      .PrependWith("Failed to serialize json: ")
+      .With(status_macro::FromAbslStatus);
   google::cloud::storage::ObjectWriteStream writer = bucket_client_.WriteObject(
       options_.gcp_cloud_bucket_name, "public_keys.json");
   writer << json;

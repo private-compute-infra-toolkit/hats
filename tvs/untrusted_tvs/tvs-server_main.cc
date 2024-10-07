@@ -14,14 +14,12 @@
 
 #include <cstdlib>
 #include <string>
-#include <utility>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -29,6 +27,7 @@
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
 #include "key_manager/key-fetcher.h"
+#include "status_macro/status_macros.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/untrusted_tvs/tvs-service.h"
@@ -69,71 +68,59 @@ int main(int argc, char* argv[]) {
 
   std::unique_ptr<privacy_sandbox::key_manager::KeyFetcher> key_fetcher =
       privacy_sandbox::key_manager::KeyFetcher::Create();
-  absl::StatusOr<std::string> primary_private_key =
-      key_fetcher->GetPrimaryPrivateKey();
-  if (!primary_private_key.ok()) {
-    LOG(ERROR) << "Failed to fetch primary private key: "
-               << primary_private_key.status();
-    return 1;
-  }
+  HATS_ASSIGN_OR_RETURN(
+      std::string primary_private_key, key_fetcher->GetPrimaryPrivateKey(),
+      _.PrependWith("Failed to fetch primary private key: ").LogErrorAndExit());
 
-  absl::StatusOr<std::string> secondary_private_key =
+  absl::StatusOr<std::string> secondary_private_key_statusor =
       key_fetcher->GetSecondaryPrivateKey();
-  if (!secondary_private_key.ok()) {
+  std::string secondary_private_key;
+  if (!secondary_private_key_statusor.ok()) {
     LOG(WARNING) << "Failed to fetch secondary private key: "
-                 << secondary_private_key.status();
+                 << secondary_private_key_statusor.status();
+    secondary_private_key = "";
+  } else {
+    secondary_private_key = *secondary_private_key_statusor;
   }
 
-  absl::StatusOr<int> port = GetPort();
-  if (!port.ok()) {
-    LOG(ERROR) << "Cannot get server port " << port.status();
-  }
+  HATS_ASSIGN_OR_RETURN(
+      int port, GetPort(),
+      _.PrependWith("Cannot get server port: ").LogErrorAndExit());
 
-  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher>>
-      policy_fetcher = privacy_sandbox::tvs::PolicyFetcher::Create();
-  if (!policy_fetcher.ok()) {
-    LOG(ERROR) << "Failed to create a policy fetcher: "
-               << policy_fetcher.status();
-    return 1;
-  }
+  HATS_ASSIGN_OR_RETURN(
+      std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
+      privacy_sandbox::tvs::PolicyFetcher::Create(),
+      _.PrependWith("Failed to create a policy fetcher: ").LogErrorAndExit());
 
-  absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies> appraisal_policies =
-      (*policy_fetcher)->GetLatestNPolicies(/*n=*/5);
-  if (!appraisal_policies.ok()) {
-    LOG(ERROR) << "Failed to get appraisal policies: "
-               << appraisal_policies.status();
-    return 1;
-  }
+  HATS_ASSIGN_OR_RETURN(
+      privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
+      policy_fetcher->GetLatestNPolicies(/*n=*/5),
+      _.PrependWith("Failed to get appraisal policies: ").LogErrorAndExit());
 
   if (absl::GetFlag(FLAGS_accept_insecure_policies)) {
     LOG(WARNING) << "The server is accepting insecure policies. This should be "
                     "enabled for testing only.";
   }
 
-  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsService>>
-      tvs_service = privacy_sandbox::tvs::TvsService::Create({
-          .primary_private_key = *std::move(primary_private_key),
-          .secondary_private_key = secondary_private_key.ok()
-                                       ? *std::move(secondary_private_key)
-                                       : "",
-          .appraisal_policies = *std::move(appraisal_policies),
+  HATS_ASSIGN_OR_RETURN(
+      std::unique_ptr<privacy_sandbox::tvs::TvsService> tvs_service,
+      privacy_sandbox::tvs::TvsService::Create({
+          .primary_private_key = primary_private_key,
+          .secondary_private_key = secondary_private_key,
+          .appraisal_policies = appraisal_policies,
           .enable_policy_signature =
               absl::GetFlag(FLAGS_enable_policy_signature),
           .accept_insecure_policies =
               absl::GetFlag(FLAGS_accept_insecure_policies),
-      });
-
-  if (!tvs_service.ok()) {
-    LOG(ERROR) << "Failed to create TVS server: " << tvs_service;
-    return 1;
-  }
+      }),
+      _.PrependWith("Failed to create TVS server: ").LogErrorAndExit());
 
   LOG(INFO) << "Starting TVS server on port " << port;
-  const std::string server_address = absl::StrCat("0.0.0.0:", *port);
+  const std::string server_address = absl::StrCat("0.0.0.0:", port);
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder()
           .AddListeningPort(server_address, grpc::InsecureServerCredentials())
-          .RegisterService(tvs_service->get())
+          .RegisterService(tvs_service.get())
           .BuildAndStart();
   LOG(INFO) << "Server listening on " << server_address;
   server->Wait();

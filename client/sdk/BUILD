@@ -25,8 +25,8 @@ cc_library(
     deps = [
         "//client/proto:orchestrator_cc_grpc",
         "//client/proto:orchestrator_cc_proto",
+        "//status_macro:status_macros",
         "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@oak//cc/containers/sdk:common",
         "@oak//cc/containers/sdk:orchestrator_client",
@@ -55,8 +55,8 @@ cc_library(
     deps = [
         "//client/proto:orchestrator_cc_grpc",
         "//client/proto:orchestrator_cc_proto",
+        "//status_macro:status_macros",
         "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
 )

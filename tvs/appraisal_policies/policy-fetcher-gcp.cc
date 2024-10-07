@@ -25,6 +25,8 @@
 #include "gcp_common/flags.h"
 #include "gcp_common/gcp-status.h"
 #include "google/cloud/spanner/client.h"
+#include "google/cloud/spanner/sql_statement.h"
+#include "status_macro/status_macros.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
 namespace privacy_sandbox::tvs {
@@ -57,9 +59,7 @@ absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPolicies(int n) {
   using RowType = std::tuple<google::cloud::spanner::Bytes>;
   auto rows = spanner_client_.ExecuteQuery(std::move(select));
   for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-    if (!row.ok()) {
-      return gcp_common::GcpToAbslStatus(row.status());
-    }
+    HATS_RETURN_IF_ERROR(row.status());
     AppraisalPolicy policy;
     if (!policy.ParseFromString(std::get<0>(*row).get<std::string>())) {
       return absl::FailedPreconditionError("Failed to parse a policy");

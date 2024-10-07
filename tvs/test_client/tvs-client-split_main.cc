@@ -23,8 +23,6 @@
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
@@ -32,6 +30,7 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/channel.h"
+#include "status_macro/status_macros.h"
 #include "tvs/credentials/credentials.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
@@ -127,55 +126,49 @@ int main(int argc, char* argv[]) {
   // key_id
   std::unordered_map<int64_t, KeyShares> keys;
   for (size_t i = 0; i < tvs_addresses.size(); i++) {
-    absl::StatusOr<std::shared_ptr<grpc::Channel>> channel =
+    HATS_ASSIGN_OR_RETURN(
+        std::shared_ptr<grpc::Channel> channel,
         privacy_sandbox::tvs::CreateGrpcChannel({
             .use_tls = absl::GetFlag(FLAGS_use_tls),
             .target = tvs_addresses[i],
             .access_token = absl::GetFlag(FLAGS_access_token),
-        });
-    if (!channel.ok()) {
-      LOG(ERROR) << "Error creating GRPC channel to " << tvs_addresses[i]
-                 << ": " << channel;
-      return 1;
-    }
-    absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient>>
-        tvs_client = privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
+        }),
+        _.PrependWith(absl::StrCat("Error creating GRPC channel to",
+                                   tvs_addresses[i], ": "))
+            .LogErrorAndExit());
+
+    HATS_ASSIGN_OR_RETURN(
+        std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient> tvs_client,
+        privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
             .tvs_public_key = tvs_public_keys[i],
             .tvs_authentication_key =
                 absl::GetFlag(FLAGS_tvs_authentication_key),
-            .channel = std::move(channel).value(),
-        });
-    if (!tvs_client.ok()) {
-      LOG(ERROR) << "Couldn't create TVS client for " << tvs_addresses[i]
-                 << ": " << tvs_client.status();
-      return 1;
-    }
-    absl::StatusOr<privacy_sandbox::tvs::VerifyReportResponse> response =
-        (*tvs_client)
-            ->VerifyReportAndGetSecrets(application_signing_key,
-                                        verify_report_request);
-    if (!response.ok()) {
-      std::cout << "TVS rejected the report: " << response.status()
-                << std::endl;
-    }
-    for (const privacy_sandbox::tvs::Secret& secret : response->secrets()) {
+            .channel = channel,
+        }),
+        _.PrependWith(absl::StrCat("Couldn't create TVS client for ",
+                                   tvs_addresses[i], ": "))
+            .LogErrorAndExit());
+    HATS_ASSIGN_OR_RETURN(
+        privacy_sandbox::tvs::VerifyReportResponse response,
+        tvs_client->VerifyReportAndGetSecrets(application_signing_key,
+                                              verify_report_request),
+        _.PrependWith("TVS rejected the report: ").LogErrorAndExit());
+    for (const privacy_sandbox::tvs::Secret& secret : response.secrets()) {
       KeyShares& shares = keys[secret.key_id()];
       shares.public_key = secret.public_key();
       shares.secret_shares.push_back(secret.private_key());
     }
   }
   for (const auto& [key_id, shared_secret] : keys) {
-    absl::StatusOr<rust::Vec<uint8_t>> recovered_secret =
+    HATS_ASSIGN_OR_RETURN(
+        rust::Vec<uint8_t> recovered_secret,
         privacy_sandbox::crypto::RecoverSecret(
             StringVecToRustVec(shared_secret.secret_shares),
-            tvs_addresses.size(), tvs_addresses.size() - 1);
-    if (!recovered_secret.ok()) {
-      LOG(ERROR) << "Failed to recover secret: " << recovered_secret.status();
-      return 1;
-    }
+            tvs_addresses.size(), tvs_addresses.size() - 1),
+        _.PrependWith("Failed to recover secret: ").LogErrorAndExit());
     std::string bytes;
     if (absl::GetFlag(FLAGS_user_dek) != "") {
-      std::string wrapped_key = RustVecToString(*recovered_secret);
+      std::string wrapped_key = RustVecToString(recovered_secret);
       SecretData wrapped_secret = SecretData(wrapped_key);
       std::string dec;
       if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_user_dek), &dec)) {
@@ -184,26 +177,19 @@ int main(int argc, char* argv[]) {
         return 1;
       }
       SecretData dek = SecretData(dec);
-      absl::StatusOr<SecretData> unwrapped_key =
+      HATS_ASSIGN_OR_RETURN(
+          SecretData unwrapped_key,
           privacy_sandbox::crypto::Decrypt(dek, wrapped_secret,
-                                           privacy_sandbox::crypto::kSecretAd);
-      if (!unwrapped_key.ok()) {
-        LOG(ERROR) << "Invalid private key recovered: "
-                   << unwrapped_key.status();
-        return 1;
-      }
-      bytes = (*unwrapped_key).GetStringView();
+                                           privacy_sandbox::crypto::kSecretAd),
+          _.PrependWith("Invalid private key recovered").LogErrorAndExit());
+      bytes = unwrapped_key.GetStringView();
     } else {
-      bytes = RustVecToString(*recovered_secret);
+      bytes = RustVecToString(recovered_secret);
     }
-    absl::StatusOr<std::string> priv_key_hex = absl::BytesToHexString(bytes);
-    if (!priv_key_hex.ok()) {
-      LOG(ERROR) << "Invalid private key recovered: " << priv_key_hex.status();
-      return 1;
-    }
+    std::string priv_key_hex = absl::BytesToHexString(bytes);
     std::cout << "Key id: " << key_id << std::endl;
     std::cout << "Public key: " << shared_secret.public_key << std::endl;
-    std::cout << "Private key: " << *priv_key_hex << std::endl;
+    std::cout << "Private key: " << priv_key_hex << std::endl;
   }
   return 0;
 }

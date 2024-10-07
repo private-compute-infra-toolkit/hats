@@ -23,6 +23,7 @@
 #include "crypto/secret-data.h"
 #include "openssl/bn.h"
 #include "openssl/nid.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::crypto {
 
@@ -54,10 +55,8 @@ absl::StatusOr<SecretData> EcKey::GetPrivateKey() const {
 // Wrap the EC private key with an AEAD key.
 absl::StatusOr<std::string> EcKey::WrapPrivateKey(
     const SecretData& wrapping_key, absl::string_view associated_data) const {
-  absl::StatusOr<SecretData> private_key = GetPrivateKey();
-  if (!private_key.ok()) return private_key.status();
-
-  return privacy_sandbox::crypto::Encrypt(wrapping_key, *private_key,
+  HATS_ASSIGN_OR_RETURN(SecretData private_key, GetPrivateKey());
+  return privacy_sandbox::crypto::Encrypt(wrapping_key, private_key,
                                           associated_data);
 }
 
@@ -76,9 +75,8 @@ absl::StatusOr<std::string> EcKey::GetPublicKey() const {
 }
 
 absl::StatusOr<std::string> EcKey::GetPublicKeyInHex() const {
-  absl::StatusOr<std::string> public_key = GetPublicKey();
-  if (!public_key.ok()) return public_key.status();
-  return absl::BytesToHexString(*public_key);
+  HATS_ASSIGN_OR_RETURN(std::string public_key, GetPublicKey());
+  return absl::BytesToHexString(public_key);
 }
 
 }  // namespace privacy_sandbox::crypto

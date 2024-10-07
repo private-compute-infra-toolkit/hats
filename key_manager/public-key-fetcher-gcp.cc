@@ -24,9 +24,9 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "gcp_common/flags.h"
-#include "gcp_common/gcp-status.h"
 #include "google/cloud/spanner/client.h"
 #include "key_manager/public-key-fetcher.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::key_manager {
 
@@ -68,9 +68,7 @@ WHERE s.SecretId=p.SecretId
   using RowType = std::tuple<int64_t, std::string, std::string>;
   std::vector<PerOriginPublicKey> keys;
   for (const auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-    if (!row.ok()) {
-      return gcp_common::GcpToAbslStatus(row.status());
-    }
+    HATS_RETURN_IF_ERROR(row.status());
     PerOriginPublicKey key{.key_id = std::get<0>(*row),
                            .public_key = std::get<1>(*row),
                            .origin = std::get<2>(*row)};

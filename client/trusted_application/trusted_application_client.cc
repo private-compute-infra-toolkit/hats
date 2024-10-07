@@ -18,7 +18,6 @@
 #include <string>
 #include <utility>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "client/proto/trusted_service.grpc.pb.h"
@@ -26,6 +25,7 @@
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
 #include "grpcpp/create_channel.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::client {
 
@@ -50,25 +50,20 @@ absl::StatusOr<DecryptedResponse> TrustedApplicationClient::SendEcho() const {
 absl::StatusOr<DecryptedResponse> TrustedApplicationClient::SendEcho(
     absl::string_view to_encrypt) const {
   grpc::ClientContext context;
-  absl::StatusOr<std::string> encrypted = privacy_sandbox::crypto::Encrypt(
-      private_key_, crypto::SecretData(to_encrypt),
-      privacy_sandbox::crypto::kSecretAd);
-  if (!encrypted.ok()) {
-    return encrypted.status();
-  }
+  HATS_ASSIGN_OR_RETURN(std::string encrypted,
+                        privacy_sandbox::crypto::Encrypt(
+                            private_key_, crypto::SecretData(to_encrypt),
+                            privacy_sandbox::crypto::kSecretAd));
 
   EncryptedRequest request;
-  *request.mutable_encrypted_message() = *std::move(encrypted);
+  *request.mutable_encrypted_message() = std::move(encrypted);
   request.set_key_id(key_id_);
 
   DecryptedResponse response;
 
-  grpc::Status resp = trusted_service_stub_->Echo(&context, request, &response);
-
-  if (!resp.ok()) {
-    return absl::AbortedError(
-        absl::StrCat("Failed to decrypt message: ", resp.error_message()));
-  }
+  HATS_RETURN_IF_ERROR(
+      trusted_service_stub_->Echo(&context, request, &response))
+      .PrependWith("Failed to decrypt message: ");
 
   return response;
 }

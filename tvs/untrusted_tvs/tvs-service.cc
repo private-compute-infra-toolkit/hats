@@ -75,6 +75,8 @@ absl::StatusOr<std::unique_ptr<TvsService>> TvsService::Create(
           options.primary_private_key, options.secondary_private_key,
           options.appraisal_policies, options.enable_policy_signature,
           options.accept_insecure_policies);
+  // Note: Status macros currently don't support setting the status code, and
+  // the test checks the code type.
   if (!trusted_service.ok()) {
     return absl::FailedPreconditionError(absl::StrCat(
         "Cannot create trusted TVS server: ", trusted_service.status()));
@@ -92,6 +94,8 @@ grpc::Status TvsService::VerifyReport(
   while (stream->Read(&request) && !request_handler->IsTerminated()) {
     absl::StatusOr<rust::Vec<uint8_t>> result = request_handler->VerifyReport(
         StringToRustSlice(request.binary_message()));
+    // Note: Status macros currently don't support setting the status code, and
+    // the test checks the code type.
     if (!result.ok()) {
       return grpc::Status(
           grpc::StatusCode::INVALID_ARGUMENT,

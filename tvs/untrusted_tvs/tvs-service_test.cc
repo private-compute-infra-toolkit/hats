@@ -315,7 +315,7 @@ TEST(TvsService, MalformedMessageError) {
   OpaqueMessage response;
   ASSERT_FALSE(stream->Read(&response));
   EXPECT_THAT(stream->Finish().error_message(),
-              HasSubstr("Invalid or malformed command."));
+              HasSubstr("Invalid or malformed command"));
 }
 
 TEST(TvsService, CreatingTrustedTvsServiceError) {

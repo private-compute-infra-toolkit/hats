@@ -43,6 +43,7 @@
 #include "libarchive/archive.h"
 #include "libarchive/archive_entry.h"
 #include "src/core/lib/iomgr/socket_mutator.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::client {
 
@@ -124,8 +125,7 @@ absl::Status UntarHatsBundle(archive* reader, archive* writer,
           absl::StrCat("failed to untar on header write error: ",
                        archive_error_string(writer)));
 
-    absl::Status status = UntarOneFile(reader, writer);
-    if (!status.ok()) return status;
+    HATS_RETURN_IF_ERROR(UntarOneFile(reader, writer));
   }
   return absl::OkStatus();
 }
@@ -138,13 +138,11 @@ CreateParcServer(const ParcConfig& config) {
       static_cast<std::string>(config.blob_storage_root()));
   const std::string parameters_file_path = std::filesystem::path(
       static_cast<std::string>(config.parameters_file_path()));
-  absl::StatusOr<privacysandbox::parc::local::v0::Parameters> parameters =
-      privacysandbox::parc::local::v0::Parameters::Create(parameters_file_path);
-  if (!parameters.ok()) {
-    return parameters.status();
-  }
+  HATS_ASSIGN_OR_RETURN(privacysandbox::parc::local::v0::Parameters parameters,
+                        privacysandbox::parc::local::v0::Parameters::Create(
+                            parameters_file_path));
   return std::make_unique<privacysandbox::parc::local::v0::ParcServer>(
-      std::move(parameters).value(), blob_storage_root, kBlobChunkSizeMax);
+      std::move(parameters), blob_storage_root, kBlobChunkSizeMax);
 }
 
 // External dependencies to the file system or other places for the launcher to
@@ -247,7 +245,7 @@ absl::StatusOr<LauncherExtDeps> UnbundleHatsBundle(
   archive_read_free(reader);
   archive_read_close(writer);
   archive_read_free(writer);
-  if (!status.ok()) return status;
+  HATS_RETURN_IF_ERROR(status);
 
   LauncherExtDeps ext_deps;
   ext_deps.kernel_binary_path = absl::StrCat(tmp_dir, "/", kKernelBinary);
@@ -408,9 +406,7 @@ absl::Status HatsLauncherImpl::Start() {
   started_ = true;
 
   LOG(INFO) << "Qemu command:" << qemu_->GetCommand();
-  if (absl::Status status = qemu_->Start(); !status.ok()) {
-    return status;
-  }
+  HATS_RETURN_IF_ERROR(qemu_->Start());
   LOG(INFO) << "Qemu LogFilename:" << qemu_->LogFilename();
   return absl::OkStatus();
 }
@@ -487,15 +483,14 @@ HatsLauncherImpl::HatsLauncherImpl(
 absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
     const HatsLauncherConfig& config) {
   // External dependencies must be satisfied for hats launcher to run.
-  absl::StatusOr<LauncherExtDeps> deps = UnbundleHatsBundle(config.config);
-  if (!deps.ok()) return deps.status();
+  HATS_ASSIGN_OR_RETURN(LauncherExtDeps deps,
+                        UnbundleHatsBundle(config.config));
 
-  (*deps).container_bundle = config.config.cvm_config().runc_runtime_bundle();
+  deps.container_bundle = config.config.cvm_config().runc_runtime_bundle();
 
-  absl::StatusOr<Qemu::Options> qemu_options =
-      GetQemuOptions(*deps, config.config);
-  if (!qemu_options.ok()) return qemu_options.status();
-  qemu_options->log_to_std = config.qemu_log_to_std;
+  HATS_ASSIGN_OR_RETURN(Qemu::Options qemu_options,
+                        GetQemuOptions(deps, config.config));
+  qemu_options.log_to_std = config.qemu_log_to_std;
 
   // Whether or not to fetch tee certificate.
   const bool fetch_tee_certificate =
@@ -505,8 +500,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
       config.tvs_channels, fetch_tee_certificate);
 
   auto launcher_oak_server = std::make_unique<LauncherOakServer>(
-      (*deps).oak_system_image_path, (*deps).container_bundle,
-      kMaxGrpcResponseSize);
+      deps.oak_system_image_path, deps.container_bundle, kMaxGrpcResponseSize);
   auto logs_service = std::make_unique<LogsService>();
 
   grpc::ServerBuilder vsock_builder;
@@ -523,9 +517,8 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
       socket_mutator_server_builder_options->GetMutator();
   vsock_builder.SetOption(std::move(socket_mutator_server_builder_options));
   std::unique_ptr<grpc::Server> vsock_server = vsock_builder.BuildAndStart();
-  absl::StatusOr<uint32_t> vsock_port = grpc_socket_mutator.GetPort();
-  if (!vsock_port.ok()) return vsock_port.status();
-  qemu_options->launcher_vsock_port = *vsock_port;
+  HATS_ASSIGN_OR_RETURN(uint32_t vsock_port, grpc_socket_mutator.GetPort());
+  qemu_options.launcher_vsock_port = vsock_port;
 
   // parc and tcp servers are nullptr when they are not specified.
   std::unique_ptr<privacysandbox::parc::local::v0::ParcServer> parc_server;
@@ -533,10 +526,8 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
 
   std::optional<uint16_t> tcp_port;
   if (config.config.has_parc_config()) {
-    absl::StatusOr<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-        parc_server_or = CreateParcServer(config.config.parc_config());
-    if (!parc_server_or.ok()) return parc_server_or.status();
-    parc_server = *std::move(parc_server_or);
+    HATS_ASSIGN_OR_RETURN(parc_server,
+                          CreateParcServer(config.config.parc_config()));
     grpc::ServerBuilder builder;
     builder.RegisterService(parc_server.get());
     int port;
@@ -544,22 +535,21 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
     builder.AddListeningPort("0.0.0.0:0", grpc::InsecureServerCredentials(),
                              &port);
     tcp_server = builder.BuildAndStart();
-    qemu_options->workload_service_port = port;
+    qemu_options.workload_service_port = port;
     tcp_port = port;
     LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
-              << *vsock_port << "' and '0.0.0.0:" << port << "'";
+              << vsock_port << "' and '0.0.0.0:" << port << "'";
   } else {
     LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
-              << *vsock_port << "'";
+              << vsock_port << "'";
   }
 
-  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(*qemu_options);
-  if (!qemu.ok()) return qemu.status();
-  (*deps).vmm_binary_path = (*qemu_options).vmm_binary;
+  HATS_ASSIGN_OR_RETURN(std::unique_ptr<Qemu> qemu, Qemu::Create(qemu_options));
+  deps.vmm_binary_path = qemu_options.vmm_binary;
   return std::make_unique<HatsLauncherImpl>(
-      *std::move(deps), *std::move(qemu), std::move(launcher_oak_server),
+      deps, std::move(qemu), std::move(launcher_oak_server),
       std::move(launcher_server), std::move(logs_service),
-      std::move(vsock_server), *vsock_port, std::move(parc_server),
+      std::move(vsock_server), vsock_port, std::move(parc_server),
       std::move(tcp_server), tcp_port);
 }
 

@@ -27,13 +27,13 @@
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
 #include "gcp_common/flags.h"
-#include "gcp_common/gcp-status.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/spanner/client.h"
 #include "google/cloud/spanner/sql_statement.h"
 #include "google/cloud/spanner/transaction.h"
 #include "key_manager/gcp-kms-client.h"
 #include "key_manager/key-fetcher.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::key_manager {
 
@@ -66,9 +66,7 @@ absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
                              google::cloud::spanner::Bytes>;
   auto rows = client.ExecuteQuery(std::move(select));
   for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-    if (!row.ok()) {
-      return gcp_common::GcpToAbslStatus(row.status());
-    }
+    HATS_RETURN_IF_ERROR(row.status());
     return Keys{
         .kek = std::get<0>(*row),
         .dek = std::get<1>(*row).get<std::string>(),
@@ -103,10 +101,8 @@ absl::StatusOr<std::vector<Keys>> WrappedSecretsByUserIdFromSpanner(
                  std::string, google::cloud::spanner::Bytes>;
   auto rows = client.ExecuteQuery(std::move(select));
   std::vector<Keys> keys;
-  for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-    if (!row.ok()) {
-      return gcp_common::GcpToAbslStatus(row.status());
-    }
+  for (auto row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+    HATS_RETURN_IF_ERROR(row.status());
     keys.push_back({
         .kek = std::get<0>(*row),
         .dek = std::get<1>(*row).get<std::string>(),
@@ -126,12 +122,10 @@ absl::StatusOr<crypto::SecretData> UnwrapSecret(
     absl::string_view associated_data,
     privacy_sandbox::key_manager::GcpKmsClient& gcp_kms_client,
     const Keys& keys) {
-  absl::StatusOr<std::string> unwrapped_dek =
-      gcp_kms_client.DecryptData(keys.kek, keys.dek, kAssociatedData);
-  if (!unwrapped_dek.ok()) {
-    return unwrapped_dek.status();
-  }
-  return crypto::Decrypt(crypto::SecretData(*unwrapped_dek),
+  HATS_ASSIGN_OR_RETURN(
+      std::string unwrapped_dek,
+      gcp_kms_client.DecryptData(keys.kek, keys.dek, kAssociatedData));
+  return crypto::Decrypt(crypto::SecretData(unwrapped_dek),
                          crypto::SecretData(keys.private_key), associated_data);
 }
 
@@ -155,27 +149,21 @@ KeyFetcherGcp::KeyFetcherGcp(absl::string_view project_id,
                                            std::string(database_id)))) {}
 
 absl::StatusOr<std::string> KeyFetcherGcp::GetPrimaryPrivateKey() {
-  absl::StatusOr<Keys> keys =
-      WrappedEcKeyFromSpanner("primary_key", spanner_client_);
-  if (!keys.ok()) return keys.status();
-  absl::StatusOr<crypto::SecretData> secret_data =
-      UnwrapSecret(crypto::kTvsPrivateKeyAd, gcp_kms_client_, *keys);
-  if (!secret_data.ok()) {
-    return secret_data.status();
-  }
-  return std::string(secret_data->GetStringView());
+  HATS_ASSIGN_OR_RETURN(
+      Keys keys, WrappedEcKeyFromSpanner("primary_key", spanner_client_));
+  HATS_ASSIGN_OR_RETURN(
+      crypto::SecretData secret_data,
+      UnwrapSecret(crypto::kTvsPrivateKeyAd, gcp_kms_client_, keys));
+  return std::string(secret_data.GetStringView());
 }
 
 absl::StatusOr<std::string> KeyFetcherGcp::GetSecondaryPrivateKey() {
-  absl::StatusOr<Keys> keys =
-      WrappedEcKeyFromSpanner("secondary_key", spanner_client_);
-  if (!keys.ok()) return keys.status();
-  absl::StatusOr<crypto::SecretData> secret_data =
-      UnwrapSecret(crypto::kTvsPrivateKeyAd, gcp_kms_client_, *keys);
-  if (!secret_data.ok()) {
-    return secret_data.status();
-  }
-  return std::string(secret_data->GetStringView());
+  HATS_ASSIGN_OR_RETURN(
+      Keys keys, WrappedEcKeyFromSpanner("secondary_key", spanner_client_));
+  HATS_ASSIGN_OR_RETURN(
+      crypto::SecretData secret_data,
+      UnwrapSecret(crypto::kTvsPrivateKeyAd, gcp_kms_client_, keys));
+  return std::string(secret_data.GetStringView());
 }
 
 absl::StatusOr<int64_t> KeyFetcherGcp::UserIdForAuthenticationKey(
@@ -193,9 +181,7 @@ absl::StatusOr<int64_t> KeyFetcherGcp::UserIdForAuthenticationKey(
   auto rows = spanner_client_.ExecuteQuery(std::move(select));
   for (auto& row :
        google::cloud::spanner::StreamOf<std::tuple<int64_t>>(rows)) {
-    if (!row.ok()) {
-      return gcp_common::GcpToAbslStatus(row.status());
-    }
+    HATS_RETURN_IF_ERROR(row.status());
     return std::get<0>(*row);
   }
   return absl::NotFoundError("Cannot find user");
@@ -203,22 +189,20 @@ absl::StatusOr<int64_t> KeyFetcherGcp::UserIdForAuthenticationKey(
 
 absl::StatusOr<std::vector<Secret>> KeyFetcherGcp::GetSecretsForUserId(
     int64_t user_id) {
-  absl::StatusOr<std::vector<Keys>> keys =
-      WrappedSecretsByUserIdFromSpanner(user_id, spanner_client_);
-  if (!keys.ok()) return keys.status();
+  HATS_ASSIGN_OR_RETURN(
+      std::vector<Keys> keys,
+      WrappedSecretsByUserIdFromSpanner(user_id, spanner_client_));
 
   std::vector<Secret> secrets;
   // Use non-const to enable effective use of std::move().
-  for (Keys& key : *keys) {
-    absl::StatusOr<crypto::SecretData> secret_data =
-        UnwrapSecret(crypto::kSecretAd, gcp_kms_client_, key);
-    if (!secret_data.ok()) {
-      return secret_data.status();
-    }
+  for (Keys& key : keys) {
+    HATS_ASSIGN_OR_RETURN(
+        crypto::SecretData secret_data,
+        UnwrapSecret(crypto::kSecretAd, gcp_kms_client_, key));
     secrets.push_back({
         .key_id = key.key_id,
         .public_key = std::move(key.public_key),
-        .private_key = std::string(secret_data->GetStringView()),
+        .private_key = std::string(secret_data.GetStringView()),
     });
   }
   return secrets;
@@ -257,17 +241,13 @@ absl::StatusOr<bool> KeyFetcherGcp::MaybeAcquireLock(int64_t user_id) {
                   WHERE
                       Users.UserId = @user_id)sql",
               {{"user_id", google::cloud::spanner::Value(user_id)}});
-          auto update_result = spanner_client_.ExecuteDml(transaction, update);
-          if (!update_result.ok()) {
-            return update_result.status();
-          }
+          HATS_ASSIGN_OR_RETURN(
+              auto _, spanner_client_.ExecuteDml(transaction, update));
           lock_acquired = true;
         }
         return google::cloud::spanner::Mutations{};  // Indicate success
       });
-  if (!commit.ok()) {
-    return gcp_common::GcpToAbslStatus(commit.status());
-  }
+  HATS_RETURN_IF_ERROR(commit.status());
   return lock_acquired;
 }
 

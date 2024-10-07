@@ -36,6 +36,7 @@
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
 #include "key_manager/key-fetcher.h"
+#include "status_macro/status_macros.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/credentials/credentials.h"
 #include "tvs/proto/appraisal_policies.pb.h"
@@ -92,52 +93,37 @@ int main(int argc, char* argv[]) {
   // Startup TVS
   std::unique_ptr<privacy_sandbox::key_manager::KeyFetcher> key_fetcher =
       privacy_sandbox::key_manager::KeyFetcher::Create();
-  absl::StatusOr<std::string> primary_private_key =
-      key_fetcher->GetPrimaryPrivateKey();
-  if (!primary_private_key.ok()) {
-    LOG(ERROR) << "Failed to fetch primary private key: "
-               << primary_private_key.status();
-    return 1;
-  }
+  HATS_ASSIGN_OR_RETURN(
+      std::string primary_private_key, key_fetcher->GetPrimaryPrivateKey(),
+      _.PrependWith("Failed to fetch primary private key: ").LogErrorAndExit());
 
-  absl::StatusOr<std::string> secondary_private_key =
-      key_fetcher->GetSecondaryPrivateKey();
-  if (!secondary_private_key.ok()) {
-    LOG(WARNING) << "Failed to fetch secondary private key: "
-                 << secondary_private_key.status();
-  }
+  HATS_ASSIGN_OR_RETURN(std::string secondary_private_key,
+                        key_fetcher->GetSecondaryPrivateKey(),
+                        _.PrependWith("Failed to fetch secondary private key: ")
+                            .LogErrorAndExit());
 
   int tvs_listening_port = absl::GetFlag(FLAGS_tvs_listening_port);
 
-  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher>>
-      policy_fetcher = privacy_sandbox::tvs::PolicyFetcher::Create();
-  if (!policy_fetcher.ok()) {
-    LOG(ERROR) << "Failed to create a policy fetcher: "
-               << policy_fetcher.status();
-    return 1;
-  }
+  HATS_ASSIGN_OR_RETURN(
+      std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
+      privacy_sandbox::tvs::PolicyFetcher::Create(),
+      _.PrependWith("Failed to create a policy fetcher: ").LogErrorAndExit());
 
-  absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies> appraisal_policies =
-      (*policy_fetcher)->GetLatestNPolicies(/*n=*/5);
-  if (!appraisal_policies.ok()) {
-    LOG(ERROR) << "Failed to get appraisal policies: "
-               << appraisal_policies.status();
-    return 1;
-  }
+  HATS_ASSIGN_OR_RETURN(
+      privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
+      policy_fetcher->GetLatestNPolicies(/*n=*/5),
+      _.PrependWith("Failed to get appraisal policies: ").LogErrorAndExit());
 
-  absl::StatusOr<std::unique_ptr<privacy_sandbox::tvs::TvsService>>
-      tvs_service = privacy_sandbox::tvs::TvsService::Create({
-          .primary_private_key = *std::move(primary_private_key),
-          .appraisal_policies = *std::move(appraisal_policies),
+  HATS_ASSIGN_OR_RETURN(
+      std::unique_ptr<privacy_sandbox::tvs::TvsService> tvs_service,
+      privacy_sandbox::tvs::TvsService::Create({
+          .primary_private_key = std::move(primary_private_key),
+          .appraisal_policies = std::move(appraisal_policies),
           .enable_policy_signature =
               absl::GetFlag(FLAGS_enable_policy_signature),
           .accept_insecure_policies = false,
-      });
-
-  if (!tvs_service.ok()) {
-    LOG(ERROR) << "Failed to create TVS server: " << tvs_service;
-    return 1;
-  }
+      }),
+      _.PrependWith("Failed to create TVS server: ").LogErrorAndExit());
 
   LOG(INFO) << "Starting TVS server on port " << tvs_listening_port;
 
@@ -145,7 +131,7 @@ int main(int argc, char* argv[]) {
       grpc::ServerBuilder()
           .AddListeningPort(absl::StrCat("0.0.0.0:", tvs_listening_port),
                             grpc::InsecureServerCredentials())
-          .RegisterService(tvs_service->get())
+          .RegisterService(tvs_service.get())
           .BuildAndStart();
 
   // we sleep here because otherwise, the launcher was trying to communicate
@@ -181,54 +167,46 @@ int main(int argc, char* argv[]) {
     wrapping_keys.add_active(key_bytes);
   }
 
-  absl::StatusOr<privacy_sandbox::client::LauncherConfig> config =
-      LoadConfig(absl::GetFlag(FLAGS_launcher_config_path));
-  if (!config.ok()) {
-    LOG(ERROR) << "Failed to fetch launcher config with error: "
-               << config.status();
-    return 1;
-  }
+  HATS_ASSIGN_OR_RETURN(
+      privacy_sandbox::client::LauncherConfig config,
+      LoadConfig(absl::GetFlag(FLAGS_launcher_config_path)),
+      _.PrependWith("Failed to fetch launcher config with error: ")
+          .LogErrorAndExit());
 
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  absl::StatusOr<std::shared_ptr<grpc::Channel>> tvs_channel =
+  HATS_ASSIGN_OR_RETURN(
+      std::shared_ptr<grpc::Channel> tvs_channel,
       privacy_sandbox::tvs::CreateGrpcChannel(
           privacy_sandbox::tvs::CreateGrpcChannelOptions{
               .use_tls = absl::GetFlag(FLAGS_use_tls),
               .target = absl::StrCat("localhost:",
                                      std::to_string(tvs_listening_port)),
               .access_token = absl::GetFlag(FLAGS_tvs_access_token),
-          });
-  if (!tvs_channel.ok()) {
-    LOG(ERROR) << "Failed to establish gRPC channel to TVS server"
-               << tvs_channel.status();
-    return 1;
-  }
-  channel_map[0] = *std::move(tvs_channel);
+          }),
+      _.PrependWith("Failed to establish gRPC channel to TVS server")
+          .LogErrorAndExit());
+  channel_map[0] = std::move(tvs_channel);
 
-  absl::StatusOr<std::unique_ptr<privacy_sandbox::client::HatsLauncher>>
-      launcher = privacy_sandbox::client::HatsLauncher::Create({
-          .config = *std::move(config),
+  HATS_ASSIGN_OR_RETURN(
+      std::unique_ptr<privacy_sandbox::client::HatsLauncher> launcher,
+      privacy_sandbox::client::HatsLauncher::Create({
+          .config = std::move(config),
           .tvs_authentication_key_bytes =
               std::move(tvs_authentication_key_bytes),
           .private_key_wrapping_keys = std::move(wrapping_keys),
           .tvs_channels = std::move(channel_map),
           .qemu_log_to_std = absl::GetFlag(FLAGS_qemu_log_to_std),
-      });
-  if (!launcher.ok()) {
-    LOG(ERROR) << "Failed to create launcher: " << launcher.status();
-    return 1;
-  }
+      }),
+      _.PrependWith("Failed to create launcher: ").LogErrorAndExit());
 
   // Generate the log file randomly.
-  if (absl::Status status = (*launcher)->Start(); !status.ok()) {
-    LOG(ERROR) << "launcher terminated with abnormal status "
-               << status.message();
-    return 1;
-  }
+  HATS_RETURN_IF_ERROR(launcher->Start())
+      .PrependWith("Launcher terminated with abnormal status: ")
+      .LogErrorAndExit();
 
   // Now here we need to check if app is ready, if it is, start up app client
   // and talk to it.
-  while (!(*launcher)->IsAppReady()) {
+  while (!launcher->IsAppReady()) {
     std::cout << "Waiting for app to be ready" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
@@ -241,17 +219,14 @@ int main(int argc, char* argv[]) {
   privacy_sandbox::client::TrustedApplicationClient app_client =
       privacy_sandbox::client::TrustedApplicationClient(app_key, 64);
 
-  absl::StatusOr<privacy_sandbox::client::DecryptedResponse> response =
-      app_client.SendEcho();
+  HATS_ASSIGN_OR_RETURN(
+      privacy_sandbox::client::DecryptedResponse response,
+      app_client.SendEcho(),
+      _.PrependWith("Failed to communicate with trusted application: ")
+          .LogErrorAndExit());
 
-  if (!response.ok()) {
-    LOG(ERROR) << "Failed to communicate with trusted application: "
-               << response.status();
-    return 1;
-  }
-
-  std::cout << *(*response).mutable_response();
-  (*launcher)->Shutdown();
+  std::cout << *response.mutable_response();
+  launcher->Shutdown();
   tvs_server->Shutdown();
   return 0;
 }

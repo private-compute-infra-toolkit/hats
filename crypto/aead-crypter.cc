@@ -25,6 +25,7 @@
 #include "crypto/secret-data.h"
 #include "openssl/aead.h"
 #include "openssl/rand.h"
+#include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::crypto {
 
@@ -109,9 +110,7 @@ absl::StatusOr<SecretData> Decrypt(const SecretData& key,
     return absl::FailedPreconditionError("EVP_AEAD_CTX_open failed.");
   }
   // Resize to the actual plaintext size.
-  if (absl::Status status = plaintext.Resize(plaintext_size); !status.ok()) {
-    return status;
-  }
+  HATS_RETURN_IF_ERROR(plaintext.Resize(plaintext_size));
   return plaintext;
 }
 
