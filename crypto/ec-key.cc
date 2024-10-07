@@ -43,9 +43,10 @@ absl::StatusOr<std::unique_ptr<EcKey>> EcKey::Create() {
 
 absl::StatusOr<SecretData> EcKey::GetPrivateKey() const {
   const BIGNUM* private_key_bn = EC_KEY_get0_private_key(ec_key_);
-  SecretData private_key(BN_num_bytes(private_key_bn));
-  if (!BN_bn2bin(private_key_bn, private_key.GetData())) {
-    return absl::InternalError("BN_bn2bin() failed");
+  SecretData private_key(32);
+  if (!BN_bn2binpad(private_key_bn, private_key.GetData(),
+                    private_key.GetSize())) {
+    return absl::InternalError("BN_bn2binpad() failed");
   }
   return private_key;
 }
