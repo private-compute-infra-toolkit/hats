@@ -5,7 +5,7 @@ This directory contains helpers to deploy TVS in production.
 ## Update TVS in GCP (for internal use)
 
 There are two Cloud Run test TVS instances Hats GCP projects: tvs-server and
- tvs-server-authn (the second enables IAM authentication).
+tvs-server-authn (the second enables IAM authentication).
 
 The deployed TVS uses the following Spanner database:
 
@@ -70,7 +70,10 @@ $ gcloud spanner databases execute-sql tvs-db --instance=tvs-instance \
 ```
 
 #### Test with valid report
-Note: To run the split client, use the build target :tvs-client-split_main and use --tvs_addresses=tvs_address1,tvs_address2 instead of --tvs_addresses and use --tvs_public_keys=pub_key1,pub_key2 instead of --tvs_public_key
+
+Note: To run the split client, use the build target `:tvs-client-split_main` and
+use `--tvs_addresses=tvs_address1,tvs_address2` instead of `--tvs_addresses` and
+use `--tvs_public_keys=pub_key1,pub_key2` instead of `--tvs_public_key`
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client_main
@@ -84,7 +87,10 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
 ```
 
 #### Test with invalid report
-Note: To run the split client, use the build target :tvs-client-split_main and use --tvs_addresses=tvs_address1,tvs_address2 instead of --tvs_addresses and use --tvs_public_keys=pub_key1,pub_key2 instead of --tvs_public_key
+
+Note: To run the split client, use the build target `:tvs-client-split_main` and
+use -`-tvs_addresses=tvs_address1,tvs_address2` instead of `--tvs_addresses` and
+use `--tvs_public_keys=pub_key1,pub_key2` instead of `--tvs_public_key`
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client_main
@@ -99,9 +105,11 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
 
 ### Test tvs-server-authn in GCP
 
-You need to pass in an authenticator with the request through --access_token. To
-pass an access token for your account: \
-Note: To run the split client, use the build target :tvs-client-split_main and use --tvs_addresses=tvs_address1,tvs_address2 instead of --tvs_addresses and use --tvs_public_keys=pub_key1,pub_key2 instead of --tvs_public_key
+You need to pass in an authenticator with the request through `--access_token`.
+To pass an access token for your account: \
+Note: To run the split client, use the build target `:tvs-client-split_main` and
+use `--tvs_addresses=tvs_address1,tvs_address2` instead of `--tvs_addresses` and
+use `--tvs_public_keys=pub_key1,pub_key2` instead of `--tvs_public_key`
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client_main
@@ -120,7 +128,9 @@ You need permission to impersonate an account, and the impersonation account
 needs to have cloud run invoker permission.
 
 To pass an impersonation access token for a service account: \
-Note: To run the split client, use the build target :tvs-client-split_main and use --tvs_addresses=tvs_address1,tvs_address2 instead of --tvs_addresses and use --tvs_public_keys=pub_key1,pub_key2 instead of --tvs_public_key
+Note: To run the split client, use the build target `:tvs-client-split_main` and
+use `--tvs_addresses=tvs_address1,tvs_address2` instead of `--tvs_addresses` and
+use `--tvs_public_keys=pub_key1,pub_key2` instead of `--tvs_public_key`
 
 ```shell
 $ bazel build -c opt //tvs/test_client:tvs-client_main

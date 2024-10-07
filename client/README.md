@@ -39,7 +39,7 @@ Note: this setup is based on AMD's
         Note: Yu's branch is one commit ahead of AMD's branch
         [snp-v4-wip3c](https://github.com/amdese/qemu/commits/snp-v4-wip3c)
 
-        ```
+        ```shell
         $ git clone https://github.com/dingelish/qemu.git \
             --branch ding-qemu/ding-snp-v4-wip3c-patched
         $ cd qemu
@@ -70,7 +70,7 @@ Note: this setup is based on AMD's
     gLinux offers grpc-cli in its apt. On the SNP machine you need to compile it
     from source.
 
-    ```
+    ```shell
     $ git clone --recursive --branch v1.64.0 https://github.com/grpc/grpc
     $ cd grpc
     $ mkdir -p cmake/build
@@ -82,7 +82,7 @@ Note: this setup is based on AMD's
 
     Finally run this command to talk with the KV server
 
-    ```
+    ```shell
     $ ./grpc/cmake/build/grpc_cli call localhost:50051 \
         kv_server.v1.KeyValueService.GetValues \
        'kv_internal: "hi"'  \
@@ -100,20 +100,20 @@ with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
 
     *   Navigate into the cloned hats directory:
 
-        ```
+        ```shell
         $ cd hats
         ```
 
     *   Fetch the needed submodules:
 
-        ```
+        ```shell
         $ git submodule update --init --recursive
         ```
 
     *   Call the build script and pass it the TVS public key, which will be
         baked into the configuration that launches the orchestrator:
 
-        ```
+        ```shell
         $ ./scripts/build-for-hats.sh <tvs_public_key_in_hex_format>
         ```
 
@@ -132,7 +132,7 @@ with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
 
     To run a TVS server that listens to port 7774, use the instructions:
 
-    ```
+    ```shell
     $ bazel build -c opt //tvs/untrusted_tvs:all
     $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
       --port=7774 \
@@ -158,13 +158,13 @@ configuration and data.
 
     *   Navigate into the cloned hats directory:
 
-        ```
+        ```shell
         $ cd hats
         ```
 
     *   Fetch the needed submodules:
 
-        ```
+        ```shell
         $ git submodule update --init --recursive
         ```
 
@@ -200,7 +200,7 @@ configuration and data.
 
     To run a TVS server that listens to port 7774, use the instructions:
 
-    ```
+    ```shell
     $ bazel build -c opt //tvs/untrusted_tvs:all
     $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
       --port=7774 \
@@ -225,7 +225,7 @@ configuration and data.
 After running `./scripts/build.sh` you have a `snphost` binary in the prebuilt
 directory. Copy that to the SNP machine and run
 
-```
+```shell
 sudo ./snphost show vcek-url # gives you the URL to download VCEK
 sudo ./snphost fetch ca pem . # download the ca cert to `.` in pem format
 sudo ./snphost fetch vcek pem . # download the vcek to `.` in pem format
@@ -236,7 +236,7 @@ If you need the certificates in `der` format, just replace `pem` with `der`.
 
 ## Steps to launch Oak containers system with KV server using Cloud Hypervisor
 
-```
+```shell
 ./scripts/build.sh
 ./scripts/setup-network.sh
 ./scripts/start-ch.sh
@@ -248,6 +248,6 @@ automatically starts on system startup.
 
 To clean up the network settings, run
 
-```
+```shell
 ./scripts/clean_network.sh
 ```

@@ -222,7 +222,8 @@ database, and populate the database with keys.
         ```
 
     1.  Create a Spanner database: \
-        Note: to test the split trust client, create n databases for n tvs instances
+        Note: to test the split trust client, create n databases for n tvs
+        instances
 
         ```shell
         $ bazel build //production:database_main
@@ -272,8 +273,10 @@ database, and populate the database with keys.
             --user_name=<user_name> \
             --user_origin=<domain>
         ```
+
     1.  Insert user information to the TVS database: \
-        Note: insert spanner_databases and kms_resource_names in the same corresponding order
+        Note: insert spanner_databases and kms_resource_names in the same
+        corresponding order
 
         ```shell
         $ bazel build //production:database_main
@@ -288,7 +291,6 @@ database, and populate the database with keys.
 
 1.  Run TVS server: \
     Note: If using the split trust test client, run n tvs instances
-
 
     ```shell
     $ bazel build //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
@@ -323,6 +325,7 @@ bazel-bin/tvs/test_client/tvs-client_main \
     --verify_report_request_file=tvs/test_data/bad_verify_request_report.textproto \
     --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
 ```
+
 ### To run a test client in split trust mode:
 
 #### Test with valid report
