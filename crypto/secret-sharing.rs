@@ -259,7 +259,7 @@ mod test {
 
     fn get_valid_private_key() -> Vec<u8> {
         let kem = hpke::Kem::X25519HkdfSha256;
-        let (private, _) = kem.generate_keypair();
+        let (_, private) = kem.generate_keypair();
         private.to_vec()
     }
 
