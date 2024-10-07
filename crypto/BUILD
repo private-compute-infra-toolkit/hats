@@ -85,8 +85,8 @@ cc_test(
     srcs = ["secret-data_test.cc"],
     deps = [
         ":secret-data",
+        "//status_macro:status_test_macros",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
@@ -114,9 +114,8 @@ cc_test(
     deps = [
         ":aead-crypter",
         ":secret-data",
+        "//status_macro:status_test_macros",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_matchers",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
@@ -152,6 +151,7 @@ cc_test(
         ":aead-crypter",
         ":ec-key",
         ":secret-data",
+        "//status_macro:status_test_macros",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

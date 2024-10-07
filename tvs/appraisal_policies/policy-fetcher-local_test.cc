@@ -17,11 +17,11 @@
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
-#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_test_macros.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
@@ -30,7 +30,6 @@ ABSL_DECLARE_FLAG(std::string, appraisal_policy_file);
 namespace privacy_sandbox::tvs {
 namespace {
 
-using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 
 constexpr absl::string_view kTestAppraisalPolicies = R"pb(
@@ -78,27 +77,23 @@ absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
 }
 
 TEST(PolicyFetcherLocal, Normal) {
-  absl::StatusOr<std::string> policy_file = WriteTestPolicyToFile();
-  ASSERT_TRUE(policy_file.ok());
-  absl::StatusOr<AppraisalPolicies> expected_policies =
-      GetTestAppraisalPolicies();
-  ASSERT_TRUE(expected_policies.ok());
-  absl::SetFlag(&FLAGS_appraisal_policy_file, *policy_file);
-  absl::StatusOr<std::unique_ptr<PolicyFetcher>> policy_fetcher =
-      PolicyFetcher::Create();
-  ASSERT_TRUE(policy_fetcher.ok());
-  absl::StatusOr<AppraisalPolicies> policies =
-      (*policy_fetcher)->GetLatestNPolicies(/*n=*/1);
-  ASSERT_TRUE(policies.ok());
-  EXPECT_EQ(policies->SerializeAsString(),
-            expected_policies->SerializeAsString());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string policy_file, WriteTestPolicyToFile());
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_policies,
+                            GetTestAppraisalPolicies());
+  absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
+                            PolicyFetcher::Create());
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies policies,
+                            policy_fetcher->GetLatestNPolicies(/*n=*/1));
+  EXPECT_EQ(policies.SerializeAsString(),
+            expected_policies.SerializeAsString());
 }
 
 TEST(PolicyFetcherLocal, CreateError) {
   absl::SetFlag(&FLAGS_appraisal_policy_file, "nonexistent");
-  EXPECT_THAT(PolicyFetcher::Create(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       "Failed to open: nonexistent"));
+  HATS_EXPECT_STATUS_MESSAGE(PolicyFetcher::Create(),
+                             absl::StatusCode::kFailedPrecondition,
+                             "Failed to open: nonexistent");
 }
 
 }  // namespace

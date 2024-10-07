@@ -61,7 +61,7 @@ cc_test(
     deps = [
         ":public-key-server",
         "//key_manager:public-key-fetcher",
-        "@com_google_absl//absl/status:status_matchers",
+        "//status_macro:status_test_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",

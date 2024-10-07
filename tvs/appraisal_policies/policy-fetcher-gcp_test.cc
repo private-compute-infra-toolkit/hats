@@ -16,20 +16,18 @@
 
 #include <utility>
 
-#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "google/cloud/spanner/client.h"
 #include "google/cloud/spanner/mocks/mock_spanner_connection.h"
 #include "google/cloud/spanner/mocks/row.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_test_macros.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
 namespace privacy_sandbox::tvs {
 namespace {
 
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 using ::testing::Return;
 using ::testing::StrEq;
@@ -83,14 +81,13 @@ TEST(KeyFetcherGcp, GetLatestNPolicies) {
   EXPECT_CALL(*mock_result_set_source, Metadata())
       .WillRepeatedly(Return(metadata));
 
-  absl::StatusOr<AppraisalPolicies> expected_policies =
-      GetTestAppraisalPolicies();
-  ASSERT_TRUE(expected_policies.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_policies,
+                            GetTestAppraisalPolicies());
   EXPECT_CALL(*mock_result_set_source, NextRow())
       .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
           {{"Policy",
             google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                expected_policies->policies(0).SerializeAsString()))}})))
+                expected_policies.policies(0).SerializeAsString()))}})))
       .WillOnce(Return(google::cloud::spanner::Row()));
 
   auto mock_connection =
@@ -110,9 +107,9 @@ TEST(KeyFetcherGcp, GetLatestNPolicies) {
   constexpr int64_t kN = 5;
   absl::StatusOr<AppraisalPolicies> policies =
       policy_fetcher->GetLatestNPolicies(kN);
-  ASSERT_TRUE(policies.ok());
+  HATS_ASSERT_OK(policies);
   EXPECT_EQ(policies->SerializeAsString(),
-            expected_policies->SerializeAsString());
+            expected_policies.SerializeAsString());
 }
 
 TEST(KeyFetcherGcp, NotFoundError) {
@@ -148,9 +145,9 @@ TEST(KeyFetcherGcp, NotFoundError) {
   google::cloud::spanner::Client spanner_client(mock_connection);
   std::unique_ptr<PolicyFetcher> policy_fetcher =
       PolicyFetcherGcp::Create(std::move(spanner_client));
-  EXPECT_THAT(
-      policy_fetcher->GetLatestNPolicies(/*n=*/5),
-      StatusIs(absl::StatusCode::kNotFound, HasSubstr("No policies found")));
+  HATS_EXPECT_STATUS_MESSAGE(policy_fetcher->GetLatestNPolicies(/*n=*/5),
+                             absl::StatusCode::kNotFound,
+                             HasSubstr("No policies found"));
 }
 
 }  // namespace

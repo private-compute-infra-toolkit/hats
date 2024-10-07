@@ -130,3 +130,15 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "status_test_macros",
+    testonly = True,
+    hdrs = ["status_test_macros.h"],
+    deps = [
+        ":status_util",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

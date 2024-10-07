@@ -16,19 +16,17 @@
 
 #include <utility>
 
-#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "google/cloud/spanner/client.h"
 #include "google/cloud/spanner/mocks/mock_spanner_connection.h"
 #include "google/cloud/spanner/mocks/row.h"
 #include "google/cloud/status.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_test_macros.h"
 
 namespace privacy_sandbox::key_manager {
 namespace {
 
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
 using ::testing::Eq;
 using ::testing::FieldsAre;
 using ::testing::HasSubstr;
@@ -100,14 +98,14 @@ TEST(PublicKeyFetcherGcp, GetLatestPublicKeys) {
   std::unique_ptr<PublicKeyFetcher> key_fetcher =
       PublicKeyFetcherGcp::Create(std::move(spanner_client));
 
-  EXPECT_THAT(
+  HATS_EXPECT_OK_AND_HOLDS(
       key_fetcher->GetLatestPublicKeys(),
-      IsOkAndHolds(UnorderedElementsAre(
+      UnorderedElementsAre(
           FieldsAre(
               /*key_id=*/4, /*public_key=*/"data4-public", /*origin=*/"origin"),
           FieldsAre(
               /*key_id=*/2, /*public_key=*/"data2-public",
-              /*origin=*/"origin2"))));
+              /*origin=*/"origin2")));
 }
 
 TEST(PublicKeyFetcherGcp, Failure) {
@@ -140,8 +138,8 @@ TEST(PublicKeyFetcherGcp, Failure) {
   std::unique_ptr<PublicKeyFetcher> key_fetcher =
       PublicKeyFetcherGcp::Create(std::move(spanner_client));
 
-  EXPECT_THAT(key_fetcher->GetLatestPublicKeys(),
-              StatusIs(absl::StatusCode::kUnknown, HasSubstr("unknown")));
+  HATS_EXPECT_STATUS_MESSAGE(key_fetcher->GetLatestPublicKeys(),
+                             absl::StatusCode::kUnknown, HasSubstr("unknown"));
 }
 
 }  // namespace

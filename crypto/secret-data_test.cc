@@ -17,15 +17,14 @@
 #include "crypto/secret-data.h"
 
 #include "absl/status/status.h"
-#include "absl/status/status_matchers.h"
 #include "absl/strings/string_view.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_test_macros.h"
 
 namespace privacy_sandbox::crypto {
 namespace {
 
-using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 using ::testing::StrEq;
 
@@ -67,7 +66,7 @@ TEST(SecretData, Resize) {
   EXPECT_THAT(secret_data.GetStringView(), StrEq("abcde"));
 
   // Resize
-  EXPECT_TRUE(secret_data.Resize(1).ok());
+  HATS_EXPECT_OK(secret_data.Resize(1));
   EXPECT_THAT(secret_data.GetStringView(), StrEq("a"));
   buffer = secret_data.GetData();
   secret_data.Cleanse();
@@ -85,7 +84,7 @@ TEST(SecretData, CreateFromStringView) {
   // Check string view.
   EXPECT_THAT(secret_data.GetStringView(), StrEq(kSecretData));
   buffer = secret_data.GetData();
-  ASSERT_TRUE(secret_data.Resize(4).ok());
+  HATS_ASSERT_OK(secret_data.Resize(4));
   EXPECT_THAT(secret_data.GetStringView(), StrEq("very"));
   secret_data.Cleanse();
   // Make sure that the buffer is cleared.
@@ -98,9 +97,9 @@ TEST(SecretData, ResizeError) {
   constexpr size_t kSize = 5;
   SecretData secret_data(kSize);
   ASSERT_THAT(secret_data.GetSize(), kSize);
-  EXPECT_THAT(secret_data.Resize(10),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Size increase is not supported.")));
+  HATS_EXPECT_STATUS_MESSAGE(secret_data.Resize(10),
+                             absl::StatusCode::kInvalidArgument,
+                             HasSubstr("Size increase is not supported."));
 }
 
 }  // namespace

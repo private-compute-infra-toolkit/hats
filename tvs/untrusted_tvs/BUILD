@@ -76,12 +76,12 @@ cc_test(
     deps = [
         ":tvs-service",
         "//key_manager:key-fetcher-wrapper",
+        "//status_macro:status_test_macros",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_messages_cc_proto",
         "//tvs/test_client:tvs-untrusted-client",
         "@bazel_tools//tools/cpp/runfiles",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",

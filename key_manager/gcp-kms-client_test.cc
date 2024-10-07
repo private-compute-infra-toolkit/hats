@@ -19,20 +19,17 @@
 #include <utility>
 
 #include "absl/status/status.h"
-#include "absl/status/status_matchers.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "gmock/gmock.h"
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "google/cloud/kms/v1/mocks/mock_key_management_connection.h"
 #include "gtest/gtest.h"
 #include "key_manager/kms-client.h"
+#include "status_macro/status_test_macros.h"
 
 namespace privacy_sandbox::key_manager {
 namespace {
 
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
 using ::google::cloud::StatusOr;
 using ::google::cloud::kms_v1::KeyManagementServiceClient;
 using ::testing::_;
@@ -63,9 +60,9 @@ TEST(GcpKmsClientTest, GetPublicKeySuccess) {
 
   std::unique_ptr<GcpKmsClient> client =
       std::make_unique<GcpKmsClient>(std::move(mock_client));
-  EXPECT_THAT(client->GetPublicKey(kExpectedKeyName),
-              IsOkAndHolds(AllOf(
-                  Field(&PublicKey::pem_key, expected_public_key.pem()))));
+  HATS_EXPECT_OK_AND_HOLDS(
+      client->GetPublicKey(kExpectedKeyName),
+      AllOf(Field(&PublicKey::pem_key, expected_public_key.pem())));
 }
 
 TEST(GcpKmsClientTest, GetPublicKeyFailure) {
@@ -80,8 +77,8 @@ TEST(GcpKmsClientTest, GetPublicKeyFailure) {
   EXPECT_CALL(*mock_connection, GetPublicKey)
       .WillOnce(
           Return(StatusOr<google::cloud::kms::v1::PublicKey>(error_status)));
-  EXPECT_THAT(client->GetPublicKey(kExpectedKeyName),
-              StatusIs(absl::StatusCode::kPermissionDenied));
+  HATS_EXPECT_STATUS(client->GetPublicKey(kExpectedKeyName),
+                     absl::StatusCode::kPermissionDenied);
 }
 
 TEST(GcpKmsClientTest, CreateAsymmetricKeySuccess) {
@@ -97,11 +94,10 @@ TEST(GcpKmsClientTest, CreateAsymmetricKeySuccess) {
       .WillOnce(Return(
           StatusOr<google::cloud::kms::v1::CryptoKey>(expected_crypto_key)));
 
-  absl::StatusOr<privacy_sandbox::key_manager::CryptoKey> actual_crypto_key =
-      client->CreateAsymmetricKey(kExpectedParent, kExpectedKeyName);
-  EXPECT_THAT(actual_crypto_key.value(),
-              AllOf(Field(&privacy_sandbox::key_manager::CryptoKey::key_id,
-                          "key-name")));
+  HATS_EXPECT_OK_AND_HOLDS(
+      client->CreateAsymmetricKey(kExpectedParent, kExpectedKeyName),
+      AllOf(
+          Field(&privacy_sandbox::key_manager::CryptoKey::key_id, "key-name")));
 }
 
 TEST(GcpKmsClientTest, CreateAsymmetricKeyFailure) {
@@ -118,8 +114,9 @@ TEST(GcpKmsClientTest, CreateAsymmetricKeyFailure) {
   std::unique_ptr<GcpKmsClient> client =
       std::make_unique<GcpKmsClient>(std::move(mock_client));
   google::cloud::kms::v1::CryptoKey expected_crypto_key;
-  EXPECT_THAT(client->CreateAsymmetricKey(kExpectedParent, kExpectedKeyName),
-              StatusIs(absl::StatusCode::kPermissionDenied));
+  HATS_EXPECT_STATUS(
+      client->CreateAsymmetricKey(kExpectedParent, kExpectedKeyName),
+      absl::StatusCode::kPermissionDenied);
 }
 
 TEST(GcpKmsClientTest, EncryptDataSuccess) {
@@ -151,8 +148,9 @@ TEST(GcpKmsClientTest, EncryptDataSuccess) {
             google::cloud::StatusCode::kInvalidArgument, "Invalid request.");
       });
 
-  EXPECT_THAT(client->EncryptData(kKeyId, kPlaintext, kAssociatedData),
-              IsOkAndHolds(kExpectedCiphertext));
+  HATS_EXPECT_OK_AND_HOLDS(
+      client->EncryptData(kKeyId, kPlaintext, kAssociatedData),
+      kExpectedCiphertext);
 }
 
 TEST(GcpKmsClientTest, EncryptDataFailure_InvalidRequest) {
@@ -170,9 +168,9 @@ TEST(GcpKmsClientTest, EncryptDataFailure_InvalidRequest) {
       .WillOnce(Return(
           StatusOr<google::cloud::kms::v1::EncryptResponse>(error_status)));
 
-  EXPECT_THAT(client->EncryptData(kExpectedKeyName, kExpectedPlaintext,
-                                  "associated_data"),
-              StatusIs(absl::StatusCode::kInvalidArgument));
+  HATS_EXPECT_STATUS(client->EncryptData(kExpectedKeyName, kExpectedPlaintext,
+                                         "associated_data"),
+                     absl::StatusCode::kInvalidArgument);
 }
 
 TEST(GcpKmsClientTest, DecryptDataSuccess) {
@@ -206,8 +204,9 @@ TEST(GcpKmsClientTest, DecryptDataSuccess) {
             google::cloud::StatusCode::kInvalidArgument, "Invalid request.");
       });
 
-  EXPECT_THAT(client->DecryptData(kKeyId, kCiphertext, kAssociatedData),
-              IsOkAndHolds(kExpectedPlaintext));
+  HATS_EXPECT_OK_AND_HOLDS(
+      client->DecryptData(kKeyId, kCiphertext, kAssociatedData),
+      kExpectedPlaintext);
 }
 
 TEST(GcpKmsClientTest, DecryptDataFailure_AuthenticationError) {
@@ -224,9 +223,9 @@ TEST(GcpKmsClientTest, DecryptDataFailure_AuthenticationError) {
       .WillOnce(Return(
           StatusOr<google::cloud::kms::v1::DecryptResponse>(error_status)));
 
-  EXPECT_THAT(client->DecryptData(kExpectedKeyName, kExpectedCiphertext,
-                                  "associated_data"),
-              StatusIs(absl::StatusCode::kPermissionDenied));
+  HATS_EXPECT_STATUS(client->DecryptData(kExpectedKeyName, kExpectedCiphertext,
+                                         "associated_data"),
+                     absl::StatusCode::kPermissionDenied);
 }
 
 }  // namespace

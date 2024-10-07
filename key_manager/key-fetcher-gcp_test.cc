@@ -16,8 +16,6 @@
 
 #include <utility>
 
-#include "absl/status/status_matchers.h"
-#include "absl/status/statusor.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
 #include "gmock/gmock.h"
@@ -27,12 +25,11 @@
 #include "google/cloud/spanner/mocks/mock_spanner_connection.h"
 #include "google/cloud/spanner/mocks/row.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_test_macros.h"
 
 namespace privacy_sandbox::key_manager {
 namespace {
 
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
 using ::testing::Eq;
 using ::testing::FieldsAre;
 using ::testing::HasSubstr;
@@ -109,9 +106,9 @@ TEST(KeyFetcherGcp, GetPrimaryPrivateKey) {
       .WillRepeatedly(Return(metadata));
 
   crypto::SecretData data("data1");
-  absl::StatusOr<std::string> encrypted_data =
-      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd);
-  ASSERT_TRUE(encrypted_data.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::string encrypted_data,
+      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd));
 
   EXPECT_CALL(*mock_result_set_source, NextRow())
       .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
@@ -121,7 +118,7 @@ TEST(KeyFetcherGcp, GetPrimaryPrivateKey) {
                        google::cloud::spanner::Bytes((kCiphertext)))},
            {"PrivateKey",
             google::cloud::spanner::Value(
-                google::cloud::spanner::Bytes(*encrypted_data))}})));
+                google::cloud::spanner::Bytes(encrypted_data))}})));
 
   auto mock_connection =
       std::make_shared<google::cloud::spanner_mocks::MockConnection>();
@@ -148,8 +145,7 @@ TEST(KeyFetcherGcp, GetPrimaryPrivateKey) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->GetPrimaryPrivateKey(),
-              IsOkAndHolds(StrEq("data1")));
+  HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetPrimaryPrivateKey(), StrEq("data1"));
 }
 
 // This test generates a DEK, pass it to the test KMS to return it to the
@@ -189,9 +185,9 @@ TEST(KeyFetcherGcp, GetSecondaryPrimaryKey) {
       .WillRepeatedly(Return(metadata));
 
   crypto::SecretData data("data2");
-  absl::StatusOr<std::string> encrypted_data =
-      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd);
-  ASSERT_TRUE(encrypted_data.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::string encrypted_data,
+      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd));
 
   EXPECT_CALL(*mock_result_set_source, NextRow())
       .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
@@ -201,7 +197,7 @@ TEST(KeyFetcherGcp, GetSecondaryPrimaryKey) {
                        google::cloud::spanner::Bytes((kCiphertext)))},
            {"PrivateKey",
             google::cloud::spanner::Value(
-                google::cloud::spanner::Bytes(*encrypted_data))}})));
+                google::cloud::spanner::Bytes(encrypted_data))}})));
 
   auto mock_connection =
       std::make_shared<google::cloud::spanner_mocks::MockConnection>();
@@ -228,8 +224,8 @@ TEST(KeyFetcherGcp, GetSecondaryPrimaryKey) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->GetSecondaryPrivateKey(),
-              IsOkAndHolds(StrEq("data2")));
+  HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecondaryPrivateKey(),
+                           StrEq("data2"));
 }
 
 TEST(KeyFetcherGcp, UserIdForAuthenticationKey) {
@@ -286,8 +282,8 @@ TEST(KeyFetcherGcp, UserIdForAuthenticationKey) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->UserIdForAuthenticationKey(kPublicKey),
-              IsOkAndHolds(Eq(kUserId)));
+  HATS_EXPECT_OK_AND_HOLDS(key_fetcher->UserIdForAuthenticationKey(kPublicKey),
+                           Eq(kUserId));
 }
 
 // This test generates a DEK, pass it to the test KMS to return it to the
@@ -335,9 +331,8 @@ TEST(KeyFetcherGcp, GetSecretForUserId) {
       .WillRepeatedly(Return(metadata));
 
   crypto::SecretData data("data3");
-  absl::StatusOr<std::string> encrypted_data =
-      crypto::Encrypt(dek, data, crypto::kSecretAd);
-  ASSERT_TRUE(encrypted_data.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string encrypted_data,
+                            crypto::Encrypt(dek, data, crypto::kSecretAd));
 
   EXPECT_CALL(*mock_result_set_source, NextRow())
       .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
@@ -348,7 +343,7 @@ TEST(KeyFetcherGcp, GetSecretForUserId) {
            {"SecretId", google::cloud::spanner::Value(3)},
            {"PublicKey", google::cloud::spanner::Value("data3-public")},
            {"Secret", google::cloud::spanner::Value(
-                          google::cloud::spanner::Bytes(*encrypted_data))}})))
+                          google::cloud::spanner::Bytes(encrypted_data))}})))
       .WillOnce(Return(google::cloud::spanner::Row()));
 
   auto mock_connection =
@@ -375,9 +370,9 @@ TEST(KeyFetcherGcp, GetSecretForUserId) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->GetSecretsForUserId(kUserId),
-              IsOkAndHolds(
-                  UnorderedElementsAre(FieldsAre(3, "data3-public", "data3"))));
+  HATS_EXPECT_OK_AND_HOLDS(
+      key_fetcher->GetSecretsForUserId(kUserId),
+      UnorderedElementsAre(FieldsAre(3, "data3-public", "data3")));
 }
 
 TEST(KeyFetcherGcp, KmsError) {
@@ -422,9 +417,8 @@ TEST(KeyFetcherGcp, KmsError) {
       .WillRepeatedly(Return(metadata));
 
   crypto::SecretData data("data3");
-  absl::StatusOr<std::string> encrypted_data =
-      crypto::Encrypt(dek, data, crypto::kSecretAd);
-  ASSERT_TRUE(encrypted_data.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string encrypted_data,
+                            crypto::Encrypt(dek, data, crypto::kSecretAd));
 
   EXPECT_CALL(*mock_result_set_source, NextRow())
       .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
@@ -434,7 +428,7 @@ TEST(KeyFetcherGcp, KmsError) {
            {"SecretId", google::cloud::spanner::Value(3)},
            {"PublicKey", google::cloud::spanner::Value("data3-public")},
            {"Secret", google::cloud::spanner::Value(
-                          google::cloud::spanner::Bytes(*encrypted_data))}})))
+                          google::cloud::spanner::Bytes(encrypted_data))}})))
       .WillOnce(Return(google::cloud::spanner::Row()));
 
   auto mock_connection =
@@ -453,9 +447,10 @@ TEST(KeyFetcherGcp, KmsError) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->GetSecretsForUserId(/*user_id*/ 1234),
-              StatusIs(absl::StatusCode::kInternal,
-                       HasSubstr("TestKeyManagementServiceConnection failed")));
+  HATS_EXPECT_STATUS_MESSAGE(
+      key_fetcher->GetSecretsForUserId(/*user_id*/ 1234),
+      absl::StatusCode::kInternal,
+      HasSubstr("TestKeyManagementServiceConnection failed"));
 }
 
 TEST(KeyFetcherGcp, DecryptionError) {
@@ -500,9 +495,9 @@ TEST(KeyFetcherGcp, DecryptionError) {
       .WillRepeatedly(Return(metadata));
 
   crypto::SecretData data("data3");
-  absl::StatusOr<std::string> encrypted_data =
-      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd);
-  ASSERT_TRUE(encrypted_data.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::string encrypted_data,
+      crypto::Encrypt(dek, data, crypto::kTvsPrivateKeyAd));
 
   EXPECT_CALL(*mock_result_set_source, NextRow())
       .WillOnce(Return(google::cloud::spanner_mocks::MakeRow(
@@ -513,7 +508,7 @@ TEST(KeyFetcherGcp, DecryptionError) {
            {"SecretId", google::cloud::spanner::Value(3)},
            {"PublicKey", google::cloud::spanner::Value("data3-public")},
            {"Secret", google::cloud::spanner::Value(
-                          google::cloud::spanner::Bytes(*encrypted_data))}})))
+                          google::cloud::spanner::Bytes(encrypted_data))}})))
       .WillOnce(Return(google::cloud::spanner::Row()));
 
   auto mock_connection =
@@ -532,9 +527,9 @@ TEST(KeyFetcherGcp, DecryptionError) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  EXPECT_THAT(key_fetcher->GetSecretsForUserId(/*user_id*/ 1234),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("EVP_AEAD_CTX_open failed")));
+  HATS_EXPECT_STATUS_MESSAGE(key_fetcher->GetSecretsForUserId(/*user_id*/ 1234),
+                             absl::StatusCode::kFailedPrecondition,
+                             HasSubstr("EVP_AEAD_CTX_open failed"));
 }
 
 }  // namespace

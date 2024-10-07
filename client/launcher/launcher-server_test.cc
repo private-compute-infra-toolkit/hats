@@ -24,7 +24,6 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
@@ -43,6 +42,8 @@
 #include "gtest/gtest.h"
 #include "key_manager/key-fetcher-wrapper.h"
 #include "src/google/protobuf/test_textproto.h"
+#include "status_macro/status_macros.h"
+#include "status_macro/status_test_macros.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/appraisal_policies.pb.h"
@@ -52,9 +53,6 @@
 namespace privacy_sandbox::client {
 namespace {
 
-using ::absl_testing::IsOk;
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
 using ::google::protobuf::EqualsProto;
 using ::grpc::ClientContext;
 using ::grpc::ClientReader;
@@ -180,11 +178,10 @@ absl::StatusOr<std::string> GenerateTmpFile(absl::string_view content) {
 }
 
 TEST(LauncherOakServer, GetContainerBundleCancelled) {
-  absl::StatusOr<std::string> container_bundle_path =
-      GenerateTmpFile("container_bundle");
-  ASSERT_THAT(container_bundle_path, IsOk());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string container_bundle_path,
+                            GenerateTmpFile("container_bundle"));
   LauncherOakServer launcher_oak_service(
-      /*oak_image_path=*/"", *container_bundle_path, /*chunk_size=*/2);
+      /*oak_image_path=*/"", container_bundle_path, /*chunk_size=*/2);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder()
           .RegisterService(&launcher_oak_service)
@@ -199,16 +196,15 @@ TEST(LauncherOakServer, GetContainerBundleCancelled) {
       launcher_server->InProcessChannel(grpc::ChannelArguments()));
   std::unique_ptr<ClientReader<GetImageResponse>> reader =
       client->GetContainerBundle(&context, request);
-  grpc::Status status = reader->Finish();
-  EXPECT_TRUE(!status.ok());
+  HATS_EXPECT_STATUS_GRPC(reader->Finish(),
+                          absl::StatusCode::kDeadlineExceeded);
 }
 
 TEST(LauncherOakServer, GetContainerBundle) {
-  absl::StatusOr<std::string> container_bundle_path =
-      GenerateTmpFile("container_bundle");
-  ASSERT_THAT(container_bundle_path, IsOk());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string container_bundle_path,
+                            GenerateTmpFile("container_bundle"));
   LauncherOakServer launcher_oak_service(
-      /*oak_image_path=*/"", *container_bundle_path, /*chunk_size=*/2);
+      /*oak_image_path=*/"", container_bundle_path, /*chunk_size=*/2);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder()
           .RegisterService(&launcher_oak_service)
@@ -225,16 +221,15 @@ TEST(LauncherOakServer, GetContainerBundle) {
     result += response.image_chunk();
   }
 
-  grpc::Status status = reader->Finish();
-  EXPECT_TRUE(status.ok());
+  HATS_EXPECT_OK_GRPC(reader->Finish());
   EXPECT_EQ(result, "container_bundle");
 }
 
 TEST(LauncherOakServer, GetOakSystemImage) {
-  absl::StatusOr<std::string> oak_image_path = GenerateTmpFile("oak_image");
-  ASSERT_THAT(oak_image_path, IsOk());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string oak_image_path,
+                            GenerateTmpFile("oak_image"));
   LauncherOakServer launcher_oak_service(
-      *oak_image_path, /*container_bundle_path=*/"", /*chunk_size=*/2);
+      oak_image_path, /*container_bundle_path=*/"", /*chunk_size=*/2);
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder()
           .RegisterService(&launcher_oak_service)
@@ -252,8 +247,7 @@ TEST(LauncherOakServer, GetOakSystemImage) {
     result += response.image_chunk();
   }
 
-  grpc::Status status = reader->Finish();
-  EXPECT_TRUE(status.ok());
+  HATS_EXPECT_OK_GRPC(reader->Finish());
   EXPECT_EQ(result, "oak_image");
 }
 
@@ -293,18 +287,14 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
   }
   std::vector<tvs::VerifyReportResponse> response_vec;
   for (auto const& [tvs_id, pub_key] : key_hex_map) {
-    absl::StatusOr<rust::Box<tvs::TvsClient>> tvs_client =
+    // Macro can't set status code, should be FailedPreconditionError
+    HATS_ASSIGN_OR_RETURN(
+        rust::Box<tvs::TvsClient> tvs_client,
         tvs::NewTvsClient(StringViewToRustSlice(tvs_authentication_key_bytes),
-                          StringViewToRustSlice(pub_key));
-    if (!tvs_client.ok()) {
-      return absl::FailedPreconditionError(absl::StrCat(
-          "Failed to create trusted TVS client. ", tvs_client.status()));
-    }
-    absl::StatusOr<rust::Vec<uint8_t>> initial_message =
-        (*tvs_client)->BuildInitialMessage();
-    if (!initial_message.ok()) {
-      return initial_message.status();
-    }
+                          StringViewToRustSlice(pub_key)),
+        _.PrependWith("Failed to create trusted TVS client. "));
+    HATS_ASSIGN_OR_RETURN(rust::Vec<uint8_t> initial_message,
+                          tvs_client->BuildInitialMessage());
     std::unique_ptr<LauncherService::Stub> stub =
         LauncherService::NewStub(channel);
     auto context = std::make_unique<grpc::ClientContext>();
@@ -313,7 +303,7 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
         stream = stub->VerifyReport(context.get());
 
     tvs::OpaqueMessage opaque_message;
-    opaque_message.set_binary_message(RustVecToString(*initial_message));
+    opaque_message.set_binary_message(RustVecToString(initial_message));
     ForwardingTvsMessage orch_message;
     orch_message.set_tvs_id(tvs_id);
     *orch_message.mutable_opaque_message() = opaque_message;
@@ -330,27 +320,20 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
                        stream->Finish().error_message()));
     }
 
-    if (absl::Status status =
-            (*tvs_client)
-                ->ProcessHandshakeResponse(StringViewToRustSlice(
-                    orch_message.mutable_opaque_message()->binary_message()));
-        !status.ok()) {
-      return absl::UnknownError(
-          absl::StrCat("Failed to process handshake response: ", status));
-    }
-    absl::StatusOr<rust::Vec<uint8_t>> encrypted_command =
-        (*tvs_client)
-            ->BuildVerifyReportRequest(
-                StringViewToRustSlice(
-                    verify_report_request.evidence().SerializeAsString()),
-                StringViewToRustSlice(verify_report_request.tee_certificate()),
-                std::string(application_signing_key));
-    if (!encrypted_command.ok()) {
-      return absl::UnknownError(absl::StrCat("Failed to process response: ",
-                                             encrypted_command.status()));
-    }
+    HATS_RETURN_IF_ERROR(
+        tvs_client->ProcessHandshakeResponse(StringViewToRustSlice(
+            orch_message.mutable_opaque_message()->binary_message())))
+        .PrependWith("Failed to process handshake response: ");
+    HATS_ASSIGN_OR_RETURN(
+        rust::Vec<uint8_t> encrypted_command,
+        tvs_client->BuildVerifyReportRequest(
+            StringViewToRustSlice(
+                verify_report_request.evidence().SerializeAsString()),
+            StringViewToRustSlice(verify_report_request.tee_certificate()),
+            std::string(application_signing_key)),
+        _.PrependWith("Failed to process response: "));
     orch_message.mutable_opaque_message()->set_binary_message(
-        RustVecToString(*encrypted_command));
+        RustVecToString(encrypted_command));
     // orch writing to launcher (forwarded to tvs)
     if (!stream->Write(orch_message)) {
       return absl::UnknownError(
@@ -363,16 +346,13 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
           absl::StrCat("Failed to write message to stream. ",
                        stream->Finish().error_message()));
     }
-    absl::StatusOr<rust::Vec<uint8_t>> secret =
-        (*tvs_client)
-            ->ProcessResponse(StringViewToRustSlice(
-                orch_message.mutable_opaque_message()->binary_message()));
-    if (!secret.ok()) {
-      return absl::UnknownError(
-          absl::StrCat("Failed to process response: ", secret.status()));
-    }
+    HATS_ASSIGN_OR_RETURN(
+        rust::Vec<uint8_t> secret,
+        tvs_client->ProcessResponse(StringViewToRustSlice(
+            orch_message.mutable_opaque_message()->binary_message())),
+        _.PrependWith("Failed to process response: "));
     tvs::VerifyReportResponse response;
-    if (!response.ParseFromArray(secret->data(), secret->size())) {
+    if (!response.ParseFromArray(secret.data(), secret.size())) {
       return absl::UnknownError("Cannot parse result into proto");
     }
     response_vec.push_back(response);
@@ -382,25 +362,22 @@ absl::StatusOr<std::vector<tvs::VerifyReportResponse>> RemoteVerifyReport(
 
 TEST(LauncherServer, Successful) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<tvs::AppraisalPolicies> appraisal_policies =
-      GetTestAppraisalPolicies();
-  ASSERT_TRUE(appraisal_policies.ok());
-  absl::StatusOr<std::string> tvs_private_key =
-      HexStringToBytes(kTvsPrivateKey1);
-  ASSERT_TRUE(tvs_private_key.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
+                            GetTestAppraisalPolicies());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key,
+                            HexStringToBytes(kTvsPrivateKey1));
 
   // Real TVS server.
-  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service =
-      tvs::TvsService::Create({
-          .primary_private_key = *std::move(tvs_private_key),
-          .appraisal_policies = *std::move(appraisal_policies),
-          .enable_policy_signature = true,
-          .accept_insecure_policies = false,
-      });
-  ASSERT_TRUE(tvs_service.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<tvs::TvsService> tvs_service,
+                            tvs::TvsService::Create({
+                                .primary_private_key = tvs_private_key,
+                                .appraisal_policies = appraisal_policies,
+                                .enable_policy_signature = true,
+                                .accept_insecure_policies = false,
+                            }));
 
   std::unique_ptr<grpc::Server> tvs_server =
-      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
 
   // A key to be returned by the launcher service by `FetchOrchestratorMetadata`
   // rpc. We are not using this key in the test.
@@ -417,82 +394,69 @@ TEST(LauncherServer, Successful) {
   constexpr absl::string_view kApplicationSigningKey =
       "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
 
-  absl::StatusOr<tvs::VerifyReportRequest> verify_report_request =
-      GetGoodReportRequest();
-  ASSERT_TRUE(verify_report_request.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(tvs::VerifyReportRequest verify_report_request,
+                            GetGoodReportRequest());
   std::unordered_map<int64_t, absl::string_view> tvs_pub_keys = {
       {0, kTvsPublicKey1}};
-  EXPECT_THAT(RemoteVerifyReport(
-                  tvs_pub_keys, kTvsAuthenticationKey, kApplicationSigningKey,
-                  *verify_report_request,
-                  launcher_server->InProcessChannel(grpc::ChannelArguments())),
-              IsOkAndHolds(UnorderedElementsAre(EqualsProto(R"pb(
-                secrets {
-                  key_id: 64
-                  public_key: "1-public-key"
-                  private_key: "1-secret"
-                })pb"))));
+  HATS_EXPECT_OK_AND_HOLDS(
+      RemoteVerifyReport(
+          tvs_pub_keys, kTvsAuthenticationKey, kApplicationSigningKey,
+          verify_report_request,
+          launcher_server->InProcessChannel(grpc::ChannelArguments())),
+      UnorderedElementsAre(EqualsProto(R"pb(
+        secrets {
+          key_id: 64
+          public_key: "1-public-key"
+          private_key: "1-secret"
+        })pb")));
 }
 
 TEST(LauncherServer, SplitSuccessful) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<tvs::AppraisalPolicies> appraisal_policies =
-      GetTestAppraisalPolicies();
-  ASSERT_TRUE(appraisal_policies.ok());
-  absl::StatusOr<std::string> tvs_private_key1 =
-      HexStringToBytes(kTvsPrivateKey1);
-  ASSERT_TRUE(tvs_private_key1.ok());
-  absl::StatusOr<std::string> tvs_private_key2 =
-      HexStringToBytes(kTvsPrivateKey2);
-  ASSERT_TRUE(tvs_private_key2.ok());
-  absl::StatusOr<std::string> tvs_private_key3 =
-      HexStringToBytes(kTvsPrivateKey3);
-  ASSERT_TRUE(tvs_private_key3.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
+                            GetTestAppraisalPolicies());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key1,
+                            HexStringToBytes(kTvsPrivateKey1));
+  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key2,
+                            HexStringToBytes(kTvsPrivateKey2));
+  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key3,
+                            HexStringToBytes(kTvsPrivateKey3));
 
   // TVS Service 1.
-  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service1 =
-      tvs::TvsService::Create({
-          .primary_private_key = *std::move(tvs_private_key1),
-          .appraisal_policies = *appraisal_policies,
-          .enable_policy_signature = true,
-          .accept_insecure_policies = false,
-      });
-  ASSERT_TRUE(tvs_service1.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<tvs::TvsService> tvs_service1,
+                            tvs::TvsService::Create({
+                                .primary_private_key = tvs_private_key1,
+                                .appraisal_policies = appraisal_policies,
+                                .enable_policy_signature = true,
+                                .accept_insecure_policies = false,
+                            }));
 
   // TVS Service 2
-  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service2 =
-      tvs::TvsService::Create({
-          .primary_private_key = *std::move(tvs_private_key2),
-          .appraisal_policies = *appraisal_policies,
-          .enable_policy_signature = true,
-          .accept_insecure_policies = false,
-      });
-  ASSERT_TRUE(tvs_service2.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<tvs::TvsService> tvs_service2,
+                            tvs::TvsService::Create({
+                                .primary_private_key = tvs_private_key2,
+                                .appraisal_policies = appraisal_policies,
+                                .enable_policy_signature = true,
+                                .accept_insecure_policies = false,
+                            }));
 
   // TVS Service 3
-  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service3 =
-      tvs::TvsService::Create({
-          .primary_private_key = *std::move(tvs_private_key3),
-          .appraisal_policies = *appraisal_policies,
-          .enable_policy_signature = true,
-          .accept_insecure_policies = false,
-      });
-  ASSERT_TRUE(tvs_service3.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<tvs::TvsService> tvs_service3,
+                            tvs::TvsService::Create({
+                                .primary_private_key = tvs_private_key3,
+                                .appraisal_policies = appraisal_policies,
+                                .enable_policy_signature = true,
+                                .accept_insecure_policies = false,
+                            }));
 
   std::unique_ptr<grpc::Server> tvs_server1 =
-      grpc::ServerBuilder()
-          .RegisterService(tvs_service1->get())
-          .BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service1.get()).BuildAndStart();
 
   std::unique_ptr<grpc::Server> tvs_server2 =
-      grpc::ServerBuilder()
-          .RegisterService(tvs_service2->get())
-          .BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service2.get()).BuildAndStart();
 
   std::unique_ptr<grpc::Server> tvs_server3 =
-      grpc::ServerBuilder()
-          .RegisterService(tvs_service3->get())
-          .BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service3.get()).BuildAndStart();
 
   // A key to be returned by the launcher service by `FetchOrchestratorMetadata`
   // rpc. We are not using this key in the test.
@@ -512,9 +476,8 @@ TEST(LauncherServer, SplitSuccessful) {
   constexpr absl::string_view kApplicationSigningKey =
       "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
 
-  absl::StatusOr<tvs::VerifyReportRequest> verify_report_request =
-      GetGoodReportRequest();
-  ASSERT_TRUE(verify_report_request.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(tvs::VerifyReportRequest verify_report_request,
+                            GetGoodReportRequest());
   std::unordered_map<int64_t, absl::string_view> tvs_pub_keys = {
       {0, kTvsPublicKey1},
       {1, kTvsPublicKey2},
@@ -522,51 +485,49 @@ TEST(LauncherServer, SplitSuccessful) {
   };
   // Currently we don't have a good way to change the secret because the
   // EchoKeyFetcher returns the same userID from every TVS
-  EXPECT_THAT(RemoteVerifyReport(
-                  tvs_pub_keys, kTvsAuthenticationKey, kApplicationSigningKey,
-                  *verify_report_request,
-                  launcher_server->InProcessChannel(grpc::ChannelArguments())),
-              IsOkAndHolds(UnorderedElementsAre(EqualsProto(R"pb(
-                                                  secrets {
-                                                    key_id: 64
-                                                    public_key: "1-public-key"
-                                                    private_key: "1-secret"
-                                                  })pb"),
-                                                EqualsProto(R"pb(
-                                                  secrets {
-                                                    key_id: 64
-                                                    public_key: "1-public-key"
-                                                    private_key: "1-secret"
-                                                  })pb"),
-                                                EqualsProto(R"pb(
-                                                  secrets {
-                                                    key_id: 64
-                                                    public_key: "1-public-key"
-                                                    private_key: "1-secret"
-                                                  })pb"))));
+  HATS_EXPECT_OK_AND_HOLDS(
+      RemoteVerifyReport(
+          tvs_pub_keys, kTvsAuthenticationKey, kApplicationSigningKey,
+          verify_report_request,
+          launcher_server->InProcessChannel(grpc::ChannelArguments())),
+      UnorderedElementsAre(EqualsProto(R"pb(
+                             secrets {
+                               key_id: 64
+                               public_key: "1-public-key"
+                               private_key: "1-secret"
+                             })pb"),
+                           EqualsProto(R"pb(
+                             secrets {
+                               key_id: 64
+                               public_key: "1-public-key"
+                               private_key: "1-secret"
+                             })pb"),
+                           EqualsProto(R"pb(
+                             secrets {
+                               key_id: 64
+                               public_key: "1-public-key"
+                               private_key: "1-secret"
+                             })pb")));
 }
 
 TEST(LauncherServer, BadReportError) {
   key_manager::RegisterEchoKeyFetcherForTest();
-  absl::StatusOr<tvs::AppraisalPolicies> appraisal_policies =
-      GetTestAppraisalPolicies();
-  ASSERT_TRUE(appraisal_policies.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
+                            GetTestAppraisalPolicies());
 
-  absl::StatusOr<std::string> tvs_private_key =
-      HexStringToBytes(kTvsPrivateKey1);
-  ASSERT_TRUE(tvs_private_key.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key,
+                            HexStringToBytes(kTvsPrivateKey1));
   // Real TVS server.
-  absl::StatusOr<std::unique_ptr<tvs::TvsService>> tvs_service =
-      tvs::TvsService::Create({
-          .primary_private_key = *std::move(tvs_private_key),
-          .appraisal_policies = *std::move(appraisal_policies),
-          .enable_policy_signature = true,
-          .accept_insecure_policies = false,
-      });
-  ASSERT_TRUE(tvs_service.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<tvs::TvsService> tvs_service,
+                            tvs::TvsService::Create({
+                                .primary_private_key = tvs_private_key,
+                                .appraisal_policies = appraisal_policies,
+                                .enable_policy_signature = true,
+                                .accept_insecure_policies = false,
+                            }));
 
   std::unique_ptr<grpc::Server> tvs_server =
-      grpc::ServerBuilder().RegisterService(tvs_service->get()).BuildAndStart();
+      grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
 
   // A key to be returned by the launcher service by `FetchOrchestratorMetadata`
   // rpc. We are not using this key in the test.
@@ -581,23 +542,21 @@ TEST(LauncherServer, BadReportError) {
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
 
-  absl::StatusOr<tvs::VerifyReportRequest> verify_report_request =
-      GetBadReportRequest();
-  ASSERT_TRUE(verify_report_request.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(tvs::VerifyReportRequest verify_report_request,
+                            GetBadReportRequest());
 
   constexpr absl::string_view kApplicationSigningKey =
       "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759";
   std::unordered_map<int64_t, absl::string_view> tvs_pub_keys = {
       {0, kTvsPublicKey1}};
-  absl::StatusOr<std::vector<tvs::VerifyReportResponse>> report_vec =
+  HATS_EXPECT_STATUS_MESSAGE(
       RemoteVerifyReport(
           tvs_pub_keys, kTvsAuthenticationKey, kApplicationSigningKey,
-          *verify_report_request,
-          launcher_server->InProcessChannel(grpc::ChannelArguments()));
-  EXPECT_THAT(report_vec,
-              StatusIs(absl::StatusCode::kUnknown,
-                       AllOf(HasSubstr("Failed to verify report"),
-                             HasSubstr("No matching appraisal policy found"))));
+          verify_report_request,
+          launcher_server->InProcessChannel(grpc::ChannelArguments())),
+      absl::StatusCode::kUnknown,
+      AllOf(HasSubstr("Failed to verify report"),
+            HasSubstr("No matching appraisal policy found")));
 }
 
 }  // namespace

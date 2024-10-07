@@ -23,10 +23,10 @@
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
 #include "grpcpp/support/channel_arguments.h"
-#include "grpcpp/support/status.h"
 #include "gtest/gtest.h"
 #include "opentelemetry/proto/collector/logs/v1/logs_service.grpc.pb.h"
 #include "opentelemetry/proto/collector/logs/v1/logs_service.pb.h"
+#include "status_macro/status_test_macros.h"
 
 namespace privacy_sandbox::client {
 namespace {
@@ -107,8 +107,7 @@ TEST(LogsService, Successful) {
                        "systemd-journald.service: orchestrator"));
   opentelemetry::proto::collector::logs::v1::ExportLogsServiceResponse response;
   log.StartCapturingLogs();
-  grpc::Status status = stub->Export(&client_context, request, &response);
-  ASSERT_TRUE(status.ok());
+  HATS_EXPECT_OK_GRPC(stub->Export(&client_context, request, &response));
 }
 
 }  // namespace

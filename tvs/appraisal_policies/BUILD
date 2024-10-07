@@ -41,10 +41,10 @@ cc_test(
     srcs = [":policy-fetcher-local_test.cc"],
     deps = [
         ":policy-fetcher-local",
+        "//status_macro:status_test_macros",
         "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
@@ -77,8 +77,8 @@ cc_test(
     srcs = [":policy-fetcher-gcp_test.cc"],
     deps = [
         ":policy-fetcher-gcp",
+        "//status_macro:status_test_macros",
         "//tvs/proto:appraisal_policies_cc_proto",
-        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",

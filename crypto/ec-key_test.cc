@@ -19,6 +19,7 @@
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_test_macros.h"
 
 namespace privacy_sandbox::crypto {
 namespace {
@@ -26,52 +27,48 @@ namespace {
 // Silly randomness test, this is meant to catch situations if there is no
 // randomness (i.e. bytes are hard coded).
 TEST(EcKey, Randomness) {
-  absl::StatusOr<std::unique_ptr<EcKey>> ec_key1 = EcKey::Create();
-  ASSERT_TRUE(ec_key1.ok());
-  absl::StatusOr<std::unique_ptr<EcKey>> ec_key2 = EcKey::Create();
-  ASSERT_TRUE(ec_key2.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<EcKey> ec_key1, EcKey::Create());
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<EcKey> ec_key2, EcKey::Create());
 
-  absl::StatusOr<SecretData> private_key1 = (*ec_key1)->GetPrivateKey();
-  ASSERT_TRUE(private_key1.ok());
-  absl::StatusOr<SecretData> private_key2 = (*ec_key2)->GetPrivateKey();
-  ASSERT_TRUE(private_key2.ok());
-  EXPECT_NE(private_key1->GetStringView(), private_key2->GetStringView());
+  HATS_ASSERT_OK_AND_ASSIGN(SecretData private_key1, ec_key1->GetPrivateKey());
+  HATS_ASSERT_OK_AND_ASSIGN(SecretData private_key2, ec_key2->GetPrivateKey());
+  EXPECT_NE(private_key1.GetStringView(), private_key2.GetStringView());
 }
 
 TEST(EcKey, WrapPrivateKey) {
   {
-    absl::StatusOr<std::unique_ptr<EcKey>> ec_key = EcKey::Create();
-    ASSERT_TRUE(ec_key.ok());
-    absl::StatusOr<SecretData> ec_private_key = (*ec_key)->GetPrivateKey();
-    ASSERT_TRUE(ec_private_key.ok());
+    HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<EcKey> ec_key, EcKey::Create());
+    HATS_ASSERT_OK_AND_ASSIGN(SecretData ec_private_key,
+                              ec_key->GetPrivateKey());
 
     SecretData wrapping_key = RandomAeadKey();
-    absl::StatusOr<std::string> wrapped_ec_private_key =
-        (*ec_key)->WrapPrivateKey(wrapping_key, "hats_test1");
-    ASSERT_TRUE(wrapped_ec_private_key.ok());
+    HATS_ASSERT_OK_AND_ASSIGN(
+        std::string wrapped_ec_private_key,
+        ec_key->WrapPrivateKey(wrapping_key, "hats_test1"));
 
     // Unwrap the key and check if it was encrypted with the correct parameters.
-    absl::StatusOr<SecretData> data = Decrypt(
-        wrapping_key, SecretData(*wrapped_ec_private_key), "hats_test1");
-    ASSERT_TRUE(data.ok());
-    EXPECT_EQ(ec_private_key->GetStringView(), data->GetStringView());
+    HATS_ASSERT_OK_AND_ASSIGN(
+        SecretData data,
+        Decrypt(wrapping_key, SecretData(wrapped_ec_private_key),
+                "hats_test1"));
+    EXPECT_EQ(ec_private_key.GetStringView(), data.GetStringView());
   }
   {
-    absl::StatusOr<std::unique_ptr<EcKey>> ec_key = EcKey::Create();
-    ASSERT_TRUE(ec_key.ok());
-    absl::StatusOr<SecretData> ec_private_key = (*ec_key)->GetPrivateKey();
-    ASSERT_TRUE(ec_private_key.ok());
+    HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<EcKey> ec_key, EcKey::Create());
+    HATS_ASSERT_OK_AND_ASSIGN(SecretData ec_private_key,
+                              ec_key->GetPrivateKey());
 
     SecretData wrapping_key = RandomAeadKey();
-    absl::StatusOr<std::string> wrapped_ec_private_key =
-        (*ec_key)->WrapPrivateKey(wrapping_key, "hats_test2");
-    ASSERT_TRUE(wrapped_ec_private_key.ok());
+    HATS_ASSERT_OK_AND_ASSIGN(
+        std::string wrapped_ec_private_key,
+        ec_key->WrapPrivateKey(wrapping_key, "hats_test2"));
 
     // Unwrap the key and check if it was encrypted with the correct parameters.
-    absl::StatusOr<SecretData> data = Decrypt(
-        wrapping_key, SecretData(*wrapped_ec_private_key), "hats_test2");
-    ASSERT_TRUE(data.ok());
-    EXPECT_EQ(ec_private_key->GetStringView(), data->GetStringView());
+    HATS_ASSERT_OK_AND_ASSIGN(
+        SecretData data,
+        Decrypt(wrapping_key, SecretData(wrapped_ec_private_key),
+                "hats_test2"));
+    EXPECT_EQ(ec_private_key.GetStringView(), data.GetStringView());
   }
 }
 

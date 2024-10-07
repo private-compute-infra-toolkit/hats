@@ -14,7 +14,6 @@
 
 #include "client/sdk/hats_orchestrator_client.h"
 
-#include "absl/status/status_matchers.h"
 #include "client/proto/orchestrator.grpc.pb.h"
 #include "client/proto/orchestrator.pb.h"
 #include "gmock/gmock.h"
@@ -23,12 +22,11 @@
 #include "grpcpp/support/channel_arguments.h"
 #include "gtest/gtest.h"
 #include "src/google/protobuf/test_textproto.h"
+#include "status_macro/status_test_macros.h"
 
 namespace privacy_sandbox::server_common {
 namespace {
 
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
 using ::google::protobuf::EqualsProto;
 using ::testing::HasSubstr;
 using ::testing::UnorderedElementsAre;
@@ -61,13 +59,13 @@ TEST(HatsOrchestratorClient, Success) {
       grpc::ServerBuilder().RegisterService(&test_service).BuildAndStart();
   HatsOrchestratorClient hats_orchestrator_client(
       server->InProcessChannel(grpc::ChannelArguments()));
-  EXPECT_THAT(hats_orchestrator_client.GetKeys(),
-              IsOkAndHolds(UnorderedElementsAre(EqualsProto(
-                  R"pb(
-                    key_id: 100
-                    public_key: "test-public-key"
-                    private_key: "test-private-key"
-                  )pb"))));
+  HATS_EXPECT_OK_AND_HOLDS(hats_orchestrator_client.GetKeys(),
+                           UnorderedElementsAre(EqualsProto(
+                               R"pb(
+                                 key_id: 100
+                                 public_key: "test-public-key"
+                                 private_key: "test-private-key"
+                               )pb")));
 }
 
 TEST(HatsOrchestratorClient, Error) {
@@ -76,9 +74,9 @@ TEST(HatsOrchestratorClient, Error) {
       grpc::ServerBuilder().RegisterService(&test_service).BuildAndStart();
   HatsOrchestratorClient hats_orchestrator_client(
       server->InProcessChannel(grpc::ChannelArguments()));
-  EXPECT_THAT(hats_orchestrator_client.GetKeys(),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Invalid argument")));
+  HATS_EXPECT_STATUS_MESSAGE(hats_orchestrator_client.GetKeys(),
+                             absl::StatusCode::kInvalidArgument,
+                             HasSubstr("Invalid argument"));
 }
 
 }  // namespace

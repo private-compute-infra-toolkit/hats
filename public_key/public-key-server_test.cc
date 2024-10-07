@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -28,19 +27,16 @@
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
 #include "grpcpp/support/channel_arguments.h"
-#include "grpcpp/support/status.h"
 #include "gtest/gtest.h"
 #include "key_manager/public-key-fetcher.h"
 #include "src/google/protobuf/test_textproto.h"
+#include "status_macro/status_test_macros.h"
 
 #include "httplib.h"
 
 namespace privacy_sandbox::public_key_service {
 namespace {
 namespace gcs = ::google::cloud::storage;
-using ::absl_testing::IsOk;
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
 using ::google::cloud::storage::internal::CreateResumableUploadResponse;
 using ::google::cloud::storage::internal::QueryResumableUploadResponse;
 using ::google::protobuf::EqualsProto;
@@ -220,8 +216,7 @@ TEST(PublicKeyServer, ListPublicKeys) {
   grpc::ClientContext context;
   google::protobuf::Empty request;
   ListPublicKeysResponse response;
-  grpc::Status status = client->ListPublicKeys(&context, request, &response);
-  EXPECT_TRUE(status.ok());
+  HATS_EXPECT_OK_GRPC(client->ListPublicKeys(&context, request, &response));
   EXPECT_THAT(response, EqualsProto(kExpectedPublicKeys));
   server.stop();
   server_thread.join();
@@ -272,8 +267,8 @@ TEST(PublicKeyServer, ListPublicKeysFailure) {
   grpc::ClientContext context;
   google::protobuf::Empty request;
   ListPublicKeysResponse response;
-  grpc::Status status = client->ListPublicKeys(&context, request, &response);
-  EXPECT_TRUE(!status.ok());
+  HATS_EXPECT_STATUS_GRPC(client->ListPublicKeys(&context, request, &response),
+                          absl::StatusCode::kInvalidArgument);
   server.stop();
   server_thread.join();
 }
@@ -330,8 +325,7 @@ TEST(PublicKeyServer, UpdateCloudBucket) {
   grpc::ClientContext context;
   google::protobuf::Empty request;
   google::protobuf::Empty response;
-  grpc::Status status = client->UpdateCloudBucket(&context, request, &response);
-  EXPECT_TRUE(status.ok());
+  HATS_EXPECT_OK_GRPC(client->UpdateCloudBucket(&context, request, &response));
   server.stop();
   server_thread.join();
 }
@@ -387,8 +381,9 @@ TEST(PublicKeyServer, UpdateCloudBucketFailure) {
   grpc::ClientContext context;
   google::protobuf::Empty request;
   google::protobuf::Empty response;
-  grpc::Status status = client->UpdateCloudBucket(&context, request, &response);
-  EXPECT_TRUE(!status.ok());
+  HATS_EXPECT_STATUS_GRPC(
+      client->UpdateCloudBucket(&context, request, &response),
+      absl::StatusCode::kInternal);
   server.stop();
   server_thread.join();
 }

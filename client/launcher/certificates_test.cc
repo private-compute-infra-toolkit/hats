@@ -19,13 +19,13 @@
 
 #include <string>
 
-#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "gmock/gmock-matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_test_macros.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
 #include "httplib.h"
@@ -33,9 +33,6 @@
 
 namespace privacy_sandbox::client {
 namespace {
-using ::absl_testing::IsOk;
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
 using ::testing::_;
 using ::testing::Exactly;
 using ::testing::Return;
@@ -49,15 +46,16 @@ absl::StatusOr<std::string> GetCertificate() {
         absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
   }
 
-  absl::StatusOr<std::string> path =
+  std::string path =
       runfiles->Rlocation("_main/client/test_data/launcher/vcek");
-  if (!path.ok()) {
-    return path.status();
+  if (path.empty()) {
+    return absl::UnknownError(
+        "failed to locate file '_main/client/test_data/launcher/vcek'.");
   }
 
-  std::ifstream if_stream(*path, std::ifstream::binary);
+  std::ifstream if_stream(path, std::ifstream::binary);
   if (!if_stream.is_open()) {
-    return absl::UnknownError(absl::StrCat("failed to open file ", *path));
+    return absl::UnknownError(absl::StrCat("failed to open file ", path));
   }
 
   std::string result;
@@ -72,15 +70,14 @@ absl::StatusOr<std::string> GetCertificate() {
 }
 
 TEST(DownloadCertificate, Success) {
-  absl::StatusOr<std::string> vcek = GetCertificate();
-  ASSERT_THAT(vcek, IsOk());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string vcek, GetCertificate());
 
   // Run a test HTTP server.
   httplib::Server server;
   server.Get("/vcek",
              [&](const httplib::Request& request, httplib::Response& response) {
                if (request.method == "GET" && request.path == "/vcek") {
-                 response.set_content(*vcek, "application/octet-stream");
+                 response.set_content(vcek, "application/octet-stream");
                }
              });
 
@@ -93,7 +90,7 @@ TEST(DownloadCertificate, Success) {
       DownloadCertificate(absl::StrCat("http://localhost:", port, "/vcek"));
   server.stop();
   server_thread.join();
-  EXPECT_THAT(cert, IsOkAndHolds(*vcek));
+  HATS_EXPECT_OK_AND_HOLDS(cert, vcek);
 }
 
 TEST(Certificates, GetCertificateUrlCpuFailure) {
@@ -103,8 +100,7 @@ TEST(Certificates, GetCertificateUrlCpuFailure) {
   api.ebx_ = 0x40000000;
   api.ecx_ = 0x75c237ff;
   api.edx_ = 0x2fd3fbff;
-  absl::StatusOr<std::string> url = GetCertificateUrl(api);
-  EXPECT_THAT(url, StatusIs(absl::StatusCode::kUnknown));
+  HATS_EXPECT_STATUS(GetCertificateUrl(api), absl::StatusCode::kUnknown);
 }
 
 TEST(Certificates, GetCertificateUrlTcbFailure) {
@@ -126,8 +122,7 @@ TEST(Certificates, GetCertificateUrlTcbFailure) {
   }
   api.sev_cmd_err_code_ = SEV_RET_INVALID_PLATFORM_STATE;
   api.reported_tcb_ = 0x3e0f000000000007;
-  absl::StatusOr<std::string> url = GetCertificateUrl(api);
-  EXPECT_THAT(url, StatusIs(absl::StatusCode::kUnknown));
+  HATS_EXPECT_STATUS(GetCertificateUrl(api), absl::StatusCode::kUnknown);
 }
 
 TEST(Certificates, GetCertificateUrlSuccessful) {
@@ -149,13 +144,12 @@ TEST(Certificates, GetCertificateUrlSuccessful) {
   }
   api.sev_cmd_err_code_ = SEV_RET_SUCCESS;
   api.reported_tcb_ = 0x3e0f000000000007;
-  absl::StatusOr<std::string> url = GetCertificateUrl(api);
-  EXPECT_THAT(
-      url,
-      IsOkAndHolds("https://kdsintf.amd.com/vcek/v1/Genoa/"
-                   "d2421d976f95ce0ba849b7cc5c789122f1e59c77a037272c137ae4d188b"
-                   "b102adbc7c53d0302bff82a432c94a305dec7a7a270ceb19a10f04a8331"
-                   "6c6486968d?blSPL=07&teeSPL=00&snpSPL=15&ucodeSPL=62"));
+  HATS_EXPECT_OK_AND_HOLDS(
+      GetCertificateUrl(api),
+      "https://kdsintf.amd.com/vcek/v1/Genoa/"
+      "d2421d976f95ce0ba849b7cc5c789122f1e59c77a037272c137ae4d188bb102adbc7c53d"
+      "0302bff82a432c94a305dec7a7a270ceb19a10f04a83316c6486968d"
+      "?blSPL=07&teeSPL=00&snpSPL=15&ucodeSPL=62");
 }
 }  // namespace
 }  // namespace privacy_sandbox::client

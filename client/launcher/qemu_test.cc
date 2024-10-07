@@ -18,14 +18,12 @@
 #include <optional>
 #include <string>
 
-#include "absl/status/status_matchers.h"
-#include "absl/status/statusor.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_test_macros.h"
 
 namespace privacy_sandbox::client {
 namespace {
 
-using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 
 struct QemuLauncherTestCase {
@@ -257,9 +255,9 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(QemuLauncherTest, Success) {
   const QemuLauncherTestCase& test_case = GetParam();
-  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(test_case.options);
-  ASSERT_TRUE(qemu.ok());
-  EXPECT_EQ((*qemu)->GetCommand(), test_case.expected_output)
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<Qemu> qemu,
+                            Qemu::Create(test_case.options));
+  EXPECT_EQ(qemu->GetCommand(), test_case.expected_output)
       << ": '" << test_case.test_name << "'";
 }
 
@@ -268,9 +266,8 @@ TEST_P(QemuLauncherTest, Success) {
 TEST(Qemu, SuccessDefaultOptions) {
   Qemu::Options options = Qemu::Options::Default();
   options.virtio_guest_cid = 2;
-  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create(options);
-  ASSERT_TRUE(qemu.ok());
-  EXPECT_EQ((*qemu)->GetCommand(),
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<Qemu> qemu, Qemu::Create(options));
+  EXPECT_EQ(qemu->GetCommand(),
             "./qemu-system-x86_64 ./qemu-system-x86_64 -enable-kvm -cpu host "
             "-m 8G -smp 2 -nodefaults -nographic -no-reboot -machine "
             "microvm,acpi=on,pcie=on -netdev "
@@ -284,20 +281,20 @@ TEST(Qemu, SuccessDefaultOptions) {
 }
 
 TEST(Qemu, kRoutableIp) {
-  absl::StatusOr<std::unique_ptr<Qemu>> qemu = Qemu::Create({
-      .vmm_binary = "vmm_binary",
-      .stage0_binary = "_teststage0_binary",
-      .kernel = "test_kernel",
-      .initrd = "initrd",
-      .virtio_guest_cid = 5,
-      .network_mode = Qemu::NetworkMode::kRoutableIp,
-      .virtual_bridge = "br0",
-      .vm_ip_address = "192.168.110.60",
-      .vm_gateway_address = "192.168.110.1",
-  });
-  ASSERT_TRUE(qemu.ok());
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<Qemu> qemu,
+                            Qemu::Create({
+                                .vmm_binary = "vmm_binary",
+                                .stage0_binary = "_teststage0_binary",
+                                .kernel = "test_kernel",
+                                .initrd = "initrd",
+                                .virtio_guest_cid = 5,
+                                .network_mode = Qemu::NetworkMode::kRoutableIp,
+                                .virtual_bridge = "br0",
+                                .vm_ip_address = "192.168.110.60",
+                                .vm_gateway_address = "192.168.110.1",
+                            }));
   EXPECT_THAT(
-      (*qemu)->GetCommand(),
+      qemu->GetCommand(),
       AllOf(HasSubstr("vmm_binary vmm_binary -enable-kvm -cpu host -m 8G -smp "
                       "1 -nodefaults -nographic -no-reboot -machine "
                       "microvm,acpi=on,pcie=on -netdev tap,id=tap"),
@@ -314,32 +311,30 @@ TEST(Qemu, kRoutableIp) {
 }
 
 TEST(Qemu, CreationError) {
-  EXPECT_THAT(
+  HATS_EXPECT_STATUS_MESSAGE(
       Qemu::Create({
           .network_mode = Qemu::NetworkMode::kRoutableIp,
           .vm_ip_address = "192.168.110.60",
           .vm_gateway_address = "192.168.110.1",
       }),
-      StatusIs(
-          absl::StatusCode::kFailedPrecondition,
-          HasSubstr(
-              "virtual_bridge must be provided for a VM with routable IP")));
+      absl::StatusCode::kFailedPrecondition,
+      HasSubstr("virtual_bridge must be provided for a VM with routable IP"));
 
-  EXPECT_THAT(Qemu::Create({
-                  .network_mode = Qemu::NetworkMode::kRoutableIp,
-                  .virtual_bridge = "br0",
-                  .vm_gateway_address = "192.168.110.1",
-              }),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("An IP address must be provided")));
+  HATS_EXPECT_STATUS_MESSAGE(Qemu::Create({
+                                 .network_mode = Qemu::NetworkMode::kRoutableIp,
+                                 .virtual_bridge = "br0",
+                                 .vm_gateway_address = "192.168.110.1",
+                             }),
+                             absl::StatusCode::kFailedPrecondition,
+                             HasSubstr("An IP address must be provided"));
 
-  EXPECT_THAT(Qemu::Create({
-                  .network_mode = Qemu::NetworkMode::kRoutableIp,
-                  .virtual_bridge = "br0",
-                  .vm_ip_address = "192.168.110.60",
-              }),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("A gateway address must be provided")));
+  HATS_EXPECT_STATUS_MESSAGE(Qemu::Create({
+                                 .network_mode = Qemu::NetworkMode::kRoutableIp,
+                                 .virtual_bridge = "br0",
+                                 .vm_ip_address = "192.168.110.60",
+                             }),
+                             absl::StatusCode::kFailedPrecondition,
+                             HasSubstr("A gateway address must be provided"));
 }
 
 }  // namespace
