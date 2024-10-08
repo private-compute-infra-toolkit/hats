@@ -100,7 +100,8 @@ TEST(KeyFetcherLocal, Error) {
     std::unique_ptr<KeyFetcher> key_fetcher = KeyFetcher::Create();
     HATS_EXPECT_STATUS_MESSAGE(
         key_fetcher->GetSecretsForUserId(/*user_id=*/500),
-        absl::StatusCode::kNotFound, HasSubstr("Cannot find user id '500'"));
+        absl::StatusCode::kNotFound,
+        HasSubstr("Cannot find secret for the user"));
     HATS_EXPECT_STATUS_MESSAGE(key_fetcher->UserIdForAuthenticationKey("ABCD"),
                                absl::StatusCode::kUnauthenticated,
                                HasSubstr("unregistered or expired public key"));

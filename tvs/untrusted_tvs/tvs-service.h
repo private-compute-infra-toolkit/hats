@@ -21,6 +21,7 @@
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
+#include "key_manager/key-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
@@ -41,8 +42,7 @@ namespace privacy_sandbox::tvs {
 class TvsService final : public TeeVerificationService::Service {
  public:
   struct Options {
-    std::string primary_private_key;
-    std::string secondary_private_key;
+    std::unique_ptr<key_manager::KeyFetcher> key_fetcher;
     AppraisalPolicies appraisal_policies;
     bool enable_policy_signature = true;
     bool accept_insecure_policies = false;
@@ -50,8 +50,9 @@ class TvsService final : public TeeVerificationService::Service {
 
   explicit TvsService(rust::Box<trusted::Service> trusted_service);
   TvsService() = delete;
-  static absl::StatusOr<std::unique_ptr<TvsService>> Create(
-      const Options& options);
+  // `options` is passed by value to enable effective use of move.
+  // Caller should utilize std::move() to avoid unnecessary copies.
+  static absl::StatusOr<std::unique_ptr<TvsService>> Create(Options options);
 
   grpc::Status VerifyReport(
       grpc::ServerContext* context,

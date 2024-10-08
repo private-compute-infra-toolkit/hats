@@ -13,6 +13,7 @@
 # limitations under the License.
 
 load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
@@ -40,8 +41,9 @@ rust_library(
         "@oak//oak_attestation_verification",
         "@enclave//crypto",
         "@enclave//handshake",
-        "//key_manager:rust-key-fetcher",
+        ":key-fetcher",
         "@cxx.rs//:cxx",
+        ":key-provider",
     ],
 )
 
@@ -52,6 +54,7 @@ rust_test(
     crate = ":trusted-tvs",
     deps = [
         "@hats_crate_index//:hex",
+        "@oak_crates_index//:anyhow",
     ],
 )
 
@@ -83,9 +86,63 @@ cargo_build_script(
 )
 
 rust_cxx_bridge(
-    name = "bridge",
+    name = "trusted-tvs-bridge",
     src = "trusted_tvs.rs",
     deps = [
         ":trusted-tvs",
+    ],
+)
+
+cc_library(
+    name = "key-fetcher-wrapper",
+    srcs = ["key-fetcher-wrapper.cc"],
+    hdrs = ["key-fetcher-wrapper.h"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":key-fetcher-wrapper-bridge/include",
+        "//key_manager:key-fetcher-interface",
+        "//key_manager:test-key-fetcher",
+        "//tvs/proto:tvs_messages_cc_proto",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@cxx.rs//:cxx",
+    ],
+)
+
+rust_library(
+    name = "key-fetcher",
+    srcs = ["key-fetcher.rs"],
+    crate_name = "key_fetcher",
+    visibility = [
+        "//client/orchestrator:__pkg__",
+        "//tvs/client:__pkg__",
+    ],
+    deps = [
+        ":key-fetcher-wrapper",
+        ":key-fetcher-wrapper-bridge",
+        ":key-provider",
+        "@cxx.rs//:cxx",
+        "@enclave//crypto",
+        "@oak_crates_index//:anyhow",
+    ],
+)
+
+rust_cxx_bridge(
+    name = "key-fetcher-wrapper-bridge",
+    src = "key-fetcher.rs",
+    deps = [
+        ":key-fetcher-wrapper",
+    ],
+)
+
+rust_library(
+    name = "key-provider",
+    srcs = ["key-provider.rs"],
+    deps = [
+        "@enclave//crypto",
+        "@oak_crates_index//:anyhow",
     ],
 )

@@ -27,6 +27,7 @@
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
+#include "key_manager/key-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/trusted_tvs/trusted_tvs.rs.h"
@@ -44,37 +45,20 @@ std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
   return std::string(reinterpret_cast<const char*>(vec.data()), vec.size());
 }
 
-absl::StatusOr<rust::Box<trusted::Service>> CreateTrustedService(
-    const std::string& primary_private_key,
-    const std::string& secondary_private_key,
-    const AppraisalPolicies& appraisal_policies, bool enable_policy_signature,
-    bool accept_insecure_policies) {
-  if (secondary_private_key.empty()) {
-    return trusted::NewService(
-        StringToRustSlice(primary_private_key),
-        StringToRustSlice(appraisal_policies.SerializeAsString()),
-        enable_policy_signature, accept_insecure_policies);
-  } else {
-    return trusted::NewService(
-        StringToRustSlice(primary_private_key),
-        StringToRustSlice(secondary_private_key),
-        StringToRustSlice(appraisal_policies.SerializeAsString()),
-        enable_policy_signature, accept_insecure_policies);
-  }
-}
-
 }  // namespace
 
 TvsService::TvsService(rust::Box<trusted::Service> trusted_service)
     : trusted_service_(std::move(trusted_service)) {}
 
 absl::StatusOr<std::unique_ptr<TvsService>> TvsService::Create(
-    const Options& options) {
+    Options options) {
   absl::StatusOr<rust::Box<trusted::Service>> trusted_service =
-      CreateTrustedService(
-          options.primary_private_key, options.secondary_private_key,
-          options.appraisal_policies, options.enable_policy_signature,
-          options.accept_insecure_policies);
+      trusted::NewService(
+          std::make_unique<trusted::KeyFetcherWrapper>(
+              std::move(options.key_fetcher)),
+          StringToRustSlice(options.appraisal_policies.SerializeAsString()),
+          options.enable_policy_signature, options.accept_insecure_policies);
+
   // Note: Status macros currently don't support setting the status code, and
   // the test checks the code type.
   if (!trusted_service.ok()) {

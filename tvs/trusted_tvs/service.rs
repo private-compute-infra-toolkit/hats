@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::request_handler::RequestHandler;
-use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH};
+use crypto::{P256Scalar, P256_X962_LENGTH};
+use key_fetcher::KeyFetcher;
+use key_provider::KeyProvider;
 use policy_manager::PolicyManager;
 
 pub struct Service {
@@ -21,69 +23,30 @@ pub struct Service {
     primary_public_key: [u8; P256_X962_LENGTH],
     secondary_private_key: Option<P256Scalar>,
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
+    key_fetcher: KeyFetcher,
     policy_manager: PolicyManager,
-}
-
-pub fn new_service(
-    primary_private_key: &[u8],
-    policies: &[u8],
-    enable_policy_signature: bool,
-    accept_insecure_policies: bool,
-) -> Result<Box<Service>, String> {
-    match Service::new(
-        primary_private_key,
-        /*secondary_private_key*/ None,
-        policies,
-        enable_policy_signature,
-        accept_insecure_policies,
-    ) {
-        Ok(service) => Ok(Box::new(service)),
-        Err(error) => Err(error),
-    }
-}
-
-pub fn new_service_with_second_key(
-    primary_private_key: &[u8],
-    secondary_private_key: &[u8],
-    policies: &[u8],
-    enable_policy_signature: bool,
-    accept_insecure_policies: bool,
-) -> Result<Box<Service>, String> {
-    match Service::new(
-        primary_private_key,
-        Some(secondary_private_key),
-        policies,
-        enable_policy_signature,
-        accept_insecure_policies,
-    ) {
-        Ok(service) => Ok(Box::new(service)),
-        Err(error) => Err(error),
-    }
 }
 
 impl Service {
     pub fn new(
-        primary_private_key: &[u8],
-        secondary_private_key: Option<&[u8]>,
+        key_fetcher: KeyFetcher,
         policies: &[u8],
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
     ) -> Result<Self, String> {
-        let primary_private_key_scalar: P256Scalar =
-            primary_private_key.try_into().map_err(|_| {
-                format!(
-                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
-                )
-            })?;
-
-        let (secondary_public_key, secondary_private_key_scalar) = if secondary_private_key
-            .is_some()
-        {
+        let primary_private_key = key_fetcher
+            .get_primary_private_key()
+            .map_err(|err| format!("{err}"))?;
+        let secondary_private_key = key_fetcher.get_secondary_private_key();
+        let (secondary_public_key, secondary_private_key) = if secondary_private_key.is_some() {
             // Using `unwrap()` since we already check `is_some()` is true above.
-            let key_scalar : P256Scalar = secondary_private_key.unwrap().try_into().map_err(|_| {
-            format!("Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long.")
-        })?;
-            (Some(key_scalar.compute_public_key()), Some(key_scalar))
+            let secondary_private_key_value = secondary_private_key
+                .unwrap()
+                .map_err(|err| format!("{err}"))?;
+            (
+                Some(secondary_private_key_value.compute_public_key()),
+                Some(secondary_private_key_value),
+            )
         } else {
             (None, None)
         };
@@ -92,14 +55,14 @@ impl Service {
             PolicyManager::new(policies, enable_policy_signature, accept_insecure_policies)?;
 
         Ok(Self {
-            primary_public_key: primary_private_key_scalar.compute_public_key(),
-            primary_private_key: primary_private_key_scalar,
-            secondary_private_key: secondary_private_key_scalar,
+            primary_public_key: primary_private_key.compute_public_key(),
+            primary_private_key: primary_private_key,
+            secondary_private_key: secondary_private_key,
             secondary_public_key: secondary_public_key,
             policy_manager,
+            key_fetcher: key_fetcher,
         })
     }
-
     pub fn create_request_handler(&self, time_milis: i64, user: &str) -> Box<RequestHandler> {
         Box::new(RequestHandler::new(
             time_milis,
@@ -108,6 +71,7 @@ impl Service {
             self.secondary_private_key.as_ref(),
             self.secondary_public_key.as_ref(),
             &self.policy_manager,
+            &self.key_fetcher,
             user,
         ))
     }
@@ -115,15 +79,16 @@ impl Service {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::new_service;
     use crate::proto::privacy_sandbox::tvs::{
         attest_report_request, attest_report_response, stage0_measurement, AmdSev,
         AppraisalPolicies, AppraisalPolicy, AttestReportRequest, AttestReportResponse,
         InitSessionRequest, Measurement, Secret, Signature as PolicySignature, Stage0Measurement,
         VerifyReportRequest, VerifyReportRequestEncrypted, VerifyReportResponse,
     };
-    use crypto::P256Scalar;
+    use crypto::{P256Scalar, P256_SCALAR_LENGTH};
     use handshake::noise::HandshakeType;
+    use key_fetcher::ffi::create_test_key_fetcher_wrapper;
     use oak_proto_rust::oak::attestation::v1::{InsecureReferenceValues, TcbVersion};
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
     use prost::Message;
@@ -205,32 +170,11 @@ mod tests {
         buf
     }
 
-    // Get client keys where the public key is registered in the test key fetcher.
-    fn get_good_client_private_key() -> P256Scalar {
-        static TEST_CLIENT_PRIVATE_KEY: &'static str =
-            "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
-        return hex::decode(TEST_CLIENT_PRIVATE_KEY)
-            .unwrap()
-            .as_slice()
-            .try_into()
-            .unwrap();
-    }
-
     fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> Result<Vec<u8>, String> {
         let signing_key = SigningKey::from_slice(signing_key)
             .map_err(|msg| format!("Failed to parse signing keys. {}", msg))?;
         let signature: Signature = signing_key.sign(handshake_hash);
         Ok(signature.to_vec())
-    }
-
-    fn expected_verify_report_response(user_id: i64) -> VerifyReportResponse {
-        VerifyReportResponse {
-            secrets: vec![Secret {
-                key_id: 64,
-                public_key: format!("{user_id}-public-key").into(),
-                private_key: format!("{user_id}-secret").into(),
-            }],
-        }
     }
 
     fn create_attest_report_request(
@@ -259,11 +203,21 @@ mod tests {
 
     #[test]
     fn verify_report_successful() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let service = Service::new(
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
+        let client_private_key = P256Scalar::generate();
+        let user_id = 1;
+        let key_id = 11;
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            user_id,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            key_id,
+            /*user_secret=*/ b"test_secret1",
+            /*public_key=*/ b"test_public_key1",
+        );
+        let service = new_service(
+            key_fetcher,
             &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -271,7 +225,6 @@ mod tests {
         .unwrap();
 
         let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
-        let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &tvs_private_key.compute_public_key(),
@@ -349,20 +302,489 @@ mod tests {
 
         let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
         let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
-        assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
+        assert_eq!(
+            response,
+            VerifyReportResponse {
+                secrets: vec![Secret {
+                    key_id: key_id,
+                    private_key: b"test_secret1".to_vec(),
+                    public_key: "test_public_key1".to_string(),
+                }],
+            }
+        );
+    }
+
+    #[test]
+    fn verify_report_successful_with_secondary_key() {
+        let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
+        let user_id = 2;
+        let key_id = 12;
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &P256Scalar::generate().bytes(),
+            /*secondary_private_key,*/ &tvs_private_key.bytes(),
+            user_id,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            key_id,
+            /*user_secret=*/ b"test_secret2",
+            /*public_key=*/ b"test_public_key2",
+        );
+        let service = new_service(
+            key_fetcher,
+            &default_appraisal_policies(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Kk,
+            &tvs_private_key.compute_public_key(),
+            Some(client_private_key.bytes()),
+        );
+
+        // Ask TVS to do its handshake part
+        let handshake_bin = request_handler
+            .verify_report(
+                create_attest_report_request(
+                    client.build_initial_message().unwrap(),
+                    &tvs_private_key.compute_public_key(),
+                    &client_private_key.compute_public_key(),
+                )
+                .unwrap()
+                .as_slice(),
+            )
+            .unwrap();
+
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
+        let handshake_response = match &message_reponse.response {
+            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
+                init_session.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        let (handshake_hash, mut client_crypter) = client
+            .process_response(handshake_response.as_slice())
+            .unwrap();
+
+        // Test report verification.
+        let signing_key =
+            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
+                .unwrap();
+        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
+
+        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
+        VerifyReportRequest {
+            evidence: Some(get_good_evidence()),
+            tee_certificate: get_genoa_vcek(),
+            signature: signature,
+        }
+        .encode(&mut verify_report_request_bin)
+        .unwrap();
+
+        let encrypted_report = client_crypter
+            .encrypt(verify_report_request_bin.as_slice())
+            .unwrap();
+        let message = AttestReportRequest {
+            request: Some(attest_report_request::Request::VerifyReportRequest(
+                VerifyReportRequestEncrypted {
+                    client_message: encrypted_report,
+                },
+            )),
+        };
+
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
+
+        // Get the report.
+        let secret_bin = request_handler
+            .verify_report(message_bin.as_slice())
+            .unwrap();
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(secret_bin.as_slice()).unwrap();
+
+        let report_response = match &message_reponse.response {
+            Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
+                report_response.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
+        let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
+        assert_eq!(
+            response,
+            VerifyReportResponse {
+                secrets: vec![Secret {
+                    key_id: key_id,
+                    private_key: b"test_secret2".to_vec(),
+                    public_key: "test_public_key2".to_string(),
+                }],
+            }
+        );
+    }
+
+    #[test]
+    fn verify_report_wrong_tvs_key_used_by_client() {
+        // First. test that the client used the wrong key in the handshake.
+        let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            /*user_id=*/ 3,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            /*key_id=*/ 13,
+            /*user_secret=*/ b"test_secret3",
+            /*public_key=*/ b"test_public_key3",
+        );
+        let service = new_service(
+            key_fetcher,
+            &default_appraisal_policies(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Kk,
+            &P256Scalar::generate().compute_public_key(),
+            Some(client_private_key.bytes()),
+        );
+
+        match request_handler.verify_report(
+            create_attest_report_request(
+                client.build_initial_message().unwrap(),
+                &tvs_private_key.compute_public_key(),
+                &client_private_key.compute_public_key(),
+            )
+            .unwrap()
+            .as_slice(),
+        ) {
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, format!("Invalid handshake.")),
+        }
+
+        // Second, test that client used the right key for handshake but
+        // provided the wrong key in the prologue.
+        let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            /*user_id=*/ 3,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            /*key_id=*/ 13,
+            /*user_secret=*/ b"test_secret3",
+            /*public_key=*/ b"test_public_key3",
+        );
+        let service = new_service(
+            key_fetcher,
+            &default_appraisal_policies(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Kk,
+            &tvs_private_key.compute_public_key(),
+            Some(client_private_key.bytes()),
+        );
+
+        match request_handler.verify_report(
+            create_attest_report_request(
+                client.build_initial_message().unwrap(),
+                &P256Scalar::generate().compute_public_key(),
+                &client_private_key.compute_public_key(),
+            )
+            .unwrap()
+            .as_slice(),
+        ) {
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, format!("Unknown public key")),
+        }
+
+        // Third, test that client used the wrong key for both handshake and
+        // provided the wrong key in the prologue.
+        let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            /*user_id=*/ 3,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            /*key_id=*/ 13,
+            /*user_secret=*/ b"test_secret3",
+            /*public_key=*/ b"test_public_key3",
+        );
+        let service = new_service(
+            key_fetcher,
+            &default_appraisal_policies(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Kk,
+            &P256Scalar::generate().compute_public_key(),
+            Some(client_private_key.bytes()),
+        );
+
+        match request_handler.verify_report(
+            create_attest_report_request(
+                client.build_initial_message().unwrap(),
+                &P256Scalar::generate().compute_public_key(),
+                &client_private_key.compute_public_key(),
+            )
+            .unwrap()
+            .as_slice(),
+        ) {
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, format!("Unknown public key")),
+        }
+    }
+
+    #[test]
+    fn verify_report_unrecognized_client_authentication_key() {
+        // First. test that the client used the wrong key in the handshake.
+        let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            /*user_id=*/ 4,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            /*key_id=*/ 14,
+            /*user_secret=*/ b"test_secret3",
+            /*public_key=*/ b"test_public_key3",
+        );
+        let service = new_service(
+            key_fetcher,
+            &default_appraisal_policies(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Kk,
+            &tvs_private_key.compute_public_key(),
+            Some(P256Scalar::generate().bytes()),
+        );
+
+        match request_handler.verify_report(
+            create_attest_report_request(
+                client.build_initial_message().unwrap(),
+                &tvs_private_key.compute_public_key(),
+                &client_private_key.compute_public_key(),
+            )
+            .unwrap()
+            .as_slice(),
+        ) {
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, format!("Invalid handshake.")),
+        }
+
+        // Second, test that client used the right key for handshake but
+        // provided the wrong key in the prologue.
+        let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            /*user_id=*/ 4,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            /*key_id=*/ 14,
+            /*user_secret=*/ b"test_secret3",
+            /*public_key=*/ b"test_public_key3",
+        );
+        let service = new_service(
+            key_fetcher,
+            &default_appraisal_policies(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Kk,
+            &tvs_private_key.compute_public_key(),
+            Some(client_private_key.bytes()),
+        );
+
+        match request_handler.verify_report(
+            create_attest_report_request(
+                client.build_initial_message().unwrap(),
+                &tvs_private_key.compute_public_key(),
+                &P256Scalar::generate().bytes(),
+            )
+            .unwrap()
+            .as_slice(),
+        ) {
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, format!("Unauthenticated, provided public key is not registered: Failed to lookup user: UNAUTHENTICATED: unregistered or expired public key.")),
+        }
+        // Third, test that client used the wrong key for both handshake and
+        // provided the wrong key in the prologue.
+        let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            /*user_id=*/ 4,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            /*key_id=*/ 14,
+            /*user_secret=*/ b"test_secret3",
+            /*public_key=*/ b"test_public_key3",
+        );
+        let service = new_service(
+            key_fetcher,
+            &default_appraisal_policies(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Kk,
+            &tvs_private_key.compute_public_key(),
+            Some(P256Scalar::generate().bytes()),
+        );
+
+        match request_handler.verify_report(
+            create_attest_report_request(
+                client.build_initial_message().unwrap(),
+                &tvs_private_key.compute_public_key(),
+                &P256Scalar::generate().bytes(),
+            )
+            .unwrap()
+            .as_slice(),
+        ) {
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, format!("Unauthenticated, provided public key is not registered: Failed to lookup user: UNAUTHENTICATED: unregistered or expired public key.")),
+        }
+    }
+
+    #[test]
+    fn verify_report_no_secret_error() {
+        let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
+        let user_id = 5;
+        let key_id = 15;
+        let key_fetcher = create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            user_id,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            key_id,
+            /*user_secret=*/ &[],
+            /*public_key=*/ &[],
+        );
+        let service = new_service(
+            key_fetcher,
+            &default_appraisal_policies(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let mut request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+        let mut client = handshake::client::HandshakeInitiator::new(
+            HandshakeType::Kk,
+            &tvs_private_key.compute_public_key(),
+            Some(client_private_key.bytes()),
+        );
+
+        // Ask TVS to do its handshake part
+        let handshake_bin = request_handler
+            .verify_report(
+                create_attest_report_request(
+                    client.build_initial_message().unwrap(),
+                    &tvs_private_key.compute_public_key(),
+                    &client_private_key.compute_public_key(),
+                )
+                .unwrap()
+                .as_slice(),
+            )
+            .unwrap();
+
+        let message_reponse: AttestReportResponse =
+            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
+        let handshake_response = match &message_reponse.response {
+            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
+                init_session.response_for_client.clone()
+            }
+            _ => panic!("Wrong response"),
+        };
+
+        let (handshake_hash, mut client_crypter) = client
+            .process_response(handshake_response.as_slice())
+            .unwrap();
+
+        // Test report verification.
+        let signing_key =
+            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
+                .unwrap();
+        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
+
+        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
+        VerifyReportRequest {
+            evidence: Some(get_good_evidence()),
+            tee_certificate: get_genoa_vcek(),
+            signature: signature,
+        }
+        .encode(&mut verify_report_request_bin)
+        .unwrap();
+
+        let encrypted_report = client_crypter
+            .encrypt(verify_report_request_bin.as_slice())
+            .unwrap();
+        let message = AttestReportRequest {
+            request: Some(attest_report_request::Request::VerifyReportRequest(
+                VerifyReportRequestEncrypted {
+                    client_message: encrypted_report,
+                },
+            )),
+        };
+
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).unwrap();
+
+        match request_handler.verify_report(message_bin.as_slice()) {
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, format!("Failed to get secret for user ID: {user_id}")),
+        }
     }
 
     #[test]
     fn service_creation_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
-        match Service::new(
-            &[1, 2, 3],
-            /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
+        let client_private_key = P256Scalar::generate();
+        match new_service(
+            create_test_key_fetcher_wrapper(
+                /*primary_private_key=*/ &[0, 1, 3],
+                /*secondary_private_key,*/ &[],
+                /*user_id=*/ 6,
+                /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+                /*key_id=*/ 16,
+                /*user_secret=*/ b"test_secret6",
+                /*public_key=*/ b"test_public_key6",
+            ),
+            &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "Service::new() should fail."),
+            Ok(_) => assert!(false, "new_service() should fail."),
             Err(e) => assert_eq!(
                 e,
                 format!(
@@ -371,14 +793,21 @@ mod tests {
             ),
         }
 
-        match Service::new(
-            &[b'f'; P256_SCALAR_LENGTH * 3],
-            /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
+        match new_service(
+            create_test_key_fetcher_wrapper(
+                /*primary_private_key=*/ &[b'f'; P256_SCALAR_LENGTH * 3],
+                /*secondary_private_key,*/ &[],
+                /*user_id=*/ 6,
+                /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+                /*key_id=*/ 16,
+                /*user_secret=*/ b"test_secret6",
+                /*public_key=*/ b"test_public_key6",
+            ),
+            &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "Service::new() should fail."),
+            Ok(_) => assert!(false, "new_service() should fail."),
             Err(e) => assert_eq!(
                 e,
                 format!(
@@ -387,14 +816,21 @@ mod tests {
             ),
         }
 
-        match Service::new(
-            &P256Scalar::generate().bytes(),
-            Some(&[1, 3]),
-            default_appraisal_policies().as_slice(),
+        match new_service(
+            create_test_key_fetcher_wrapper(
+                /*primary_private_key=*/ &P256Scalar::generate().bytes(),
+                /*secondary_private_key,*/ &[1, 2],
+                /*user_id=*/ 6,
+                /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+                /*key_id=*/ 16,
+                /*user_secret=*/ b"test_secret6",
+                /*public_key=*/ b"test_public_key6",
+            ),
+            &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "Service::new() should fail."),
+            Ok(_) => assert!(false, "new_service() should fail."),
             Err(e) => assert_eq!(
                 e,
                 format!(
@@ -403,27 +839,41 @@ mod tests {
             ),
         }
 
-        match Service::new(
-            &P256Scalar::generate().bytes(),
-            /*secondary_private_key=*/ None,
-            &[1, 2, 3],
+        match new_service(
+            create_test_key_fetcher_wrapper(
+                /*primary_private_key=*/ &P256Scalar::generate().bytes(),
+                /*secondary_private_key,*/ &[],
+                /*user_id=*/ 6,
+                /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+                /*key_id=*/ 16,
+                /*user_secret=*/ b"test_secret6",
+                /*public_key=*/ b"test_public_key6",
+            ),
+            /*policies=*/ &[1, 2, 3],
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "Service::new() should fail."),
-            Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy.",),
+            Ok(_) => assert!(false, "new_service() should fail."),
+            Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy."),
         }
 
         // Appraisal policies that accept reports from insecure hardware are rejected.
-        match Service::new(
-            &P256Scalar::generate().bytes(),
-            /*secondary_private_key=*/ None,
-            insecure_appraisal_policies().as_slice(),
+        match new_service(
+            create_test_key_fetcher_wrapper(
+                /*primary_private_key=*/ &P256Scalar::generate().bytes(),
+                /*secondary_private_key,*/ &[],
+                /*user_id=*/ 6,
+                /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+                /*key_id=*/ 16,
+                /*user_secret=*/ b"test_secret6",
+                /*public_key=*/ b"test_public_key6",
+            ),
+            &insecure_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "Service::new() should fail."),
-            Err(e) => assert_eq!(e, "Cannot accept insecure policies"),
+            Ok(_) => assert!(false, "new_service() should fail."),
+            Err(e) => assert_eq!(e, "Cannot accept insecure policies."),
         }
     }
 }

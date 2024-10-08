@@ -216,6 +216,7 @@ fn hash_and_sign_evidence(
 mod tests {
     use super::*;
     use crypto::P256Scalar;
+    use key_fetcher::{ffi::create_test_key_fetcher_wrapper, KeyFetcher};
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use trusted_tvs::proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
@@ -267,46 +268,34 @@ mod tests {
         include_bytes!("../test_data/good_evidence.binarypb").to_vec()
     }
 
-    fn expected_verify_report_response(user_id: i64) -> VerifyReportResponse {
-        VerifyReportResponse {
-            secrets: vec![Secret {
-                key_id: 64,
-                public_key: format!("{user_id}-public-key").into(),
-                private_key: format!("{user_id}-secret").into(),
-            }],
-        }
-    }
-
-    // Get client keys where the public key is registered in the test key fetcher.
-    fn get_good_client_private_key() -> P256Scalar {
-        static TEST_CLIENT_PRIVATE_KEY: &'static str =
-            "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
-        return hex::decode(TEST_CLIENT_PRIVATE_KEY)
-            .unwrap()
-            .as_slice()
-            .try_into()
-            .unwrap();
-    }
-
     const NOW_UTC_MILLIS: i64 = 1698829200000;
 
     // End to end testing: handshake, building and signing the report and decrypt the secret.
     #[test]
     fn verify_report_successful() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let tvs_service = trusted_tvs::service::Service::new(
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
+        let client_private_key = P256Scalar::generate();
+        let user_id = 1;
+        let key_id = 11;
+        let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            user_id,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            key_id,
+            /*user_secret=*/ b"test_secret1",
+            /*public_key=*/ b"test_public_key1",
+        ));
+        let service = trusted_tvs::service::Service::new(
+            key_fetcher,
+            &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
-        let mut tvs_request_handler =
-            tvs_service.create_request_handler(NOW_UTC_MILLIS, /*user=*/ "test_user1");
 
-        let client_private_key = get_good_client_private_key();
+        let mut tvs_request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
+
         let mut tvs_client = TvsClient::new(
             &client_private_key.bytes(),
             &tvs_private_key.compute_public_key(),
@@ -334,14 +323,22 @@ mod tests {
 
         let decrypted_secret = tvs_client.process_response(secret.as_slice()).unwrap();
         let response = VerifyReportResponse::decode(decrypted_secret.as_slice()).unwrap();
-        assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
+        assert_eq!(
+            response,
+            VerifyReportResponse {
+                secrets: vec![Secret {
+                    key_id: key_id,
+                    private_key: b"test_secret1".to_vec(),
+                    public_key: "test_public_key1".to_string(),
+                }],
+            }
+        );
     }
 
     #[test]
     fn process_handshake_response_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
-        let client_private_key = get_good_client_private_key();
         let tvs_private_key = P256Scalar::generate();
+        let client_private_key = P256Scalar::generate();
         let mut tvs_client = TvsClient::new(
             &client_private_key.bytes(),
             &tvs_private_key.compute_public_key(),
@@ -370,8 +367,7 @@ mod tests {
 
     #[test]
     fn process_response_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
-        let client_private_key = get_good_client_private_key();
+        let client_private_key = P256Scalar::generate();
         let tvs_private_key = P256Scalar::generate();
         let mut tvs_client = TvsClient::new(
             &client_private_key.bytes(),
@@ -386,17 +382,26 @@ mod tests {
             ),
         }
 
-        let tvs_service = trusted_tvs::service::Service::new(
-            &tvs_private_key.bytes(),
-            /*secondary_private_key=*/ None,
-            default_appraisal_policies().as_slice(),
+        let user_id = 1;
+        let key_id = 11;
+        let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
+            /*primary_private_key=*/ &tvs_private_key.bytes(),
+            /*secondary_private_key,*/ &[],
+            user_id,
+            /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
+            key_id,
+            /*user_secret=*/ b"test_secret1",
+            /*public_key=*/ b"test_public_key1",
+        ));
+        let service = trusted_tvs::service::Service::new(
+            key_fetcher,
+            &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
 
-        let mut tvs_request_handler =
-            tvs_service.create_request_handler(NOW_UTC_MILLIS, /*user=*/ "test_user2");
+        let mut tvs_request_handler = service.create_request_handler(NOW_UTC_MILLIS, "test_user1");
 
         // Perform handshake now so we get to the next error.
         let initial_message = tvs_client.build_initial_message().unwrap();
@@ -431,13 +436,12 @@ mod tests {
 
     #[test]
     fn new_tvs_client_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         match TvsClient::new(&[1, 2, 3], &tvs_private_key.compute_public_key()) {
             Ok(_) => assert!(false, "TvsClient::new() should fail"),
             Err(e) => assert_eq!(e, "Invalid private key. Key should be 32 bytes long.",),
         }
-        let client_private_key = get_good_client_private_key();
+        let client_private_key = P256Scalar::generate();
         match TvsClient::new(&client_private_key.bytes(), &[1, 2, 3]) {
             Ok(_) => assert!(false, "TvsClient::new() should fail"),
             Err(e) => assert_eq!(

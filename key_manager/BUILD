@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -109,10 +108,19 @@ cc_test(
 )
 
 cc_library(
-    name = "key-fetcher-local",
-    srcs = ["key-fetcher-local.cc"],
+    name = "key-fetcher-interface",
     hdrs = ["key-fetcher.h"],
     deps = [
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "key-fetcher-local",
+    srcs = ["key-fetcher-local.cc"],
+    deps = [
+        "key-fetcher-interface",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -136,10 +144,10 @@ cc_library(
     name = "key-fetcher-gcp",
     srcs = ["key-fetcher-gcp.cc"],
     hdrs = [
-        "key-fetcher.h",
         "key-fetcher-gcp.h",
     ],
     deps = [
+        "key-fetcher-interface",
         "//crypto:aead-crypter",
         "//crypto:secret-data",
         "//gcp_common:flags",
@@ -174,37 +182,13 @@ cc_test(
 )
 
 cc_library(
-    name = "key-fetcher-wrapper",
-    srcs = ["key-fetcher-wrapper.cc"],
-    hdrs = ["key-fetcher-wrapper.h"],
+    name = "test-key-fetcher",
+    srcs = ["test-key-fetcher.cc"],
+    hdrs = ["test-key-fetcher.h"],
     deps = [
-        ":bridge/include",
-        "//tvs/proto:tvs_messages_cc_proto",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
+        ":key-fetcher-interface",
+        "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/synchronization",
-        "@cxx.rs//:cxx",
-    ] + select({
-        "//:gcp": ["//key_manager:key-fetcher-gcp"],
-        "//conditions:default": ["//key_manager:key-fetcher-local"],
-    }),
-)
-
-rust_cxx_bridge(
-    name = "bridge",
-    src = "rust-key-fetcher.rs",
-    deps = [":key-fetcher-wrapper"],
-)
-
-rust_library(
-    name = "rust-key-fetcher",
-    srcs = ["rust-key-fetcher.rs"],
-    crate_name = "key_fetcher",
-    deps = [
-        ":bridge",
-        ":key-fetcher-wrapper",
-        "@cxx.rs//:cxx",
     ],
 )

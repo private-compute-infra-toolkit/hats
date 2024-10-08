@@ -25,7 +25,6 @@ cc_binary(
         "//status_macro:status_macros",
         "//tvs/credentials",
         "//tvs/proto:appraisal_policies_cc_proto",
-        "//tvs/trusted_tvs:bridge",
         "//tvs/untrusted_tvs:tvs-service",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",

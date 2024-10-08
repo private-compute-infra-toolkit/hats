@@ -18,7 +18,6 @@
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "key_manager/key-fetcher.h"
 
@@ -100,8 +99,7 @@ class KeyFetcherLocal : public KeyFetcher {
   absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
       int64_t user_id) override {
     if (user_id != 1) {
-      return absl::NotFoundError(
-          absl::StrCat("Cannot find user id '", user_id, "'"));
+      return absl::NotFoundError("Cannot find secret for the user");
     }
     // Return the same secret since we have one user only in the local mode.
     std::string secret_bytes;

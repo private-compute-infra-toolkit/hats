@@ -64,8 +64,9 @@ rust_test(
     crate = ":trusted-client",
     crate_features = ["noffi"],
     deps = [
-        "//key_manager:rust-key-fetcher",
+        "//tvs/trusted_tvs:key-fetcher",
         "//tvs/trusted_tvs:trusted-tvs",
+        "@oak_crates_index//:anyhow",
     ],
 )
 

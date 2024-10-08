@@ -18,6 +18,7 @@ use crate::proto::privacy_sandbox::tvs::{
 };
 use crypto::{P256Scalar, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
+use key_provider::KeyProvider;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use policy_manager::PolicyManager;
@@ -32,6 +33,7 @@ pub struct RequestHandler<'a> {
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
     policy_manager: &'a PolicyManager,
+    key_provider: &'a (dyn KeyProvider + Sync + Send),
     // Authenticated user if any.
     #[allow(dead_code)]
     user: String,
@@ -47,6 +49,7 @@ impl<'a> RequestHandler<'a> {
         secondary_private_key: Option<&'a P256Scalar>,
         secondary_public_key: Option<&'a [u8; P256_X962_LENGTH]>,
         policy_manager: &'a PolicyManager,
+        key_provider: &'a (dyn KeyProvider + Sync + Send),
         user: &str,
     ) -> Self {
         Self {
@@ -56,6 +59,7 @@ impl<'a> RequestHandler<'a> {
             secondary_private_key: secondary_private_key,
             secondary_public_key: secondary_public_key,
             policy_manager,
+            key_provider,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
             user: user.to_string(),
@@ -143,10 +147,10 @@ impl<'a> RequestHandler<'a> {
         }
         let private_key = self.private_key_to_use(public_key)?;
         // First check if we recognize the public key.
-        let user_id = key_fetcher::ffi::user_id_for_authentication_key(client_public_key);
-        if !user_id.error.is_empty() {
-            return Err(format!("Unauthenticated: {}", user_id.error));
-        }
+        let user_id = self
+            .key_provider
+            .user_id_for_authentication_key(client_public_key)
+            .map_err(|err| format!("{err}"))?;
 
         let handshake_response = handshake::respond(
             HandshakeType::Kk,
@@ -157,9 +161,10 @@ impl<'a> RequestHandler<'a> {
             /*prologue=*/ &[public_key, client_public_key].concat(),
         )
         .map_err(|_| "Invalid handshake.".to_string())?;
+
         self.crypter = Some(handshake_response.crypter);
         self.handshake_hash = handshake_response.handshake_hash;
-        self.user_id = Some(user_id.value);
+        self.user_id = Some(user_id);
         Ok(handshake_response.response)
     }
 
@@ -183,14 +188,17 @@ impl<'a> RequestHandler<'a> {
             // was changed.
             return Err("Something went wrong. user_id has no value.".to_string());
         };
-        let secret = key_fetcher::ffi::get_secrets_for_user_id(user_id);
-        if !secret.error.is_empty() {
-            return Err(format!(
-                "Failed to get secret for user ID: {}",
-                secret.error
-            ));
+
+        let secret = self
+            .key_provider
+            .get_secrets_for_user_id(user_id)
+            .map_err(|err| format!("{err}"))?;
+        if self.crypter.is_none() {
+            // This should not happen unless something went wrong internally
+            // such as this method is called out of order.
+            return Err("Something went wrong. crypter is not initialized.".to_string());
         }
-        match self.crypter.as_mut().unwrap().encrypt(&secret.value) {
+        match self.crypter.as_mut().unwrap().encrypt(&secret) {
             Ok(cipher_text) => Ok(cipher_text),
             Err(_) => Err("Failed to encrypt message.".to_string()),
         }
@@ -250,8 +258,7 @@ mod tests {
     use super::*;
     use crate::proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, InitSessionRequest,
-        Measurement, Secret, Signature as PolicySignature, Stage0Measurement,
-        VerifyReportRequestEncrypted, VerifyReportResponse,
+        Measurement, Signature as PolicySignature, Stage0Measurement, VerifyReportRequestEncrypted,
     };
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
@@ -348,32 +355,47 @@ mod tests {
         Ok(message_bin)
     }
 
-    fn expected_verify_report_response(user_id: i64) -> VerifyReportResponse {
-        VerifyReportResponse {
-            secrets: vec![Secret {
-                key_id: 64,
-                public_key: format!("{user_id}-public-key").into(),
-                private_key: format!("{user_id}-secret").into(),
-            }],
+    const NOW_UTC_MILLIS: i64 = 1698829200000;
+
+    struct TestKeyFetcher<'a> {
+        user_id: i64,
+        user_authentication_public_key: &'a [u8],
+        secret: &'a [u8],
+    }
+
+    impl<'a> key_provider::KeyProvider for TestKeyFetcher<'a> {
+        fn get_primary_private_key(&self) -> anyhow::Result<P256Scalar> {
+            Err(anyhow::anyhow!("unimplemented."))
+        }
+
+        fn get_secondary_private_key(&self) -> Option<anyhow::Result<P256Scalar>> {
+            None
+        }
+
+        fn user_id_for_authentication_key(
+            &self,
+            user_authentication_public_key: &[u8],
+        ) -> anyhow::Result<i64> {
+            if self.user_authentication_public_key != user_authentication_public_key {
+                return Err(anyhow::anyhow!(
+                    "Unauthenticated, provided public key is not registered"
+                ));
+            }
+            Ok(self.user_id)
+        }
+
+        fn get_secrets_for_user_id(&self, user_id: i64) -> anyhow::Result<Vec<u8>> {
+            if self.user_id != user_id {
+                return Err(anyhow::anyhow!(
+                    "Failed to get secret for user ID: {user_id}"
+                ));
+            }
+            Ok(self.secret.to_vec())
         }
     }
 
-    // Get client keys where the public key is registered in the test key fetcher.
-    fn get_good_client_private_key() -> P256Scalar {
-        static TEST_CLIENT_PRIVATE_KEY: &'static str =
-            "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
-        return hex::decode(TEST_CLIENT_PRIVATE_KEY)
-            .unwrap()
-            .as_slice()
-            .try_into()
-            .unwrap();
-    }
-
-    const NOW_UTC_MILLIS: i64 = 1698829200000;
-
     #[test]
     fn verify_report_successful() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new(
@@ -383,6 +405,15 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 1;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret1";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
+
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key,
@@ -390,10 +421,10 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user1",
         );
 
-        let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &tvs_private_key.compute_public_key(),
@@ -469,14 +500,14 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
-        let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
-        assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
+        assert_eq!(
+            client_crypter.decrypt(report_response.as_slice()).unwrap(),
+            secret
+        );
     }
 
     #[test]
     fn verify_report_with_secondary_key_successful() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let primary_tvs_public_key = primary_tvs_private_key.compute_public_key();
         let secondary_tvs_private_key = P256Scalar::generate();
@@ -488,6 +519,15 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 2;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret2";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
+
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key,
@@ -495,10 +535,10 @@ mod tests {
             Some(&secondary_tvs_private_key),
             Some(&secondary_tvs_public_key),
             &policy_manager,
+            &test_key_fetcher,
             "test_user2",
         );
 
-        let client_private_key = get_good_client_private_key();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
@@ -576,16 +616,16 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
-        let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
-        assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
+        assert_eq!(
+            client_crypter.decrypt(report_response.as_slice()).unwrap(),
+            secret
+        );
     }
 
     // Test that the handshake session is terminated after the first
     // VerifyReportRequest regardless of the success status.
     #[test]
     fn verify_report_session_termination_on_successful_session() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new(
@@ -595,6 +635,14 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 3;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret3";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key,
@@ -602,10 +650,10 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user1",
         );
 
-        let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &tvs_public_key,
@@ -682,9 +730,10 @@ mod tests {
             _ => panic!("Wrong response"),
         };
 
-        let secret = client_crypter.decrypt(report_response.as_slice()).unwrap();
-        let response = VerifyReportResponse::decode(secret.as_slice()).unwrap();
-        assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
+        assert_eq!(
+            client_crypter.decrypt(report_response.as_slice()).unwrap(),
+            secret
+        );
 
         match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
@@ -707,7 +756,6 @@ mod tests {
 
     #[test]
     fn verify_report_invalid_report_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new(
@@ -717,6 +765,14 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 4;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret4";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key,
@@ -724,10 +780,10 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user",
         );
 
-        let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &tvs_public_key,
@@ -811,6 +867,14 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 5;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret5";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key,
@@ -818,10 +882,10 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user",
         );
 
-        let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &tvs_public_key,
@@ -889,7 +953,6 @@ mod tests {
 
     #[test]
     fn verify_report_unknown_public_key_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let primary_tvs_private_key = P256Scalar::generate();
         let primary_tvs_public_key = primary_tvs_private_key.compute_public_key();
         let secondary_tvs_private_key = P256Scalar::generate();
@@ -901,6 +964,14 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 6;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret6";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &primary_tvs_private_key,
@@ -908,10 +979,10 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user",
         );
 
-        let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &secondary_tvs_public_key,
@@ -934,7 +1005,6 @@ mod tests {
 
     #[test]
     fn verify_report_unauthenticated_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         // Test that unregistered client keys are rejected.
@@ -945,6 +1015,15 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 7;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret7";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
+
         // Test that unregistered client keys are rejected.
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
@@ -953,14 +1032,14 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user1",
         );
 
-        let client_private_key = P256Scalar::generate();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &tvs_private_key.compute_public_key(),
-            Some(client_private_key.bytes()),
+            Some(P256Scalar::generate().bytes()),
         );
 
         // Ask TVS to do its handshake part
@@ -968,16 +1047,13 @@ mod tests {
             create_attest_report_request(
                 client.build_initial_message().unwrap(),
                 &tvs_public_key,
-                &client_private_key.compute_public_key(),
+                &P256Scalar::generate().compute_public_key(),
             )
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "create_attest_report_request() should fail."),
-            Err(e) => assert_eq!(
-                e,
-                "Unauthenticated: Failed to lookup user: NOT_FOUND: Cannot find public key"
-            ),
+            Ok(_) => assert!(false, "verify_report() should fail."),
+            Err(e) => assert_eq!(e, "Unauthenticated, provided public key is not registered",),
         }
 
         // Test that requests where requests with client public key in the proto doesn't match
@@ -989,10 +1065,10 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user1",
         );
 
-        let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &tvs_private_key.compute_public_key(),
@@ -1009,7 +1085,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "create_attest_report_request() should fail."),
+            Ok(_) => assert!(false, "verify_report() should fail."),
             Err(e) => assert_eq!(e, "Invalid handshake."),
         }
 
@@ -1021,10 +1097,10 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user1",
         );
 
-        let client_private_key = get_good_client_private_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Nk,
             &tvs_private_key.compute_public_key(),
@@ -1041,14 +1117,13 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "create_attest_report_request() should fail."),
+            Ok(_) => assert!(false, "verify_report() should fail."),
             Err(e) => assert_eq!(e, "Invalid handshake."),
         }
     }
 
     #[test]
     fn handshake_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new(
@@ -1058,6 +1133,14 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 8;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret8";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key,
@@ -1065,10 +1148,10 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user",
         );
 
-        let client_private_key = get_good_client_private_key();
         // Test invalid initiator handshake error.
         match request_handler.do_init_session(
             b"ab",
@@ -1086,6 +1169,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user",
         );
 
@@ -1116,7 +1200,6 @@ mod tests {
 
     #[test]
     fn verify_report_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
 
@@ -1127,6 +1210,14 @@ mod tests {
         )
         .unwrap();
 
+        let user_id = 9;
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret9";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id,
+            user_authentication_public_key: &client_private_key.compute_public_key(),
+            secret: secret.as_slice(),
+        };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
             &tvs_private_key,
@@ -1134,6 +1225,7 @@ mod tests {
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
             &policy_manager,
+            &test_key_fetcher,
             "test_user",
         );
 

@@ -1,0 +1,139 @@
+// Copyright 2024 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Define foreign function interface (FFI) to use the C++ KeyFetcherWrapper in
+// Rust.
+
+use crypto::{P256Scalar, P256_SCALAR_LENGTH};
+
+#[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
+pub mod ffi {
+    struct IntResult {
+        value: i64,
+        error: String,
+    }
+
+    struct VecU8Result {
+        value: Vec<u8>,
+        error: String,
+    }
+
+    unsafe extern "C++" {
+        include!("tvs/trusted_tvs/key-fetcher-wrapper.h");
+
+        type KeyFetcherWrapper;
+
+        #[rust_name = "get_primary_private_key"]
+        fn GetPrimaryPrivateKey(&self) -> VecU8Result;
+
+        #[rust_name = "get_secondary_private_key"]
+        fn GetSecondaryPrivateKey(&self) -> VecU8Result;
+
+        #[rust_name = "user_id_for_authentication_key"]
+        fn UserIdForAuthenticationKey(&self, public_key: &[u8]) -> IntResult;
+
+        #[rust_name = "get_secrets_for_user_id"]
+        fn GetSecretsForUserId(&self, user_id: i64) -> VecU8Result;
+
+        // Used for unittests.
+        #[rust_name = "create_test_key_fetcher_wrapper"]
+        fn CreateTestKeyFetcherWrapper(
+            primary_private_key: &[u8],
+            secondary_private_key: &[u8],
+            user_id: i64,
+            user_authentication_public_key: &[u8],
+            key_id: i64,
+            secret: &[u8],
+            public_key: &[u8],
+        ) -> UniquePtr<KeyFetcherWrapper>;
+    }
+    // Explicitly request UniquePtr instantiation for KeyFetcherWrapper.
+    impl UniquePtr<KeyFetcherWrapper> {}
+}
+
+// Tell rust that `KeyFetcherWrapper` is thread-safe.
+unsafe impl Sync for ffi::KeyFetcherWrapper {}
+unsafe impl Send for ffi::KeyFetcherWrapper {}
+
+pub struct KeyFetcher {
+    key_fetcher_wrapper: cxx::UniquePtr<crate::ffi::KeyFetcherWrapper>,
+}
+
+impl KeyFetcher {
+    pub fn new(key_fetcher_wrapper: cxx::UniquePtr<crate::ffi::KeyFetcherWrapper>) -> Self {
+        Self {
+            key_fetcher_wrapper,
+        }
+    }
+}
+
+impl key_provider::KeyProvider for KeyFetcher {
+    fn get_primary_private_key(&self) -> anyhow::Result<P256Scalar> {
+        let primary_private_key = self.key_fetcher_wrapper.get_primary_private_key();
+        if !primary_private_key.error.is_empty() {
+            return Err(anyhow::anyhow!(primary_private_key.error));
+        }
+        let primary_private_key_scalar: P256Scalar = primary_private_key
+            .value
+            .as_slice()
+            .try_into()
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
+            })?;
+        Ok(primary_private_key_scalar)
+    }
+
+    fn get_secondary_private_key(&self) -> Option<anyhow::Result<P256Scalar>> {
+        let secondary_private_key = self.key_fetcher_wrapper.get_secondary_private_key();
+        if !secondary_private_key.error.is_empty() {
+            return Some(Err(anyhow::anyhow!(secondary_private_key.error)));
+        }
+        if secondary_private_key.value.is_empty() {
+            return None;
+        }
+        let Ok(secondary_private_key_scalar) =
+            TryInto::<P256Scalar>::try_into(secondary_private_key.value.as_slice())
+        else {
+            return Some(Err(anyhow::anyhow!(
+                "Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+            )));
+        };
+        Some(Ok(secondary_private_key_scalar))
+    }
+
+    fn user_id_for_authentication_key(&self, public_key: &[u8]) -> anyhow::Result<i64> {
+        let user_id = self
+            .key_fetcher_wrapper
+            .user_id_for_authentication_key(public_key);
+        if !user_id.error.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Unauthenticated, provided public key is not registered: {}",
+                user_id.error
+            ));
+        }
+        Ok(user_id.value)
+    }
+
+    fn get_secrets_for_user_id(&self, user_id: i64) -> anyhow::Result<Vec<u8>> {
+        let secret = self.key_fetcher_wrapper.get_secrets_for_user_id(user_id);
+        if !secret.error.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Failed to get secret for user ID: {user_id}"
+            ));
+        }
+        Ok(secret.value)
+    }
+}

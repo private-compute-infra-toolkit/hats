@@ -193,7 +193,7 @@ fn get_root_layer(
         }
         Some(stage0_measurement::Type::Insecure(_)) => {
             if !accept_insecure_policies {
-                return Err("Cannot accept insecure policies".to_string());
+                return Err("Cannot accept insecure policies.".to_string());
             }
             Ok(RootLayerReferenceValues {
                 insecure: Some(InsecureReferenceValues {}),
@@ -429,7 +429,7 @@ mod tests {
             /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "PolicyManager::new() should fail."),
-            Err(e) => assert_eq!(e, "Cannot accept insecure policies",),
+            Err(e) => assert_eq!(e, "Cannot accept insecure policies."),
         }
     }
 }
