@@ -17,12 +17,16 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "crypto/ec-key.h"
+#include "crypto/secret-data.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
@@ -33,7 +37,7 @@
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
 #include "gtest/gtest.h"
-#include "key_manager/key-fetcher-wrapper.h"
+#include "key_manager/test-key-fetcher.h"
 #include "src/google/protobuf/test_textproto.h"
 #include "status_macro/status_test_macros.h"
 #include "tools/cpp/runfiles/runfiles.h"
@@ -116,55 +120,243 @@ absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
   return appraisal_policies;
 }
 
-constexpr absl::string_view kTvsPrivateKey =
-    "0000000000000000000000000000000000000000000000000000000000000001";
-constexpr absl::string_view kTvsPublicKey =
-    "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2"
-    "fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
-// Authentication key registered in the test TVS server.
-constexpr absl::string_view kTvsAuthenticationKey =
-    "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
+struct TestEcKey {
+  std::string private_key_hex;
+  crypto::SecretData private_key;
+  std::string public_key;
+  std::string public_key_hex;
+};
 
-absl::StatusOr<std::string> HexStringToBytes(absl::string_view hex_string) {
-  std::string bytes;
-  if (!absl::HexStringToBytes(hex_string, &bytes)) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Failed to convert '", hex_string, "' to bytes."));
-  }
-  return bytes;
+absl::StatusOr<TestEcKey> GenerateEcKey() {
+  absl::StatusOr<std::unique_ptr<crypto::EcKey>> ec_key =
+      crypto::EcKey::Create();
+  if (!ec_key.ok()) return ec_key.status();
+
+  absl::StatusOr<crypto::SecretData> private_key = (*ec_key)->GetPrivateKey();
+  if (!private_key.ok()) return private_key.status();
+
+  absl::StatusOr<std::string> public_key = (*ec_key)->GetPublicKey();
+  if (!public_key.ok()) return public_key.status();
+
+  absl::StatusOr<std::string> public_key_hex = (*ec_key)->GetPublicKeyInHex();
+  if (!public_key_hex.ok()) return public_key_hex.status();
+  return TestEcKey{
+      .private_key_hex = absl::BytesToHexString(private_key->GetStringView()),
+      .private_key = *std::move(private_key),
+      .public_key = *std::move(public_key),
+      .public_key_hex = *std::move(public_key_hex),
+  };
 }
 
 TEST(TvsService, Successful) {
-  key_manager::RegisterEchoKeyFetcherForTest();
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key1,
+                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key2,
+                            GenerateEcKey());
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      tvs_primary_key.private_key.GetStringView(),
+      /*secondary_private_key=*/"",
+      std::vector<key_manager::TestUserData>{
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key1.public_key,
+              .key_id = 11,
+              .secret = "secret-1-1",
+              .public_key = "public-1-1",
+          },
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key1.public_key,
+              .key_id = 111,
+              .secret = "secret-1-2",
+              .public_key = "public-1-2",
+          },
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key1.public_key,
+              .key_id = 12,
+              .secret = "secret-1-3",
+              .public_key = "public-1-3",
+          },
+          {
+              .user_id = 2,
+              .user_authentication_public_key =
+                  client_authentication_key2.public_key,
+              .key_id = 100,
+              .secret = "secret-2-1",
+              .public_key = "public-2-1",
+          },
+          {
+              .user_id = 3,
+              .user_authentication_public_key =
+                  client_authentication_key1.public_key,
+              .key_id = 101,
+              .secret = "secret-3-1",
+              .public_key = "public-3-1",
+          },
+          {
+              .user_id = 4,
+              .user_authentication_public_key = "00",
+              .key_id = 103,
+              .secret = "secret-4-1",
+              .public_key = "public-4-1",
+          },
+          {
+              .user_id = 5,
+              .key_id = 104,
+              .secret = "secret-5-1",
+              .public_key = "public-5-1",
+          },
+      });
+
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
-  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key,
-                            HexStringToBytes(kTvsPrivateKey));
-
-  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<TvsService> tvs_service,
-                            TvsService::Create({
-                                .primary_private_key = tvs_private_key,
-                                .appraisal_policies = appraisal_policies,
-                                .enable_policy_signature = true,
-                                .accept_insecure_policies = false,
-                            }));
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<TvsService> tvs_service,
+      TvsService::Create({
+          .key_fetcher = std::move(key_fetcher),
+          .appraisal_policies = std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      }));
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
 
+  HATS_ASSERT_OK_AND_ASSIGN(VerifyReportRequest verify_report_request,
+                            GetGoodReportRequest());
+  constexpr absl::string_view kApplicationSigningKey =
+      "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
+
+  {
+    HATS_ASSERT_OK_AND_ASSIGN(
+        std::unique_ptr<TvsUntrustedClient> tvs_client,
+        TvsUntrustedClient::CreateClient({
+            .tvs_public_key = tvs_primary_key.public_key_hex,
+            .tvs_authentication_key =
+                std::move(client_authentication_key1.private_key_hex),
+            .channel = server->InProcessChannel(grpc::ChannelArguments()),
+        }));
+
+    HATS_EXPECT_OK_AND_HOLDS(
+        tvs_client->VerifyReportAndGetSecrets(
+            std::string(kApplicationSigningKey), verify_report_request),
+        EqualsProto(
+            R"pb(
+              secrets {
+                key_id: 11
+                public_key: "public-1-1"
+                private_key: "secret-1-1"
+              }
+              secrets {
+                key_id: 111
+                public_key: "public-1-2"
+                private_key: "secret-1-2"
+              }
+              secrets {
+                key_id: 12
+                public_key: "public-1-3"
+                private_key: "secret-1-3"
+              })pb"));
+  }
+  {
+    HATS_ASSERT_OK_AND_ASSIGN(
+        std::unique_ptr<TvsUntrustedClient> tvs_client,
+        TvsUntrustedClient::CreateClient({
+            .tvs_public_key = tvs_primary_key.public_key_hex,
+            .tvs_authentication_key =
+                std::move(client_authentication_key2.private_key_hex),
+            .channel = server->InProcessChannel(grpc::ChannelArguments()),
+        }));
+
+    HATS_EXPECT_OK_AND_HOLDS(
+        tvs_client->VerifyReportAndGetSecrets(
+            std::string(kApplicationSigningKey), verify_report_request),
+        EqualsProto(
+            R"pb(
+              secrets {
+                key_id: 100
+                public_key: "public-2-1"
+                private_key: "secret-2-1"
+              })pb"));
+  }
+}
+
+TEST(TvsService, UseSecondaryTvsKey) {
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_secondary_key, GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
+                            GenerateEcKey());
+
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      tvs_primary_key.private_key.GetStringView(),
+      tvs_secondary_key.private_key.GetStringView(),
+      std::vector<key_manager::TestUserData>{
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = 11,
+              .secret = "secret-1-1",
+              .public_key = "public-1-1",
+          },
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = 111,
+              .secret = "secret-1-2",
+              .public_key = "public-1-2",
+          },
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = 12,
+              .secret = "secret-1-3",
+              .public_key = "public-1-3",
+          },
+          {
+              .user_id = 2,
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = 12,
+              .secret = "secret-2-1",
+              .public_key = "public-2-1",
+          },
+      });
+
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
+                            GetTestAppraisalPolicies());
   HATS_ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<TvsUntrustedClient> tvs_client,
-      TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kTvsPublicKey),
-          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
-          .channel = server->InProcessChannel(grpc::ChannelArguments()),
+      std::unique_ptr<TvsService> tvs_service,
+      TvsService::Create({
+          .key_fetcher = std::move(key_fetcher),
+          .appraisal_policies = std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
       }));
+
+  std::unique_ptr<grpc::Server> server =
+      grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
 
   HATS_ASSERT_OK_AND_ASSIGN(VerifyReportRequest verify_report_request,
                             GetGoodReportRequest());
-
   constexpr absl::string_view kApplicationSigningKey =
       "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
+
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<TvsUntrustedClient> tvs_client,
+      TvsUntrustedClient::CreateClient({
+          .tvs_public_key = tvs_secondary_key.public_key_hex,
+          .tvs_authentication_key =
+              std::move(client_authentication_key.private_key_hex),
+          .channel = server->InProcessChannel(grpc::ChannelArguments()),
+      }));
 
   HATS_EXPECT_OK_AND_HOLDS(
       tvs_client->VerifyReportAndGetSecrets(std::string(kApplicationSigningKey),
@@ -172,26 +364,51 @@ TEST(TvsService, Successful) {
       EqualsProto(
           R"pb(
             secrets {
-              key_id: 64
-              public_key: "1-public-key"
-              private_key: "1-secret"
+              key_id: 11
+              public_key: "public-1-1"
+              private_key: "secret-1-1"
+            }
+            secrets {
+              key_id: 111
+              public_key: "public-1-2"
+              private_key: "secret-1-2"
+            }
+            secrets {
+              key_id: 12
+              public_key: "public-1-3"
+              private_key: "secret-1-3"
             })pb"));
 }
 
 TEST(TvsService, BadReportError) {
-  key_manager::RegisterEchoKeyFetcherForTest();
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
+                            GenerateEcKey());
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      tvs_primary_key.private_key.GetStringView(),
+      /*secondary_private_key=*/"",
+      std::vector<key_manager::TestUserData>{
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = 11,
+              .secret = "secret-1-1",
+              .public_key = "public-1-1",
+          },
+      });
+
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
-  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key,
-                            HexStringToBytes(kTvsPrivateKey));
 
-  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<TvsService> tvs_service,
-                            TvsService::Create({
-                                .primary_private_key = tvs_private_key,
-                                .appraisal_policies = appraisal_policies,
-                                .enable_policy_signature = true,
-                                .accept_insecure_policies = false,
-                            }));
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<TvsService> tvs_service,
+      TvsService::Create({
+          .key_fetcher = std::move(key_fetcher),
+          .appraisal_policies = std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      }));
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
@@ -199,16 +416,17 @@ TEST(TvsService, BadReportError) {
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<TvsUntrustedClient> tvs_client,
       TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kTvsPublicKey),
-          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
+          .tvs_public_key = tvs_primary_key.public_key_hex,
+          .tvs_authentication_key =
+              std::move(client_authentication_key).private_key_hex,
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       }));
 
   HATS_ASSERT_OK_AND_ASSIGN(VerifyReportRequest verify_report_request,
                             GetBadReportRequest());
-
   const absl::string_view kApplicationSigningKey =
       "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759";
+
   HATS_EXPECT_STATUS_MESSAGE(
       tvs_client->VerifyReportAndGetSecrets(std::string(kApplicationSigningKey),
                                             verify_report_request),
@@ -218,19 +436,33 @@ TEST(TvsService, BadReportError) {
 }
 
 TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
-  key_manager::RegisterEchoKeyFetcherForTest();
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
+                            GenerateEcKey());
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      tvs_primary_key.private_key.GetStringView(),
+      /*secondary_private_key=*/"",
+      std::vector<key_manager::TestUserData>{
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = 11,
+              .secret = "secret-1-1",
+              .public_key = "public-1-1",
+          },
+      });
+
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
-  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key,
-                            HexStringToBytes(kTvsPrivateKey));
-
-  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<TvsService> tvs_service,
-                            TvsService::Create({
-                                .primary_private_key = tvs_private_key,
-                                .appraisal_policies = appraisal_policies,
-                                .enable_policy_signature = true,
-                                .accept_insecure_policies = false,
-                            }));
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<TvsService> tvs_service,
+      TvsService::Create({
+          .key_fetcher = std::move(key_fetcher),
+          .appraisal_policies = std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      }));
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
@@ -238,8 +470,8 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<TvsUntrustedClient> tvs_client,
       TvsUntrustedClient::CreateClient({
-          .tvs_public_key = std::string(kTvsPublicKey),
-          .tvs_authentication_key = std::string(kTvsAuthenticationKey),
+          .tvs_public_key = tvs_primary_key.public_key_hex,
+          .tvs_authentication_key = client_authentication_key.private_key_hex,
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       }));
 
@@ -255,9 +487,9 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
       EqualsProto(
           R"pb(
             secrets {
-              key_id: 64
-              public_key: "1-public-key"
-              private_key: "1-secret"
+              key_id: 11
+              public_key: "public-1-1"
+              private_key: "secret-1-1"
             })pb"));
 
   HATS_EXPECT_STATUS_MESSAGE(
@@ -268,21 +500,33 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
 }
 
 TEST(TvsService, MalformedMessageError) {
-  key_manager::RegisterEchoKeyFetcherForTest();
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
+                            GenerateEcKey());
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      tvs_primary_key.private_key.GetStringView(),
+      /*secondary_private_key=*/"",
+      std::vector<key_manager::TestUserData>{
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = 11,
+              .secret = "secret-1-1",
+              .public_key = "public-1-1",
+          },
+      });
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
 
-  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key,
-                            HexStringToBytes(kTvsPrivateKey));
-
-  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<TvsService> tvs_service,
-                            TvsService::Create({
-                                .primary_private_key = tvs_private_key,
-                                .appraisal_policies = appraisal_policies,
-                                .enable_policy_signature = true,
-                                .accept_insecure_policies = false,
-                            }));
-
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<TvsService> tvs_service,
+      TvsService::Create({
+          .key_fetcher = std::move(key_fetcher),
+          .appraisal_policies = std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      }));
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
   std::unique_ptr<TeeVerificationService::Stub> stub =
@@ -301,14 +545,17 @@ TEST(TvsService, MalformedMessageError) {
 }
 
 TEST(TvsService, CreatingTrustedTvsServiceError) {
-  key_manager::RegisterEchoKeyFetcherForTest();
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      /*primary_private_key=*/"000",
+      /*secondary_private_key=*/"",
+      /*user_data=*/std::vector<key_manager::TestUserData>{});
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
 
   EXPECT_THAT(
       TvsService::Create({
-          .primary_private_key = "0000",
-          .appraisal_policies = appraisal_policies,
+          .key_fetcher = std::move(key_fetcher),
+          .appraisal_policies = std::move(appraisal_policies),
           .enable_policy_signature = true,
           .accept_insecure_policies = false,
       }),
@@ -320,32 +567,48 @@ TEST(TvsService, CreatingTrustedTvsServiceError) {
 }
 
 TEST(TvsService, AuthenticationError) {
-  key_manager::RegisterEchoKeyFetcherForTest();
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key1,
+                            GenerateEcKey());
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      tvs_primary_key.private_key.GetStringView(),
+      /*secondary_private_key=*/"",
+      std::vector<key_manager::TestUserData>{
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key1.public_key,
+              .key_id = 11,
+              .secret = "secret-1-1",
+              .public_key = "public-1-1",
+          },
+      });
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
-  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key,
-                            HexStringToBytes(kTvsPrivateKey));
-
-  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<TvsService> tvs_service,
-                            TvsService::Create({
-                                .primary_private_key = tvs_private_key,
-                                .appraisal_policies = appraisal_policies,
-                                .enable_policy_signature = true,
-                                .accept_insecure_policies = false,
-                            }));
+  HATS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<TvsService> tvs_service,
+      TvsService::Create({
+          .key_fetcher = std::move(key_fetcher),
+          .appraisal_policies = std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      }));
 
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
 
-  constexpr absl::string_view kBadAuthenticationKey =
-      "4583ed91df564f17c0726f7fa4d7e00ec2da067ad3c92448794c5982f6150ba7";
-  EXPECT_THAT(TvsUntrustedClient::CreateClient({
-                  .tvs_public_key = std::string(kTvsPublicKey),
-                  .tvs_authentication_key = std::string(kBadAuthenticationKey),
-                  .channel = server->InProcessChannel(grpc::ChannelArguments()),
-              }),
-              StatusIs(absl::StatusCode::kUnknown,
-                       HasSubstr("Unauthenticated: Failed to lookup user")));
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key2,
+                            GenerateEcKey());
+  EXPECT_THAT(
+      TvsUntrustedClient::CreateClient({
+          .tvs_public_key = tvs_primary_key.public_key_hex,
+          .tvs_authentication_key =
+              std::move(client_authentication_key2).private_key_hex,
+          .channel = server->InProcessChannel(grpc::ChannelArguments()),
+      }),
+      StatusIs(
+          absl::StatusCode::kUnknown,
+          HasSubstr("UNAUTHENTICATED: unregistered or expired public key")));
 }
 
 absl::StatusOr<AppraisalPolicies> GetInsecureAppraisalPolicies() {
@@ -377,15 +640,27 @@ absl::StatusOr<AppraisalPolicies> GetInsecureAppraisalPolicies() {
 
 // Passing insecure policies in a secure mode.
 TEST(TvsService, InsecurePoliciesError) {
-  key_manager::RegisterEchoKeyFetcherForTest();
-  HATS_ASSERT_OK_AND_ASSIGN(std::string tvs_private_key,
-                            HexStringToBytes(kTvsPrivateKey));
-
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
+                            GenerateEcKey());
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      tvs_primary_key.private_key.GetStringView(),
+      /*secondary_private_key=*/"",
+      std::vector<key_manager::TestUserData>{
+          {
+              .user_id = 1,
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = 11,
+              .secret = "secret-1-1",
+              .public_key = "public-1-1",
+          },
+      });
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetInsecureAppraisalPolicies());
   EXPECT_THAT(TvsService::Create({
-                  .primary_private_key = tvs_private_key,
-                  .appraisal_policies = appraisal_policies,
+                  .key_fetcher = std::move(key_fetcher),
+                  .appraisal_policies = std::move(appraisal_policies),
                   .enable_policy_signature = true,
                   .accept_insecure_policies = false,
               }),

@@ -263,12 +263,14 @@ mod tests {
     use crate::proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse;
     use crate::tests::launcher_service_server::LauncherService;
     use crate::tests::launcher_service_server::LauncherServiceServer;
-    use crypto::{P256Scalar, P256_SCALAR_LENGTH};
+    use crypto::P256Scalar;
     use futures::FutureExt;
+    use key_fetcher::ffi::create_test_key_fetcher_wrapper;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use std::collections::VecDeque;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::pin::Pin;
+    use std::sync::Arc;
     use tokio::net::TcpListener;
     use tokio_stream::wrappers::TcpListenerStream;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
@@ -279,8 +281,8 @@ mod tests {
     };
 
     struct TestLauncherService {
-        pub tvs_private_key: [u8; P256_SCALAR_LENGTH],
         pub tvs_authentication_key: Vec<u8>,
+        pub tvs_service: Arc<trusted_tvs::service::Service>,
     }
 
     #[tonic::async_trait]
@@ -303,16 +305,7 @@ mod tests {
             request: tonic::Request<tonic::Streaming<ForwardingTvsMessage>>,
         ) -> Result<tonic::Response<Self::VerifyReportStream>, tonic::Status> {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
-            let Ok(tvs_service) = trusted_tvs::service::Service::new(
-                &self.tvs_private_key,
-                /*secondary_private_key=*/ None,
-                default_appraisal_policies().as_slice(),
-                /*enable_policy_signature=*/ true,
-                /*accept_insecure_policies=*/ false,
-            ) else {
-                return Err(tonic::Status::internal("Error creating TVS Server"));
-            };
-
+            let tvs_service = Arc::clone(&self.tvs_service);
             let mut stream = request.into_inner();
             let _ = tokio::spawn(async move {
                 let mut tvs_request_handler =
@@ -389,37 +382,32 @@ mod tests {
         .expect("could not decode evidence")
     }
 
-    fn expected_verify_report_response(user_id: i64) -> VerifyReportResponse {
-        VerifyReportResponse {
-            secrets: vec![Secret {
-                key_id: 64,
-                public_key: format!("{user_id}-public-key").into(),
-                private_key: format!("{user_id}-secret").into(),
-            }],
-        }
-    }
-
-    // Get client keys where the public key is registered in the test key fetcher.
-    fn get_good_client_private_key() -> P256Scalar {
-        static TEST_CLIENT_PRIVATE_KEY: &'static str =
-            "750fa48f4ddaf3201d4f1d2139878abceeb84b09dc288c17e606640eb56437a2";
-        return hex::decode(TEST_CLIENT_PRIVATE_KEY)
-            .unwrap()
-            .as_slice()
-            .try_into()
-            .unwrap();
-    }
-
     const NOW_UTC_MILLIS: i64 = 1698829200000;
 
     #[tokio::test]
     async fn verify_report_successful() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
-        let tvs_authentication_key = get_good_client_private_key();
+        let tvs_authentication_key = P256Scalar::generate();
         let test_service = TestLauncherService {
-            tvs_private_key: tvs_private_key.bytes(),
             tvs_authentication_key: tvs_authentication_key.bytes().to_vec(),
+            tvs_service: Arc::new(
+                trusted_tvs::service::Service::new(
+                    key_fetcher::KeyFetcher::new(create_test_key_fetcher_wrapper(
+                        /*primary_private_key=*/ &tvs_private_key.bytes(),
+                        /*secondary_private_key,*/ &[],
+                        /*user_id=*/ 1,
+                        /*user_authentication_public_key=*/
+                        &tvs_authentication_key.compute_public_key(),
+                        /*key_id=*/ 64,
+                        /*user_secret=*/ b"test_secret1",
+                        /*public_key=*/ b"test_public_key1",
+                    )),
+                    &default_appraisal_policies(),
+                    /*enable_policy_signature=*/ true,
+                    /*accept_insecure_policies=*/ false,
+                )
+                .unwrap(),
+            ),
         };
         let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let listener = TcpListener::bind(sockaddr).await.unwrap();
@@ -464,16 +452,41 @@ mod tests {
         let _ = server.await;
         let response =
             VerifyReportResponse::decode(VecDeque::from(secret.unwrap().unwrap())).unwrap();
-        assert_eq!(response, expected_verify_report_response(/*user_id=*/ 1));
+        assert_eq!(
+            response,
+            VerifyReportResponse {
+                secrets: vec![Secret {
+                    key_id: 64,
+                    public_key: "test_public_key1".into(),
+                    private_key: "test_secret1".into(),
+                }],
+            }
+        );
     }
 
     #[tokio::test]
     async fn verify_report_unauthenticated_error() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let test_service = TestLauncherService {
-            tvs_private_key: tvs_private_key.bytes(),
             tvs_authentication_key: P256Scalar::generate().bytes().to_vec(),
+            tvs_service: Arc::new(
+                trusted_tvs::service::Service::new(
+                    key_fetcher::KeyFetcher::new(create_test_key_fetcher_wrapper(
+                        /*primary_private_key=*/ &tvs_private_key.bytes(),
+                        /*secondary_private_key,*/ &[],
+                        /*user_id=*/ 1,
+                        /*user_authentication_public_key=*/
+                        &P256Scalar::generate().compute_public_key(),
+                        /*key_id=*/ 64,
+                        /*user_secret=*/ b"test_secret1",
+                        /*public_key=*/ b"test_public_key1",
+                    )),
+                    &default_appraisal_policies(),
+                    /*enable_policy_signature=*/ true,
+                    /*accept_insecure_policies=*/ false,
+                )
+                .unwrap(),
+            ),
         };
         let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let listener = TcpListener::bind(sockaddr).await.unwrap();
@@ -518,17 +531,32 @@ mod tests {
         let _ = server.await;
         match secret.unwrap() {
             Ok(_) => assert!(false, "send_evidence() should fail."),
-            Err(_) => assert!(true),
+            Err(e) => assert_eq!(e, "error from the server"),
         }
     }
 
     #[tokio::test]
     async fn fetch_tee_certificate_successful() {
-        key_fetcher::ffi::register_echo_key_fetcher_for_test();
         let tvs_private_key = P256Scalar::generate();
         let test_service = TestLauncherService {
-            tvs_private_key: tvs_private_key.bytes(),
             tvs_authentication_key: vec![],
+            tvs_service: Arc::new(
+                trusted_tvs::service::Service::new(
+                    key_fetcher::KeyFetcher::new(create_test_key_fetcher_wrapper(
+                        /*primary_private_key=*/ &tvs_private_key.bytes().to_vec(),
+                        /*secondary_private_key,*/ &[],
+                        /*user_id=*/ 1,
+                        /*user_authentication_public_key=*/ &[],
+                        /*key_id=*/ 64,
+                        /*user_secret=*/ b"test_secret1",
+                        /*public_key=*/ b"test_public_key1",
+                    )),
+                    &default_appraisal_policies(),
+                    /*enable_policy_signature=*/ true,
+                    /*accept_insecure_policies=*/ false,
+                )
+                .unwrap(),
+            ),
         };
         let sockaddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let listener = TcpListener::bind(sockaddr).await.unwrap();

@@ -112,8 +112,7 @@ absl::StatusOr<std::vector<Keys>> WrappedSecretsByUserIdFromSpanner(
     });
   }
   if (keys.empty()) {
-    return absl::NotFoundError(
-        absl::StrCat("Cannot find secret for user '", user_id, "'"));
+    return absl::NotFoundError("Cannot find secret for the user.");
   }
   return keys;
 }

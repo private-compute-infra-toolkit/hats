@@ -93,15 +93,6 @@ int main(int argc, char* argv[]) {
   // Startup TVS
   std::unique_ptr<privacy_sandbox::key_manager::KeyFetcher> key_fetcher =
       privacy_sandbox::key_manager::KeyFetcher::Create();
-  HATS_ASSIGN_OR_RETURN(
-      std::string primary_private_key, key_fetcher->GetPrimaryPrivateKey(),
-      _.PrependWith("Failed to fetch primary private key: ").LogErrorAndExit());
-
-  HATS_ASSIGN_OR_RETURN(std::string secondary_private_key,
-                        key_fetcher->GetSecondaryPrivateKey(),
-                        _.PrependWith("Failed to fetch secondary private key: ")
-                            .LogErrorAndExit());
-
   int tvs_listening_port = absl::GetFlag(FLAGS_tvs_listening_port);
 
   HATS_ASSIGN_OR_RETURN(
@@ -117,7 +108,7 @@ int main(int argc, char* argv[]) {
   HATS_ASSIGN_OR_RETURN(
       std::unique_ptr<privacy_sandbox::tvs::TvsService> tvs_service,
       privacy_sandbox::tvs::TvsService::Create({
-          .primary_private_key = std::move(primary_private_key),
+          .key_fetcher = std::move(key_fetcher),
           .appraisal_policies = std::move(appraisal_policies),
           .enable_policy_signature =
               absl::GetFlag(FLAGS_enable_policy_signature),

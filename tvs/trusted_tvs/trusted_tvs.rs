@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use key_fetcher::KeyFetcher;
 use request_handler::RequestHandler;
-use service::{new_service, new_service_with_second_key, Service};
+use service::Service;
 
 pub mod request_handler;
 pub mod service;
@@ -27,21 +28,19 @@ pub mod proto {
 
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 mod ffi {
+
+    extern "C++" {
+        include!("tvs/trusted_tvs/key-fetcher-wrapper.h");
+        type KeyFetcherWrapper = key_fetcher::ffi::KeyFetcherWrapper;
+    }
+
     extern "Rust" {
         type Service;
-        #[cxx_name = "NewService"]
-        fn new_service(
-            primary_private_key: &[u8],
-            policy: &[u8],
-            enable_policy_signature: bool,
-            accept_insecure_policies: bool,
-        ) -> Result<Box<Service>>;
 
         #[cxx_name = "NewService"]
-        fn new_service_with_second_key(
-            primary_private_key: &[u8],
-            secondary_private_key: &[u8],
-            policy: &[u8],
+        fn new_service(
+            key_fetcher_wrapper: UniquePtr<KeyFetcherWrapper>,
+            policies: &[u8],
             enable_policy_signature: bool,
             accept_insecure_policies: bool,
         ) -> Result<Box<Service>>;
@@ -59,5 +58,24 @@ mod ffi {
 
         #[cxx_name = "IsTerminated"]
         fn is_terminated(self: &RequestHandler) -> bool;
+    }
+}
+
+fn new_service(
+    key_fetcher_wrapper: cxx::UniquePtr<ffi::KeyFetcherWrapper>,
+    policies: &[u8],
+    enable_policy_signature: bool,
+    accept_insecure_policies: bool,
+) -> Result<Box<Service>, String> {
+    let key_fetcher = KeyFetcher::new(key_fetcher_wrapper);
+    let service = Service::new(
+        key_fetcher,
+        policies,
+        enable_policy_signature,
+        accept_insecure_policies,
+    );
+    match service {
+        Ok(service) => Ok(Box::new(service)),
+        Err(err) => Err(err),
     }
 }

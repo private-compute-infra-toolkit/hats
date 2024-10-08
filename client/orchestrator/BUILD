@@ -70,8 +70,9 @@ rust_test(
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
         ":build-for-test",
-        "//key_manager:rust-key-fetcher",
+        "//tvs/appraisal_policies:policy-manager",
         "//tvs/client:trusted-client-noffi",
+        "//tvs/trusted_tvs:key-fetcher",
         "//tvs/trusted_tvs:trusted-tvs",
         "@enclave//crypto",
         "@enclave//handshake",
