@@ -26,7 +26,6 @@ cc_binary(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:flags",
         "@com_google_absl//absl/log:initialize",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@kv-server//public/query/v2:get_values_v2_cc_grpc",
