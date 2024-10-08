@@ -11,7 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#![no_std]
 
+extern crate alloc;
+use alloc::vec;
+use alloc::vec::Vec;
 use oak_proto_rust::oak::attestation::v1::{
     binary_reference_value, endorsements, kernel_binary_reference_value, reference_values,
     text_reference_value, AmdSevReferenceValues, BinaryReferenceValue,
@@ -37,9 +41,9 @@ impl PolicyManager {
         policies: &[u8],
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
-    ) -> Result<Self, String> {
+    ) -> anyhow::Result<Self> {
         let appraisal_policies = AppraisalPolicies::decode(policies)
-            .map_err(|_| "Failed to decode (serialize) appraisal policy.".to_string())?;
+            .map_err(|_| anyhow::anyhow!("Failed to decode (serialize) appraisal policy."))?;
         let reference_values = if enable_policy_signature {
             let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
             process_and_validate_policies(
@@ -64,7 +68,7 @@ impl PolicyManager {
         time_milis: i64,
         evidence: &Evidence,
         tee_certificate: &[u8],
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         let endorsement = create_endorsements(tee_certificate);
         for policy in &self.reference_values {
             match oak_attestation_verification::verifier::verify(
@@ -77,17 +81,19 @@ impl PolicyManager {
                 Err(_) => continue,
             };
         }
-        Err("Failed to verify report. No matching appraisal policy found".to_string())
+        Err(anyhow::anyhow!(
+            "Failed to verify report. No matching appraisal policy found"
+        ))
     }
 }
 
 // TODO(b/358413924): Actually fetch key
-fn get_policy_public_key() -> Result<VerifyingKey, String> {
+fn get_policy_public_key() -> anyhow::Result<VerifyingKey> {
     Ok(VerifyingKey::from_sec1_bytes(
         &hex::decode("048fa2c25d3d3368b23f7877c9ac84866f440f9dd7a94e7ca5440ef1bc611f77db2940cca2233d06c9cfbf503ee73fdf5cf1f4c637f376bb7daaf637faf05656e4")
-        .map_err(|_| "Failed to decode policy PK hex")?
+        .map_err(|err| anyhow::anyhow!("Failed to decode policy public key hex: {err}"))?
     )
-    .map_err(|_| "Failed to parse policy PK")?)
+    .map_err(|err| anyhow::anyhow!("Failed to parse policy public key: {err}"))?)
 }
 
 fn create_endorsements(tee_certificate: &[u8]) -> Endorsements {
@@ -111,7 +117,7 @@ fn process_and_validate_policies(
     verifying_keys: &Vec<&VerifyingKey>,
     num_pass_required: u32,
     accept_insecure_policies: bool,
-) -> Result<Vec<ReferenceValues>, String> {
+) -> anyhow::Result<Vec<ReferenceValues>> {
     policies
         .policies
         .into_iter()
@@ -136,9 +142,9 @@ fn process_and_validate_policies(
 fn appraisal_policy_to_reference_values(
     policy: &AppraisalPolicy,
     accept_insecure_policies: bool,
-) -> Result<ReferenceValues, String> {
+) -> anyhow::Result<ReferenceValues> {
     let Some(measurement) = &policy.measurement else {
-        return Err("Policy does not have measurement field set".to_string());
+        anyhow::bail!("Policy does not have measurement field set");
     };
 
     Ok(ReferenceValues {
@@ -156,14 +162,14 @@ fn appraisal_policy_to_reference_values(
 fn get_root_layer(
     measurement: &Measurement,
     accept_insecure_policies: bool,
-) -> Result<RootLayerReferenceValues, String> {
+) -> anyhow::Result<RootLayerReferenceValues> {
     let Some(stage0_measurement) = &measurement.stage0_measurement else {
-        return Err("stage0_measurement field is not set".to_string());
+        anyhow::bail!("stage0_measurement field is not set");
     };
     match stage0_measurement.r#type.as_ref() {
         Some(stage0_measurement::Type::AmdSev(stage0)) => {
             if stage0.min_tcb_version.is_none() {
-                return Err("min_tcb_version is not set".to_string());
+                anyhow::bail!("min_tcb_version is not set");
             }
             Ok(RootLayerReferenceValues {
                 amd_sev: Some(AmdSevReferenceValues {
@@ -173,7 +179,7 @@ fn get_root_layer(
                         r#type: Some(binary_reference_value::Type::Digests(Digests {
                             digests: vec![RawDigest {
                                 sha2_384: hex::decode(&stage0.sha384).map_err(|err| {
-                                    format!("failed to decode sha256_hex: {}", err)
+                                    anyhow::anyhow!("failed to decode sha256_hex: {err}")
                                 })?,
                                 psha2: vec![],
                                 sha1: vec![],
@@ -193,7 +199,7 @@ fn get_root_layer(
         }
         Some(stage0_measurement::Type::Insecure(_)) => {
             if !accept_insecure_policies {
-                return Err("Cannot accept insecure policies.".to_string());
+                anyhow::bail!("Cannot accept insecure policies.");
             }
             Ok(RootLayerReferenceValues {
                 insecure: Some(InsecureReferenceValues {}),
@@ -201,11 +207,11 @@ fn get_root_layer(
                 intel_tdx: None,
             })
         }
-        None => Err("stage0_measurement field is not set".to_string()),
+        None => Err(anyhow::anyhow!("stage0_measurement field is not set")),
     }
 }
 
-fn get_kernel_layer(measurement: &Measurement) -> Result<KernelLayerReferenceValues, String> {
+fn get_kernel_layer(measurement: &Measurement) -> anyhow::Result<KernelLayerReferenceValues> {
     // A number of deprecated field that we have to set, and when we do we get warned.
     // So we suppress the warning.
     #[allow(deprecated)]
@@ -246,7 +252,7 @@ fn get_kernel_layer(measurement: &Measurement) -> Result<KernelLayerReferenceVal
     })
 }
 
-fn get_system_layer(measurement: &Measurement) -> Result<SystemLayerReferenceValues, String> {
+fn get_system_layer(measurement: &Measurement) -> anyhow::Result<SystemLayerReferenceValues> {
     Ok(SystemLayerReferenceValues {
         system_image: Some(BinaryReferenceValue {
             r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
@@ -256,7 +262,7 @@ fn get_system_layer(measurement: &Measurement) -> Result<SystemLayerReferenceVal
     })
 }
 
-fn get_container_layer(measurement: &Measurement) -> Result<ContainerLayerReferenceValues, String> {
+fn get_container_layer(measurement: &Measurement) -> anyhow::Result<ContainerLayerReferenceValues> {
     Ok(ContainerLayerReferenceValues {
         binary: Some(BinaryReferenceValue {
             r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
@@ -270,11 +276,11 @@ fn get_container_layer(measurement: &Measurement) -> Result<ContainerLayerRefere
     })
 }
 
-fn sha256_hex_to_digest(sha256_hex: &str) -> Result<Digests, String> {
+fn sha256_hex_to_digest(sha256_hex: &str) -> anyhow::Result<Digests> {
     Ok(Digests {
         digests: vec![RawDigest {
             sha2_256: hex::decode(sha256_hex)
-                .map_err(|err| format!("failed to decode sha256_hex: {}", err))?,
+                .map_err(|err| anyhow::anyhow!("failed to decode sha256_hex: {err}"))?,
             psha2: vec![],
             sha1: vec![],
             sha2_512: vec![],
@@ -290,6 +296,8 @@ fn sha256_hex_to_digest(sha256_hex: &str) -> Result<Digests, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::alloc::string::ToString;
+    use alloc::string::String;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use policy_signature::proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, Signature, Stage0Measurement,
@@ -302,7 +310,7 @@ mod tests {
                 measurement: Some(Measurement {
                     stage0_measurement: Some(Stage0Measurement{
                         r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
-                            sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95".to_string(),
+                            sha384: String::from("de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95"),
                             min_tcb_version: Some(TcbVersion{
                                 boot_loader: 7,
                                 microcode: 62,
@@ -311,19 +319,19 @@ mod tests {
                             }),
                         })),
                     }),
-                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
-                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
-                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
-                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
-                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
-                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
-                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
-                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
+                    kernel_image_sha256: String::from("442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"),
+                    kernel_setup_data_sha256: String::from("68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"),
+                    init_ram_fs_sha256: String::from("3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"),
+                    memory_map_sha256: String::from("4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"),
+                    acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
+                    kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
+                    system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
+                    container_binary_sha256:String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"),
 
                 }),
                 signature: vec![Signature{
-                    signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c".to_string(),
-                    signer: "".to_string(),
+                    signature: String::from("003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c"),
+                    signer: String::from(""),
                     },
                     ],
             }],
@@ -340,19 +348,19 @@ mod tests {
                     stage0_measurement: Some(Stage0Measurement{
                         r#type: Some(stage0_measurement::Type::Insecure(InsecureReferenceValues{})),
                     }),
-                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
-                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
-                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
-                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
-                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
-                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
-                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
-                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
+                    kernel_image_sha256: String::from("442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"),
+                    kernel_setup_data_sha256: String::from("68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"),
+                    init_ram_fs_sha256: String::from("3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"),
+                    memory_map_sha256: String::from("4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"),
+                    acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
+                    kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
+                    system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
+                    container_binary_sha256:String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"),
 
                 }),
                 signature: vec![Signature{
-                    signature: "6870ebf5f55debe04cd66d47ea3b2a878edd436aba59be30b1f52478bb4e12e4d40c223664ee3c0f13ce27e159bc8e7726cce52520f4fb171d6622a26169dcb6".to_string(),
-                    signer: "".to_string(),
+                    signature: String::from("6870ebf5f55debe04cd66d47ea3b2a878edd436aba59be30b1f52478bb4e12e4d40c223664ee3c0f13ce27e159bc8e7726cce52520f4fb171d6622a26169dcb6"),
+                    signer: String::from(""),
                     },
                     ],
             }],
@@ -406,7 +414,7 @@ mod tests {
         {
             Ok(_) => assert!(false, "check_evidence() should fail."),
             Err(e) => assert_eq!(
-                e,
+                e.to_string(),
                 "Failed to verify report. No matching appraisal policy found"
             ),
         }
@@ -420,7 +428,10 @@ mod tests {
             /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "PolicyManager::new() should fail."),
-            Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy."),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Failed to decode (serialize) appraisal policy."
+            ),
         }
 
         match PolicyManager::new(
@@ -429,7 +440,7 @@ mod tests {
             /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "PolicyManager::new() should fail."),
-            Err(e) => assert_eq!(e, "Cannot accept insecure policies."),
+            Err(e) => assert_eq!(e.to_string(), "Cannot accept insecure policies."),
         }
     }
 }

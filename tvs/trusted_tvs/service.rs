@@ -52,7 +52,8 @@ impl Service {
         };
 
         let policy_manager =
-            PolicyManager::new(policies, enable_policy_signature, accept_insecure_policies)?;
+            PolicyManager::new(policies, enable_policy_signature, accept_insecure_policies)
+                .map_err(|err| format!("{err}"))?;
 
         Ok(Self {
             primary_public_key: primary_private_key.compute_public_key(),
