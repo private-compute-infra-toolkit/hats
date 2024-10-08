@@ -72,7 +72,7 @@ absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create() {
   HATS_ASSIGN_OR_RETURN(
       AppraisalPolicies policies,
       ReadAppraisalPolicies(absl::GetFlag(FLAGS_appraisal_policy_file)));
-  return std::make_unique<PolicyFetcherLocal>(policies);
+  return std::make_unique<PolicyFetcherLocal>(std::move(policies));
 }
 
 }  // namespace privacy_sandbox::tvs

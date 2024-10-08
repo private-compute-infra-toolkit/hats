@@ -82,9 +82,7 @@
 #include "google/protobuf/text_format.h"
 #include "key_manager/gcp-kms-client.h"
 #include "openssl/bn.h"
-#include "openssl/ec_key.h"
 #include "openssl/hpke.h"
-#include "openssl/nid.h"
 #include "status_macro/status_macros.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
@@ -346,11 +344,13 @@ absl::StatusOr<TvsSecrets> GenerateTvsSecrets(
 
   // Wrap EC
   return TvsSecrets{
-      .primary_ec_public_key = primary_ec_public_key,
-      .secondary_ec_public_key = secondary_ec_public_key,
-      .wrapped_primary_ec_private_key = wrapped_primary_ec_private_key,
-      .wrapped_secondary_ec_private_key = wrapped_secondary_ec_private_key,
-      .wrapped_dek = wrapped_dek,
+      .primary_ec_public_key = std::move(primary_ec_public_key),
+      .secondary_ec_public_key = std::move(secondary_ec_public_key),
+      .wrapped_primary_ec_private_key =
+          std::move(wrapped_primary_ec_private_key),
+      .wrapped_secondary_ec_private_key =
+          std::move(wrapped_secondary_ec_private_key),
+      .wrapped_dek = std::move(wrapped_dek),
   };
 }
 
@@ -597,8 +597,8 @@ absl::StatusOr<WrappedSecrets> WrapSecret(
                                  "HATS_SECRET"));
 
   return WrappedSecrets{
-      .wrapped_user_secret = wrapped_user_secret,
-      .wrapped_dek = wrapped_dek,
+      .wrapped_user_secret = std::move(wrapped_user_secret),
+      .wrapped_dek = std::move(wrapped_dek),
   };
 }
 

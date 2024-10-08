@@ -455,6 +455,7 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
 
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
+
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<TvsService> tvs_service,
       TvsService::Create({
@@ -585,6 +586,7 @@ TEST(TvsService, AuthenticationError) {
       });
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
+
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<TvsService> tvs_service,
       TvsService::Create({

@@ -600,9 +600,6 @@ TEST(LauncherServer, BadReportError) {
   // rpc. We are not using this key in the test.
   constexpr absl::string_view kFakeKey =
       "4583ed91df564f17c0726f7fa4d7e00ec2da067ad3c92448794c5982f6150ba7";
-  // Forwarding TVS server.
-  std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  channel_map[0] = tvs_server->InProcessChannel(grpc::ChannelArguments());
   LauncherServer launcher_service(
       /*tvs_authentication_key=*/kFakeKey, PrivateKeyWrappingKeys{},
       /*channel_map=*/

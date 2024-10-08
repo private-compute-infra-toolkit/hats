@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -140,7 +141,7 @@ TEST(HatsLauncherTest, Unsuccessful) {
   config.mutable_cvm_config()->set_hats_system_bundle(system_bundle);
 
   HATS_EXPECT_STATUS(privacy_sandbox::client::HatsLauncher::Create({
-                         .config = config,
+                         .config = std::move(config),
                          .tvs_authentication_key_bytes = "test",
                      }),
                      absl::StatusCode::kInternal);

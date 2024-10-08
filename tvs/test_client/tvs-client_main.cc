@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
       privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = absl::GetFlag(FLAGS_tvs_public_key),
           .tvs_authentication_key = absl::GetFlag(FLAGS_tvs_authentication_key),
-          .channel = channel,
+          .channel = std::move(channel),
       }),
       _.PrependWith("Couldn't create TVS client: ").LogErrorAndExit());
   HATS_ASSIGN_OR_RETURN(
