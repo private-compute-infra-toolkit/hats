@@ -96,6 +96,7 @@ rust_library(
         "@hats_crate_index//:hex",
         "@hats_crate_index//:p256",
         "@oak//oak_proto_rust",
+        "@oak_crates_index//:anyhow",
         "@oak_crates_index//:prost",
     ],
 )
@@ -138,6 +139,7 @@ rust_library(
         "@hats_crate_index//:p256",
         "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",
         "@oak//oak_proto_rust",
+        "@oak_crates_index//:anyhow",
         "@oak_crates_index//:prost",
     ],
 )

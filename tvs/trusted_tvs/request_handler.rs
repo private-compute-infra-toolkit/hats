@@ -176,11 +176,13 @@ impl<'a> RequestHandler<'a> {
             return Err("Request does not have `evidence` proto.".to_string());
         };
         self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
-        self.policy_manager.check_evidence(
-            self.time_milis,
-            &evidence,
-            verify_report_request.tee_certificate.as_slice(),
-        )?;
+        self.policy_manager
+            .check_evidence(
+                self.time_milis,
+                &evidence,
+                verify_report_request.tee_certificate.as_slice(),
+            )
+            .map_err(|err| format!("{err}"))?;
 
         let Some(user_id) = self.user_id else {
             // This should not happen unless something went wrong internally
