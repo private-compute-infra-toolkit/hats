@@ -146,6 +146,7 @@ cc_library(
 
 cc_test(
     name = "ec-key_test",
+    size = "small",
     srcs = ["ec-key_test.cc"],
     deps = [
         ":aead-crypter",
