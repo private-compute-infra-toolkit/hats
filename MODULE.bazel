@@ -39,11 +39,12 @@ git_override(
 
 # Used to support clangd
 # bazel run @hedron_compile_commands//:refresh_all
+# Commit used fixes header-only compiles, which helps with grpc/protos
 # Note: clangd's _mm_getcsr warnings are external and not fixable here.
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
     module_name = "hedron_compile_commands",
-    commit = "1e08f8e0507b6b6b1f4416a9a22cf5c28beaba93",
+    commit = "f5fbd4cee671d8d908f37c83abaf70fba5928fc7",
     remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
 )
 

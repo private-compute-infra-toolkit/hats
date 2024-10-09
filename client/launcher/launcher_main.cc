@@ -13,6 +13,11 @@
 // limitations under the License.
 
 #include <fstream>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"

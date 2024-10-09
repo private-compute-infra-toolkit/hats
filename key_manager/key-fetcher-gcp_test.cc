@@ -14,6 +14,8 @@
 
 #include "key_manager/key-fetcher-gcp.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "crypto/aead-crypter.h"

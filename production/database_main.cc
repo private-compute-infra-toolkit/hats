@@ -58,8 +58,11 @@
  */
 
 #include <fstream>
+#include <iostream>
 #include <memory>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "absl/flags/flag.h"

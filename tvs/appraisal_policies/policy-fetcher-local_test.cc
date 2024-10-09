@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <fstream>
+#include <string>
 
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"

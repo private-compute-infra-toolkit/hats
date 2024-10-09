@@ -14,7 +14,6 @@
 
 #include "key_manager/test-key-fetcher.h"
 
-#include <memory>
 #include <string>
 #include <vector>
 

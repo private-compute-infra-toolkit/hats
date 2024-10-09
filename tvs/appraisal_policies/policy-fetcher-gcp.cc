@@ -23,7 +23,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "gcp_common/flags.h"
-#include "gcp_common/gcp-status.h"
 #include "google/cloud/spanner/client.h"
 #include "google/cloud/spanner/sql_statement.h"
 #include "status_macro/status_macros.h"

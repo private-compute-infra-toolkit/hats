@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"

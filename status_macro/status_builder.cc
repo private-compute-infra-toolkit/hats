@@ -19,7 +19,7 @@
 
 #include "absl/base/log_severity.h"
 #include "absl/container/flat_hash_map.h"
-#include "absl/log/absl_log.h"  // IWYU: pragma keep
+#include "absl/log/absl_log.h"  // IWYU pragma: keep
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/mutex.h"
 #include "status_macro/examine_stack.h"

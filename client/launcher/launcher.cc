@@ -15,12 +15,14 @@
 #include "client/launcher/launcher.h"
 
 #include <netinet/in.h>
-#include <string.h>
 #include <sys/socket.h>
 
 #include <linux/vm_sockets.h>
 
 #include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>

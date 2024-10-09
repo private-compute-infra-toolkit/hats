@@ -20,6 +20,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -138,7 +139,6 @@ absl::StatusOr<std::string> GenerateTmpFile(absl::string_view content) {
   if (fd == -1)
     return absl::FailedPreconditionError(
         absl::StrCat("mkstemp() failed: ", strerror(errno)));
-  std::cout << "generated temporary file at" << filename << std::endl;
   std::ofstream tmpf;
   tmpf.open(filename);
   // tmpf should have \0 attached to the end of the file although not obvious.

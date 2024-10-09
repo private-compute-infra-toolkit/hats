@@ -15,6 +15,7 @@
 #include "crypto/ec-key.h"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -22,6 +23,7 @@
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
 #include "openssl/bn.h"
+#include "openssl/ec_key.h"
 #include "openssl/nid.h"
 #include "status_macro/status_macros.h"
 

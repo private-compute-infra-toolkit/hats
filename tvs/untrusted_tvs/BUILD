@@ -50,7 +50,6 @@ cc_library(
     srcs = ["tvs-service.cc"],
     hdrs = ["tvs-service.h"],
     deps = [
-        "//key_manager:key-fetcher-interface",
         "//status_macro:status_macros",
         "//status_macro:status_util",
         "//tvs/proto:appraisal_policies_cc_proto",

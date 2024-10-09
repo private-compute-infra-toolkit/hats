@@ -14,6 +14,7 @@
 
 #include "tvs/appraisal_policies/policy-fetcher-gcp.h"
 
+#include <memory>
 #include <utility>
 
 #include "absl/status/statusor.h"

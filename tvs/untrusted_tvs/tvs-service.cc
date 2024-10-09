@@ -27,7 +27,6 @@
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
-#include "key_manager/key-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/trusted_tvs/trusted_tvs.rs.h"

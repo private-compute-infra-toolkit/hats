@@ -15,6 +15,7 @@
 #include "crypto/ec-key.h"
 
 #include <memory>
+#include <string>
 
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"

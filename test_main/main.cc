@@ -15,8 +15,10 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 
 #include "absl/flags/flag.h"

@@ -266,7 +266,8 @@ constexpr bool HasPotentialConditionalOperator(const char* lhs, int index) {
 namespace grpc {
 class Status;
 }
-namespace google::cloud::v2_29 {
+// v2_29 is inline namespace
+namespace google::cloud {
 class Status;
 }
 

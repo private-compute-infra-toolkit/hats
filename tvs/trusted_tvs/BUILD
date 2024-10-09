@@ -76,7 +76,6 @@ cc_library(
         "//key_manager:key-fetcher-interface",
         "//key_manager:test-key-fetcher",
         "//tvs/proto:tvs_messages_cc_proto",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

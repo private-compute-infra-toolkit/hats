@@ -14,6 +14,8 @@
 
 #include "client/sdk/hats_orchestrator_client.h"
 
+#include <memory>
+
 #include "client/proto/orchestrator.grpc.pb.h"
 #include "client/proto/orchestrator.pb.h"
 #include "gmock/gmock.h"

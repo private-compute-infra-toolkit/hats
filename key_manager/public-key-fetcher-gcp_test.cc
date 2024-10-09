@@ -14,6 +14,7 @@
 
 #include "key_manager/public-key-fetcher-gcp.h"
 
+#include <memory>
 #include <utility>
 
 #include "gmock/gmock.h"

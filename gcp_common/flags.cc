@@ -14,6 +14,8 @@
 
 #include "gcp_common/flags.h"
 
+#include <string>
+
 #include "absl/flags/flag.h"
 
 ABSL_FLAG(std::string, project_id, "", "GCP Project ID.");

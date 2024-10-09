@@ -90,7 +90,6 @@ TEST(HatsLauncher, Successful) {
   std::thread launcher_thread([&] {
     HATS_ASSERT_OK(launcher->Start());
     launcher->Wait();
-    std::cout << "launcher shutdown" << std::endl;
   });
 
   launcher->WaitUntilReady();

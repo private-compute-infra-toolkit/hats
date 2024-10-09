@@ -23,7 +23,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "crypto/secret-data.h"
-#include "openssl/ec_key.h"
+#include "openssl/base.h"  // for EC_KEY
 
 namespace privacy_sandbox::crypto {
 

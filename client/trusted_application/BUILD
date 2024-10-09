@@ -26,7 +26,6 @@ cc_binary(
     srcs = ["main.cc"],
     deps = [
         ":trusted_application",
-        "//client/proto:orchestrator_cc_grpc",
         "//client/proto:orchestrator_cc_proto",
         "//client/sdk:hats_orchestrator_client",
         "//status_macro:status_macros",

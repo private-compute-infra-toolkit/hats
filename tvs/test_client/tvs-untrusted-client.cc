@@ -14,6 +14,7 @@
 
 #include "tvs/test_client/tvs-untrusted-client.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 

@@ -16,7 +16,6 @@
 #define HATS_TVS_UNTRUSTED_TVS_SERVICE_
 
 #include <memory>
-#include <string>
 
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"

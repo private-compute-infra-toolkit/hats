@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
 #include "absl/strings/str_cat.h"
-#include "client/proto/orchestrator.grpc.pb.h"
 #include "client/proto/orchestrator.pb.h"
 #include "client/sdk/hats_orchestrator_client.h"
 #include "client/trusted_application/trusted_application.h"

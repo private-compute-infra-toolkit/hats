@@ -14,6 +14,9 @@
 
 #include "status_macro/examine_stack.h"
 
+#include <cstdio>
+#include <string>
+
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/debugging/stacktrace.h"

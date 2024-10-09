@@ -14,6 +14,7 @@
 
 #include "status_macro/status_builder.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 

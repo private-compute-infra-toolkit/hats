@@ -60,7 +60,6 @@ cc_library(
     ],
     deps = [
         "//gcp_common:flags",
-        "//gcp_common:gcp-status",
         "//status_macro:status_macros",
         "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/flags:flag",
