@@ -66,7 +66,7 @@ fn new_service(
     policies: &[u8],
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
-) -> Result<Box<Service>, String> {
+) -> anyhow::Result<Box<Service>> {
     let key_fetcher = KeyFetcher::new(key_fetcher_wrapper);
     let service = Service::new(
         key_fetcher,

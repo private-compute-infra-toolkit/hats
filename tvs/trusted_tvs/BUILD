@@ -44,6 +44,7 @@ rust_library(
         ":key-fetcher",
         "@cxx.rs//:cxx",
         ":key-provider",
+        "@oak_crates_index//:anyhow",
     ],
 )
 

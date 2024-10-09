@@ -16,6 +16,7 @@ use crate::proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
+use anyhow::Context;
 use crypto::{P256Scalar, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
 use key_provider::KeyProvider;
@@ -62,22 +63,24 @@ impl<'a> RequestHandler<'a> {
             key_provider,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
-            user: user.to_string(),
+            user: String::from(user),
             user_id: None,
             terminated: false,
         }
     }
 
-    pub fn verify_report(&mut self, request: &[u8]) -> Result<Vec<u8>, String> {
+    pub fn verify_report(&mut self, request: &[u8]) -> anyhow::Result<Vec<u8>> {
         if self.is_terminated() {
-            return Err("The session is terminated.".to_string());
+            anyhow::bail!("The session is terminated.");
         }
         let request = AttestReportRequest::decode(request)
-            .map_err(|_| "Failed to decode (serialize) AttestReportRequest.".to_string())?;
+            .map_err(|_| anyhow::anyhow!("Failed to decode (serialize) AttestReportRequest."))?;
         let response = self.attest_report_internal(&request)?;
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         response.encode(&mut buf).map_err(|_| {
-            "Failed to encode AttestReportRequest. Something must have gone wrong internally."
+            anyhow::anyhow!(
+                "Failed to encode AttestReportRequest. Something must have gone wrong internally."
+            )
         })?;
         Ok(buf)
     }
@@ -85,7 +88,7 @@ impl<'a> RequestHandler<'a> {
     fn attest_report_internal(
         &mut self,
         request: &AttestReportRequest,
-    ) -> Result<AttestReportResponse, String> {
+    ) -> anyhow::Result<AttestReportResponse> {
         match &request.request {
             Some(attest_report_request::Request::InitSessionRequest(init_session)) => {
                 let ephemeral_pubkey = self.do_init_session(
@@ -115,24 +118,24 @@ impl<'a> RequestHandler<'a> {
                     Err(err) => Err(err),
                 }
             }
-            None => Err("AttestReportRequest is malformed".to_string()),
+            None => anyhow::bail!("AttestReportRequest is malformed"),
         }
     }
 
     // Given a public key, return the private counter part.
-    fn private_key_to_use(&self, public_key: &[u8]) -> Result<&P256Scalar, String> {
+    fn private_key_to_use(&self, public_key: &[u8]) -> anyhow::Result<&P256Scalar> {
         if public_key == self.primary_public_key {
             return Ok(&self.primary_private_key);
         }
         let Some(secondary_public_key) = self.secondary_public_key else {
-            return Err("Unknown public key".to_string());
+            anyhow::bail!("Unknown public key");
         };
         if public_key != secondary_public_key {
-            return Err("Unknown public key".to_string());
+            anyhow::bail!("Unknown public key");
         }
         match &self.secondary_private_key {
             Some(secondary_private_key) => Ok(secondary_private_key),
-            None => Err("Internal error, no secondary key".to_string()),
+            None => anyhow::bail!("Internal error, no secondary key"),
         }
     }
 
@@ -141,16 +144,15 @@ impl<'a> RequestHandler<'a> {
         handshake_request: &[u8],
         public_key: &[u8],
         client_public_key: &[u8],
-    ) -> Result<Vec<u8>, String> {
+    ) -> anyhow::Result<Vec<u8>> {
         if let Some(_) = &self.crypter {
-            return Err("Handshake has already been made.".to_string());
+            anyhow::bail!("Handshake has already been made.");
         }
         let private_key = self.private_key_to_use(public_key)?;
         // First check if we recognize the public key.
         let user_id = self
             .key_provider
-            .user_id_for_authentication_key(client_public_key)
-            .map_err(|err| format!("{err}"))?;
+            .user_id_for_authentication_key(client_public_key)?;
 
         let handshake_response = handshake::respond(
             HandshakeType::Kk,
@@ -160,7 +162,7 @@ impl<'a> RequestHandler<'a> {
             handshake_request,
             /*prologue=*/ &[public_key, client_public_key].concat(),
         )
-        .map_err(|_| "Invalid handshake.".to_string())?;
+        .map_err(|_| anyhow::anyhow!("Invalid handshake."))?;
 
         self.crypter = Some(handshake_response.crypter);
         self.handshake_hash = handshake_response.handshake_hash;
@@ -171,76 +173,70 @@ impl<'a> RequestHandler<'a> {
     fn check_report_and_encrypt_secret(
         &mut self,
         verify_report_request: VerifyReportRequest,
-    ) -> Result<Vec<u8>, String> {
+    ) -> anyhow::Result<Vec<u8>> {
         let Some(evidence) = verify_report_request.evidence else {
-            return Err("Request does not have `evidence` proto.".to_string());
+            anyhow::bail!("Request does not have `evidence` proto.");
         };
         self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
-        self.policy_manager
-            .check_evidence(
-                self.time_milis,
-                &evidence,
-                verify_report_request.tee_certificate.as_slice(),
-            )
-            .map_err(|err| format!("{err}"))?;
+        self.policy_manager.check_evidence(
+            self.time_milis,
+            &evidence,
+            verify_report_request.tee_certificate.as_slice(),
+        )?;
 
         let Some(user_id) = self.user_id else {
             // This should not happen unless something went wrong internally
             // such as this method is called out of order or the logic that sets user id
             // was changed.
-            return Err("Something went wrong. user_id has no value.".to_string());
+            anyhow::bail!("Something went wrong. user_id has no value.");
         };
 
-        let secret = self
-            .key_provider
-            .get_secrets_for_user_id(user_id)
-            .map_err(|err| format!("{err}"))?;
+        let secret = self.key_provider.get_secrets_for_user_id(user_id)?;
+
         if self.crypter.is_none() {
             // This should not happen unless something went wrong internally
             // such as this method is called out of order.
-            return Err("Something went wrong. crypter is not initialized.".to_string());
+            anyhow::bail!("Something went wrong. crypter is not initialized.");
         }
         match self.crypter.as_mut().unwrap().encrypt(&secret) {
             Ok(cipher_text) => Ok(cipher_text),
-            Err(_) => Err("Failed to encrypt message.".to_string()),
+            Err(_) => anyhow::bail!("Failed to encrypt message."),
         }
     }
 
-    fn do_verify_report(&mut self, report: &[u8]) -> Result<Vec<u8>, String> {
+    fn do_verify_report(&mut self, report: &[u8]) -> anyhow::Result<Vec<u8>> {
         let Some(crypter) = &mut self.crypter else {
-            return Err(
-                "A successful handshake is require prior to process any request.".to_string(),
-            );
+            anyhow::bail!("A successful handshake is require prior to process any request.");
         };
         let clear_text = crypter
             .decrypt(report)
-            .map_err(|_| "Failed to decrypt request.")?;
+            .map_err(|_| anyhow::anyhow!("Failed to decrypt request."))?;
         let verify_report_request = VerifyReportRequest::decode(clear_text.as_slice())
-            .map_err(|_| "Failed to decode (serialize) request proto")?;
+            .map_err(|_| anyhow::anyhow!("Failed to decode (serialize) request proto"))?;
         self.check_report_and_encrypt_secret(verify_report_request)
     }
 
-    fn validate_signature(&self, evidence: &Evidence, signature: &[u8]) -> Result<(), String> {
+    fn validate_signature(&self, evidence: &Evidence, signature: &[u8]) -> anyhow::Result<()> {
         // oak_attestation_verification::verifier::extract_evidence::verify() returns
         // the same proto that includes the parsed application keys; however, we want
         // to verify signatures before we validate the certificate (to early reject invalid requests).
         // Extracting application keys require some processing as they are represented as a CBOR
         // certificate, which contains claims and other values.
         let extracted_evidence = oak_attestation_verification::verifier::extract_evidence(evidence)
-            .map_err(|msg| format!("Failed to extract evidence {}", msg))?;
+            .context("extracting evidence")?;
+        // .map_err(|msg| format!("Failed to extract evidence {}", msg))?;
         let signature = Signature::from_slice(signature)
-            .map_err(|msg| format!("Failed to parse signature. {}", msg))?;
+            .map_err(|err| anyhow::anyhow!("Failed to parse signature. {err}"))?;
         let verifying_key =
             VerifyingKey::from_sec1_bytes(extracted_evidence.signing_public_key.as_slice())
-                .map_err(|msg| {
-                    format!(
-                        "Failed to de-serialize application signing key from evidence. {}",
-                        msg
+                .map_err(|err| {
+                    anyhow::anyhow!(
+                        "Failed to de-serialize application signing key from evidence. {err}",
                     )
                 })?;
         verifying_key
             .verify(&self.handshake_hash, &signature)
-            .map_err(|msg| format!("Signature does not match. {}", msg))
+            .map_err(|msg| anyhow::anyhow!("Signature does not match. {}", msg))
     }
 
     // Drop crypter and handshake hash to force clients to re-initiate the session.
@@ -328,9 +324,9 @@ mod tests {
         buf
     }
 
-    fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> Result<Vec<u8>, String> {
+    fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> anyhow::Result<Vec<u8>> {
         let signing_key = SigningKey::from_slice(signing_key)
-            .map_err(|msg| format!("Failed to parse signing keys. {}", msg))?;
+            .map_err(|msg| anyhow::anyhow!("Failed to parse signing keys. {}", msg))?;
         let signature: Signature = signing_key.sign(handshake_hash);
         Ok(signature.to_vec())
     }
@@ -339,7 +335,7 @@ mod tests {
         handshake: Vec<u8>,
         tvs_public_key: &[u8],
         client_public_key: &[u8],
-    ) -> Result<Vec<u8>, String> {
+    ) -> anyhow::Result<Vec<u8>> {
         // Test initial handshake.
         let message = AttestReportRequest {
             request: Some(attest_report_request::Request::InitSessionRequest(
@@ -351,9 +347,9 @@ mod tests {
             )),
         };
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message
-            .encode(&mut message_bin)
-            .map_err(|error| format!("Failed to serialize AttestReportRequest. {}", error))?;
+        message.encode(&mut message_bin).map_err(|error| {
+            anyhow::anyhow!("Failed to serialize AttestReportRequest. {}", error)
+        })?;
         Ok(message_bin)
     }
 
@@ -367,7 +363,7 @@ mod tests {
 
     impl<'a> key_provider::KeyProvider for TestKeyFetcher<'a> {
         fn get_primary_private_key(&self) -> anyhow::Result<P256Scalar> {
-            Err(anyhow::anyhow!("unimplemented."))
+            anyhow::bail!("unimplemented.")
         }
 
         fn get_secondary_private_key(&self) -> Option<anyhow::Result<P256Scalar>> {
@@ -379,18 +375,14 @@ mod tests {
             user_authentication_public_key: &[u8],
         ) -> anyhow::Result<i64> {
             if self.user_authentication_public_key != user_authentication_public_key {
-                return Err(anyhow::anyhow!(
-                    "Unauthenticated, provided public key is not registered"
-                ));
+                anyhow::bail!("Unauthenticated, provided public key is not registered");
             }
             Ok(self.user_id)
         }
 
         fn get_secrets_for_user_id(&self, user_id: i64) -> anyhow::Result<Vec<u8>> {
             if self.user_id != user_id {
-                return Err(anyhow::anyhow!(
-                    "Failed to get secret for user ID: {user_id}"
-                ));
+                anyhow::bail!("Failed to get secret for user ID: {user_id}");
             }
             Ok(self.secret.to_vec())
         }
@@ -739,7 +731,7 @@ mod tests {
 
         match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
-            Err(e) => assert!(e.contains("The session is terminated.")),
+            Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
 
         match request_handler.verify_report(
@@ -752,7 +744,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_command() should fail."),
-            Err(e) => assert!(e.contains("The session is terminated.")),
+            Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
     }
 
@@ -848,13 +840,15 @@ mod tests {
         match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => {
-                assert!(e.contains("Failed to verify report. No matching appraisal policy found"))
+                assert!(e
+                    .to_string()
+                    .contains("Failed to verify report. No matching appraisal policy found"))
             }
         }
 
         match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
-            Err(e) => assert!(e.contains("The session is terminated.")),
+            Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
     }
 
@@ -948,7 +942,9 @@ mod tests {
         match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_command() should fail."),
             Err(e) => {
-                assert!(e.contains("Failed to verify report. No matching appraisal policy found"))
+                assert!(e
+                    .to_string()
+                    .contains("Failed to verify report. No matching appraisal policy found"))
             }
         }
     }
@@ -1001,7 +997,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, "Unknown public key"),
+            Err(e) => assert_eq!(e.to_string(), "Unknown public key"),
         }
     }
 
@@ -1055,7 +1051,10 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, "Unauthenticated, provided public key is not registered",),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Unauthenticated, provided public key is not registered",
+            ),
         }
 
         // Test that requests where requests with client public key in the proto doesn't match
@@ -1088,7 +1087,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, "Invalid handshake."),
+            Err(e) => assert_eq!(e.to_string(), "Invalid handshake."),
         }
 
         // Test that clients using Nk are rejected.
@@ -1120,7 +1119,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, "Invalid handshake."),
+            Err(e) => assert_eq!(e.to_string(), "Invalid handshake."),
         }
     }
 
@@ -1161,7 +1160,7 @@ mod tests {
             &client_private_key.compute_public_key(),
         ) {
             Ok(_) => assert!(false, "do_init_session() should fail."),
-            Err(e) => assert_eq!(e, "Invalid handshake.".to_string()),
+            Err(e) => assert_eq!(e.to_string(), "Invalid handshake.".to_string()),
         }
 
         let mut request_handler = RequestHandler::new(
@@ -1196,7 +1195,10 @@ mod tests {
             &client_private_key.compute_public_key(),
         ) {
             Ok(_) => assert!(false, "do_init_session() should fail."),
-            Err(e) => assert_eq!(e, "Handshake has already been made.".to_string()),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Handshake has already been made.".to_string()
+            ),
         }
     }
 
@@ -1234,7 +1236,7 @@ mod tests {
         match request_handler.do_verify_report(b"aaa") {
             Ok(_) => assert!(false, "do_verify_command() should fail."),
             Err(e) => assert_eq!(
-                e,
+                e.to_string(),
                 "A successful handshake is require prior to process any request.".to_string()
             ),
         }

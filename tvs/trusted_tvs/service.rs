@@ -33,16 +33,12 @@ impl Service {
         policies: &[u8],
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
-    ) -> Result<Self, String> {
-        let primary_private_key = key_fetcher
-            .get_primary_private_key()
-            .map_err(|err| format!("{err}"))?;
+    ) -> anyhow::Result<Self> {
+        let primary_private_key = key_fetcher.get_primary_private_key()?;
         let secondary_private_key = key_fetcher.get_secondary_private_key();
         let (secondary_public_key, secondary_private_key) = if secondary_private_key.is_some() {
             // Using `unwrap()` since we already check `is_some()` is true above.
-            let secondary_private_key_value = secondary_private_key
-                .unwrap()
-                .map_err(|err| format!("{err}"))?;
+            let secondary_private_key_value = secondary_private_key.unwrap()?;
             (
                 Some(secondary_private_key_value.compute_public_key()),
                 Some(secondary_private_key_value),
@@ -52,8 +48,7 @@ impl Service {
         };
 
         let policy_manager =
-            PolicyManager::new(policies, enable_policy_signature, accept_insecure_policies)
-                .map_err(|err| format!("{err}"))?;
+            PolicyManager::new(policies, enable_policy_signature, accept_insecure_policies)?;
 
         Ok(Self {
             primary_public_key: primary_private_key.compute_public_key(),
@@ -171,9 +166,9 @@ mod tests {
         buf
     }
 
-    fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> Result<Vec<u8>, String> {
+    fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> anyhow::Result<Vec<u8>> {
         let signing_key = SigningKey::from_slice(signing_key)
-            .map_err(|msg| format!("Failed to parse signing keys. {}", msg))?;
+            .map_err(|msg| anyhow::anyhow!("Failed to parse signing keys. {}", msg))?;
         let signature: Signature = signing_key.sign(handshake_hash);
         Ok(signature.to_vec())
     }
@@ -182,7 +177,7 @@ mod tests {
         handshake: Vec<u8>,
         tvs_public_key: &[u8],
         client_public_key: &[u8],
-    ) -> Result<Vec<u8>, String> {
+    ) -> anyhow::Result<Vec<u8>> {
         // Test initial handshake.
         let message = AttestReportRequest {
             request: Some(attest_report_request::Request::InitSessionRequest(
@@ -194,9 +189,9 @@ mod tests {
             )),
         };
         let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message
-            .encode(&mut message_bin)
-            .map_err(|error| format!("Failed to serialize AttestReportRequest. {}", error))?;
+        message.encode(&mut message_bin).map_err(|error| {
+            anyhow::anyhow!("Failed to serialize AttestReportRequest. {}", error)
+        })?;
         Ok(message_bin)
     }
 
@@ -467,7 +462,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, format!("Invalid handshake.")),
+            Err(e) => assert_eq!(e.to_string(), format!("Invalid handshake.")),
         }
 
         // Second, test that client used the right key for handshake but
@@ -508,7 +503,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, format!("Unknown public key")),
+            Err(e) => assert_eq!(e.to_string(), format!("Unknown public key")),
         }
 
         // Third, test that client used the wrong key for both handshake and
@@ -549,7 +544,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, format!("Unknown public key")),
+            Err(e) => assert_eq!(e.to_string(), "Unknown public key"),
         }
     }
 
@@ -592,7 +587,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, format!("Invalid handshake.")),
+            Err(e) => assert_eq!(e.to_string(), "Invalid handshake."),
         }
 
         // Second, test that client used the right key for handshake but
@@ -633,7 +628,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, format!("Unauthenticated, provided public key is not registered: Failed to lookup user: UNAUTHENTICATED: unregistered or expired public key.")),
+            Err(e) => assert_eq!(e.to_string(), "Unauthenticated, provided public key is not registered: Failed to lookup user: UNAUTHENTICATED: unregistered or expired public key."),
         }
         // Third, test that client used the wrong key for both handshake and
         // provided the wrong key in the prologue.
@@ -673,7 +668,7 @@ mod tests {
             .as_slice(),
         ) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, format!("Unauthenticated, provided public key is not registered: Failed to lookup user: UNAUTHENTICATED: unregistered or expired public key.")),
+            Err(e) => assert_eq!(e.to_string(), "Unauthenticated, provided public key is not registered: Failed to lookup user: UNAUTHENTICATED: unregistered or expired public key."),
         }
     }
 
@@ -764,7 +759,10 @@ mod tests {
 
         match request_handler.verify_report(message_bin.as_slice()) {
             Ok(_) => assert!(false, "verify_report() should fail."),
-            Err(e) => assert_eq!(e, format!("Failed to get secret for user ID: {user_id}")),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                format!("Failed to get secret for user ID: {user_id}")
+            ),
         }
     }
 
@@ -787,7 +785,7 @@ mod tests {
         ) {
             Ok(_) => assert!(false, "new_service() should fail."),
             Err(e) => assert_eq!(
-                e,
+                e.to_string(),
                 format!(
                     "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
                 )
@@ -810,7 +808,7 @@ mod tests {
         ) {
             Ok(_) => assert!(false, "new_service() should fail."),
             Err(e) => assert_eq!(
-                e,
+                e.to_string(),
                 format!(
                     "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
                 )
@@ -833,7 +831,7 @@ mod tests {
         ) {
             Ok(_) => assert!(false, "new_service() should fail."),
             Err(e) => assert_eq!(
-                e,
+                e.to_string(),
                 format!(
                     "Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
                 )
@@ -855,7 +853,10 @@ mod tests {
             /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "new_service() should fail."),
-            Err(e) => assert_eq!(e, "Failed to decode (serialize) appraisal policy."),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Failed to decode (serialize) appraisal policy."
+            ),
         }
 
         // Appraisal policies that accept reports from insecure hardware are rejected.
@@ -874,7 +875,7 @@ mod tests {
             /*accept_insecure_policies=*/ false,
         ) {
             Ok(_) => assert!(false, "new_service() should fail."),
-            Err(e) => assert_eq!(e, "Cannot accept insecure policies."),
+            Err(e) => assert_eq!(e.to_string(), "Cannot accept insecure policies."),
         }
     }
 }
