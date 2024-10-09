@@ -39,6 +39,7 @@
 #include "gtest/gtest.h"
 #include "key_manager/test-key-fetcher.h"
 #include "src/google/protobuf/test_textproto.h"
+#include "status_macro/status_macros.h"
 #include "status_macro/status_test_macros.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/proto/appraisal_policies.pb.h"
@@ -128,23 +129,22 @@ struct TestEcKey {
 };
 
 absl::StatusOr<TestEcKey> GenerateEcKey() {
-  absl::StatusOr<std::unique_ptr<crypto::EcKey>> ec_key =
-      crypto::EcKey::Create();
-  if (!ec_key.ok()) return ec_key.status();
+  HATS_ASSIGN_OR_RETURN(std::unique_ptr<crypto::EcKey> ec_key,
+                        crypto::EcKey::Create());
 
-  absl::StatusOr<crypto::SecretData> private_key = (*ec_key)->GetPrivateKey();
-  if (!private_key.ok()) return private_key.status();
+  HATS_ASSIGN_OR_RETURN(crypto::SecretData private_key,
+                        ec_key->GetPrivateKey());
 
-  absl::StatusOr<std::string> public_key = (*ec_key)->GetPublicKey();
-  if (!public_key.ok()) return public_key.status();
+  HATS_ASSIGN_OR_RETURN(std::string public_key, ec_key->GetPublicKey());
 
-  absl::StatusOr<std::string> public_key_hex = (*ec_key)->GetPublicKeyInHex();
-  if (!public_key_hex.ok()) return public_key_hex.status();
+  HATS_ASSIGN_OR_RETURN(std::string public_key_hex,
+                        ec_key->GetPublicKeyInHex());
+
   return TestEcKey{
-      .private_key_hex = absl::BytesToHexString(private_key->GetStringView()),
-      .private_key = *std::move(private_key),
-      .public_key = *std::move(public_key),
-      .public_key_hex = *std::move(public_key_hex),
+      .private_key_hex = absl::BytesToHexString(private_key.GetStringView()),
+      .private_key = std::move(private_key),
+      .public_key = std::move(public_key),
+      .public_key_hex = std::move(public_key_hex),
   };
 }
 

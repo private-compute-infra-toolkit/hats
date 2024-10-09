@@ -78,6 +78,7 @@ cc_test(
         "//crypto:ec-key",
         "//crypto:secret-data",
         "//key_manager:test-key-fetcher",
+        "//status_macro:status_macros",
         "//status_macro:status_test_macros",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_messages_cc_proto",
