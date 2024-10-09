@@ -18,13 +18,6 @@ use service::Service;
 
 pub mod request_handler;
 pub mod service;
-pub mod proto {
-    pub mod privacy_sandbox {
-        pub mod tvs {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
-        }
-    }
-}
 
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 mod ffi {

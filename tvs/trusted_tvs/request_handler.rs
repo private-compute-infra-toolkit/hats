@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::proto::privacy_sandbox::tvs::{
-    attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
-    InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
-};
 use anyhow::Context;
 use crypto::{P256Scalar, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
@@ -24,6 +20,10 @@ use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use policy_manager::PolicyManager;
 use prost::Message;
+use tvs_proto::privacy_sandbox::tvs::{
+    attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
+    InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
+};
 
 pub struct RequestHandler<'a> {
     time_milis: i64,
@@ -254,13 +254,13 @@ impl<'a> RequestHandler<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::privacy_sandbox::tvs::{
-        stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, InitSessionRequest,
-        Measurement, Signature as PolicySignature, Stage0Measurement, VerifyReportRequestEncrypted,
-    };
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
+    use tvs_proto::privacy_sandbox::tvs::{
+        stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, InitSessionRequest,
+        Measurement, Signature as PolicySignature, Stage0Measurement, VerifyReportRequestEncrypted,
+    };
 
     fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(

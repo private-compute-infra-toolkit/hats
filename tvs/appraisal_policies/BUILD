@@ -13,7 +13,6 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(
@@ -92,7 +91,7 @@ rust_library(
     srcs = ["policy-signature.rs"],
     crate_name = "policy_signature",
     deps = [
-        ":build",
+        "//tvs/proto_rust:tvs-proto",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:p256",
         "@oak//oak_proto_rust",
@@ -108,33 +107,12 @@ rust_test(
     crate = "policy-signature",
 )
 
-cargo_build_script(
-    name = "build",
-    srcs = [
-        "build.rs",
-    ],
-    build_script_env = {
-        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
-    },
-    data = [
-        "//tvs/proto:appraisal_policies_proto",
-        "@com_google_protobuf//:protoc",
-        "@oak//proto:digest.proto",
-        "@oak//proto/attestation:evidence.proto",
-        "@oak//proto/attestation:reference_value.proto",
-        "@oak//proto/attestation:tcb_version.proto",
-    ],
-    deps = [
-        "@oak_crates_index//:prost-build",
-    ],
-)
-
 rust_library(
     name = "policy-manager",
     srcs = ["policy-manager.rs"],
     deps = [
         "//tvs/appraisal_policies:policy-signature",
+        "//tvs/proto_rust:tvs-proto",
         "@hats_crate_index//:hex",
         "@hats_crate_index//:p256",
         "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",

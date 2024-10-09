@@ -72,6 +72,7 @@ rust_test(
         ":build-for-test",
         "//tvs/appraisal_policies:policy-manager",
         "//tvs/client:trusted-client-noffi",
+        "//tvs/proto_rust:tvs-proto",
         "//tvs/trusted_tvs:key-fetcher",
         "//tvs/trusted_tvs:trusted-tvs",
         "@enclave//crypto",

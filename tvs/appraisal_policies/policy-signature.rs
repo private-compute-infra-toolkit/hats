@@ -14,18 +14,10 @@
 #![no_std]
 
 extern crate alloc;
-use crate::proto::privacy_sandbox::tvs::AppraisalPolicy;
 use alloc::vec;
 use alloc::vec::Vec;
 use p256::ecdsa::{signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey};
-
-pub mod proto {
-    pub mod privacy_sandbox {
-        pub mod tvs {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
-        }
-    }
-}
+use tvs_proto::privacy_sandbox::tvs::AppraisalPolicy;
 
 // TODO(b/358413924): Support signature id, multiple signatures
 pub fn sign_policy(policy: &AppraisalPolicy, signing_key: &SigningKey) -> anyhow::Result<Vec<u8>> {
@@ -66,7 +58,7 @@ fn policy_to_bytes(policy: &AppraisalPolicy) -> anyhow::Result<Vec<u8>> {
 
     let mut binary_data = vec![];
     match stage0_measurement.r#type.as_ref() {
-        Some(proto::privacy_sandbox::tvs::stage0_measurement::Type::AmdSev(stage0)) => {
+        Some(tvs_proto::privacy_sandbox::tvs::stage0_measurement::Type::AmdSev(stage0)) => {
             let Some(min_tcb_version) = &stage0.min_tcb_version else {
                 anyhow::bail!("min_tcb_version is not set");
             };
@@ -130,10 +122,10 @@ fn extract_signature(policy: &AppraisalPolicy) -> anyhow::Result<Signature> {
 mod tests {
     use super::*;
     use crate::alloc::string::{String, ToString};
-    use crate::proto::privacy_sandbox::tvs::{
+    use oak_proto_rust::oak::attestation::v1::TcbVersion;
+    use tvs_proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, Measurement, Signature as SignatureWrapper, Stage0Measurement,
     };
-    use oak_proto_rust::oak::attestation::v1::TcbVersion;
 
     fn get_test_policy() -> AppraisalPolicy {
         AppraisalPolicy{

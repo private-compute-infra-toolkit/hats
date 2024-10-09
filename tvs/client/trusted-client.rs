@@ -12,23 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::proto::privacy_sandbox::tvs::{
-    attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
-    InitSessionRequest, VerifyReportRequest, VerifyReportRequestEncrypted,
-};
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::{client::HandshakeInitiator, noise::HandshakeType, Crypter};
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 use prost::Message;
-
-pub mod proto {
-    pub mod privacy_sandbox {
-        pub mod tvs {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
-        }
-    }
-}
+use tvs_proto::privacy_sandbox::tvs::{
+    attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
+    InitSessionRequest, VerifyReportRequest, VerifyReportRequestEncrypted,
+};
 
 // Do not use cxx:bridge if `noffi` is enabled to avoid linking against
 // C++ shared libraries, which is not available in the oak container linux.
@@ -218,7 +210,7 @@ mod tests {
     use crypto::P256Scalar;
     use key_fetcher::{ffi::create_test_key_fetcher_wrapper, KeyFetcher};
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
-    use trusted_tvs::proto::privacy_sandbox::tvs::{
+    use tvs_proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
         Signature as PolicySignature, Stage0Measurement, VerifyReportResponse,
     };
@@ -350,7 +342,7 @@ mod tests {
         }
         let report = AttestReportRequest {
             request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                tvs_proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
                     VerifyReportRequestEncrypted {
                         client_message: vec![1, 2],
                     },
@@ -419,7 +411,7 @@ mod tests {
         }
         let report = AttestReportRequest {
             request: Some(
-                proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                tvs_proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
                     VerifyReportRequestEncrypted {
                         client_message: vec![1, 2],
                     },

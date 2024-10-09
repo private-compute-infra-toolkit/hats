@@ -76,18 +76,18 @@ impl Service {
 #[cfg(test)]
 mod tests {
     use crate::new_service;
-    use crate::proto::privacy_sandbox::tvs::{
-        attest_report_request, attest_report_response, stage0_measurement, AmdSev,
-        AppraisalPolicies, AppraisalPolicy, AttestReportRequest, AttestReportResponse,
-        InitSessionRequest, Measurement, Secret, Signature as PolicySignature, Stage0Measurement,
-        VerifyReportRequest, VerifyReportRequestEncrypted, VerifyReportResponse,
-    };
     use crypto::{P256Scalar, P256_SCALAR_LENGTH};
     use handshake::noise::HandshakeType;
     use key_fetcher::ffi::create_test_key_fetcher_wrapper;
     use oak_proto_rust::oak::attestation::v1::{InsecureReferenceValues, TcbVersion};
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
     use prost::Message;
+    use tvs_proto::privacy_sandbox::tvs::{
+        attest_report_request, attest_report_response, stage0_measurement, AmdSev,
+        AppraisalPolicies, AppraisalPolicy, AttestReportRequest, AttestReportResponse,
+        InitSessionRequest, Measurement, Secret, Signature as PolicySignature, Stage0Measurement,
+        VerifyReportRequest, VerifyReportRequestEncrypted, VerifyReportResponse,
+    };
 
     fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(

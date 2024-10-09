@@ -27,10 +27,10 @@ use oak_proto_rust::oak::attestation::v1::{
 };
 use oak_proto_rust::oak::RawDigest;
 use p256::ecdsa::VerifyingKey;
-use policy_signature::proto::privacy_sandbox::tvs::{
+use prost::Message;
+use tvs_proto::privacy_sandbox::tvs::{
     stage0_measurement, AppraisalPolicies, AppraisalPolicy, Measurement,
 };
-use prost::Message;
 
 pub struct PolicyManager {
     reference_values: Vec<ReferenceValues>,
@@ -299,10 +299,10 @@ mod tests {
     use crate::alloc::string::ToString;
     use alloc::string::String;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
-    use policy_signature::proto::privacy_sandbox::tvs::{
+    use prost::Message;
+    use tvs_proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, Signature, Stage0Measurement,
     };
-    use prost::Message;
 
     fn default_appraisal_policies() -> Vec<u8> {
         let policies = AppraisalPolicies {

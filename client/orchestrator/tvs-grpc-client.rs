@@ -275,7 +275,7 @@ mod tests {
     use tokio_stream::wrappers::TcpListenerStream;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::Response;
-    use trusted_tvs::proto::privacy_sandbox::tvs::{
+    use tvs_proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
         Signature as PolicySignature, Stage0Measurement, VerifyReportResponse,
     };
