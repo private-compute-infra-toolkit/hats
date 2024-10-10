@@ -22,25 +22,24 @@
 
 namespace privacy_sandbox {
 
-using ::absl_testing::IsOk;
-using ::absl_testing::IsOkAndHolds;
-using ::absl_testing::StatusIs;
-
 // Check that expression returning absl::Status is ok
-#define HATS_EXPECT_OK(expression) EXPECT_THAT(expression, IsOk())
-#define HATS_ASSERT_OK(expression) ASSERT_THAT(expression, IsOk())
+#define HATS_EXPECT_OK(expression) \
+  EXPECT_THAT(expression, ::absl_testing::IsOk())
+#define HATS_ASSERT_OK(expression) \
+  ASSERT_THAT(expression, ::absl_testing::IsOk())
 // Check that expression returning grpc::Status is ok
 #define HATS_EXPECT_OK_GRPC(expression) \
   HATS_EXPECT_OK(privacy_sandbox::status_macro::ToAbslStatus(expression))
 // Check that StatusOr lhs is Ok and holds value
 // Value can be testing pieces, like EqualsProto, strings, allof, etc.
 #define HATS_EXPECT_OK_AND_HOLDS(lhs, value) \
-  EXPECT_THAT(lhs, IsOkAndHolds(value))
+  EXPECT_THAT(lhs, ::absl_testing::IsOkAndHolds(value))
 #define HATS_ASSERT_OK_AND_HOLDS(lhs, value) \
-  ASSERT_THAT(lhs, IsOkAndHolds(value))
+  ASSERT_THAT(lhs, ::absl_testing::IsOkAndHolds(value))
 
 // Expect that Status/StatusOr lhs has non-ok status
-#define HATS_EXPECT_STATUS(lhs, status) EXPECT_THAT(lhs, StatusIs(status))
+#define HATS_EXPECT_STATUS(lhs, status) \
+  EXPECT_THAT(lhs, ::absl_testing::StatusIs(status))
 // Expect that grpc::Status/StatusOr lhs has non-ok status that casts to the
 // provided absl::Status
 #define HATS_EXPECT_STATUS_GRPC(lhs, absl_status)                      \
@@ -49,7 +48,7 @@ using ::absl_testing::StatusIs;
 // Expect that Status/StatusOr lhs has type status with message
 // message can be a string, or e.g. HasSubstr("text")
 #define HATS_EXPECT_STATUS_MESSAGE(lhs, status, message) \
-  EXPECT_THAT(lhs, StatusIs(status, message))
+  EXPECT_THAT(lhs, ::absl_testing::StatusIs(status, message))
 // Asserts rexpr (a StatusOr) is ok, then assigns its value to lhs
 // lhs can be a declaration (int x), or a previously declared variable
 #define HATS_ASSERT_OK_AND_ASSIGN(lhs, rexpr)                                  \

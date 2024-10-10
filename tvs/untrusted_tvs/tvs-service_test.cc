@@ -553,18 +553,17 @@ TEST(TvsService, CreatingTrustedTvsServiceError) {
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetTestAppraisalPolicies());
 
-  EXPECT_THAT(
+  HATS_EXPECT_STATUS_MESSAGE(
       TvsService::Create({
           .key_fetcher = std::move(key_fetcher),
           .appraisal_policies = std::move(appraisal_policies),
           .enable_policy_signature = true,
           .accept_insecure_policies = false,
       }),
-      StatusIs(
-          absl::StatusCode::kFailedPrecondition,
-          AllOf(HasSubstr("Cannot create trusted TVS server"),
-                HasSubstr("Invalid primary private key. Key should be 32 bytes "
-                          "long."))));
+      absl::StatusCode::kFailedPrecondition,
+      AllOf(HasSubstr("Cannot create trusted TVS server"),
+            HasSubstr("Invalid primary private key. Key should be 32 bytes "
+                      "long.")));
 }
 
 TEST(TvsService, AuthenticationError) {
@@ -601,16 +600,15 @@ TEST(TvsService, AuthenticationError) {
 
   HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key2,
                             GenerateEcKey());
-  EXPECT_THAT(
+  HATS_EXPECT_STATUS_MESSAGE(
       TvsUntrustedClient::CreateClient({
           .tvs_public_key = tvs_primary_key.public_key_hex,
           .tvs_authentication_key =
               std::move(client_authentication_key2).private_key_hex,
           .channel = server->InProcessChannel(grpc::ChannelArguments()),
       }),
-      StatusIs(
-          absl::StatusCode::kUnknown,
-          HasSubstr("UNAUTHENTICATED: unregistered or expired public key")));
+      absl::StatusCode::kUnknown,
+      HasSubstr("UNAUTHENTICATED: unregistered or expired public key"));
 }
 
 absl::StatusOr<AppraisalPolicies> GetInsecureAppraisalPolicies() {
@@ -660,15 +658,16 @@ TEST(TvsService, InsecurePoliciesError) {
       });
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
                             GetInsecureAppraisalPolicies());
-  EXPECT_THAT(TvsService::Create({
-                  .key_fetcher = std::move(key_fetcher),
-                  .appraisal_policies = std::move(appraisal_policies),
-                  .enable_policy_signature = true,
-                  .accept_insecure_policies = false,
-              }),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       AllOf(HasSubstr("Cannot create trusted TVS server"),
-                             HasSubstr("Cannot accept insecure policies"))));
+  HATS_EXPECT_STATUS_MESSAGE(
+      TvsService::Create({
+          .key_fetcher = std::move(key_fetcher),
+          .appraisal_policies = std::move(appraisal_policies),
+          .enable_policy_signature = true,
+          .accept_insecure_policies = false,
+      }),
+      absl::StatusCode::kFailedPrecondition,
+      AllOf(HasSubstr("Cannot create trusted TVS server"),
+            HasSubstr("Cannot accept insecure policies")));
 }
 
 }  // namespace
