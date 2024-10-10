@@ -106,9 +106,8 @@ cc_test(
     data = [
         "//client/test_data/launcher:launcher_test_data",
     ],
-    # TODO(b/351007909): remove this after deflaking
-    # the test.
-    tags = ["nopresubmit"],
+    # TODO(b/351007909): Test this through Kokoro
+    tags = ["virtualization"],
     deps = [
         ":launcher",
         "//client/proto:launcher_cc_grpc",

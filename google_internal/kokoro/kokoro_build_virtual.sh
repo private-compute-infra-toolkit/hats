@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+### This version just for tests that require virtualization tools
+# For example, /dev/kvm or /dev/vhost-vsock
+# RBE is not supported for these, so they will be slower
+
 # Fail on any error.
 set -e
 
@@ -29,14 +33,6 @@ set -e
 
 KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 
-# In Kokoro, git meta files are stripped off. pre-commit only runs in
-# directories. We run this before patching to workspace as the patches
-# might leave files in a format that pre-commit does not like.
-git config --global --add safe.directory "${KOKORO_HATS_DIR}"
-cd "${KOKORO_HATS_DIR}"
-# Run pre-commit hooks.
-pre-commit run -a
-
 # Apply patches
 cd "${KOKORO_HATS_DIR}"
 source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
@@ -46,30 +42,13 @@ patches::apply_python
 
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 
-#shellcheck disable=SC1091
-source "${KOKORO_HATS_DIR}/google_internal/lib_build.sh"
-
-lib_build::configure_gcloud_access
-lib_build::set_rbe_flags
-
-# Skip builds/tests that fail on Kokoro
-# nopresubmit: general tests that Kokoro can't run
-# virtualization: builds/tests that require virtualization, such as
-#    /dev/kvm, /dev/vhost-vsock, etc.
-tag_filters="-nopresubmit,-virtualization"
-
 args=(
-  "${BAZEL_STARTUP_ARGS_ABSL}"
   test
-  # "${BAZEL_DIRECT_ARGS}"
-  # Multiple args in one strings breaks, due to py wrapper
-  --config=rbecache
-  --google_default_credentials
   --noshow_progress
   --verbose_failures=true
   --symlink_prefix=/
-  --build_tag_filters="${tag_filters}"
-  --test_tag_filters="${tag_filters}"
+  # Only run KVM tests that rely on /dev/kvm, /dev/vhost-vsock, etc
+  --test_tag_filters=virtualization
   --
   //...
 )
