@@ -20,6 +20,7 @@
 #include <thread>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
@@ -34,40 +35,29 @@
 #include "client/proto/launcher_config.pb.h"
 #include "client/proto/trusted_service.pb.h"
 #include "client/trusted_application/trusted_application_client.h"
+#include "crypto/test-ec-key.h"
+#include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
-#include "key_manager/key-fetcher.h"
+#include "gtest/gtest.h"
+#include "key_manager/test-key-fetcher.h"
 #include "status_macro/status_macros.h"
+#include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/credentials/credentials.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/untrusted_tvs/tvs-service.h"
 
-ABSL_FLAG(std::string, launcher_config_path, "",
-          "path to read launcher configuration");
-ABSL_FLAG(bool, use_tls, false,
-          "whether to use tls when establishing gRPC channel to tvs server");
-ABSL_FLAG(std::string, tvs_authentication_key, "",
-          "HEX format authentication private key with public key pair shared "
-          "with TVS "
-          "instance to identify the specific launcher.");
-ABSL_FLAG(std::string, tvs_access_token, "",
-          "Oauth bearer token got from TVS hosting provider used to talk to "
-          "TVS server");
-ABSL_FLAG(std::vector<std::string>, private_key_wrapping_keys, {},
-          "Comma-separated list of hex-encoded private key wrapping keys. Only "
-          "the first key is used for encryption; additional keys are used only "
-          "for decryption.");
-ABSL_FLAG(int, tvs_listening_port, 7778, "Port TVS server listens to.");
-ABSL_FLAG(bool, enable_policy_signature, false,
-          "Whether to check signatures on policies");
-ABSL_FLAG(std::string, application_key, "",
-          "This should be the same value as the user_secret passed to the "
-          "local key fetcher");
-ABSL_FLAG(
-    bool, qemu_log_to_std, false,
-    "Whether to send qemu logs to stdout/stderr instead of a temporary file.");
+const int kUserId = 64;
+const char kAppKey[] =
+    "0e4fb4a3b7a7eeb42306db3cbc6108a2424bf8ef510101059b2edef36fe1687f";
+const char kLauncherConfig[] = "./launcher_config.prototext";
+const char kAppraisalPolicy[] = "./appraisal_policy.prototext";
+// TODO: Generate key here when we no longer bake the keys into the system
+// image.
+const char kTvsPrimaryKey[] =
+    "0000000000000000000000000000000000000000000000000000000000000001";
 
 absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
     absl::string_view path) {
@@ -89,17 +79,41 @@ absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
 }
 
 int main(int argc, char* argv[]) {
-  absl::ParseCommandLine(argc, argv);
-  absl::InitializeLog();
+  HATS_ASSIGN_OR_RETURN(
+      privacy_sandbox::crypto::TestEcKey client_authentication_key,
+      privacy_sandbox::crypto::GenerateEcKeyForTest(), _.LogErrorAndExit());
 
+  std::string app_key;
+  if (!absl::HexStringToBytes(kAppKey, &app_key)) {
+    LOG(ERROR) << "application key should be in hex string format";
+    return 1;
+  }
+
+  std::vector<privacy_sandbox::key_manager::TestUserData> user_data;
+  privacy_sandbox::key_manager::TestUserData test_user =
+      privacy_sandbox::key_manager::TestUserData{
+          .user_id = 1,
+          .user_authentication_public_key =
+              client_authentication_key.public_key,
+          .key_id = kUserId,
+          .secret = app_key,
+          .public_key = "1-public-key",
+      };
+  user_data.push_back(test_user);
+  std::string tvsPrimaryKeyBytes;
+  if (!absl::HexStringToBytes(kTvsPrimaryKey, &tvsPrimaryKeyBytes)) {
+    LOG(ERROR) << "tvs authentication key should be in hex string format";
+    return 1;
+  }
   // Startup TVS
-  std::unique_ptr<privacy_sandbox::key_manager::KeyFetcher> key_fetcher =
-      privacy_sandbox::key_manager::KeyFetcher::Create();
-  int tvs_listening_port = absl::GetFlag(FLAGS_tvs_listening_port);
+  auto key_fetcher =
+      std::make_unique<privacy_sandbox::key_manager::TestKeyFetcher>(
+          tvsPrimaryKeyBytes, "", user_data);
+  int tvs_listening_port = 7778;
 
   HATS_ASSIGN_OR_RETURN(
       std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
-      privacy_sandbox::tvs::PolicyFetcher::Create(),
+      privacy_sandbox::tvs::PolicyFetcher::Create(kAppraisalPolicy),
       _.PrependWith("Failed to create a policy fetcher: ").LogErrorAndExit());
 
   HATS_ASSIGN_OR_RETURN(
@@ -112,9 +126,8 @@ int main(int argc, char* argv[]) {
       privacy_sandbox::tvs::TvsService::Create({
           .key_fetcher = std::move(key_fetcher),
           .appraisal_policies = std::move(appraisal_policies),
-          .enable_policy_signature =
-              absl::GetFlag(FLAGS_enable_policy_signature),
-          .accept_insecure_policies = false,
+          .enable_policy_signature = false,
+          .accept_insecure_policies = true,
       }),
       _.PrependWith("Failed to create TVS server: ").LogErrorAndExit());
 
@@ -133,36 +146,10 @@ int main(int argc, char* argv[]) {
   // Startup Launcher
 
   LOG(INFO) << "read configuration";
-  // convert hex string to bytes as expected.
-  std::string tvs_authentication_key_bytes;
-  if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_tvs_authentication_key),
-                              &tvs_authentication_key_bytes)) {
-    LOG(ERROR) << "tvs authentication key should be in hex string format";
-    return 1;
-  }
-
-  privacy_sandbox::client::PrivateKeyWrappingKeys wrapping_keys;
-  bool primary = true;
-  for (const std::string& key_hex :
-       absl::GetFlag(FLAGS_private_key_wrapping_keys)) {
-    std::string key_bytes;
-    if (!absl::HexStringToBytes(key_hex, &key_bytes)) {
-      LOG(ERROR) << "private key wrapping key should be in hex string format";
-      return 1;
-    }
-    if (primary) {
-      primary = false;
-
-      wrapping_keys.set_primary(key_bytes);
-      continue;
-    }
-
-    wrapping_keys.add_active(key_bytes);
-  }
 
   HATS_ASSIGN_OR_RETURN(
       privacy_sandbox::client::LauncherConfig config,
-      LoadConfig(absl::GetFlag(FLAGS_launcher_config_path)),
+      LoadConfig(kLauncherConfig),
       _.PrependWith("Failed to fetch launcher config with error: ")
           .LogErrorAndExit());
 
@@ -171,24 +158,26 @@ int main(int argc, char* argv[]) {
       std::shared_ptr<grpc::Channel> tvs_channel,
       privacy_sandbox::tvs::CreateGrpcChannel(
           privacy_sandbox::tvs::CreateGrpcChannelOptions{
-              .use_tls = absl::GetFlag(FLAGS_use_tls),
+              .use_tls = false,
               .target = absl::StrCat("localhost:",
                                      std::to_string(tvs_listening_port)),
-              .access_token = absl::GetFlag(FLAGS_tvs_access_token),
+              .access_token = "",
           }),
       _.PrependWith("Failed to establish gRPC channel to TVS server")
           .LogErrorAndExit());
+
   channel_map[0] = std::move(tvs_channel);
 
   HATS_ASSIGN_OR_RETURN(
       std::unique_ptr<privacy_sandbox::client::HatsLauncher> launcher,
       privacy_sandbox::client::HatsLauncher::Create({
           .config = std::move(config),
-          .tvs_authentication_key_bytes =
-              std::move(tvs_authentication_key_bytes),
-          .private_key_wrapping_keys = std::move(wrapping_keys),
+          .tvs_authentication_key_bytes = std::string(
+              client_authentication_key.private_key.GetStringView()),
+          .private_key_wrapping_keys =
+              privacy_sandbox::client::PrivateKeyWrappingKeys(),
           .tvs_channels = std::move(channel_map),
-          .qemu_log_to_std = absl::GetFlag(FLAGS_qemu_log_to_std),
+          .qemu_log_to_std = false,
       }),
       _.PrependWith("Failed to create launcher: ").LogErrorAndExit());
 
@@ -204,13 +193,8 @@ int main(int argc, char* argv[]) {
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 
-  std::string app_key;
-  if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_application_key), &app_key)) {
-    LOG(ERROR) << "application key should be in hex string format";
-    return 1;
-  }
   privacy_sandbox::client::TrustedApplicationClient app_client =
-      privacy_sandbox::client::TrustedApplicationClient(app_key, 64);
+      privacy_sandbox::client::TrustedApplicationClient(app_key, kUserId);
 
   HATS_ASSIGN_OR_RETURN(
       privacy_sandbox::client::DecryptedResponse response,
@@ -218,8 +202,9 @@ int main(int argc, char* argv[]) {
       _.PrependWith("Failed to communicate with trusted application: ")
           .LogErrorAndExit());
 
+  EXPECT_EQ(privacy_sandbox::client::kTestMessage,
+            *response.mutable_response());
   std::cout << *response.mutable_response();
   launcher->Shutdown();
   tvs_server->Shutdown();
-  return 0;
 }

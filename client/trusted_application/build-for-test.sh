@@ -24,7 +24,7 @@ mkdir -p "$PREBUILT_DIR"
 git submodule update --init --recursive
 
 # shellcheck disable=1091
-source ./build-lib.sh
+source ../scripts/build-lib.sh
 
 # build test main
 build_test_main "$PREBUILT_DIR"
@@ -46,5 +46,5 @@ build_launch_bundle \
   "$PREBUILT_DIR/bzImage" \
   "$PREBUILT_DIR/hats_system_image.tar.xz" \
   "$PREBUILT_DIR/bundle.tar" \
-  "../../tvs/appraisal_policies/trusted_application_policy.textproto" \
-  "./launcher_configs/trusted_application_launcher_config.textproto"
+  "../trusted_application/test_data/appraisal_policy.prototext" \
+  "../trusted_application/test_data/launcher_config.prototext"
