@@ -78,4 +78,11 @@ absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create() {
   return std::make_unique<PolicyFetcherLocal>(std::move(policies));
 }
 
+absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create(
+    const std::string& file_path) {
+  HATS_ASSIGN_OR_RETURN(AppraisalPolicies policies,
+                        ReadAppraisalPolicies(file_path));
+  return std::make_unique<PolicyFetcherLocal>(std::move(policies));
+}
+
 }  // namespace privacy_sandbox::tvs

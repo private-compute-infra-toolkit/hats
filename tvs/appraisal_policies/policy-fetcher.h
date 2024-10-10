@@ -16,6 +16,7 @@
 #define HATS_TVS_APPRAISAL_POLICIES_POLICY_FETCHER_H_
 
 #include <memory>
+#include <string>
 
 #include "absl/status/statusor.h"
 #include "tvs/proto/appraisal_policies.pb.h"
@@ -25,6 +26,8 @@ namespace privacy_sandbox::tvs {
 class PolicyFetcher {
  public:
   static absl::StatusOr<std::unique_ptr<PolicyFetcher>> Create();
+  static absl::StatusOr<std::unique_ptr<PolicyFetcher>> Create(
+      const std::string& file_path);
   virtual ~PolicyFetcher() = default;
 
   virtual absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) = 0;
