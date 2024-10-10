@@ -63,7 +63,7 @@ impl HatsOrchestrator for HatsServer {
                 private_key: secret.private_key.clone(),
             });
         }
-        Ok(tonic::Response::new(GetKeysResponse { keys: keys }))
+        Ok(tonic::Response::new(GetKeysResponse { keys }))
     }
 }
 
@@ -79,7 +79,7 @@ pub async fn create_services(
     set_permissions(path, Permissions::from_mode(0o666)).await?;
     // Decode TVS response.
     let response = VerifyReportResponse::decode(secrets)?;
-    let hat_server = HatsServer { response: response };
+    let hat_server = HatsServer { response };
     Server::builder()
         .add_service(HatsOrchestratorServer::new(hat_server))
         .add_service(oak_orchestrator_server)
@@ -108,7 +108,7 @@ mod tests {
         let listener = TcpListener::bind(sockaddr).await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-        let _ = tokio::spawn(async move {
+        tokio::spawn(async move {
             let hat_server = HatsServer {
                 response: VerifyReportResponse {
                     secrets: vec![

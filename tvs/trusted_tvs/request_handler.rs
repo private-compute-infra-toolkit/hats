@@ -43,6 +43,7 @@ pub struct RequestHandler<'a> {
 }
 
 impl<'a> RequestHandler<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         time_milis: i64,
         primary_private_key: &'a P256Scalar,
@@ -55,10 +56,10 @@ impl<'a> RequestHandler<'a> {
     ) -> Self {
         Self {
             time_milis,
-            primary_private_key: primary_private_key,
-            primary_public_key: primary_public_key,
-            secondary_private_key: secondary_private_key,
-            secondary_public_key: secondary_public_key,
+            primary_private_key,
+            primary_public_key,
+            secondary_private_key,
+            secondary_public_key,
             policy_manager,
             key_provider,
             crypter: None,
@@ -125,7 +126,7 @@ impl<'a> RequestHandler<'a> {
     // Given a public key, return the private counter part.
     fn private_key_to_use(&self, public_key: &[u8]) -> anyhow::Result<&P256Scalar> {
         if public_key == self.primary_public_key {
-            return Ok(&self.primary_private_key);
+            return Ok(self.primary_private_key);
         }
         let Some(secondary_public_key) = self.secondary_public_key else {
             anyhow::bail!("Unknown public key");
@@ -145,7 +146,7 @@ impl<'a> RequestHandler<'a> {
         public_key: &[u8],
         client_public_key: &[u8],
     ) -> anyhow::Result<Vec<u8>> {
-        if let Some(_) = &self.crypter {
+        if self.crypter.is_some() {
             anyhow::bail!("Handshake has already been made.");
         }
         let private_key = self.private_key_to_use(public_key)?;
@@ -156,7 +157,7 @@ impl<'a> RequestHandler<'a> {
 
         let handshake_response = handshake::respond(
             HandshakeType::Kk,
-            &private_key,
+            private_key,
             public_key,
             Some(client_public_key),
             handshake_request,
@@ -460,7 +461,7 @@ mod tests {
         VerifyReportRequest {
             evidence: Some(get_good_evidence()),
             tee_certificate: get_genoa_vcek(),
-            signature: signature,
+            signature,
         }
         .encode(&mut verify_report_request_bin)
         .unwrap();
@@ -576,7 +577,7 @@ mod tests {
         VerifyReportRequest {
             evidence: Some(get_good_evidence()),
             tee_certificate: get_genoa_vcek(),
-            signature: signature,
+            signature,
         }
         .encode(&mut verify_report_request_bin)
         .unwrap();
@@ -690,7 +691,7 @@ mod tests {
         VerifyReportRequest {
             evidence: Some(get_good_evidence()),
             tee_certificate: get_genoa_vcek(),
-            signature: signature,
+            signature,
         }
         .encode(&mut verify_report_request_bin)
         .unwrap();
@@ -730,7 +731,7 @@ mod tests {
         );
 
         match request_handler.verify_report(message_bin.as_slice()) {
-            Ok(_) => assert!(false, "verify_command() should fail."),
+            Ok(_) => panic!("verify_command() should fail."),
             Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
 
@@ -743,7 +744,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_command() should fail."),
+            Ok(_) => panic!("verify_command() should fail."),
             Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
     }
@@ -838,7 +839,7 @@ mod tests {
         message.encode(&mut message_bin).unwrap();
 
         match request_handler.verify_report(message_bin.as_slice()) {
-            Ok(_) => assert!(false, "verify_command() should fail."),
+            Ok(_) => panic!("verify_command() should fail."),
             Err(e) => {
                 assert!(e
                     .to_string()
@@ -847,7 +848,7 @@ mod tests {
         }
 
         match request_handler.verify_report(message_bin.as_slice()) {
-            Ok(_) => assert!(false, "verify_command() should fail."),
+            Ok(_) => panic!("verify_command() should fail."),
             Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
     }
@@ -940,7 +941,7 @@ mod tests {
         message.encode(&mut message_bin).unwrap();
 
         match request_handler.verify_report(message_bin.as_slice()) {
-            Ok(_) => assert!(false, "verify_command() should fail."),
+            Ok(_) => panic!("verify_command() should fail."),
             Err(e) => {
                 assert!(e
                     .to_string()
@@ -996,7 +997,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Unknown public key"),
         }
     }
@@ -1050,7 +1051,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "Unauthenticated, provided public key is not registered",
@@ -1086,7 +1087,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Invalid handshake."),
         }
 
@@ -1118,7 +1119,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Invalid handshake."),
         }
     }
@@ -1159,7 +1160,7 @@ mod tests {
             &tvs_public_key,
             &client_private_key.compute_public_key(),
         ) {
-            Ok(_) => assert!(false, "do_init_session() should fail."),
+            Ok(_) => panic!("do_init_session() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Invalid handshake.".to_string()),
         }
 
@@ -1194,7 +1195,7 @@ mod tests {
             &tvs_public_key,
             &client_private_key.compute_public_key(),
         ) {
-            Ok(_) => assert!(false, "do_init_session() should fail."),
+            Ok(_) => panic!("do_init_session() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "Handshake has already been made.".to_string()
@@ -1234,7 +1235,7 @@ mod tests {
         );
 
         match request_handler.do_verify_report(b"aaa") {
-            Ok(_) => assert!(false, "do_verify_command() should fail."),
+            Ok(_) => panic!("do_verify_command() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "A successful handshake is require prior to process any request.".to_string()

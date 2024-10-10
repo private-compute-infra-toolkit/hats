@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![feature(generic_const_exprs)]
+#![allow(incomplete_features)]
 
 extern crate alloc;
 extern crate std;
@@ -192,6 +193,8 @@ pub trait Kem {
     ) -> Vec<u8>;
 }
 
+#[allow(clippy::type_complexity)]
+#[allow(clippy::result_unit_err)]
 pub trait Hkdf {
     // HKDF key derivation function.
     fn hkdf(

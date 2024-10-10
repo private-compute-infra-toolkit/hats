@@ -148,7 +148,7 @@ impl TvsClient {
             VerifyReportRequest {
                 evidence: Some(evidence),
                 tee_certificate: vcek.to_vec(),
-                signature: signature,
+                signature,
             }
             .encode(&mut message)
             .map_err(|_| "Failed to encode VerifyReportRequest")?;
@@ -319,7 +319,7 @@ mod tests {
             response,
             VerifyReportResponse {
                 secrets: vec![Secret {
-                    key_id: key_id,
+                    key_id,
                     private_key: b"test_secret1".to_vec(),
                     public_key: "test_public_key1".to_string(),
                 }],
@@ -337,7 +337,7 @@ mod tests {
         )
         .unwrap();
         match tvs_client.process_handshake_response(&[1, 2, 3]) {
-            Ok(_) => assert!(false, "process_handshake_response() should fail"),
+            Ok(_) => panic!("process_handshake_response() should fail"),
             Err(e) => assert_eq!(e, "Error decoding message to AttestReportResponse proto."),
         }
         let report = AttestReportRequest {
@@ -352,7 +352,7 @@ mod tests {
         let mut report_bin: Vec<u8> = Vec::with_capacity(256);
         report.encode(&mut report_bin).unwrap();
         match tvs_client.process_handshake_response(report_bin.as_slice()) {
-            Ok(_) => assert!(false, "process_handshake_response() should fail"),
+            Ok(_) => panic!("process_handshake_response() should fail"),
             Err(e) => assert_eq!(e, "Unexpected proto message."),
         }
     }
@@ -367,7 +367,7 @@ mod tests {
         )
         .unwrap();
         match tvs_client.process_response(&[1, 2, 3]) {
-            Ok(_) => assert!(false, "process_response() should fail"),
+            Ok(_) => panic!("process_response() should fail"),
             Err(e) => assert_eq!(
                 e,
                 "Handshake initiation should be done before encrypting messages."
@@ -406,7 +406,7 @@ mod tests {
             .unwrap();
 
         match tvs_client.process_response(&[1, 2, 3]) {
-            Ok(_) => assert!(false, "process_response() should fail"),
+            Ok(_) => panic!("process_response() should fail"),
             Err(e) => assert_eq!(e, "Error decoding message to AttestReportResponse proto."),
         }
         let report = AttestReportRequest {
@@ -421,7 +421,7 @@ mod tests {
         let mut report_bin: Vec<u8> = Vec::with_capacity(256);
         report.encode(&mut report_bin).unwrap();
         match tvs_client.process_response(report_bin.as_slice()) {
-            Ok(_) => assert!(false, "process_response() should fail"),
+            Ok(_) => panic!("process_response() should fail"),
             Err(e) => assert_eq!(e, "Failed to decrypt ciphertext."),
         }
     }
@@ -430,12 +430,12 @@ mod tests {
     fn new_tvs_client_error() {
         let tvs_private_key = P256Scalar::generate();
         match TvsClient::new(&[1, 2, 3], &tvs_private_key.compute_public_key()) {
-            Ok(_) => assert!(false, "TvsClient::new() should fail"),
+            Ok(_) => panic!("TvsClient::new() should fail"),
             Err(e) => assert_eq!(e, "Invalid private key. Key should be 32 bytes long.",),
         }
         let client_private_key = P256Scalar::generate();
         match TvsClient::new(&client_private_key.bytes(), &[1, 2, 3]) {
-            Ok(_) => assert!(false, "TvsClient::new() should fail"),
+            Ok(_) => panic!("TvsClient::new() should fail"),
             Err(e) => assert_eq!(
                 e,
                 format!("Expected tvs_public_key to be of length {P256_X962_LENGTH}."),

@@ -75,12 +75,12 @@ pub fn recover_secrets(response_vec: &Vec<VerifyReportResponse>) -> Result<Vec<u
         // we set the threshold to be 1 less than number of shares
         let numshares = key_shares.shares.len();
         let sham = secret_sharing::SecretSharing {
-            numshares: numshares,
+            numshares,
             prime: secret_sharing::get_prime(),
             threshold: numshares - 1,
         };
         recovered_secrets.push(Secret {
-            key_id: key_id,
+            key_id,
             public_key: (*key_shares.public_key).to_string(),
             private_key: sham.recover(&key_shares.shares).unwrap(),
         });

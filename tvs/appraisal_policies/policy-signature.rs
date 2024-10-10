@@ -21,14 +21,14 @@ use tvs_proto::privacy_sandbox::tvs::AppraisalPolicy;
 
 // TODO(b/358413924): Support signature id, multiple signatures
 pub fn sign_policy(policy: &AppraisalPolicy, signing_key: &SigningKey) -> anyhow::Result<Vec<u8>> {
-    let signature: Signature = signing_key.sign(&policy_to_bytes(&policy)?);
+    let signature: Signature = signing_key.sign(&policy_to_bytes(policy)?);
     Ok(signature.to_vec())
 }
 
 // TODO(b/358413924): Support signature id, multiple signatures
 pub fn verify_policy_signature(
     policy: &AppraisalPolicy,
-    verifying_keys: &Vec<&VerifyingKey>,
+    verifying_keys: &[&VerifyingKey],
     num_pass_required: u32,
 ) -> anyhow::Result<()> {
     if num_pass_required > 1 {
@@ -176,8 +176,7 @@ mod tests {
     #[test]
     fn test_verify_signature_success() {
         assert!(
-            verify_policy_signature(&get_test_policy(), &vec![&get_test_verifying_key()], 1)
-                .is_ok()
+            verify_policy_signature(&get_test_policy(), &[&get_test_verifying_key()], 1).is_ok()
         );
     }
 
@@ -186,8 +185,8 @@ mod tests {
         let mut policy: AppraisalPolicy = get_test_policy();
         policy.measurement.as_mut().unwrap().kernel_image_sha256 =
             String::from("zzzzz6913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7ba");
-        match verify_policy_signature(&policy, &vec![&get_test_verifying_key()], 1) {
-            Ok(_) => assert!(false, "Should fail to with malformed signature."),
+        match verify_policy_signature(&policy, &[&get_test_verifying_key()], 1) {
+            Ok(_) => panic!("Should fail to with malformed signature."),
             Err(e) => {
                 assert_eq!(
                     e.to_string(),
@@ -199,8 +198,8 @@ mod tests {
         let mut policy: AppraisalPolicy = get_test_policy();
         let sig_length = policy.signature[0].signature.len();
         policy.signature[0].signature = "0".repeat(sig_length);
-        match verify_policy_signature(&policy, &vec![&get_test_verifying_key()], 1) {
-            Ok(_) => assert!(false, "Should fail to with malformed signature."),
+        match verify_policy_signature(&policy, &[&get_test_verifying_key()], 1) {
+            Ok(_) => panic!("Should fail to with malformed signature."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "Failed to parse signature: signature error".to_string()
@@ -210,8 +209,8 @@ mod tests {
         let mut policy: AppraisalPolicy = get_test_policy();
         policy.measurement.as_mut().unwrap().kernel_image_sha256 =
             "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7ba".to_string();
-        match verify_policy_signature(&policy, &vec![&get_test_verifying_key()], 1) {
-            Ok(_) => assert!(false, "Should fail to with incorrect signature."),
+        match verify_policy_signature(&policy, &[&get_test_verifying_key()], 1) {
+            Ok(_) => panic!("Should fail to with incorrect signature."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "Failed to verify policy signature: signature error".to_string()
@@ -220,13 +219,13 @@ mod tests {
 
         let mut policy: AppraisalPolicy = get_test_policy();
         policy.signature = vec![];
-        match verify_policy_signature(&policy, &vec![&get_test_verifying_key()], 1) {
-            Ok(_) => assert!(false, "Should fail with no signature."),
+        match verify_policy_signature(&policy, &[&get_test_verifying_key()], 1) {
+            Ok(_) => panic!("Should fail with no signature."),
             Err(e) => assert_eq!(e.to_string(), "No signature found.".to_string(),),
         }
 
-        match verify_policy_signature(&get_test_policy(), &vec![&get_test_verifying_key()], 0) {
-            Ok(_) => assert!(false, "Should fail to with zero signature threshold."),
+        match verify_policy_signature(&get_test_policy(), &[&get_test_verifying_key()], 0) {
+            Ok(_) => panic!("Should fail to with zero signature threshold."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "num_pass_required should be greater than zero.".to_string(),

@@ -94,7 +94,7 @@ impl TvsGrpcClient {
             tvs_public_key,
             tvs_authentication_key: None,
             tee_certificate: None,
-            tvs_id: tvs_id,
+            tvs_id,
             private_key_wrapping_keys: Vec::new(),
         };
         tvs_grp_client.init().await?;
@@ -123,7 +123,7 @@ impl TvsGrpcClient {
         let response = self
             .inner
             .clone()
-            .fetch_orchestrator_metadata(Request::new({}))
+            .fetch_orchestrator_metadata(Request::new(()))
             .await
             .map_err(|error| format!("error from launcher server: {}", error))?;
         Ok(response.into_inner())
@@ -176,7 +176,7 @@ impl TvsGrpcClient {
                     binary_message: initial_message,
                 };
                 let orch_message = ForwardingTvsMessage {
-                    tvs_id: tvs_id,
+                    tvs_id,
                     opaque_message: Some(handshake_initial.clone()),
                 };
                 outbound_tx
@@ -201,7 +201,7 @@ impl TvsGrpcClient {
                     binary_message: command,
                 };
                 let orch_message = ForwardingTvsMessage {
-                    tvs_id: tvs_id,
+                    tvs_id,
                     opaque_message: Some(command.clone()),
                 };
                 outbound_tx
@@ -307,7 +307,7 @@ mod tests {
             let (tx, rx) = tokio::sync::mpsc::channel(1);
             let tvs_service = Arc::clone(&self.tvs_service);
             let mut stream = request.into_inner();
-            let _ = tokio::spawn(async move {
+            tokio::spawn(async move {
                 let mut tvs_request_handler =
                     tvs_service.create_request_handler(NOW_UTC_MILLIS, "test_user");
                 while let Some(message) = stream.next().await {
@@ -316,8 +316,9 @@ mod tests {
                             let Ok(report) = tvs_request_handler.verify_report(
                                 message.opaque_message.unwrap().binary_message.as_slice(),
                             ) else {
-                                let _ =
-                                    tx.send(Err(tonic::Status::internal("Error verifying report")));
+                                let _ = tx
+                                    .send(Err(tonic::Status::internal("Error verifying report")))
+                                    .await;
                                 return;
                             };
                             let _ = tx
@@ -530,8 +531,8 @@ mod tests {
         let _ = shutdown_tx.send(());
         let _ = server.await;
         match secret.unwrap() {
-            Ok(_) => assert!(false, "send_evidence() should fail."),
-            Err(e) => assert_eq!(e, "error from the server"),
+            Ok(_) => panic!("send_evidence() should fail."),
+            Err(e) => assert!(e.contains("Error verifying report")),
         }
     }
 
@@ -543,7 +544,7 @@ mod tests {
             tvs_service: Arc::new(
                 trusted_tvs::service::Service::new(
                     key_fetcher::KeyFetcher::new(create_test_key_fetcher_wrapper(
-                        /*primary_private_key=*/ &tvs_private_key.bytes().to_vec(),
+                        /*primary_private_key=*/ &tvs_private_key.bytes(),
                         /*secondary_private_key,*/ &[],
                         /*user_id=*/ 1,
                         /*user_authentication_public_key=*/ &[],

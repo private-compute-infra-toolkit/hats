@@ -52,11 +52,11 @@ impl Service {
 
         Ok(Self {
             primary_public_key: primary_private_key.compute_public_key(),
-            primary_private_key: primary_private_key,
-            secondary_private_key: secondary_private_key,
-            secondary_public_key: secondary_public_key,
+            primary_private_key,
+            secondary_private_key,
+            secondary_public_key,
             policy_manager,
-            key_fetcher: key_fetcher,
+            key_fetcher,
         })
     }
     pub fn create_request_handler(&self, time_milis: i64, user: &str) -> Box<RequestHandler> {
@@ -263,7 +263,7 @@ mod tests {
         VerifyReportRequest {
             evidence: Some(get_good_evidence()),
             tee_certificate: get_genoa_vcek(),
-            signature: signature,
+            signature,
         }
         .encode(&mut verify_report_request_bin)
         .unwrap();
@@ -302,7 +302,7 @@ mod tests {
             response,
             VerifyReportResponse {
                 secrets: vec![Secret {
-                    key_id: key_id,
+                    key_id,
                     private_key: b"test_secret1".to_vec(),
                     public_key: "test_public_key1".to_string(),
                 }],
@@ -376,7 +376,7 @@ mod tests {
         VerifyReportRequest {
             evidence: Some(get_good_evidence()),
             tee_certificate: get_genoa_vcek(),
-            signature: signature,
+            signature,
         }
         .encode(&mut verify_report_request_bin)
         .unwrap();
@@ -415,7 +415,7 @@ mod tests {
             response,
             VerifyReportResponse {
                 secrets: vec![Secret {
-                    key_id: key_id,
+                    key_id,
                     private_key: b"test_secret2".to_vec(),
                     public_key: "test_public_key2".to_string(),
                 }],
@@ -461,7 +461,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), format!("Invalid handshake.")),
         }
 
@@ -502,7 +502,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), format!("Unknown public key")),
         }
 
@@ -543,7 +543,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Unknown public key"),
         }
     }
@@ -586,7 +586,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Invalid handshake."),
         }
 
@@ -627,7 +627,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Unauthenticated, provided public key is not registered: Failed to lookup user: UNAUTHENTICATED: unregistered or expired public key."),
         }
         // Third, test that client used the wrong key for both handshake and
@@ -667,7 +667,7 @@ mod tests {
             .unwrap()
             .as_slice(),
         ) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Unauthenticated, provided public key is not registered: Failed to lookup user: UNAUTHENTICATED: unregistered or expired public key."),
         }
     }
@@ -738,7 +738,7 @@ mod tests {
         VerifyReportRequest {
             evidence: Some(get_good_evidence()),
             tee_certificate: get_genoa_vcek(),
-            signature: signature,
+            signature,
         }
         .encode(&mut verify_report_request_bin)
         .unwrap();
@@ -758,7 +758,7 @@ mod tests {
         message.encode(&mut message_bin).unwrap();
 
         match request_handler.verify_report(message_bin.as_slice()) {
-            Ok(_) => assert!(false, "verify_report() should fail."),
+            Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 format!("Failed to get secret for user ID: {user_id}")
@@ -783,7 +783,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "new_service() should fail."),
+            Ok(_) => panic!("new_service() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 format!(
@@ -806,7 +806,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "new_service() should fail."),
+            Ok(_) => panic!("new_service() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 format!(
@@ -829,7 +829,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "new_service() should fail."),
+            Ok(_) => panic!("new_service() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 format!(
@@ -852,7 +852,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "new_service() should fail."),
+            Ok(_) => panic!("new_service() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "Failed to decode (serialize) appraisal policy."
@@ -874,7 +874,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "new_service() should fail."),
+            Ok(_) => panic!("new_service() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Cannot accept insecure policies."),
         }
     }

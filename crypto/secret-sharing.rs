@@ -78,8 +78,8 @@ pub fn split_wrap(
     wrapped: bool,
 ) -> Result<Vec<String>, String> {
     let sham = SecretSharing {
-        numshares: numshares,
-        threshold: threshold,
+        numshares,
+        threshold,
         prime: get_prime(),
     };
     let shares = sham
@@ -101,8 +101,8 @@ pub fn recover_wrap(
     threshold: usize,
 ) -> Result<Vec<u8>, String> {
     let sham = SecretSharing {
-        numshares: numshares,
-        threshold: threshold,
+        numshares,
+        threshold,
         prime: get_prime(),
     };
 
@@ -116,7 +116,7 @@ pub fn recover_wrap(
         .map_err(|_| "Error recovering secrets".to_string())
 }
 
-pub fn desearialize_share(serialized_share: &Vec<u8>) -> Result<Share, Error> {
+pub fn desearialize_share(serialized_share: &[u8]) -> Result<Share, Error> {
     let string: String =
         String::from_utf8(serialized_share.to_vec()).map_err(|_| Error::NotAShareObject)?;
     let share: Share = serde_json::from_value(serde_json::from_str(&string).unwrap())
@@ -218,23 +218,23 @@ impl SecretSharing {
             output.push(Share {
                 value: eval(poly.clone(), x, &self.prime),
                 index: x,
-                wrapped: wrapped,
+                wrapped,
             });
         }
         Ok(output)
     }
 
     pub fn recover(&self, shares: &[Share]) -> Result<Vec<u8>, Error> {
-        if shares.len() < self.threshold.try_into().unwrap() {
+        if shares.len() < self.threshold {
             return Err(Error::BelowThreshold);
         }
         let mut indices: Vec<usize> = Vec::new();
-        let mut share: Vec<Vec<u8>> = Vec::new();
-        for i in 0..self.threshold.clone() {
-            indices.push(shares[i].index.clone());
-            share.push(shares[i].value.clone());
+        let mut shares_bytes: Vec<Vec<u8>> = Vec::new();
+        for share in shares.iter().take(self.threshold) {
+            indices.push(share.index);
+            shares_bytes.push(share.value.clone());
         }
-        let sum: BigInt = interpolate(indices, share, &self.prime);
+        let sum: BigInt = interpolate(indices, shares_bytes, &self.prime);
         let result = if sum < BigInt::from(0) {
             (sum + &self.prime).to_bytes_be().1
         } else {
@@ -274,8 +274,8 @@ mod test {
         let secret = get_valid_private_key();
         let shares = sham.split(&secret, false).unwrap();
 
-        let recovered_secret12 = sham.recover(&shares[0..2].to_vec()).unwrap();
-        let recovered_secret23 = sham.recover(&shares[1..3].to_vec()).unwrap();
+        let recovered_secret12 = sham.recover(&shares[0..2]).unwrap();
+        let recovered_secret23 = sham.recover(&shares[1..3]).unwrap();
         assert_eq!(secret, recovered_secret12);
         assert_eq!(secret, recovered_secret23);
 
@@ -296,9 +296,9 @@ mod test {
 
         let shares = sham.split(&secret, false).unwrap();
 
-        let recovered_secret123 = sham.recover(&shares[0..3].to_vec()).unwrap();
-        let recovered_secret234 = sham.recover(&shares[1..4].to_vec()).unwrap();
-        let recovered_secret345 = sham.recover(&shares[2..5].to_vec()).unwrap();
+        let recovered_secret123 = sham.recover(&shares[0..3]).unwrap();
+        let recovered_secret234 = sham.recover(&shares[1..4]).unwrap();
+        let recovered_secret345 = sham.recover(&shares[2..5]).unwrap();
         assert_eq!(secret, recovered_secret123);
         assert_eq!(secret, recovered_secret234);
         assert_eq!(secret, recovered_secret345);
@@ -345,8 +345,8 @@ mod test {
 
         let shares = sham.split(&secret, false).unwrap();
 
-        let recovered_secret123 = sham.recover(&shares[0..3].to_vec()).unwrap();
-        let recovered_secret2345 = sham.recover(&shares[1..5].to_vec()).unwrap();
+        let recovered_secret123 = sham.recover(&shares[0..3]).unwrap();
+        let recovered_secret2345 = sham.recover(&shares[1..5]).unwrap();
         let recovered_secret_all = sham.recover(&shares).unwrap();
         assert_eq!(secret, recovered_secret123);
         assert_eq!(secret, recovered_secret2345);
@@ -391,7 +391,7 @@ mod test {
         let secret_bytes = get_valid_private_key();
 
         let shares = sham.split(&secret_bytes, false).unwrap();
-        let e = sham.recover(&shares[0..2].to_vec()).unwrap_err();
+        let e = sham.recover(&shares[0..2]).unwrap_err();
         assert_eq!(e, Error::BelowThreshold);
     }
 
@@ -438,8 +438,8 @@ mod test {
                 .unwrap();
         let shares = sham.split(&secret, false).unwrap();
 
-        let recovered_secret12 = sham.recover(&shares[0..2].to_vec()).unwrap();
-        let recovered_secret23 = sham.recover(&shares[1..3].to_vec()).unwrap();
+        let recovered_secret12 = sham.recover(&shares[0..2]).unwrap();
+        let recovered_secret23 = sham.recover(&shares[1..3]).unwrap();
         assert_eq!(secret, recovered_secret12);
         assert_eq!(secret, recovered_secret23);
 
@@ -461,8 +461,8 @@ mod test {
                 .unwrap();
         let shares = sham.split(&secret, false).unwrap();
 
-        let recovered_secret12 = sham.recover(&shares[0..2].to_vec()).unwrap();
-        let recovered_secret23 = sham.recover(&shares[1..3].to_vec()).unwrap();
+        let recovered_secret12 = sham.recover(&shares[0..2]).unwrap();
+        let recovered_secret23 = sham.recover(&shares[1..3]).unwrap();
         assert_eq!(secret, recovered_secret12);
         assert_eq!(secret, recovered_secret23);
 

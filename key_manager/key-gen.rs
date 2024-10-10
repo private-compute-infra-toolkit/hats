@@ -79,7 +79,7 @@ fn main() {
     }
     println!("Private: {}", private_key);
     let secret = if Args::parse().wrap {
-        let wrapping_key = hex::decode(&generate_random256key()).unwrap();
+        let wrapping_key = hex::decode(generate_random256key()).unwrap();
         let nonce = [0u8; 12];
         let aad = [0u8; 16];
         let plaintext = hex::decode(&private_key).unwrap();

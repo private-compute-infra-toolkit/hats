@@ -19,6 +19,7 @@ build --per_file_copt=psp-sev.,.kernel_api.,.launcher.@-D__packed=__attribute__(
 # Use nightly rustc by default
 build --@rules_rust//rust/toolchain/channel=nightly
 build --config=rustfmt
+build --config=clippy
 # Hide warnings for external libraries
 # external_include_paths actually stops warnings (helps with stricter build flags), but seems to only be for .h files, not most .cc files.
 build --output_filter='^//((?!(external):).)*$'
@@ -42,6 +43,8 @@ build:clang --cxxopt='-Werror=switch'
 build:rustfmt --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
 build:rustfmt --output_groups=+rustfmt_checks
 
+build:clippy --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect
+build:clippy --output_groups=+clippy_checks
 # depend_on_what_you_use build check
 build:dwyu --aspects=//dwyu:dwyu.bzl%hats_dwyu_aspect
 build:dwyu --output_groups=dwyu

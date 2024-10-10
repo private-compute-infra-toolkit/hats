@@ -48,14 +48,14 @@ impl PolicyManager {
             let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
             process_and_validate_policies(
                 appraisal_policies,
-                &vec![&policy_verifying_key],
+                &[&policy_verifying_key],
                 /*num_pass_required=*/ 1,
                 accept_insecure_policies,
             )
         } else {
             process_and_validate_policies(
                 appraisal_policies,
-                &vec![],
+                &[],
                 /*num_pass_required=*/ 0,
                 accept_insecure_policies,
             )
@@ -73,9 +73,9 @@ impl PolicyManager {
         for policy in &self.reference_values {
             match oak_attestation_verification::verifier::verify(
                 time_milis,
-                &evidence,
+                evidence,
                 &endorsement,
-                &policy,
+                policy,
             ) {
                 Ok(_) => return Ok(()),
                 Err(_) => continue,
@@ -89,11 +89,12 @@ impl PolicyManager {
 
 // TODO(b/358413924): Actually fetch key
 fn get_policy_public_key() -> anyhow::Result<VerifyingKey> {
-    Ok(VerifyingKey::from_sec1_bytes(
+    let verifying_key = VerifyingKey::from_sec1_bytes(
         &hex::decode("048fa2c25d3d3368b23f7877c9ac84866f440f9dd7a94e7ca5440ef1bc611f77db2940cca2233d06c9cfbf503ee73fdf5cf1f4c637f376bb7daaf637faf05656e4")
         .map_err(|err| anyhow::anyhow!("Failed to decode policy public key hex: {err}"))?
     )
-    .map_err(|err| anyhow::anyhow!("Failed to parse policy public key: {err}"))?)
+    .map_err(|err| anyhow::anyhow!("Failed to parse policy public key: {err}"))?;
+    Ok(verifying_key)
 }
 
 fn create_endorsements(tee_certificate: &[u8]) -> Endorsements {
@@ -114,7 +115,7 @@ fn create_endorsements(tee_certificate: &[u8]) -> Endorsements {
 
 fn process_and_validate_policies(
     policies: AppraisalPolicies,
-    verifying_keys: &Vec<&VerifyingKey>,
+    verifying_keys: &[&VerifyingKey],
     num_pass_required: u32,
     accept_insecure_policies: bool,
 ) -> anyhow::Result<Vec<ReferenceValues>> {
@@ -150,10 +151,10 @@ fn appraisal_policy_to_reference_values(
     Ok(ReferenceValues {
         r#type: Some(reference_values::Type::OakContainers(
             OakContainersReferenceValues {
-                root_layer: Some(get_root_layer(&measurement, accept_insecure_policies)?),
-                kernel_layer: Some(get_kernel_layer(&measurement)?),
-                system_layer: Some(get_system_layer(&measurement)?),
-                container_layer: Some(get_container_layer(&measurement)?),
+                root_layer: Some(get_root_layer(measurement, accept_insecure_policies)?),
+                kernel_layer: Some(get_kernel_layer(measurement)?),
+                system_layer: Some(get_system_layer(measurement)?),
+                container_layer: Some(get_container_layer(measurement)?),
             },
         )),
     })
@@ -412,7 +413,7 @@ mod tests {
         .unwrap();
         match policy_manager.check_evidence(NOW_UTC_MILLIS, &get_bad_evidence(), &get_genoa_vcek())
         {
-            Ok(_) => assert!(false, "check_evidence() should fail."),
+            Ok(_) => panic!("check_evidence() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "Failed to verify report. No matching appraisal policy found"
@@ -427,7 +428,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "PolicyManager::new() should fail."),
+            Ok(_) => panic!("PolicyManager::new() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "Failed to decode (serialize) appraisal policy."
@@ -439,7 +440,7 @@ mod tests {
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         ) {
-            Ok(_) => assert!(false, "PolicyManager::new() should fail."),
+            Ok(_) => panic!("PolicyManager::new() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Cannot accept insecure policies."),
         }
     }

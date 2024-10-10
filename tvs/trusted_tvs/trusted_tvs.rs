@@ -19,6 +19,7 @@ use service::Service;
 pub mod request_handler;
 pub mod service;
 
+#[allow(clippy::needless_lifetimes)]
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 mod ffi {
 
@@ -38,6 +39,7 @@ mod ffi {
             accept_insecure_policies: bool,
         ) -> Result<Box<Service>>;
 
+        #[allow(clippy::needless_lifetimes)]
         #[cxx_name = "CreateRequestHandler"]
         unsafe fn create_request_handler<'a>(
             self: &'a Service,
