@@ -74,8 +74,7 @@ cc_test(
     ],
     deps = [
         ":tvs-service",
-        "//crypto:ec-key",
-        "//crypto:secret-data",
+        "//crypto:test-ec-key",
         "//key_manager:test-key-fetcher",
         "//status_macro:status_macros",
         "//status_macro:status_test_macros",

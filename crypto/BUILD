@@ -157,3 +157,15 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "test-ec-key",
+    srcs = ["test-ec-key.cc"],
+    hdrs = ["test-ec-key.h"],
+    deps = [
+        ":ec-key",
+        ":secret-data",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)

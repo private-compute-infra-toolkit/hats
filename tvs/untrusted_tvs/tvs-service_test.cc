@@ -25,8 +25,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "crypto/ec-key.h"
-#include "crypto/secret-data.h"
+#include "crypto/test-ec-key.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
@@ -121,39 +120,13 @@ absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
   return appraisal_policies;
 }
 
-struct TestEcKey {
-  std::string private_key_hex;
-  crypto::SecretData private_key;
-  std::string public_key;
-  std::string public_key_hex;
-};
-
-absl::StatusOr<TestEcKey> GenerateEcKey() {
-  HATS_ASSIGN_OR_RETURN(std::unique_ptr<crypto::EcKey> ec_key,
-                        crypto::EcKey::Create());
-
-  HATS_ASSIGN_OR_RETURN(crypto::SecretData private_key,
-                        ec_key->GetPrivateKey());
-
-  HATS_ASSIGN_OR_RETURN(std::string public_key, ec_key->GetPublicKey());
-
-  HATS_ASSIGN_OR_RETURN(std::string public_key_hex,
-                        ec_key->GetPublicKeyInHex());
-
-  return TestEcKey{
-      .private_key_hex = absl::BytesToHexString(private_key.GetStringView()),
-      .private_key = std::move(private_key),
-      .public_key = std::move(public_key),
-      .public_key_hex = std::move(public_key_hex),
-  };
-}
-
 TEST(TvsService, Successful) {
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key1,
-                            GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key2,
-                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey tvs_primary_key,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key1,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key2,
+                            crypto::GenerateEcKeyForTest());
   auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
       tvs_primary_key.private_key.GetStringView(),
       /*secondary_private_key=*/"",
@@ -287,10 +260,12 @@ TEST(TvsService, Successful) {
 }
 
 TEST(TvsService, UseSecondaryTvsKey) {
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_secondary_key, GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
-                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey tvs_primary_key,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey tvs_secondary_key,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
 
   auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
       tvs_primary_key.private_key.GetStringView(),
@@ -381,9 +356,10 @@ TEST(TvsService, UseSecondaryTvsKey) {
 }
 
 TEST(TvsService, BadReportError) {
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
-                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey tvs_primary_key,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
   auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
       tvs_primary_key.private_key.GetStringView(),
       /*secondary_private_key=*/"",
@@ -436,9 +412,10 @@ TEST(TvsService, BadReportError) {
 }
 
 TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
-                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey tvs_primary_key,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
   auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
       tvs_primary_key.private_key.GetStringView(),
       /*secondary_private_key=*/"",
@@ -501,9 +478,10 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
 }
 
 TEST(TvsService, MalformedMessageError) {
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
-                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey tvs_primary_key,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
   auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
       tvs_primary_key.private_key.GetStringView(),
       /*secondary_private_key=*/"",
@@ -567,9 +545,10 @@ TEST(TvsService, CreatingTrustedTvsServiceError) {
 }
 
 TEST(TvsService, AuthenticationError) {
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key1,
-                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey tvs_primary_key,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key1,
+                            crypto::GenerateEcKeyForTest());
   auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
       tvs_primary_key.private_key.GetStringView(),
       /*secondary_private_key=*/"",
@@ -598,8 +577,8 @@ TEST(TvsService, AuthenticationError) {
   std::unique_ptr<grpc::Server> server =
       grpc::ServerBuilder().RegisterService(tvs_service.get()).BuildAndStart();
 
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key2,
-                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key2,
+                            crypto::GenerateEcKeyForTest());
   HATS_EXPECT_STATUS_MESSAGE(
       TvsUntrustedClient::CreateClient({
           .tvs_public_key = tvs_primary_key.public_key_hex,
@@ -640,9 +619,10 @@ absl::StatusOr<AppraisalPolicies> GetInsecureAppraisalPolicies() {
 
 // Passing insecure policies in a secure mode.
 TEST(TvsService, InsecurePoliciesError) {
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey tvs_primary_key, GenerateEcKey());
-  HATS_ASSERT_OK_AND_ASSIGN(TestEcKey client_authentication_key,
-                            GenerateEcKey());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey tvs_primary_key,
+                            crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
   auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
       tvs_primary_key.private_key.GetStringView(),
       /*secondary_private_key=*/"",
