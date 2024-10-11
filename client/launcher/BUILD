@@ -154,8 +154,7 @@ cc_test(
     deps = [
         ":launcher-server",
         "//client/proto:launcher_cc_proto",
-        "//crypto:ec-key",
-        "//crypto:secret-data",
+        "//crypto:test-ec-key",
         "//key_manager:test-key-fetcher",
         "//status_macro:status_test_macros",
         "//tvs/client:bridge",
