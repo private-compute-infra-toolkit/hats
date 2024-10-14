@@ -37,7 +37,7 @@ void DebugWriteToString(const char* data, void* str) {
 
 // Print a program counter and its symbol name.
 static void DumpPCAndSymbol(DebugWriter* writerfn, void* arg, void* pc,
-                            const char* const prefix, bool short_format) {
+                            const char* const prefix) {
   char tmp[1024];
   const char* symbol = "(unknown)";
   // Symbolizes the previous address of pc because pc may be in the
@@ -52,35 +52,26 @@ static void DumpPCAndSymbol(DebugWriter* writerfn, void* arg, void* pc,
     symbol = tmp;
   }
   char buf[1024];
-  if (short_format) {
-    snprintf(buf, sizeof(buf), " %s;", symbol);
-  } else {
-    snprintf(buf, sizeof(buf), "%s@ %*p  %s\n", prefix,
-             kPrintfPointerFieldWidth, pc, symbol);
-  }
+  snprintf(buf, sizeof(buf), "%s@ %*p  %s\n", prefix, kPrintfPointerFieldWidth,
+           pc, symbol);
   writerfn(buf, arg);
 }
 
 // Dump current stack trace as directed by writerfn.
 // Make sure this function is not inlined to avoid skipping too many top frames.
 ABSL_ATTRIBUTE_NOINLINE
-void DumpStackTrace(int skip_count, DebugWriter* writerfn, void* arg,
-                    bool short_format) {
+void DumpStackTrace(int skip_count, DebugWriter* writerfn, void* arg) {
   // Print stack trace
   void* stack[kDefaultStackTraceDepth];
   int depth = absl::GetStackTrace(stack, ABSL_ARRAYSIZE(stack), skip_count + 1);
   for (int i = 0; i < depth; i++) {
-    DumpPCAndSymbol(writerfn, arg, stack[i],
-                    short_format ? "" : kStackTracePrefix.data(), short_format);
+    DumpPCAndSymbol(writerfn, arg, stack[i], kStackTracePrefix.data());
   }
 }
 
-std::string CurrentStackTrace(bool short_format) {
-  std::string result = "Stacktrace:";
-  if (!short_format) {
-    result += "\n";
-  }
-  DumpStackTrace(1, DebugWriteToString, &result, short_format);
+std::string CurrentStackTrace() {
+  std::string result = "Stacktrace:\n";
+  DumpStackTrace(1, DebugWriteToString, &result);
   return result;
 }
 }  // namespace privacy_sandbox::status_macro

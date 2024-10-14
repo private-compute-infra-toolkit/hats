@@ -22,15 +22,13 @@ namespace privacy_sandbox::status_macro {
 // We avoid closures to keep things simple.
 typedef void DebugWriter(const char*, void*);
 // Dump current stack trace omitting the topmost 'skip_count' stack frames.
-void DumpStackTrace(int skip_count, DebugWriter* w, void* arg,
-                    bool short_format = false);
+void DumpStackTrace(int skip_count, DebugWriter* w, void* arg);
 // Dump given pc and stack trace.
 void DumpPCAndStackTrace(void* pc, void* const stack[], int depth,
-                         DebugWriter* writerfn, void* arg,
-                         bool short_format = false);
+                         DebugWriter* writerfn, void* arg);
 // Return the current stack trace as a string (on multiple lines, beginning with
 // "Stack trace:\n").
-std::string CurrentStackTrace(bool short_format = false);
+std::string CurrentStackTrace();
 }  // namespace privacy_sandbox::status_macro
 
 #endif  // HATS_STATUS_MACRO_EXAMINESTACK_H_
