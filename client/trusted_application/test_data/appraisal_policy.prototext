@@ -10,6 +10,6 @@ policies {
     acpi_table_sha256: "668b5b4db79f9939c741d62182b5962e19c150c1eb78fa824864feb299c0e8c7"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
     system_image_sha256: "2634913d5881eca6b131d6375508076c59889176c3d04bf09f83d70d5f264b29"
-    container_binary_sha256: "7d95fa9ebedc57ba6e2af1e36c1fe64f8291580f17306abaa619bacecd3de114"
+    container_binary_sha256: "80d9b2e99afdf2275e72c06c8e2fac2caf569ea5d9c7cb2e8a4cf7af06d9724c"
   }
 }
