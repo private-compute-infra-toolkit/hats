@@ -58,6 +58,9 @@ const char kAppraisalPolicy[] = "./appraisal_policy.prototext";
 // image.
 const char kTvsPrimaryKey[] =
     "0000000000000000000000000000000000000000000000000000000000000001";
+ABSL_FLAG(
+    bool, qemu_log_to_std, false,
+    "Whether to send qemu logs to stdout/stderr instead of a temporary file.");
 
 absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
     absl::string_view path) {
@@ -79,6 +82,8 @@ absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
 }
 
 int main(int argc, char* argv[]) {
+  absl::ParseCommandLine(argc, argv);
+  absl::InitializeLog();
   HATS_ASSIGN_OR_RETURN(
       privacy_sandbox::crypto::TestEcKey client_authentication_key,
       privacy_sandbox::crypto::GenerateEcKeyForTest(), _.LogErrorAndExit());
@@ -177,7 +182,7 @@ int main(int argc, char* argv[]) {
           .private_key_wrapping_keys =
               privacy_sandbox::client::PrivateKeyWrappingKeys(),
           .tvs_channels = std::move(channel_map),
-          .qemu_log_to_std = false,
+          .qemu_log_to_std = absl::GetFlag(FLAGS_qemu_log_to_std),
       }),
       _.PrependWith("Failed to create launcher: ").LogErrorAndExit());
 
