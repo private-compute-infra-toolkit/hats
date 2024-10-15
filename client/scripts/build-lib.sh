@@ -103,8 +103,8 @@ function build_test_application_container_bundle_tar() {
 function build_test_main() {
   local BUILD_DIR="$1"
   printf "\nBUILDING TEST MAIN..."
-  bazel build -c opt //test_main:test_main
-  cp -f ../../bazel-bin/test_main/test_main "$BUILD_DIR"
+  bazel build -c opt //client/trusted_application:test_main
+  cp -f ../../bazel-bin/client/trusted_application/test_main "$BUILD_DIR"
 }
 
 function build_snphost() {
@@ -181,9 +181,9 @@ function build_launch_bundle() {
   cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.prototext"
   cp "$APPRISAL_POLICY" "$BUILD_DIR/appraisal_policy.prototext"
   # Init script to generate fake test keys.
-  cp "keygen-local-init.sh" "$BUILD_DIR/"
-  cp "launcher-up.sh" "$BUILD_DIR/"
-  cp "tvs-up.sh" "$BUILD_DIR/"
+  cp "../scripts/keygen-local-init.sh" "$BUILD_DIR/"
+  cp "../scripts/launcher-up.sh" "$BUILD_DIR/"
+  cp "../scripts/tvs-up.sh" "$BUILD_DIR/"
   # Clean up the extra stuff in the folder.
   rm -rf "$TAR_DIR"
   rm "$BUILD_DIR/oak_containers_syslogd"
