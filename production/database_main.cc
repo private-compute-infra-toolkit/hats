@@ -240,10 +240,6 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
           PublicKey BYTES(MAX) NOT NULL,
       ) PRIMARY KEY (UserId, PublicKey))sql");
 
-  // A sequence to generate secret IDs.
-  request.add_extra_statements(R"sql(
-      CREATE SEQUENCE SecretIdSequence OPTIONS (
-      sequence_kind="bit_reversed_positive"))sql");
   // Table storing secrets to be returned to entities passing TVS attestation.
   // Secret could be full or partial HPKE keys or any arbitrary strings. The
   // stored secrets are wrapped with a DEK. The table contains the following
@@ -255,13 +251,12 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   // * UpdateTimestamp: timestamp of the last update to the row.
   request.add_extra_statements(R"sql(
       CREATE TABLE Secrets(
-          SecretId INT64 DEFAULT
-                        (GET_NEXT_SEQUENCE_VALUE(SEQUENCE SecretIdSequence)),
+          SecretId INT64 NOT NULL,
           UserId   INT64 NOT NULL,
           DekId    INT64 NOT NULL,
           Secret   BYTES(MAX) NOT NULL,
           UpdateTimestamp   TIMESTAMP NOT NULL,
-      ) PRIMARY KEY (SecretId))sql");
+      ) PRIMARY KEY (SecretId, UserId))sql");
 
   // Table storing public keys of the users. Right now we allow the user
   // to have only one secret and one public key.
@@ -648,151 +643,163 @@ absl::Status RegisterOrUpdateUserInternal(
 
   // Stash all inserts in the same transaction so we only commit if all inserts
   // succeed.
-  auto commit = spanner_client.Commit(
-      [&user_authentication_public_key_hex, &user_name, &user_origin,
-       &spanner_client, &user_public_key, &kms_key_resource_name,
-       &wrapped_secrets =
-           wrapped_secrets](google::cloud::spanner::Transaction transaction)
-          -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
-        std::optional<int64_t> kek_id;
-        {
-          // Check if the KMS key (KEK) is inserted.
-          google::cloud::spanner::SqlStatement select(
-              R"sql(
+  auto commit = spanner_client.Commit([&user_authentication_public_key_hex,
+                                       &user_name, &user_origin,
+                                       &spanner_client, &user_public_key,
+                                       &kms_key_resource_name,
+                                       &wrapped_secrets = wrapped_secrets](
+                                          google::cloud::spanner::Transaction
+                                              transaction)
+                                          -> google::cloud::StatusOr<
+                                              google::cloud::spanner::
+                                                  Mutations> {
+    std::optional<int64_t> kek_id;
+    {
+      // Check if the KMS key (KEK) is inserted.
+      google::cloud::spanner::SqlStatement select(
+          R"sql(
               SELECT
                   KekId
               FROM
                   KeyEncryptionKeys
               WHERE
                 ResourceName = @resource_name)sql",
-              {{"resource_name", google::cloud::spanner::Value(
-                                     std::string(kms_key_resource_name))}});
-          using RowType = std::tuple<int64_t>;
-          auto rows =
-              spanner_client.ExecuteQuery(transaction, std::move(select));
-          for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            HATS_ASSIGN_OR_RETURN(auto row, row_or);
-            kek_id.emplace(std::get<0>(row));
-            break;
-          }
-        }
-        if (!kek_id.has_value()) {
-          // Insert Key-encryption-key (KEK) metadata, if not inserted
-          google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  KeyEncryptionKeys (ResourceName)
+          {{"resource_name", google::cloud::spanner::Value(
+                                 std::string(kms_key_resource_name))}});
+      using RowType = std::tuple<int64_t>;
+      auto rows = spanner_client.ExecuteQuery(transaction, std::move(select));
+      for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
+        HATS_ASSIGN_OR_RETURN(auto row, row_or);
+        kek_id.emplace(std::get<0>(row));
+        break;
+      }
+    }
+    if (!kek_id.has_value()) {
+      // Insert Key-encryption-key (KEK) metadata, if not inserted
+      google::cloud::spanner::SqlStatement sql(
+          R"sql(INSERT INTO  KeyEncryptionKeys (ResourceName)
               VALUES (@resource_name)
               THEN RETURN KekId)sql",
-              {{"resource_name", google::cloud::spanner::Value(
-                                     std::string(kms_key_resource_name))}});
-          using RowType = std::tuple<int64_t>;
-          auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
-          for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            HATS_ASSIGN_OR_RETURN(auto row, row_or);
-            *kek_id = std::get<0>(row);
-          }
-        }
-        // Insert the wrapped dek.
-        int64_t dek_id;
-        {
-          google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  DataEncryptionKeys (KekId, Dek)
+          {{"resource_name", google::cloud::spanner::Value(
+                                 std::string(kms_key_resource_name))}});
+      using RowType = std::tuple<int64_t>;
+      auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
+      for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
+        HATS_ASSIGN_OR_RETURN(auto row, row_or);
+        *kek_id = std::get<0>(row);
+      }
+    }
+    // Insert the wrapped dek.
+    int64_t dek_id;
+    {
+      google::cloud::spanner::SqlStatement sql(
+          R"sql(INSERT INTO  DataEncryptionKeys (KekId, Dek)
               VALUES (@kek_id, @dek)
               THEN RETURN DekId)sql",
-              {{"kek_id", google::cloud::spanner::Value(*kek_id)},
-               {"dek",
-                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                    wrapped_secrets.wrapped_dek))}});
-          using RowType = std::tuple<int64_t>;
-          auto rows = spanner_client.ExecuteQuery(transaction, sql);
-          for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            HATS_ASSIGN_OR_RETURN(auto row, row_or);
-            dek_id = std::get<0>(row);
-          }
-        }
-        // Get user id.
-        std::optional<int64_t> user_id;
-        {
-          google::cloud::spanner::SqlStatement select(
-              R"sql(
+          {{"kek_id", google::cloud::spanner::Value(*kek_id)},
+           {"dek", google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                       wrapped_secrets.wrapped_dek))}});
+      using RowType = std::tuple<int64_t>;
+      auto rows = spanner_client.ExecuteQuery(transaction, sql);
+      for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
+        HATS_ASSIGN_OR_RETURN(auto row, row_or);
+        dek_id = std::get<0>(row);
+      }
+    }
+    // Get user id.
+    std::optional<int64_t> user_id;
+    {
+      google::cloud::spanner::SqlStatement select(
+          R"sql(
               SELECT
                   UserId
               FROM
                   Users
               WHERE
                 Origin = @origin AND Name = @name)sql",
-              {{"name", google::cloud::spanner::Value(std::string(user_name))},
-               {"origin",
-                google::cloud::spanner::Value(std::string(user_origin))}});
-          using RowType = std::tuple<int64_t>;
-          auto rows =
-              spanner_client.ExecuteQuery(transaction, std::move(select));
-          for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            HATS_ASSIGN_OR_RETURN(auto row, row_or);
-            user_id.emplace(std::get<0>(row));
-            break;
-          }
-        }
-        if (!user_id.has_value()) {
-          google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  Users(Name, Origin, LockExpiryTime)
+          {{"name", google::cloud::spanner::Value(std::string(user_name))},
+           {"origin",
+            google::cloud::spanner::Value(std::string(user_origin))}});
+      using RowType = std::tuple<int64_t>;
+      auto rows = spanner_client.ExecuteQuery(transaction, std::move(select));
+      for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
+        HATS_ASSIGN_OR_RETURN(auto row, row_or);
+        user_id.emplace(std::get<0>(row));
+        break;
+      }
+    }
+    if (!user_id.has_value()) {
+      google::cloud::spanner::SqlStatement sql(
+          R"sql(INSERT INTO  Users(Name, Origin, LockExpiryTime)
               VALUES (@name, @origin, CURRENT_TIMESTAMP())
               THEN RETURN UserId)sql",
-              {{"name", google::cloud::spanner::Value(std::string(user_name))},
-               {"origin",
-                google::cloud::spanner::Value(std::string(user_origin))}});
-          using RowType = std::tuple<int64_t>;
-          auto rows = spanner_client.ExecuteQuery(transaction, sql);
-          for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            HATS_ASSIGN_OR_RETURN(auto row, row_or);
-            user_id = std::get<0>(row);
-          }
-          // Insert the user's public key.
-          {
-            google::cloud::spanner::SqlStatement sql(
-                R"sql(INSERT INTO  UserAuthenticationKeys(UserId, PublicKey)
+          {{"name", google::cloud::spanner::Value(std::string(user_name))},
+           {"origin",
+            google::cloud::spanner::Value(std::string(user_origin))}});
+      using RowType = std::tuple<int64_t>;
+      auto rows = spanner_client.ExecuteQuery(transaction, sql);
+      for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
+        HATS_ASSIGN_OR_RETURN(auto row, row_or);
+        user_id = std::get<0>(row);
+      }
+      // Insert the user's public key.
+      {
+        google::cloud::spanner::SqlStatement sql(
+            R"sql(INSERT INTO  UserAuthenticationKeys(UserId, PublicKey)
                 VALUES (@user_id, @public_key))sql",
-                {{"user_id", google::cloud::spanner::Value(user_id)},
-                 {"public_key",
-                  google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                      user_authentication_public_key_hex))}});
-            HATS_ASSIGN_OR_RETURN(
-                auto _, spanner_client.ExecuteDml(transaction, std::move(sql)));
-          }
+            {{"user_id", google::cloud::spanner::Value(user_id)},
+             {"public_key",
+              google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                  user_authentication_public_key_hex))}});
+        HATS_ASSIGN_OR_RETURN(
+            auto _, spanner_client.ExecuteDml(transaction, std::move(sql)));
+      }
+    }
+    int64_t max_secret_id = 0;
+    {
+      google::cloud::spanner::SqlStatement select_max_id(
+          "SELECT MAX(SecretId) FROM Secrets");
+      auto rows =
+          spanner_client.ExecuteQuery(transaction, std::move(select_max_id));
+      using RowType = std::tuple<std::optional<int64_t>>;
+
+      for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
+        HATS_ASSIGN_OR_RETURN(auto row, row_or);
+        if (std::get<0>(row).has_value()) {
+          max_secret_id = std::get<0>(row).value();
         }
-        int64_t secret_id;
-        // Insert the wrapped secret.
-        {
-          google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  Secrets(UserId, DekId, Secret, UpdateTimestamp)
-              VALUES (@user_id, @dek_id, @secret, CURRENT_TIMESTAMP())
-              THEN RETURN SecretId)sql",
-              {{"user_id", google::cloud::spanner::Value(user_id)},
-               {"dek_id", google::cloud::spanner::Value(dek_id)},
-               {"secret",
-                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                    wrapped_secrets.wrapped_user_secret))}});
-          auto rows = spanner_client.ExecuteQuery(transaction, std::move(sql));
-          using RowType = std::tuple<int64_t>;
-          for (auto& row_or : google::cloud::spanner::StreamOf<RowType>(rows)) {
-            HATS_ASSIGN_OR_RETURN(auto row, row_or);
-            secret_id = std::get<0>(row);
-          }
-        }
-        // Insert the public key part of the secret.
-        {
-          google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  UserPublicKeys(SecretId, UserId, PublicKey)
+        break;
+      }
+    }
+
+    int64_t secret_id = (max_secret_id + 1) % 256;
+    {
+      google::cloud::spanner::SqlStatement insert(
+          R"sql(INSERT INTO Secrets(SecretId, UserId, DekId, Secret, UpdateTimestamp)
+          VALUES (@secret_id, @user_id, @dek_id, @secret, CURRENT_TIMESTAMP()))sql",
+          {{"secret_id", google::cloud::spanner::Value(secret_id)},
+           {"user_id", google::cloud::spanner::Value(user_id)},
+           {"dek_id", google::cloud::spanner::Value(dek_id)},
+           {"secret",
+            google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                wrapped_secrets.wrapped_user_secret))}});
+      spanner_client.ExecuteQuery(transaction, std::move(insert));
+    }
+    // Insert the public key part of the secret.
+    {
+      google::cloud::spanner::SqlStatement sql(
+          R"sql(INSERT INTO  UserPublicKeys(SecretId, UserId, PublicKey)
               VALUES (@secret_id, @user_id, @public_key))sql",
-              {{"secret_id", google::cloud::spanner::Value(secret_id)},
-               {"user_id", google::cloud::spanner::Value(user_id)},
-               {"public_key",
-                google::cloud::spanner::Value(std::string(user_public_key))}});
-          HATS_ASSIGN_OR_RETURN(
-              auto _, spanner_client.ExecuteDml(std::move(transaction),
-                                                std::move(sql)));
-        }
-        return google::cloud::spanner::Mutations{};
-      });
+          {{"secret_id", google::cloud::spanner::Value(secret_id)},
+           {"user_id", google::cloud::spanner::Value(user_id)},
+           {"public_key",
+            google::cloud::spanner::Value(std::string(user_public_key))}});
+      HATS_ASSIGN_OR_RETURN(
+          auto _,
+          spanner_client.ExecuteDml(std::move(transaction), std::move(sql)));
+    }
+    return google::cloud::spanner::Mutations{};
+  });
   HATS_RETURN_IF_ERROR(commit.status());
 
   return absl::OkStatus();
