@@ -106,7 +106,6 @@ cc_test(
     data = [
         "//client/test_data/launcher:launcher_test_data",
     ],
-    # TODO(b/351007909): Test this through Kokoro
     tags = ["virtualization"],
     deps = [
         ":launcher",
