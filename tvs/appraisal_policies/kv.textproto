@@ -2,7 +2,7 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "0890b2e86491e28e3b99c28bcfb76f679608e503850d1ff9b34249da1125287d6da3183264740564f6181aa8349f745a"
+        sha384: "4076e2137015129fd14f5f9bbf69131374c6bc5aaa834fa7be6cb078c61f85e57991eab43d174a8bd950773870b01662"
         min_tcb_version {
           boot_loader: 7
           snp: 15
@@ -12,15 +12,15 @@ policies {
     }
     kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
     kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
-    init_ram_fs_sha256: "5e26c78994236a661a4b522e07e8b8c9706ffc1005d8c4f5ccb5d0c641de1edb"
+    init_ram_fs_sha256: "9f6455af2b3bb41d95ee7fa97062c1d09eeb650f3e66c078250f7ec2ac00225b"
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "d794c621e2d654248829d8dcc8d3d98d7bc9a3d236b780f8c1f4140184154e9e"
+    system_image_sha256: "24d461c2511d5e807be38eb96b523bff4f5e8c9c79b75c8874314ab4593f884b"
     container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
   }
   signature {
-    signature: "5babb97dc0b54258cbfa1e7e68f74cdcdda473567a0819029d369d69192bbb0a0ee6098a28e473c9d1111236f9b3cd3892e05accd0c1109fc22c46e23b0f1a1b"
+    signature: "0c665cf68210eb4f6b5f5e252e2e4c074e0c7fcd53817dc67a1cd0afb5de96c8fce5c90a0ea5a07d7b9b55bf39bd11b1ec880602210eb158f1afb7ac557f965a"
     signer: "hats"
   }
 }
