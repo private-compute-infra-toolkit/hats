@@ -64,6 +64,7 @@ args=(
   # "${BAZEL_DIRECT_ARGS}"
   # Multiple args in one strings breaks, due to py wrapper
   --config=rbecache
+  --config=kokoro
   --google_default_credentials
   --noshow_progress
   --verbose_failures=true
