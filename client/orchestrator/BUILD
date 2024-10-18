@@ -27,6 +27,7 @@ rust_binary(
         ":tvs-grpc-client",
         "//crypto:secret-sharing-noffi",
         "@hats_crate_index//:hex",
+        "@oak//oak_containers/attestation:oak_containers_attestation",
         "@oak//oak_containers/orchestrator:lib",
         "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",

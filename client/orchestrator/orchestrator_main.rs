@@ -16,9 +16,7 @@ use anyhow::{anyhow, Context};
 use clap::Parser;
 use hats_server::proto::privacy_sandbox::tvs::{Secret, VerifyReportResponse};
 use oak_containers_orchestrator::ipc_server::create_services;
-use oak_containers_orchestrator::{
-    crypto::generate_instance_keys, launcher_client::LauncherClient,
-};
+use oak_containers_orchestrator::launcher_client::LauncherClient;
 use oak_proto_rust::oak::attestation::v1::{endorsements, Endorsements, OakContainersEndorsements};
 use prost::Message;
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
@@ -124,7 +122,8 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Generate application keys.
-    let (instance_keys, instance_public_keys) = generate_instance_keys();
+    let (instance_keys, instance_public_keys) =
+        oak_containers_attestation::generate_instance_keys();
     let (group_keys, group_public_keys) = {
         let (group_keys, group_public_keys) = instance_keys.generate_group_keys();
         (Some(Arc::new(group_keys)), Some(group_public_keys))
@@ -139,7 +138,7 @@ async fn main() -> anyhow::Result<()> {
     // Generate attestation evidence and send it to the Hostlib.
     let dice_builder = oak_containers_orchestrator::dice::load_stage1_dice_data()?;
     let additional_claims =
-        oak_containers_orchestrator::dice::measure_container_and_config(&container_bundle, &[]);
+        oak_containers_attestation::measure_container_and_config(&container_bundle, &[]);
     let evidence = dice_builder.add_application_keys(
         additional_claims,
         &instance_public_keys.encryption_public_key,
@@ -200,9 +199,7 @@ async fn main() -> anyhow::Result<()> {
             .context("group keys were not provisioned")?,
         /*application_config=*/ vec![],
         launcher_client,
-    )
-    .await
-    .map_err(|error| anyhow!("couldn't get oak servers {:?}", error))?;
+    );
 
     // Start application and gRPC servers.
     let user = nix::unistd::User::from_name(&args.runtime_user)

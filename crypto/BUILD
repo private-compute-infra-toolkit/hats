@@ -54,6 +54,7 @@ rust_test(
     size = "small",
     crate = ":secret-sharing",
     deps = [
+        ":bridge",
         "@enclave//crypto",
         "@hats_crate_index//:hex",
     ],

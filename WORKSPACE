@@ -32,7 +32,7 @@ rust_register_toolchains(
     edition = "2021",
     versions = [
         "1.76.0",
-        "nightly/2024-02-01",
+        "nightly/2024-09-01",
     ],
 )
 
@@ -84,10 +84,6 @@ crates_repository(
     cargo_lockfile = "//:Cargo.bazel.lock",
     lockfile = "//:cargo-bazel-lock.json",
     packages = {
-        "curve25519-dalek": crate.spec(
-            default_features = False,
-            version = "=4.1.1",
-        ),
         "hex": crate.spec(version = "*"),
         "hpke": crate.spec(version = "*"),
         "num-bigint": crate.spec(
@@ -123,15 +119,9 @@ hats_crate_repositories()
 
 http_archive(
     name = "oak",
-    patches = [
-        "//patches/oak:orchestrator.patch",
-        "//patches/oak:launcher.patch",
-        "//patches/oak:syslogd.patch",
-        "//patches/oak:build.patch",
-    ],
-    sha256 = "23fee4b1ad5fa2ab8ba41d565798ff70e5e6e4d73e39bb9339e9856268a1fe9d",
-    strip_prefix = "oak-ef907761c96b338f2c8aacddd3e20c4c325af54c",
-    url = "https://github.com/project-oak/oak/archive/ef907761c96b338f2c8aacddd3e20c4c325af54c.tar.gz",
+    sha256 = "dd41adad38c32a899d25db2500d84ac933bb271d84f30acdeacafa7c13b05211",
+    strip_prefix = "oak-209bc17fab05ffc602759f061b7f1f8e30195bda",
+    url = "https://github.com/project-oak/oak/archive/209bc17fab05ffc602759f061b7f1f8e30195bda.tar.gz",
 )
 
 load("@oak//bazel/crates:repositories.bzl", "create_oak_crate_repositories")

@@ -57,21 +57,20 @@ fn policy_to_bytes(policy: &AppraisalPolicy) -> anyhow::Result<Vec<u8>> {
     };
 
     let mut binary_data = vec![];
-    match stage0_measurement.r#type.as_ref() {
-        Some(tvs_proto::privacy_sandbox::tvs::stage0_measurement::Type::AmdSev(stage0)) => {
-            let Some(min_tcb_version) = &stage0.min_tcb_version else {
-                anyhow::bail!("min_tcb_version is not set");
-            };
-            binary_data.extend(
-                hex::decode(&stage0.sha384)
-                    .map_err(|err| anyhow::anyhow!("Failed to decode stage0 sha384: {err}"))?,
-            );
-            binary_data.extend(min_tcb_version.boot_loader.to_be_bytes());
-            binary_data.extend(min_tcb_version.tee.to_be_bytes());
-            binary_data.extend(min_tcb_version.snp.to_be_bytes());
-            binary_data.extend(min_tcb_version.microcode.to_be_bytes());
-        }
-        Some(_) | None => {}
+    if let Some(tvs_proto::privacy_sandbox::tvs::stage0_measurement::Type::AmdSev(stage0)) =
+        stage0_measurement.r#type.as_ref()
+    {
+        let Some(min_tcb_version) = &stage0.min_tcb_version else {
+            anyhow::bail!("min_tcb_version is not set");
+        };
+        binary_data.extend(
+            hex::decode(&stage0.sha384)
+                .map_err(|err| anyhow::anyhow!("Failed to decode stage0 sha384: {err}"))?,
+        );
+        binary_data.extend(min_tcb_version.boot_loader.to_be_bytes());
+        binary_data.extend(min_tcb_version.tee.to_be_bytes());
+        binary_data.extend(min_tcb_version.snp.to_be_bytes());
+        binary_data.extend(min_tcb_version.microcode.to_be_bytes());
     }
 
     binary_data.extend(

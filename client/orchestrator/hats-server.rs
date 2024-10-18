@@ -18,8 +18,7 @@ use crate::proto::privacy_sandbox::server_common::hats_orchestrator_server::{
 use crate::proto::privacy_sandbox::server_common::{GetKeysResponse, Key};
 use crate::proto::privacy_sandbox::tvs::VerifyReportResponse;
 use anyhow::Context;
-use oak_containers_orchestrator::crypto::CryptoService;
-use oak_containers_orchestrator::ipc_server::ServiceImplementation;
+use oak_containers_orchestrator::ipc_server::{CryptoService, ServiceImplementation};
 use oak_grpc::oak::containers::orchestrator_server::OrchestratorServer;
 use oak_grpc::oak::containers::v1::orchestrator_crypto_server::OrchestratorCryptoServer;
 use prost::Message;

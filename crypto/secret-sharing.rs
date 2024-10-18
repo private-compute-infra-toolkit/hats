@@ -47,6 +47,9 @@ pub enum Error {
 #[cfg(not(feature = "noffi"))]
 #[cxx::bridge(namespace = "privacy_sandbox::crypto")]
 mod ffi {
+    // The struct is used in C++. Rust thinks its deadcode as its not aware of
+    // The C++ code using it.
+    #[allow(dead_code)]
     pub struct SecretSharing {
         pub threshold: usize,
         pub numshares: usize,
