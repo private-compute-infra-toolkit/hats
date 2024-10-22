@@ -193,9 +193,17 @@ int main(int argc, char* argv[]) {
 
   // Now here we need to check if app is ready, if it is, start up app client
   // and talk to it.
-  while (!launcher->IsAppReady()) {
+  int counter = 6;
+  while (!launcher->IsAppReady() && counter > 0) {
     std::cout << "Waiting for app to be ready" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(5));
+    counter--;
+  }
+  if (!launcher->IsAppReady()) {
+    launcher->Shutdown();
+    tvs_server->Shutdown();
+    LOG(ERROR) << "Application Failed to Launch, rerun test with Logs enabled.";
+    return 1;
   }
 
   privacy_sandbox::client::TrustedApplicationClient app_client =
