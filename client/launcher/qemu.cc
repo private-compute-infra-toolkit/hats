@@ -400,6 +400,14 @@ absl::StatusOr<std::string> Qemu::LogFilename() const {
   return log_filename_;
 }
 
+bool Qemu::CheckStatus() const {
+  // kill(pid, 0) sends an empty signal to check on the staus of pid
+  // kill only returns nonzero (program terminated) when the parent process
+  // waits on it first, o/w kill(pid, 0) always returns 0
+  waitpid(process_id_, /*wstatus=*/nullptr, WNOHANG);
+  return kill(process_id_, 0) == 0;
+}
+
 void Qemu::Wait() {
   absl::MutexLock lock(&mu_);
   waitpid(process_id_, /*wstatus=*/nullptr, 0);
