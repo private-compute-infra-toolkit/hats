@@ -755,7 +755,7 @@ absl::Status RegisterOrUpdateUserInternal(
             auto _, spanner_client.ExecuteDml(transaction, std::move(sql)));
       }
     }
-    int64_t max_secret_id = 0;
+    int64_t max_secret_id = 255;
     {
       google::cloud::spanner::SqlStatement select_max_id(
           "SELECT MAX(SecretId) FROM Secrets");
