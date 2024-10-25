@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@oak//bazel:defs.bzl", "oci_runtime_bundle")
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("@rules_oci//oci:defs.bzl", "oci_image")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
@@ -37,17 +37,25 @@ cc_binary(
     ],
 )
 
-cc_binary(
-    name = "test_main",
+cc_test(
+    name = "trusted_application_test",
     srcs = ["trusted_application_test.cc"],
+    args = [
+        "--minloglevel=0",
+        "--stderrthreshold=0",
+    ],
+    data = [
+        "//client/trusted_application/test_data",
+    ],
+    tags = ["virtualization"],
     deps = [
+        ":trusted_application_client",
         "//client/launcher",
         "//client/proto:launcher_config_cc_proto",
         "//client/proto:trusted_service_cc_proto",
-        "//client/trusted_application:trusted_application_client",
         "//crypto:test-ec-key",
         "//key_manager:test-key-fetcher",
-        "//status_macro:status_macros",
+        "//status_macro:status_test_macros",
         "//tvs/appraisal_policies:policy-fetcher-local",
         "//tvs/credentials",
         "//tvs/proto:appraisal_policies_cc_proto",
@@ -85,6 +93,7 @@ cc_library(
 
 cc_library(
     name = "trusted_application_client",
+    testonly = 1,
     srcs = ["trusted_application_client.cc"],
     hdrs = ["trusted_application_client.h"],
     deps = [
@@ -92,7 +101,7 @@ cc_library(
         "//client/proto:trusted_service_cc_proto",
         "//crypto:aead-crypter",
         "//crypto:secret-data",
-        "//status_macro:status_macros",
+        "//status_macro:status_test_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
     ],

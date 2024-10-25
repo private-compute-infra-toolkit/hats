@@ -42,7 +42,7 @@
 #include "grpcpp/server_builder.h"
 #include "gtest/gtest.h"
 #include "key_manager/test-key-fetcher.h"
-#include "status_macro/status_macros.h"
+#include "status_macro/status_test_macros.h"
 #include "tools/cpp/runfiles/runfiles.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/credentials/credentials.h"
@@ -52,15 +52,24 @@
 const int kUserId = 64;
 const char kAppKey[] =
     "0e4fb4a3b7a7eeb42306db3cbc6108a2424bf8ef510101059b2edef36fe1687f";
-const char kLauncherConfig[] = "./launcher_config.prototext";
-const char kAppraisalPolicy[] = "./appraisal_policy.prototext";
+const char kLauncherConfig[] = "launcher_config.prototext";
+const char kAppraisalPolicy[] = "appraisal_policy.prototext";
 // TODO: Generate key here when we no longer bake the keys into the system
 // image.
 const char kTvsPrimaryKey[] =
     "0000000000000000000000000000000000000000000000000000000000000001";
-ABSL_FLAG(
-    bool, qemu_log_to_std, false,
-    "Whether to send qemu logs to stdout/stderr instead of a temporary file.");
+
+absl::StatusOr<std::string> GetRunfilePath(absl::string_view filename) {
+  std::string runfiles_error;
+  auto runfiles =
+      bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&runfiles_error);
+  if (runfiles == nullptr) {
+    return absl::UnknownError(
+        absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
+  }
+  return runfiles->Rlocation(
+      absl::StrCat("_main/client/trusted_application/test_data/", filename));
+}
 
 absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
     absl::string_view path) {
@@ -81,18 +90,14 @@ absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
   return config;
 }
 
-int main(int argc, char* argv[]) {
-  absl::ParseCommandLine(argc, argv);
+TEST(TrustedApplication, SuccessfulEcho) {
   absl::InitializeLog();
-  HATS_ASSIGN_OR_RETURN(
+  HATS_ASSERT_OK_AND_ASSIGN(
       privacy_sandbox::crypto::TestEcKey client_authentication_key,
-      privacy_sandbox::crypto::GenerateEcKeyForTest(), _.LogErrorAndExit());
+      privacy_sandbox::crypto::GenerateEcKeyForTest());
 
   std::string app_key;
-  if (!absl::HexStringToBytes(kAppKey, &app_key)) {
-    LOG(ERROR) << "application key should be in hex string format";
-    return 1;
-  }
+  EXPECT_EQ(absl::HexStringToBytes(kAppKey, &app_key), true);
 
   std::vector<privacy_sandbox::key_manager::TestUserData> user_data;
   privacy_sandbox::key_manager::TestUserData test_user =
@@ -105,36 +110,35 @@ int main(int argc, char* argv[]) {
           .public_key = "1-public-key",
       };
   user_data.push_back(test_user);
+
   std::string tvsPrimaryKeyBytes;
-  if (!absl::HexStringToBytes(kTvsPrimaryKey, &tvsPrimaryKeyBytes)) {
-    LOG(ERROR) << "tvs authentication key should be in hex string format";
-    return 1;
-  }
+  EXPECT_EQ(absl::HexStringToBytes(kTvsPrimaryKey, &tvsPrimaryKeyBytes), true);
+
   // Startup TVS
   auto key_fetcher =
       std::make_unique<privacy_sandbox::key_manager::TestKeyFetcher>(
           tvsPrimaryKeyBytes, "", user_data);
   int tvs_listening_port = 7778;
 
-  HATS_ASSIGN_OR_RETURN(
+  HATS_ASSERT_OK_AND_ASSIGN(std::string appraisal_policy_path,
+                            GetRunfilePath(kAppraisalPolicy));
+
+  HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
-      privacy_sandbox::tvs::PolicyFetcher::Create(kAppraisalPolicy),
-      _.PrependWith("Failed to create a policy fetcher: ").LogErrorAndExit());
+      privacy_sandbox::tvs::PolicyFetcher::Create(appraisal_policy_path));
 
-  HATS_ASSIGN_OR_RETURN(
+  HATS_ASSERT_OK_AND_ASSIGN(
       privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
-      policy_fetcher->GetLatestNPolicies(/*n=*/5),
-      _.PrependWith("Failed to get appraisal policies: ").LogErrorAndExit());
+      policy_fetcher->GetLatestNPolicies(/*n=*/5));
 
-  HATS_ASSIGN_OR_RETURN(
+  HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<privacy_sandbox::tvs::TvsService> tvs_service,
       privacy_sandbox::tvs::TvsService::Create({
           .key_fetcher = std::move(key_fetcher),
           .appraisal_policies = std::move(appraisal_policies),
           .enable_policy_signature = false,
           .accept_insecure_policies = true,
-      }),
-      _.PrependWith("Failed to create TVS server: ").LogErrorAndExit());
+      }));
 
   LOG(INFO) << "Starting TVS server on port " << tvs_listening_port;
 
@@ -148,14 +152,19 @@ int main(int argc, char* argv[]) {
   // Startup Launcher
   LOG(INFO) << "read configuration";
 
-  HATS_ASSIGN_OR_RETURN(
-      privacy_sandbox::client::LauncherConfig config,
-      LoadConfig(kLauncherConfig),
-      _.PrependWith("Failed to fetch launcher config with error: ")
-          .LogErrorAndExit());
+  HATS_ASSERT_OK_AND_ASSIGN(std::string launcher_config_path,
+                            GetRunfilePath(kLauncherConfig));
+
+  HATS_ASSERT_OK_AND_ASSIGN(privacy_sandbox::client::LauncherConfig config,
+                            LoadConfig(launcher_config_path));
+
+  HATS_ASSERT_OK_AND_ASSIGN(std::string system_bundle,
+                            GetRunfilePath("system_bundle.tar"));
+
+  config.mutable_cvm_config()->set_hats_system_bundle(system_bundle);
 
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  HATS_ASSIGN_OR_RETURN(
+  HATS_ASSERT_OK_AND_ASSIGN(
       std::shared_ptr<grpc::Channel> tvs_channel,
       privacy_sandbox::tvs::CreateGrpcChannel(
           privacy_sandbox::tvs::CreateGrpcChannelOptions{
@@ -163,13 +172,11 @@ int main(int argc, char* argv[]) {
               .target = absl::StrCat("localhost:",
                                      std::to_string(tvs_listening_port)),
               .access_token = "",
-          }),
-      _.PrependWith("Failed to establish gRPC channel to TVS server")
-          .LogErrorAndExit());
+          }));
 
   channel_map[0] = std::move(tvs_channel);
 
-  HATS_ASSIGN_OR_RETURN(
+  HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<privacy_sandbox::client::HatsLauncher> launcher,
       privacy_sandbox::client::HatsLauncher::Create({
           .config = std::move(config),
@@ -178,36 +185,27 @@ int main(int argc, char* argv[]) {
           .private_key_wrapping_keys =
               privacy_sandbox::client::PrivateKeyWrappingKeys(),
           .tvs_channels = std::move(channel_map),
-          .qemu_log_to_std = absl::GetFlag(FLAGS_qemu_log_to_std),
-      }),
-      _.PrependWith("Failed to create launcher: ").LogErrorAndExit());
+          .qemu_log_to_std = true,
+      }));
 
   // Generate the log file randomly.
-  HATS_RETURN_IF_ERROR(launcher->Start())
-      .PrependWith("Launcher terminated with abnormal status: ")
-      .LogErrorAndExit();
+  HATS_EXPECT_OK(launcher->Start());
 
   // Now here we need to check if app is ready, if it is, start up app client
   // and talk to it.
-  while (!launcher->IsAppReady() && launcher->CheckStatus()) {
+  int counter = 6;
+  while (!launcher->IsAppReady() && launcher->CheckStatus() && counter > 0) {
     std::cout << "Waiting for app to be ready" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(5));
+    counter--;
   }
-  if (!launcher->CheckStatus()) {
-    launcher->Shutdown();
-    tvs_server->Shutdown();
-    LOG(ERROR) << "Qemu failed to launch, rerun test with Logs enabled.";
-    return 1;
-  }
+  EXPECT_EQ(launcher->CheckStatus(), true);
 
   privacy_sandbox::client::TrustedApplicationClient app_client =
       privacy_sandbox::client::TrustedApplicationClient(app_key, kUserId);
 
-  HATS_ASSIGN_OR_RETURN(
-      privacy_sandbox::client::DecryptedResponse response,
-      app_client.SendEcho(),
-      _.PrependWith("Failed to communicate with trusted application: ")
-          .LogErrorAndExit());
+  HATS_ASSERT_OK_AND_ASSIGN(privacy_sandbox::client::DecryptedResponse response,
+                            app_client.SendEcho());
 
   EXPECT_EQ(privacy_sandbox::client::kTestMessage,
             *response.mutable_response());
