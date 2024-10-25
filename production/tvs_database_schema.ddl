@@ -54,12 +54,12 @@ CREATE TABLE KeyEncryptionKeys (
 CREATE UNIQUE INDEX KekResourceNameIndex ON KeyEncryptionKeys(ResourceName);
 
 CREATE TABLE Secrets (
-  SecretId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE SecretIdSequence)),
+  SecretId INT64 NOT NULL,
   UserId INT64 NOT NULL,
   DekId INT64 NOT NULL,
   Secret BYTES(MAX) NOT NULL,
   UpdateTimestamp TIMESTAMP NOT NULL,
-) PRIMARY KEY(SecretId);
+) PRIMARY KEY(SecretId, UserId);
 
 CREATE TABLE TVSPrivateKeys (
   KeyId STRING(1024),
