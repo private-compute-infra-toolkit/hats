@@ -362,6 +362,8 @@ class HatsLauncherImpl final : public HatsLauncher {
 
   bool IsAppReady() const override;
 
+  bool CheckStatus() const override;
+
   // private:
   HatsLauncherImpl(
       LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
@@ -422,6 +424,8 @@ void HatsLauncherImpl::Wait() {
   }
   qemu_->Wait();
 }
+
+bool HatsLauncherImpl::CheckStatus() const { return qemu_->CheckStatus(); }
 
 uint32_t HatsLauncherImpl::GetVsockPort() const { return vsock_port_; }
 

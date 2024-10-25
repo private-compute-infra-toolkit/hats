@@ -145,11 +145,7 @@ int main(int argc, char* argv[]) {
           .RegisterService(tvs_service.get())
           .BuildAndStart();
 
-  // we sleep here because otherwise, the launcher was trying to communicate
-  // with the tvs before the port was bound
-  std::this_thread::sleep_for(std::chrono::seconds(5));
   // Startup Launcher
-
   LOG(INFO) << "read configuration";
 
   HATS_ASSIGN_OR_RETURN(
@@ -193,16 +189,14 @@ int main(int argc, char* argv[]) {
 
   // Now here we need to check if app is ready, if it is, start up app client
   // and talk to it.
-  int counter = 6;
-  while (!launcher->IsAppReady() && counter > 0) {
+  while (!launcher->IsAppReady() && launcher->CheckStatus()) {
     std::cout << "Waiting for app to be ready" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(5));
-    counter--;
   }
-  if (!launcher->IsAppReady()) {
+  if (!launcher->CheckStatus()) {
     launcher->Shutdown();
     tvs_server->Shutdown();
-    LOG(ERROR) << "Application Failed to Launch, rerun test with Logs enabled.";
+    LOG(ERROR) << "Qemu failed to launch, rerun test with Logs enabled.";
     return 1;
   }
 

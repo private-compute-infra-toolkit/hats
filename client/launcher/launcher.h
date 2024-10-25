@@ -65,6 +65,9 @@ class HatsLauncher {
 
   // Whether the enclave app ready for service.
   virtual bool IsAppReady() const = 0;
+
+  // Whether qemu has exited with an error
+  virtual bool CheckStatus() const = 0;
 };
 
 }  // namespace privacy_sandbox::client
