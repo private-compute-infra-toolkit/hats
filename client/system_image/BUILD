@@ -50,7 +50,7 @@ pkg_tar(
     name = "admin_bin",
     srcs = [
         "//client/orchestrator:orchestrator_main",
-        "@oak//oak_containers/agent:oak_containers_agent",
+        "@oak//oak_containers/agent:bin/oak_containers_agent",
     ] + select({
         # Use syslogd from the `prebuilt` directory. This requires the user
         # to run ./client/build-for-hats.sh.

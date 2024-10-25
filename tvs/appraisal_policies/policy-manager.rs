@@ -110,6 +110,7 @@ fn create_endorsements(tee_certificate: &[u8]) -> Endorsements {
     };
     Endorsements {
         r#type: Some(endorsements::Type::OakContainers(ends)),
+        event_endorsements: None,
     }
 }
 

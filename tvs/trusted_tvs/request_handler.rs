@@ -218,12 +218,12 @@ impl<'a> RequestHandler<'a> {
     }
 
     fn validate_signature(&self, evidence: &Evidence, signature: &[u8]) -> anyhow::Result<()> {
-        // oak_attestation_verification::verifier::extract_evidence::verify() returns
+        // oak_attestation_verification::extract::extract_evidence::verify() returns
         // the same proto that includes the parsed application keys; however, we want
         // to verify signatures before we validate the certificate (to early reject invalid requests).
         // Extracting application keys require some processing as they are represented as a CBOR
         // certificate, which contains claims and other values.
-        let extracted_evidence = oak_attestation_verification::verifier::extract_evidence(evidence)
+        let extracted_evidence = oak_attestation_verification::extract::extract_evidence(evidence)
             .context("extracting evidence")?;
         // .map_err(|msg| format!("Failed to extract evidence {}", msg))?;
         let signature = Signature::from_slice(signature)

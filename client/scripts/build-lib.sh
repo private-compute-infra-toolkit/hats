@@ -133,8 +133,8 @@ exports_files([
 EOF
   printf "\nBUILDING OAK CONTAINERS SYSLOGD"
   pushd ../../submodules/oak
-  nix develop --command just oak_containers_syslogd && \
-    cp ./oak_containers/syslogd/target/oak_containers_syslogd_patched "$BUILD_DIR/oak_containers_syslogd"
+  nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
+    cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
   popd
 }
 
@@ -186,6 +186,6 @@ function build_launch_bundle() {
   cp "../scripts/tvs-up.sh" "$BUILD_DIR/"
   # Clean up the extra stuff in the folder.
   rm -rf "$TAR_DIR"
-  rm "$BUILD_DIR/oak_containers_syslogd"
+  rm -f "$BUILD_DIR/oak_containers_syslogd"
   rm "$BUILD_DIR/BUILD"
 }

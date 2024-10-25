@@ -189,6 +189,7 @@ async fn main() -> anyhow::Result<()> {
                 container_layer: None,
             },
         )),
+        event_endorsements: None,
     };
     let (oak_orchestrator_server, oak_crypto_server) = create_services(
         evidence,

@@ -1,5 +1,5 @@
 {
-  "checksum": "9e3ce3dbc58b1f56cf60977327e2e4b17076b1a9f53f187156098d12b61db650",
+  "checksum": "641c7191563889cf1f13222a0aa13d4acb1a71cc2590f541e155b699700c3e43",
   "crates": {
     "acpi 5.1.0": {
       "name": "acpi",
@@ -14162,6 +14162,7 @@
             "default",
             "feature",
             "fs",
+            "mman",
             "mount",
             "process",
             "sched",
