@@ -21,7 +21,7 @@ function build_kv_bundle() {
   pushd ../../submodules/kv-server
   # kv-server has submodules that we need to pull newer commits manually.
   pushd common
-  git checkout af48964e3302d7d4f160641e02b55904ce9ea1c4
+  git checkout ca6f05ec8af424f55eb7a67811077b650c6d295c
   popd
   ./builders/tools/bazel-debian build \
     //production/packaging/hats/data_server:kv-bundle \
