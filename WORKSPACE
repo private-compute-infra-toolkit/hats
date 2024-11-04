@@ -24,16 +24,41 @@ load("@rules_python//python:repositories.bzl", "py_repositories")
 
 py_repositories()
 
-load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
 
 rules_rust_dependencies()
 
+RUST_EDITION = "2021"
+
+RUST_VERSIONS = [
+    "1.76.0",
+    "nightly/2024-09-01",
+]
+
 rust_register_toolchains(
-    edition = "2021",
-    versions = [
-        "1.76.0",
-        "nightly/2024-09-01",
-    ],
+    edition = RUST_EDITION,
+    versions = RUST_VERSIONS,
+)
+
+rust_repository_set(
+    name = "rust_toolchain_repo",
+    edition = RUST_EDITION,
+    exec_triple = "x86_64-unknown-linux-gnu",
+    extra_rustc_flags = {
+        "x86_64-unknown-none": [
+            "-Crelocation-model=static",
+            "-Ctarget-feature=+sse,+sse2,+ssse3,+sse4.1,+sse4.2,+avx,+avx2,+rdrand,-soft-float",
+            "-Ctarget-cpu=x86-64-v3",
+            "-Clink-arg=-zmax-page-size=0x200000",
+        ],
+    },
+    extra_target_triples = {
+        "x86_64-unknown-none": [
+            "@platforms//cpu:x86_64",
+            "@platforms//os:none",
+        ],
+    },
+    versions = RUST_VERSIONS,
 )
 
 load("@rules_rust//tools/rust_analyzer:deps.bzl", "rust_analyzer_dependencies")
@@ -264,6 +289,16 @@ gcc_register_toolchain(
     name = "gcc_toolchain_x86_64",
     sysroot_variant = "x86_64",
     target_arch = ARCHS.x86_64,
+)
+
+gcc_register_toolchain(
+    name = "gcc_toolchain_x86_64_unknown_none",
+    extra_ldflags = ["-nostdlib"],
+    target_arch = ARCHS.x86_64,
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:none",
+    ],
 )
 
 # Declare submodules as local repository so that `build //...` doesn't try to build them.
