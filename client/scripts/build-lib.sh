@@ -103,8 +103,8 @@ function build_test_application_container_bundle_tar() {
 function build_test_main() {
   local BUILD_DIR="$1"
   printf "\nBUILDING TEST MAIN..."
-  bazel build -c opt //client/trusted_application:test_main
-  cp -f ../../bazel-bin/client/trusted_application/test_main "$BUILD_DIR"
+  bazel build -c opt //client/trusted_application:trusted_application_test
+  cp -f ../../bazel-bin/client/trusted_application/trusted_application_test "$BUILD_DIR"
 }
 
 function build_snphost() {
