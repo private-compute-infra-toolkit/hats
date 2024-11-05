@@ -100,13 +100,6 @@ function build_test_application_container_bundle_tar() {
   cp -f ../../bazel-bin/client/trusted_application/bundle.tar "$BUILD_DIR"
 }
 
-function build_test_main() {
-  local BUILD_DIR="$1"
-  printf "\nBUILDING TEST MAIN..."
-  bazel build -c opt //client/trusted_application:trusted_application_test
-  cp -f ../../bazel-bin/client/trusted_application/trusted_application_test "$BUILD_DIR"
-}
-
 function build_snphost() {
   local BUILD_DIR="$1"
   pushd ../../submodules/oak
@@ -188,4 +181,31 @@ function build_launch_bundle() {
   rm -rf "$TAR_DIR"
   rm -f "$BUILD_DIR/oak_containers_syslogd"
   rm "$BUILD_DIR/BUILD"
+}
+
+# A tar file contains all launch required data.
+# A textproto file contains all launch parameters.
+# Secrets are in parameters only.
+function build_test_bundles() {
+  echo "Building Launcher Bundle"
+  local BUILD_DIR="$1"
+  local STAGE0="$2"
+  local INITRD="$3"
+  local KERNEL="$4"
+  local SYSTEM="$5"
+  local RUNTIME="$6"
+  local APPRISAL_POLICY="$7"
+  local LAUNCHER_CONFIG="$8"
+  local TAR_DIR="$BUILD_DIR/tar"
+  mkdir -p "$TAR_DIR"
+  mv -f "$STAGE0" "$TAR_DIR/stage0_bin"
+  mv -f "$INITRD" "$TAR_DIR/initrd.cpio.xz"
+  mv -f "$KERNEL" "$TAR_DIR/kernel_bin"
+  mv -f "$SYSTEM" "$TAR_DIR/system.tar.xz"
+  tar -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
+  mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
+  # Clean up the extra stuff in the folder.
+  rm -rf ../prebuilt
+  rm -rf "$TAR_DIR"
+  rm -f "$BUILD_DIR/oak_containers_syslogd"
 }

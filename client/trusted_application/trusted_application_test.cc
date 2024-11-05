@@ -163,6 +163,9 @@ TEST(TrustedApplication, SuccessfulEcho) {
 
   config.mutable_cvm_config()->set_hats_system_bundle(system_bundle);
 
+  HATS_ASSERT_OK_AND_ASSIGN(std::string runtime_bundle,
+                            GetRunfilePath("runtime_bundle.tar"));
+  config.mutable_cvm_config()->set_runc_runtime_bundle(runtime_bundle);
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   HATS_ASSERT_OK_AND_ASSIGN(
       std::shared_ptr<grpc::Channel> tvs_channel,
