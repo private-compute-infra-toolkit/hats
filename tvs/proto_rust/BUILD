@@ -22,6 +22,9 @@ package(
 rust_library(
     name = "tvs-proto",
     srcs = ["tvs-proto.rs"],
+    proc_macro_deps = [
+        "@oak_crates_index//:prost-derive",
+    ],
     deps = [
         ":build",
         "@oak//oak_proto_rust",
@@ -43,7 +46,6 @@ cargo_build_script(
         "//tvs/proto:appraisal_policies_proto",
         "//tvs/proto:tvs_messages_proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
-        "@com_google_protobuf//:protoc",
         "@com_google_protobuf//:well_known_type_protos",
         "@oak//proto:digest.proto",
         "@oak//proto/attestation:eventlog.proto",
@@ -51,7 +53,11 @@ cargo_build_script(
         "@oak//proto/attestation:reference_value.proto",
         "@oak//proto/attestation:tcb_version.proto",
     ],
+    tools = [
+        "@com_google_protobuf//:protoc",
+    ],
     deps = [
+        "@oak//oak_proto_build_utils",
         "@oak_crates_index//:prost-build",
     ],
 )
