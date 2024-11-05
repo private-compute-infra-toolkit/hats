@@ -15,19 +15,17 @@
 
 set -e
 
-SCRIPTS_DIR="$(dirname "$0")"
-readonly SCRIPTS_DIR
-PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
+TEST_APP_DIR="$(dirname "$0")"
+readonly TEST_APP_DIR
+PREBUILT_DIR="$(readlink -f "$TEST_APP_DIR/../prebuilt")"
+TEST_DATA_DIR="$(readlink -f "$TEST_APP_DIR/test_data")"
 readonly PREBUILT_DIR
-cd "$SCRIPTS_DIR"
+cd "$TEST_APP_DIR"
 mkdir -p "$PREBUILT_DIR"
 git submodule update --init --recursive
 
 # shellcheck disable=1091
 source ../scripts/build-lib.sh
-
-# build test main
-build_test_main "$PREBUILT_DIR"
 
 # build the workload and bundle them together.
 build_oak_containers_stage0 "$PREBUILT_DIR"
@@ -39,8 +37,8 @@ build_test_application_container_bundle_tar "$PREBUILT_DIR"
 
 
 # bundle everything nicely
-build_launch_bundle \
-  "$PREBUILT_DIR" \
+build_test_bundles \
+  "$TEST_DATA_DIR" \
   "$PREBUILT_DIR/stage0_bin" \
   "$PREBUILT_DIR/stage1.cpio" \
   "$PREBUILT_DIR/bzImage" \
