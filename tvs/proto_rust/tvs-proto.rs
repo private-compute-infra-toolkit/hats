@@ -11,9 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#![no_std]
 
 pub mod privacy_sandbox {
     pub mod tvs {
+        use core::{concat, env, include};
         include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
     }
 }
