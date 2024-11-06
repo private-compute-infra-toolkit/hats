@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@oak//bazel:defs.bzl", "oci_runtime_bundle")
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@rules_oci//oci:defs.bzl", "oci_image")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
@@ -37,8 +37,9 @@ cc_binary(
     ],
 )
 
-cc_test(
+cc_binary(
     name = "trusted_application_test",
+    testonly = 1,
     srcs = ["trusted_application_test.cc"],
     args = [
         "--minloglevel=0",
@@ -55,6 +56,7 @@ cc_test(
         "//client/proto:trusted_service_cc_proto",
         "//crypto:test-ec-key",
         "//key_manager:test-key-fetcher",
+        "//status_macro:status_macros",
         "//status_macro:status_test_macros",
         "//tvs/appraisal_policies:policy-fetcher-local",
         "//tvs/credentials",
@@ -70,7 +72,6 @@ cc_test(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf",
     ],
 )
