@@ -67,7 +67,7 @@ function build_oak_containers_stage0() {
   printf "\nBUILDING OAK CONTAINERS STAGE0..."
   pushd ../../submodules/oak
   nix develop --command just stage0_bin && \
-    rsync ./generated/stage0_bin "$BUILD_DIR"
+    rsync ./artifacts/stage0_bin "$BUILD_DIR"
   popd
 }
 
@@ -76,7 +76,7 @@ function build_oak_containers_stage1() {
   printf "\nBUILDING OAK CONTAINERS STAGE1..."
   pushd ../../submodules/oak
   nix develop --command just stage1_cpio && \
-    rsync ./target/stage1.cpio "$BUILD_DIR"
+    rsync ./artifacts/stage1.cpio "$BUILD_DIR"
   popd
 }
 

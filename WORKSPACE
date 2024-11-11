@@ -144,9 +144,9 @@ hats_crate_repositories()
 
 http_archive(
     name = "oak",
-    sha256 = "4e2a153133fa137dcd15eb83b12519e67c5f7ee525498c7b59bbbc44132e1de6",
-    strip_prefix = "oak-9ca339c91f6ea8ad5d01cbf738620537dab643d5",
-    url = "https://github.com/project-oak/oak/archive/9ca339c91f6ea8ad5d01cbf738620537dab643d5.tar.gz",
+    sha256 = "bfcb5b72bc4ba0829cec3285cf415736af13c712e6f25ab34c69e811942b98d7",
+    strip_prefix = "oak-55607dd8e075bca3607b616efca041a16bd1dedf",
+    url = "https://github.com/project-oak/oak/archive/55607dd8e075bca3607b616efca041a16bd1dedf.tar.gz",
 )
 
 load("@oak//bazel/crates:repositories.bzl", "create_oak_crate_repositories")
@@ -257,10 +257,11 @@ oci_pull(
     platforms = ["linux/amd64"],
 )
 
-oci_pull(
-    name = "oak_containers_sysimage_base",
-    digest = "sha256:9c88d3bed17cb49e4754de5b0ac7ed5cae3a7d033268278510c08c46b366f5d7",
-    image = "europe-west2-docker.pkg.dev/oak-ci/oak-containers-sysimage-base/oak-containers-sysimage-base@sha256:9c88d3bed17cb49e4754de5b0ac7ed5cae3a7d033268278510c08c46b366f5d7",
+http_file(
+    name = "oak_containers_system_image_base",
+    downloaded_file_path = "base-image.tar.xz",
+    sha256 = "b826bc141a91ae385f9c45a43eb800f691eca92dc537f0dc5d743c51df459ecb",
+    url = "https://storage.googleapis.com/oak-bins/base-image/b826bc141a91ae385f9c45a43eb800f691eca92dc537f0dc5d743c51df459ecb.tar.xz",
 )
 
 load("@oak//bazel:repositories.bzl", "oak_toolchain_repositories")

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@oak//bazel:defs.bzl", "oci_runtime_bundle")
-load("@rules_oci//oci:defs.bzl", "oci_image")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 package(
@@ -64,19 +62,16 @@ pkg_tar(
     package_dir = "/usr/bin/",
 )
 
-oci_image(
-    name = "hats_system_oci_image",
-    base = "@oak_containers_sysimage_base",
-    tars = [
+pkg_tar(
+    name = "hats_system_image",
+    # Order matters here as we intend to overwrite certain files in Oak's system
+    # image. Oak system image should come first.
+    # buildifier: leave-alone
+    deps = [
+        "@oak_containers_system_image_base//file:base-image.tar.xz",
         ":admin_bin",
-        ":services",
         ":interface",
+        ":services",
         ":tvs_public_keys",
     ],
-)
-
-oci_runtime_bundle(
-    name = "hats_system_image",
-    image = ":hats_system_oci_image",
-    rootfs_only = True,
 )
