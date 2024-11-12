@@ -38,7 +38,7 @@ function build_oak_containers_kernel() {
   printf "\nBUILDING OAK CONTAINERS KERNEL..."
   pushd ../../submodules/oak/
   nix develop --command just oak_containers_kernel && \
-    rsync ./oak_containers/kernel/target/bzImage "$BUILD_DIR"
+    rsync artifacts/oak_containers_kernel "$BUILD_DIR//bzImage"
   popd
 }
 
