@@ -31,6 +31,8 @@ rust_library(
         "@enclave_crate_index//:p256",
         "@enclave_crate_index//:pkcs8",
         "@enclave_crate_index//:primeorder",
+        "@enclave_crate_index//:rand_chacha",
+        "@enclave_crate_index//:rand_core",
         "@enclave_crate_index//:sha2",
     ],
 )

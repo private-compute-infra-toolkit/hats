@@ -219,6 +219,15 @@ crates_repository(
             default_features = False,
             version = "0.13.2",
         ),
+        "rand_chacha": crate.spec(
+            default_features = False,
+            version = "0.3.1",
+        ),
+        "rand_core": crate.spec(
+            default_features = False,
+            features = ["getrandom"],
+            version = "0.6.4",
+        ),
         "sha2": crate.spec(
             default_features = False,
             version = "0.10.8",

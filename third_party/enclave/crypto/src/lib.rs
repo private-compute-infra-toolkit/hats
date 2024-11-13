@@ -71,6 +71,7 @@ mod rustcrypto {
     use p256::ecdsa::signature::Signer;
     use pkcs8::{DecodePrivateKey, EncodePrivateKey};
     use primeorder::PrimeField;
+    use rand_core::{RngCore, SeedableRng};
     use sha2::Digest;
 
     use crate::{
@@ -83,7 +84,8 @@ mod rustcrypto {
     use alloc::vec::Vec;
 
     pub fn rand_bytes(output: &mut [u8]) {
-        panic!("unimplemented");
+        let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
+        rng.fill_bytes(output);
     }
 
     /// Perform the HKDF operation from https://datatracker.ietf.org/doc/html/rfc5869
@@ -139,8 +141,7 @@ mod rustcrypto {
     impl P256Scalar {
         pub fn generate() -> P256Scalar {
             let mut ret = [0u8; P256_SCALAR_LENGTH];
-            // Warning: not very random.
-            ret[0] = 1;
+            rand_bytes(&mut ret);
             P256Scalar {
                 v: p256::Scalar::from_repr(ret.into()).unwrap(),
             }
