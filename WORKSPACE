@@ -174,6 +174,55 @@ crates_repository(
     cargo_lockfile = "//:Cargo.enclave-bazel.lock",
     lockfile = "//:cargo-enclave-bazel-lock.json",
     packages = {
+        "aead": crate.spec(
+            default_features = False,
+            features = ["alloc"],
+            version = "0.5.2",
+        ),
+        "aes-gcm": crate.spec(
+            default_features = False,
+            features = ["aes"],
+            version = "0.10.3",
+        ),
+        "ecdsa": crate.spec(
+            default_features = False,
+            features = [
+                "der",
+                "pkcs8",
+                "signing",
+                "der",
+                "pem",
+                "pkcs8",
+            ],
+            version = "0.16.6",
+        ),
+        "hkdf": crate.spec(
+            default_features = False,
+            version = "0.12.3",
+        ),
+        "p256": crate.spec(
+            default_features = False,
+            features = [
+                "alloc",
+                "arithmetic",
+                "ecdsa-core",
+                "ecdsa",
+                "pkcs8",
+            ],
+            version = "0.13.2",
+        ),
+        "pkcs8": crate.spec(
+            default_features = False,
+            version = "0.10.2",
+        ),
+        "primeorder": crate.spec(
+            default_features = False,
+            version = "0.13.2",
+        ),
+        "sha2": crate.spec(
+            default_features = False,
+            version = "0.10.8",
+        ),
         "static_assertions": crate.spec(version = "*"),
     },
 )
