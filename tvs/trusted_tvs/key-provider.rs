@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::P256Scalar;
-
 /// Trait to provide key materials to TVS service.
 pub trait KeyProvider {
     /// Primary private key used by TVS for handshake.
-    fn get_primary_private_key(&self) -> anyhow::Result<P256Scalar>;
+    fn get_primary_private_key(&self) -> anyhow::Result<Vec<u8>>;
     /// Secondary private key used by TVS for handshake.
-    fn get_secondary_private_key(&self) -> Option<anyhow::Result<P256Scalar>>;
+    fn get_secondary_private_key(&self) -> Option<anyhow::Result<Vec<u8>>>;
     /// Get the registered user_id for `user_authentication_public_key`.
     fn user_id_for_authentication_key(
         &self,

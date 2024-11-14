@@ -97,7 +97,6 @@ rust_library(
         ":key-fetcher-wrapper-bridge",
         ":key-provider",
         "@cxx.rs//:cxx",
-        "@enclave//crypto",
         "@oak_crates_index//:anyhow",
     ],
 )
@@ -114,7 +113,6 @@ rust_library(
     name = "key-provider",
     srcs = ["key-provider.rs"],
     deps = [
-        "@enclave//crypto",
         "@oak_crates_index//:anyhow",
     ],
 )

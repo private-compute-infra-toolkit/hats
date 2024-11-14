@@ -363,11 +363,11 @@ mod tests {
     }
 
     impl<'a> key_provider::KeyProvider for TestKeyFetcher<'a> {
-        fn get_primary_private_key(&self) -> anyhow::Result<P256Scalar> {
+        fn get_primary_private_key(&self) -> anyhow::Result<Vec<u8>> {
             anyhow::bail!("unimplemented.")
         }
 
-        fn get_secondary_private_key(&self) -> Option<anyhow::Result<P256Scalar>> {
+        fn get_secondary_private_key(&self) -> Option<anyhow::Result<Vec<u8>>> {
             None
         }
 

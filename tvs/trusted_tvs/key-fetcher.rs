@@ -15,8 +15,6 @@
 // Define foreign function interface (FFI) to use the C++ KeyFetcherWrapper in
 // Rust.
 
-use crypto::{P256Scalar, P256_SCALAR_LENGTH};
-
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 pub mod ffi {
     struct IntResult {
@@ -79,24 +77,15 @@ impl KeyFetcher {
 }
 
 impl key_provider::KeyProvider for KeyFetcher {
-    fn get_primary_private_key(&self) -> anyhow::Result<P256Scalar> {
+    fn get_primary_private_key(&self) -> anyhow::Result<Vec<u8>> {
         let primary_private_key = self.key_fetcher_wrapper.get_primary_private_key();
         if !primary_private_key.error.is_empty() {
             return Err(anyhow::anyhow!(primary_private_key.error));
         }
-        let primary_private_key_scalar: P256Scalar = primary_private_key
-            .value
-            .as_slice()
-            .try_into()
-            .map_err(|_| {
-                anyhow::anyhow!(
-                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
-                )
-            })?;
-        Ok(primary_private_key_scalar)
+        Ok(primary_private_key.value)
     }
 
-    fn get_secondary_private_key(&self) -> Option<anyhow::Result<P256Scalar>> {
+    fn get_secondary_private_key(&self) -> Option<anyhow::Result<Vec<u8>>> {
         let secondary_private_key = self.key_fetcher_wrapper.get_secondary_private_key();
         if !secondary_private_key.error.is_empty() {
             return Some(Err(anyhow::anyhow!(secondary_private_key.error)));
@@ -104,14 +93,7 @@ impl key_provider::KeyProvider for KeyFetcher {
         if secondary_private_key.value.is_empty() {
             return None;
         }
-        let Ok(secondary_private_key_scalar) =
-            TryInto::<P256Scalar>::try_into(secondary_private_key.value.as_slice())
-        else {
-            return Some(Err(anyhow::anyhow!(
-                "Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
-            )));
-        };
-        Some(Ok(secondary_private_key_scalar))
+        Some(Ok(secondary_private_key.value))
     }
 
     fn user_id_for_authentication_key(&self, public_key: &[u8]) -> anyhow::Result<i64> {

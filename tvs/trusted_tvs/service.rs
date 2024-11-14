@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::request_handler::RequestHandler;
+use crypto::P256_SCALAR_LENGTH;
 use crypto::{P256Scalar, P256_X962_LENGTH};
 use key_fetcher::KeyFetcher;
 use key_provider::KeyProvider;
@@ -34,11 +35,27 @@ impl Service {
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
     ) -> anyhow::Result<Self> {
-        let primary_private_key = key_fetcher.get_primary_private_key()?;
+        let primary_private_key: P256Scalar = key_fetcher
+            .get_primary_private_key()?
+            .as_slice()
+            .try_into()
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
+            })?;
         let secondary_private_key = key_fetcher.get_secondary_private_key();
         let (secondary_public_key, secondary_private_key) = if secondary_private_key.is_some() {
             // Using `unwrap()` since we already check `is_some()` is true above.
-            let secondary_private_key_value = secondary_private_key.unwrap()?;
+            let secondary_private_key_value: P256Scalar = secondary_private_key
+                .unwrap()?
+                .as_slice()
+                .try_into()
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                    "Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
+                })?;
             (
                 Some(secondary_private_key_value.compute_public_key()),
                 Some(secondary_private_key_value),
