@@ -24,6 +24,7 @@ rust_test(
 rust_library(
     name = "handshake_nostd",
     srcs = glob(["src/**"]),
+    crate_name = "handshake",
     deps = [
         "//crypto:crypto_nostd",
         "@enclave_crate_index//:static_assertions",
