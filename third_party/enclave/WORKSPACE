@@ -78,6 +78,11 @@ crates_repository(
             features = ["getrandom"],
             version = "0.6.4",
         ),
+        "getrandom": crate.spec(
+            default_features = False,
+            features = ["rdrand"],
+            version = "0.2.15",
+        ),
         "aead": crate.spec(
             default_features = False,
             features = ["alloc"],

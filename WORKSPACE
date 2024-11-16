@@ -196,6 +196,11 @@ crates_repository(
             ],
             version = "0.16.6",
         ),
+        "getrandom": crate.spec(
+            default_features = False,
+            features = ["rdrand"],
+            version = "0.2.15",
+        ),
         "hkdf": crate.spec(
             default_features = False,
             version = "0.12.3",

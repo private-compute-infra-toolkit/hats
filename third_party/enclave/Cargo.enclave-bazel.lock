@@ -156,6 +156,7 @@ dependencies = [
  "aead",
  "aes-gcm",
  "ecdsa",
+ "getrandom",
  "hex",
  "hkdf",
  "p256",

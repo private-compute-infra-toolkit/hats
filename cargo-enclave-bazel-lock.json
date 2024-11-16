@@ -1,5 +1,5 @@
 {
-  "checksum": "63fb7904278246a2e7b816412802375fe31fcbe4d0172e7064e3bf96d5d0b714",
+  "checksum": "10c8dcf2890870e850768c2b30402f78b924cf3d442e0aab393ba3f2b20ed822",
   "crates": {
     "aead 0.5.2": {
       "name": "aead",
@@ -911,6 +911,10 @@
               "target": "ecdsa"
             },
             {
+              "id": "getrandom 0.2.15",
+              "target": "getrandom"
+            },
+            {
               "id": "hkdf 0.12.4",
               "target": "hkdf"
             },
@@ -1317,6 +1321,12 @@
         "compile_data_glob": [
           "**"
         ],
+        "crate_features": {
+          "common": [
+            "rdrand"
+          ],
+          "selects": {}
+        },
         "deps": {
           "common": [
             {
@@ -3374,6 +3384,7 @@
     "aead 0.5.2",
     "aes-gcm 0.10.3",
     "ecdsa 0.16.9",
+    "getrandom 0.2.15",
     "hkdf 0.12.4",
     "p256 0.13.2",
     "pkcs8 0.10.2",
