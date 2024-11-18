@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern crate alloc;
+
+use alloc::string::String;
+use alloc::vec::Vec;
 use anyhow::Context;
 use crypto::{P256Scalar, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
