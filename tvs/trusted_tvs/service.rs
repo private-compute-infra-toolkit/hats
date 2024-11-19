@@ -15,7 +15,6 @@
 use crate::request_handler::RequestHandler;
 use crypto::P256_SCALAR_LENGTH;
 use crypto::{P256Scalar, P256_X962_LENGTH};
-use key_fetcher::KeyFetcher;
 use key_provider::KeyProvider;
 use policy_manager::PolicyManager;
 
@@ -24,18 +23,18 @@ pub struct Service {
     primary_public_key: [u8; P256_X962_LENGTH],
     secondary_private_key: Option<P256Scalar>,
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
-    key_fetcher: KeyFetcher,
+    key_provider: Box<dyn KeyProvider + Send + Sync>,
     policy_manager: PolicyManager,
 }
 
 impl Service {
     pub fn new(
-        key_fetcher: KeyFetcher,
+        key_provider: Box<dyn KeyProvider + Send + Sync>,
         policies: &[u8],
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
     ) -> anyhow::Result<Self> {
-        let primary_private_key: P256Scalar = key_fetcher
+        let primary_private_key: P256Scalar = key_provider
             .get_primary_private_key()?
             .as_slice()
             .try_into()
@@ -44,7 +43,7 @@ impl Service {
                     "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
                 )
             })?;
-        let secondary_private_key = key_fetcher.get_secondary_private_key();
+        let secondary_private_key = key_provider.get_secondary_private_key();
         let (secondary_public_key, secondary_private_key) = if secondary_private_key.is_some() {
             // Using `unwrap()` since we already check `is_some()` is true above.
             let secondary_private_key_value: P256Scalar = secondary_private_key
@@ -73,7 +72,7 @@ impl Service {
             secondary_private_key,
             secondary_public_key,
             policy_manager,
-            key_fetcher,
+            key_provider,
         })
     }
     pub fn create_request_handler(&self, time_milis: i64, user: &str) -> Box<RequestHandler> {
@@ -84,7 +83,7 @@ impl Service {
             self.secondary_private_key.as_ref(),
             self.secondary_public_key.as_ref(),
             &self.policy_manager,
-            &self.key_fetcher,
+            &*self.key_provider,
             user,
         ))
     }
@@ -229,6 +228,7 @@ mod tests {
             /*user_secret=*/ b"test_secret1",
             /*public_key=*/ b"test_public_key1",
         );
+
         let service = new_service(
             key_fetcher,
             &default_appraisal_policies(),

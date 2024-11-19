@@ -393,15 +393,17 @@ mod tests {
             tvs_authentication_key: tvs_authentication_key.bytes().to_vec(),
             tvs_service: Arc::new(
                 trusted_tvs::service::Service::new(
-                    key_fetcher::KeyFetcher::new(create_test_key_fetcher_wrapper(
-                        /*primary_private_key=*/ &tvs_private_key.bytes(),
-                        /*secondary_private_key,*/ &[],
-                        /*user_id=*/ 1,
-                        /*user_authentication_public_key=*/
-                        &tvs_authentication_key.compute_public_key(),
-                        /*key_id=*/ 64,
-                        /*user_secret=*/ b"test_secret1",
-                        /*public_key=*/ b"test_public_key1",
+                    Box::new(key_fetcher::KeyFetcher::new(
+                        create_test_key_fetcher_wrapper(
+                            /*primary_private_key=*/ &tvs_private_key.bytes(),
+                            /*secondary_private_key,*/ &[],
+                            /*user_id=*/ 1,
+                            /*user_authentication_public_key=*/
+                            &tvs_authentication_key.compute_public_key(),
+                            /*key_id=*/ 64,
+                            /*user_secret=*/ b"test_secret1",
+                            /*public_key=*/ b"test_public_key1",
+                        ),
                     )),
                     &default_appraisal_policies(),
                     /*enable_policy_signature=*/ true,
@@ -472,15 +474,17 @@ mod tests {
             tvs_authentication_key: P256Scalar::generate().bytes().to_vec(),
             tvs_service: Arc::new(
                 trusted_tvs::service::Service::new(
-                    key_fetcher::KeyFetcher::new(create_test_key_fetcher_wrapper(
-                        /*primary_private_key=*/ &tvs_private_key.bytes(),
-                        /*secondary_private_key,*/ &[],
-                        /*user_id=*/ 1,
-                        /*user_authentication_public_key=*/
-                        &P256Scalar::generate().compute_public_key(),
-                        /*key_id=*/ 64,
-                        /*user_secret=*/ b"test_secret1",
-                        /*public_key=*/ b"test_public_key1",
+                    Box::new(key_fetcher::KeyFetcher::new(
+                        create_test_key_fetcher_wrapper(
+                            /*primary_private_key=*/ &tvs_private_key.bytes(),
+                            /*secondary_private_key,*/ &[],
+                            /*user_id=*/ 1,
+                            /*user_authentication_public_key=*/
+                            &P256Scalar::generate().compute_public_key(),
+                            /*key_id=*/ 64,
+                            /*user_secret=*/ b"test_secret1",
+                            /*public_key=*/ b"test_public_key1",
+                        ),
                     )),
                     &default_appraisal_policies(),
                     /*enable_policy_signature=*/ true,
@@ -543,14 +547,16 @@ mod tests {
             tvs_authentication_key: vec![],
             tvs_service: Arc::new(
                 trusted_tvs::service::Service::new(
-                    key_fetcher::KeyFetcher::new(create_test_key_fetcher_wrapper(
-                        /*primary_private_key=*/ &tvs_private_key.bytes(),
-                        /*secondary_private_key,*/ &[],
-                        /*user_id=*/ 1,
-                        /*user_authentication_public_key=*/ &[],
-                        /*key_id=*/ 64,
-                        /*user_secret=*/ b"test_secret1",
-                        /*public_key=*/ b"test_public_key1",
+                    Box::new(key_fetcher::KeyFetcher::new(
+                        create_test_key_fetcher_wrapper(
+                            /*primary_private_key=*/ &tvs_private_key.bytes(),
+                            /*secondary_private_key,*/ &[],
+                            /*user_id=*/ 1,
+                            /*user_authentication_public_key=*/ &[],
+                            /*key_id=*/ 64,
+                            /*user_secret=*/ b"test_secret1",
+                            /*public_key=*/ b"test_public_key1",
+                        ),
                     )),
                     &default_appraisal_policies(),
                     /*enable_policy_signature=*/ true,

@@ -269,7 +269,7 @@ mod tests {
         let client_private_key = P256Scalar::generate();
         let user_id = 1;
         let key_id = 11;
-        let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
+        let key_fetcher = Box::new(KeyFetcher::new(create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
             user_id,
@@ -277,7 +277,7 @@ mod tests {
             key_id,
             /*user_secret=*/ b"test_secret1",
             /*public_key=*/ b"test_public_key1",
-        ));
+        )));
         let service = trusted_tvs::service::Service::new(
             key_fetcher,
             &default_appraisal_policies(),
@@ -376,7 +376,7 @@ mod tests {
 
         let user_id = 1;
         let key_id = 11;
-        let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
+        let key_fetcher = Box::new(KeyFetcher::new(create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
             user_id,
@@ -384,7 +384,7 @@ mod tests {
             key_id,
             /*user_secret=*/ b"test_secret1",
             /*public_key=*/ b"test_public_key1",
-        ));
+        )));
         let service = trusted_tvs::service::Service::new(
             key_fetcher,
             &default_appraisal_policies(),
