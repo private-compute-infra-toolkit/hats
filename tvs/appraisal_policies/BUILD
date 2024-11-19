@@ -91,10 +91,10 @@ rust_library(
     crate_name = "policy_signature",
     deps = [
         "//tvs/proto_rust:tvs-proto",
-        "@hats_crate_index//:hex",
-        "@hats_crate_index//:p256",
         "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",
+        "@oak_crates_index//:hex",
+        "@oak_crates_index//:p256",
         "@oak_crates_index//:prost",
     ],
 )
@@ -109,14 +109,15 @@ rust_test(
 rust_library(
     name = "policy-manager",
     srcs = ["policy-manager.rs"],
+    crate_features = ["regex"],
     deps = [
         "//tvs/appraisal_policies:policy-signature",
         "//tvs/proto_rust:tvs-proto",
         "@hats_crate_index//:hex",
-        "@hats_crate_index//:p256",
         "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",
         "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",
+        "@oak_crates_index//:p256",
         "@oak_crates_index//:prost",
     ],
 )
@@ -126,4 +127,21 @@ rust_test(
     size = "small",
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = ":policy-manager",
+    crate_features = ["regex"],
+)
+
+rust_library(
+    name = "policy-manager-noregex",
+    srcs = ["policy-manager.rs"],
+    crate_name = "policy_manager",
+    deps = [
+        "//tvs/appraisal_policies:policy-signature",
+        "//tvs/proto_rust:tvs-proto",
+        "@oak//oak_attestation_verification",
+        "@oak//oak_proto_rust",
+        "@oak_crates_index//:anyhow",
+        "@oak_crates_index//:hex",
+        "@oak_crates_index//:p256",
+        "@oak_crates_index//:prost",
+    ],
 )

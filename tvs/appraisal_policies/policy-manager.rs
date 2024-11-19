@@ -16,12 +16,14 @@
 extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
+#[cfg(feature = "regex")]
+use oak_proto_rust::oak::attestation::v1::Regex;
 use oak_proto_rust::oak::attestation::v1::{
     binary_reference_value, endorsements, kernel_binary_reference_value, reference_values,
     text_reference_value, AmdSevReferenceValues, BinaryReferenceValue,
     ContainerLayerReferenceValues, Digests, Endorsements, Evidence, InsecureReferenceValues,
     KernelBinaryReferenceValue, KernelDigests, KernelLayerReferenceValues,
-    OakContainersEndorsements, OakContainersReferenceValues, ReferenceValues, Regex,
+    OakContainersEndorsements, OakContainersReferenceValues, ReferenceValues,
     RootLayerEndorsements, RootLayerReferenceValues, SkipVerification, SystemLayerReferenceValues,
     TextReferenceValue,
 };
@@ -62,6 +64,7 @@ impl PolicyManager {
         }?;
         Ok(Self { reference_values })
     }
+
     // Check evidence against the appraisal policies.
     pub fn check_evidence(
         &self,
@@ -71,7 +74,18 @@ impl PolicyManager {
     ) -> anyhow::Result<()> {
         let endorsement = create_endorsements(tee_certificate);
         for policy in &self.reference_values {
+            #[cfg(feature = "regex")]
             match oak_attestation_verification_with_regex::verifier::verify(
+                time_milis,
+                evidence,
+                &endorsement,
+                policy,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(_) => continue,
+            };
+            #[cfg(not(feature = "regex"))]
+            match oak_attestation_verification::verifier::verify(
                 time_milis,
                 evidence,
                 &endorsement,
@@ -226,10 +240,15 @@ fn get_kernel_layer(measurement: &Measurement) -> anyhow::Result<KernelLayerRefe
                 },
             )),
         }),
+        #[cfg(feature = "regex")]
         kernel_cmd_line_text: Some(TextReferenceValue {
             r#type: Some(text_reference_value::Type::Regex(Regex {
                 value: measurement.kernel_cmd_line_regex.clone(),
             })),
+        }),
+        #[cfg(not(feature = "regex"))]
+        kernel_cmd_line_text: Some(TextReferenceValue {
+            r#type: Some(text_reference_value::Type::Skip(SkipVerification {})),
         }),
         init_ram_fs: Some(BinaryReferenceValue {
             r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
