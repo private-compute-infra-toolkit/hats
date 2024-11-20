@@ -254,6 +254,10 @@ impl<'a> RequestHandler<'a> {
     pub fn is_terminated(&self) -> bool {
         self.terminated
     }
+
+    pub fn handshake_hash(&self) -> Vec<u8> {
+        self.handshake_hash.to_vec()
+    }
 }
 
 #[cfg(test)]
