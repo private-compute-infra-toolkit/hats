@@ -116,3 +116,30 @@ rust_library(
         "@oak_crates_index//:anyhow",
     ],
 )
+
+rust_library(
+    name = "trusted-tvs-enclave",
+    srcs = [
+        "request_handler.rs",
+        "service.rs",
+        "trusted_tvs.rs",
+    ],
+    crate_features = ["noffi"],
+    crate_name = "trusted_tvs",
+    crate_root = "trusted_tvs.rs",
+    deps = [
+        "//tvs/proto_rust:tvs-proto",
+        "//tvs/appraisal_policies:policy-manager-noregex",
+        "@oak_crates_index//:p256",
+        # Use the same version oak uses protos generated from a different
+        # prost version are not compatible. Here we are referring to the
+        # attestation messages.
+        "@oak_crates_index//:prost",
+        "@oak//oak_proto_rust",
+        "@oak//oak_attestation_verification",
+        "@enclave//crypto:crypto_nostd",
+        "@enclave//handshake:handshake_nostd",
+        ":key-provider",
+        "@oak_crates_index//:anyhow",
+    ],
+)
