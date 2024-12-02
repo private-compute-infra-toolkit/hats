@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HATS_TVS_STANDALONE_SERVER_SERVICE_
-#define HATS_TVS_STANDALONE_SERVER_SERVICE_
+#ifndef HATS_TVS_UNTRUSTED_TVS_SERVICE_
+#define HATS_TVS_UNTRUSTED_TVS_SERVICE_
 
 #include <memory>
+#include <string>
 
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"
@@ -24,14 +25,15 @@
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/trusted_tvs/trusted_tvs.rs.h"
+#include "tvs/untrusted_tvs/launcher.rs.h"
 
 namespace privacy_sandbox::tvs {
 
 // An implementation of TeeVerificationService.
 // The service exports one bidirectional streaming rpc, namely VerifyReport.
 // The server acts as a pipe between clients and the trusted tee verification
-// service. The server is agnostic to the messages. It receives bytes from gRPC
+// service. The server launches a VMM that runs the trusted software.
+// The server is agnostic to the messages. It receives bytes from gRPC
 // clients, passes them to the trusted TVS, and pass back bytes received from
 // the trusted TVS to client. The trusted TVS expect the following flow:
 // 1. Client initiate noise handshake.
@@ -43,11 +45,16 @@ class TvsService final : public TeeVerificationService::Service {
   struct Options {
     std::unique_ptr<key_manager::KeyFetcher> key_fetcher;
     AppraisalPolicies appraisal_policies;
-    bool enable_policy_signature = true;
-    bool accept_insecure_policies = false;
+    std::string vmm_binary;
+    std::string bios_binary;
+    std::string kernel;
+    std::string initrd;
+    std::string app_binary;
+    std::string memory_size;
   };
 
-  explicit TvsService(rust::Box<trusted::Service> trusted_service);
+  explicit TvsService(rust::Box<Launcher> launcher,
+                      std::unique_ptr<key_manager::KeyFetcher> key_fetcher);
   TvsService() = delete;
   // `options` is passed by value to enable effective use of move.
   // Caller should utilize std::move() to avoid unnecessary copies.
@@ -58,7 +65,8 @@ class TvsService final : public TeeVerificationService::Service {
       grpc::ServerReaderWriter<OpaqueMessage, OpaqueMessage>* stream) override;
 
  private:
-  rust::Box<trusted::Service> trusted_service_;
+  rust::Box<Launcher> launcher_;
+  std::unique_ptr<key_manager::KeyFetcher> key_fetcher_;
 };
 
 }  // namespace privacy_sandbox::tvs
