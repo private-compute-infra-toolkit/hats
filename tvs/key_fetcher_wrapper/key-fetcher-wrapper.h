@@ -30,6 +30,10 @@ struct VecU8Result;
 // Wrapper class around `key_manager::KeyFetcher` methods to make it usable to
 // Rust code. Due to the limitation in the FFI, methods exported to rust has to
 // be marked as `const` even if they are not.
+// Furthermore, the rust bridge does not know how to convert C++ errors besides
+// exception to Rust error. Instead of changing `key_manager/key-fetcher.h` to
+// be compatible with cxx.rs bridge, we write a wrapper. Each method returns a
+// struct that contains either a value or an error message.
 class KeyFetcherWrapper {
  public:
   explicit KeyFetcherWrapper(

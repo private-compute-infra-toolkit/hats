@@ -14,8 +14,14 @@
 
 use trusted_tvs_types::KeyProvider;
 
-// Define foreign function interface (FFI) to use the C++ KeyFetcherWrapper in
-// Rust.
+/// Provide Rust interface to `key_manager/key-fetcher.h` for the trusted TVS.
+///
+/// In particular, this module provides the following:
+/// 1. Foreign function interface (FFI) for
+///    `tvs/key_fetcher_wrapper/key-fetcher-wrapper.h` to be used in Rust.
+/// 2. Implements KeyProvider trait that the trusted TVS understand.
+
+/// FFI for methods in tvs/key_fetcher_wrapper/key-fetcher-wrapper.h.
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 pub mod ffi {
     struct IntResult {
@@ -65,6 +71,8 @@ pub mod ffi {
 unsafe impl Sync for ffi::KeyFetcherWrapper {}
 unsafe impl Send for ffi::KeyFetcherWrapper {}
 
+/// Encapsulates unique pointer of KeyFetcherWrapper and implement KeyProvider
+/// trait required for trusted TVS.
 pub struct KeyFetcher {
     key_fetcher_wrapper: cxx::UniquePtr<ffi::KeyFetcherWrapper>,
 }
