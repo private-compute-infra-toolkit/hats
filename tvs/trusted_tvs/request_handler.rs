@@ -402,7 +402,7 @@ mod tests {
     fn verify_report_successful() {
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -515,7 +515,7 @@ mod tests {
         let primary_tvs_public_key = primary_tvs_private_key.compute_public_key();
         let secondary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -630,7 +630,7 @@ mod tests {
     fn verify_report_session_termination_on_successful_session() {
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -760,7 +760,7 @@ mod tests {
     fn verify_report_invalid_report_error() {
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -864,7 +864,7 @@ mod tests {
     fn verify_report_system_layer_verification_error() {
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -963,7 +963,7 @@ mod tests {
         let primary_tvs_public_key = primary_tvs_private_key.compute_public_key();
         let secondary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -1015,7 +1015,7 @@ mod tests {
         let tvs_public_key = tvs_private_key.compute_public_key();
         // Test that unregistered client keys are rejected.
         let policy_manager = Arc::new(
-            PolicyManager::new(
+            PolicyManager::new_with_policies(
                 default_appraisal_policies().as_slice(),
                 /*enable_policy_signature=*/ true,
                 /*accept_insecure_policies=*/ false,
@@ -1138,7 +1138,7 @@ mod tests {
         let tvs_private_key = Arc::new(P256Scalar::generate());
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = Arc::new(
-            PolicyManager::new(
+            PolicyManager::new_with_policies(
                 default_appraisal_policies().as_slice(),
                 /*enable_policy_signature=*/ true,
                 /*accept_insecure_policies=*/ false,
@@ -1219,7 +1219,7 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
 
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,

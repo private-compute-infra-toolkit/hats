@@ -65,7 +65,7 @@ impl Service {
             (None, None)
         };
 
-        let policy_manager = Arc::new(PolicyManager::new(
+        let policy_manager = Arc::new(PolicyManager::new_with_policies(
             policies,
             enable_policy_signature,
             accept_insecure_policies,

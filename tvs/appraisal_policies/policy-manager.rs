@@ -35,34 +35,51 @@ use tvs_proto::privacy_sandbox::tvs::{
 };
 
 pub struct PolicyManager {
+    enable_policy_signature: bool,
+    accept_insecure_policies: bool,
     reference_values: Vec<ReferenceValues>,
 }
 
 impl PolicyManager {
-    pub fn new(
+    pub fn new(enable_policy_signature: bool, accept_insecure_policies: bool) -> Self {
+        Self {
+            enable_policy_signature,
+            accept_insecure_policies,
+            reference_values: vec![],
+        }
+    }
+
+    pub fn new_with_policies(
         policies: &[u8],
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
     ) -> anyhow::Result<Self> {
+        let mut policy_manager = Self::new(enable_policy_signature, accept_insecure_policies);
+        policy_manager.update(policies)?;
+        Ok(policy_manager)
+    }
+
+    pub fn update(&mut self, policies: &[u8]) -> anyhow::Result<()> {
         let appraisal_policies = AppraisalPolicies::decode(policies)
             .map_err(|_| anyhow::anyhow!("Failed to decode (serialize) appraisal policy."))?;
-        let reference_values = if enable_policy_signature {
+        let reference_values = if self.enable_policy_signature {
             let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
             process_and_validate_policies(
                 appraisal_policies,
                 &[&policy_verifying_key],
                 /*num_pass_required=*/ 1,
-                accept_insecure_policies,
+                self.accept_insecure_policies,
             )
         } else {
             process_and_validate_policies(
                 appraisal_policies,
                 &[],
                 /*num_pass_required=*/ 0,
-                accept_insecure_policies,
+                self.accept_insecure_policies,
             )
         }?;
-        Ok(Self { reference_values })
+        self.reference_values = reference_values;
+        Ok(())
     }
 
     // Check evidence against the appraisal policies.
@@ -412,7 +429,7 @@ mod tests {
 
     #[test]
     fn check_evidence_successful() {
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -425,7 +442,7 @@ mod tests {
 
     #[test]
     fn check_evidence_error() {
-        let policy_manager = PolicyManager::new(
+        let policy_manager = PolicyManager::new_with_policies(
             &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -443,7 +460,7 @@ mod tests {
 
     #[test]
     fn policy_manager_creation_error() {
-        match PolicyManager::new(
+        match PolicyManager::new_with_policies(
             /*policies=*/ &[1, 2, 3],
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -455,7 +472,7 @@ mod tests {
             ),
         }
 
-        match PolicyManager::new(
+        match PolicyManager::new_with_policies(
             &insecure_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
