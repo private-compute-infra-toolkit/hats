@@ -19,12 +19,13 @@ use key_fetcher::KeyFetcher;
 use request_handler::RequestHandler;
 #[cfg(not(feature = "noffi"))]
 use service::Service;
+#[cfg(not(feature = "noffi"))]
+use std::sync::Arc;
 
 pub mod request_handler;
 pub mod service;
 
 #[cfg(not(feature = "noffi"))]
-#[allow(clippy::needless_lifetimes)]
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 mod ffi {
 
@@ -44,15 +45,14 @@ mod ffi {
             accept_insecure_policies: bool,
         ) -> Result<Box<Service>>;
 
-        #[allow(clippy::needless_lifetimes)]
         #[cxx_name = "CreateRequestHandler"]
-        unsafe fn create_request_handler<'a>(
-            self: &'a Service,
+        unsafe fn create_request_handler(
+            self: &Service,
             time_milis: i64,
             user: &str,
-        ) -> Box<RequestHandler<'a>>;
+        ) -> Box<RequestHandler>;
 
-        type RequestHandler<'a>;
+        type RequestHandler;
         #[cxx_name = "VerifyReport"]
         fn verify_report(self: &mut RequestHandler, request: &[u8]) -> Result<Vec<u8>>;
 
@@ -68,7 +68,7 @@ fn new_service(
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
 ) -> anyhow::Result<Box<Service>> {
-    let key_fetcher = Box::new(KeyFetcher::new(key_fetcher_wrapper));
+    let key_fetcher = Arc::new(KeyFetcher::new(key_fetcher_wrapper));
     let service = Service::new(
         key_fetcher,
         policies,

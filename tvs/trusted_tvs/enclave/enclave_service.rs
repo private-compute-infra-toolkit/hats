@@ -22,13 +22,13 @@ use tvs_enclave::proto::privacy_sandbox::tvs::{
     CreateSessionRequest, CreateSessionResponse, DoCommandRequest, DoCommandResponse,
     TerminateSessionRequest, TvsEnclave,
 };
-pub struct EnclaveService<'a> {
-    service: &'a trusted_tvs::service::Service,
-    request_handlers: BTreeMap<Vec<u8>, RequestHandler<'a>>,
+pub struct EnclaveService {
+    service: trusted_tvs::service::Service,
+    request_handlers: BTreeMap<Vec<u8>, RequestHandler>,
 }
 
-impl<'a> EnclaveService<'a> {
-    pub fn new(service: &'a trusted_tvs::service::Service) -> Self {
+impl EnclaveService {
+    pub fn new(service: trusted_tvs::service::Service) -> Self {
         Self {
             service,
             request_handlers: BTreeMap::new(),
@@ -36,7 +36,7 @@ impl<'a> EnclaveService<'a> {
     }
 }
 
-impl<'a> TvsEnclave for EnclaveService<'a> {
+impl TvsEnclave for EnclaveService {
     fn create_session(
         &mut self,
         request: CreateSessionRequest,

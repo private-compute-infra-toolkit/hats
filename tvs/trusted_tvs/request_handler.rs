@@ -15,6 +15,7 @@
 extern crate alloc;
 
 use alloc::string::String;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use anyhow::Context;
 use crypto::{P256Scalar, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
@@ -29,16 +30,16 @@ use tvs_proto::privacy_sandbox::tvs::{
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
 
-pub struct RequestHandler<'a> {
+pub struct RequestHandler {
     time_milis: i64,
-    primary_private_key: &'a P256Scalar,
-    primary_public_key: &'a [u8; P256_X962_LENGTH],
-    secondary_private_key: Option<&'a P256Scalar>,
-    secondary_public_key: Option<&'a [u8; P256_X962_LENGTH]>,
+    primary_private_key: Arc<P256Scalar>,
+    primary_public_key: [u8; P256_X962_LENGTH],
+    secondary_private_key: Option<Arc<P256Scalar>>,
+    secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
-    policy_manager: &'a PolicyManager,
-    key_provider: &'a (dyn KeyProvider + Sync + Send),
+    policy_manager: Arc<PolicyManager>,
+    key_provider: Arc<dyn KeyProvider + Sync + Send>,
     // Authenticated user if any.
     #[allow(dead_code)]
     user: String,
@@ -46,24 +47,24 @@ pub struct RequestHandler<'a> {
     terminated: bool,
 }
 
-impl<'a> RequestHandler<'a> {
+impl RequestHandler {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         time_milis: i64,
-        primary_private_key: &'a P256Scalar,
-        primary_public_key: &'a [u8; P256_X962_LENGTH],
-        secondary_private_key: Option<&'a P256Scalar>,
-        secondary_public_key: Option<&'a [u8; P256_X962_LENGTH]>,
-        policy_manager: &'a PolicyManager,
-        key_provider: &'a (dyn KeyProvider + Sync + Send),
+        primary_private_key: Arc<P256Scalar>,
+        primary_public_key: &[u8; P256_X962_LENGTH],
+        secondary_private_key: Option<Arc<P256Scalar>>,
+        secondary_public_key: Option<&[u8; P256_X962_LENGTH]>,
+        policy_manager: Arc<PolicyManager>,
+        key_provider: Arc<dyn KeyProvider + Sync + Send>,
         user: &str,
     ) -> Self {
         Self {
             time_milis,
             primary_private_key,
-            primary_public_key,
+            primary_public_key: *primary_public_key,
             secondary_private_key,
-            secondary_public_key,
+            secondary_public_key: secondary_public_key.copied(),
             policy_manager,
             key_provider,
             crypter: None,
@@ -130,7 +131,7 @@ impl<'a> RequestHandler<'a> {
     // Given a public key, return the private counter part.
     fn private_key_to_use(&self, public_key: &[u8]) -> anyhow::Result<&P256Scalar> {
         if public_key == self.primary_public_key {
-            return Ok(self.primary_private_key);
+            return Ok(&self.primary_private_key);
         }
         let Some(secondary_public_key) = self.secondary_public_key else {
             anyhow::bail!("Unknown public key");
@@ -364,13 +365,13 @@ mod tests {
 
     const NOW_UTC_MILLIS: i64 = 1698829200000;
 
-    struct TestKeyFetcher<'a> {
+    struct TestKeyFetcher {
         user_id: i64,
-        user_authentication_public_key: &'a [u8],
-        secret: &'a [u8],
+        user_authentication_public_key: [u8; P256_X962_LENGTH],
+        secret: Vec<u8>,
     }
 
-    impl<'a> key_provider::KeyProvider for TestKeyFetcher<'a> {
+    impl key_provider::KeyProvider for TestKeyFetcher {
         fn get_primary_private_key(&self) -> anyhow::Result<Vec<u8>> {
             anyhow::bail!("unimplemented.")
         }
@@ -407,30 +408,29 @@ mod tests {
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
-
         let user_id = 1;
         let client_private_key = P256Scalar::generate();
         let secret = b"secret1";
         let test_key_fetcher = TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
         };
 
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            Arc::new(tvs_private_key),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
             "test_user1",
         );
 
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
-            &tvs_private_key.compute_public_key(),
+            &tvs_public_key,
             Some(client_private_key.bytes()),
         );
         // Ask TVS to do its handshake part
@@ -527,22 +527,21 @@ mod tests {
         let secret = b"secret2";
         let test_key_fetcher = TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
         };
 
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &primary_tvs_private_key,
+            Arc::new(primary_tvs_private_key),
             &primary_tvs_public_key,
-            Some(&secondary_tvs_private_key),
+            Some(Arc::new(secondary_tvs_private_key)),
             Some(&secondary_tvs_public_key),
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
             "test_user2",
         );
 
-        let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
         let mut client = handshake::client::HandshakeInitiator::new(
             HandshakeType::Kk,
             &secondary_tvs_public_key,
@@ -643,17 +642,17 @@ mod tests {
         let secret = b"secret3";
         let test_key_fetcher = TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
         };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            Arc::new(tvs_private_key),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
             "test_user1",
         );
 
@@ -773,17 +772,17 @@ mod tests {
         let secret = b"secret4";
         let test_key_fetcher = TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
         };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            Arc::new(tvs_private_key),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
             "test_user",
         );
 
@@ -877,17 +876,17 @@ mod tests {
         let secret = b"secret5";
         let test_key_fetcher = TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
         };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            Arc::new(tvs_private_key),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
             "test_user",
         );
 
@@ -976,17 +975,17 @@ mod tests {
         let secret = b"secret6";
         let test_key_fetcher = TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
         };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &primary_tvs_private_key,
+            Arc::new(primary_tvs_private_key),
             &primary_tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
             "test_user",
         );
 
@@ -1012,34 +1011,36 @@ mod tests {
 
     #[test]
     fn verify_report_unauthenticated_error() {
-        let tvs_private_key = P256Scalar::generate();
+        let tvs_private_key = Arc::new(P256Scalar::generate());
         let tvs_public_key = tvs_private_key.compute_public_key();
         // Test that unregistered client keys are rejected.
-        let policy_manager = PolicyManager::new(
-            default_appraisal_policies().as_slice(),
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
+        let policy_manager = Arc::new(
+            PolicyManager::new(
+                default_appraisal_policies().as_slice(),
+                /*enable_policy_signature=*/ true,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap(),
+        );
 
         let user_id = 7;
         let client_private_key = P256Scalar::generate();
         let secret = b"secret7";
-        let test_key_fetcher = TestKeyFetcher {
+        let test_key_fetcher = Arc::new(TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
-        };
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
+        });
 
         // Test that unregistered client keys are rejected.
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            tvs_private_key.clone(),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::clone(&policy_manager),
+            test_key_fetcher.clone(),
             "test_user1",
         );
 
@@ -1070,12 +1071,12 @@ mod tests {
         // the one used in the handshake fail.
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            tvs_private_key.clone(),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::clone(&policy_manager),
+            test_key_fetcher.clone(),
             "test_user1",
         );
 
@@ -1102,12 +1103,12 @@ mod tests {
         // Test that clients using Nk are rejected.
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            tvs_private_key.clone(),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::clone(&policy_manager),
+            test_key_fetcher.clone(),
             "test_user1",
         );
 
@@ -1134,31 +1135,33 @@ mod tests {
 
     #[test]
     fn handshake_error() {
-        let tvs_private_key = P256Scalar::generate();
+        let tvs_private_key = Arc::new(P256Scalar::generate());
         let tvs_public_key = tvs_private_key.compute_public_key();
-        let policy_manager = PolicyManager::new(
-            default_appraisal_policies().as_slice(),
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
+        let policy_manager = Arc::new(
+            PolicyManager::new(
+                default_appraisal_policies().as_slice(),
+                /*enable_policy_signature=*/ true,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap(),
+        );
 
         let user_id = 8;
         let client_private_key = P256Scalar::generate();
         let secret = b"secret8";
-        let test_key_fetcher = TestKeyFetcher {
+        let test_key_fetcher = Arc::new(TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
-        };
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
+        });
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            tvs_private_key.clone(),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::clone(&policy_manager),
+            test_key_fetcher.clone(),
             "test_user",
         );
 
@@ -1174,12 +1177,12 @@ mod tests {
 
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            tvs_private_key.clone(),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::clone(&policy_manager),
+            test_key_fetcher.clone(),
             "test_user",
         );
 
@@ -1228,17 +1231,17 @@ mod tests {
         let secret = b"secret9";
         let test_key_fetcher = TestKeyFetcher {
             user_id,
-            user_authentication_public_key: &client_private_key.compute_public_key(),
-            secret: secret.as_slice(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
         };
         let mut request_handler = RequestHandler::new(
             NOW_UTC_MILLIS,
-            &tvs_private_key,
+            Arc::new(tvs_private_key),
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            &policy_manager,
-            &test_key_fetcher,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
             "test_user",
         );
 

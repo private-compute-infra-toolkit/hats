@@ -14,23 +14,24 @@
 extern crate alloc;
 use crate::request_handler::RequestHandler;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use crypto::P256_SCALAR_LENGTH;
 use crypto::{P256Scalar, P256_X962_LENGTH};
 use key_provider::KeyProvider;
 use policy_manager::PolicyManager;
 
 pub struct Service {
-    primary_private_key: P256Scalar,
+    primary_private_key: Arc<P256Scalar>,
     primary_public_key: [u8; P256_X962_LENGTH],
-    secondary_private_key: Option<P256Scalar>,
+    secondary_private_key: Option<Arc<P256Scalar>>,
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
-    key_provider: Box<dyn KeyProvider + Send + Sync>,
-    policy_manager: PolicyManager,
+    key_provider: Arc<dyn KeyProvider + Send + Sync>,
+    policy_manager: Arc<PolicyManager>,
 }
 
 impl Service {
     pub fn new(
-        key_provider: Box<dyn KeyProvider + Send + Sync>,
+        key_provider: Arc<dyn KeyProvider + Send + Sync>,
         policies: &[u8],
         enable_policy_signature: bool,
         accept_insecure_policies: bool,
@@ -58,33 +59,37 @@ impl Service {
                 })?;
             (
                 Some(secondary_private_key_value.compute_public_key()),
-                Some(secondary_private_key_value),
+                Some(Arc::new(secondary_private_key_value)),
             )
         } else {
             (None, None)
         };
 
-        let policy_manager =
-            PolicyManager::new(policies, enable_policy_signature, accept_insecure_policies)?;
+        let policy_manager = Arc::new(PolicyManager::new(
+            policies,
+            enable_policy_signature,
+            accept_insecure_policies,
+        )?);
 
         Ok(Self {
             primary_public_key: primary_private_key.compute_public_key(),
-            primary_private_key,
+            primary_private_key: Arc::new(primary_private_key),
             secondary_private_key,
             secondary_public_key,
             policy_manager,
             key_provider,
         })
     }
+
     pub fn create_request_handler(&self, time_milis: i64, user: &str) -> Box<RequestHandler> {
         Box::new(RequestHandler::new(
             time_milis,
-            &self.primary_private_key,
+            self.primary_private_key.clone(),
             &self.primary_public_key,
-            self.secondary_private_key.as_ref(),
+            self.secondary_private_key.as_ref().cloned(),
             self.secondary_public_key.as_ref(),
-            &self.policy_manager,
-            &*self.key_provider,
+            Arc::clone(&self.policy_manager),
+            Arc::clone(&self.key_provider),
             user,
         ))
     }

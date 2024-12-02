@@ -210,6 +210,7 @@ mod tests {
     use crypto::P256Scalar;
     use key_fetcher::{ffi::create_test_key_fetcher_wrapper, KeyFetcher};
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
+    use std::sync::Arc;
     use tvs_proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
         Signature as PolicySignature, Stage0Measurement, VerifyReportResponse,
@@ -269,7 +270,7 @@ mod tests {
         let client_private_key = P256Scalar::generate();
         let user_id = 1;
         let key_id = 11;
-        let key_fetcher = Box::new(KeyFetcher::new(create_test_key_fetcher_wrapper(
+        let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
             user_id,
@@ -277,9 +278,9 @@ mod tests {
             key_id,
             /*user_secret=*/ b"test_secret1",
             /*public_key=*/ b"test_public_key1",
-        )));
+        ));
         let service = trusted_tvs::service::Service::new(
-            key_fetcher,
+            Arc::new(key_fetcher),
             &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
@@ -376,7 +377,7 @@ mod tests {
 
         let user_id = 1;
         let key_id = 11;
-        let key_fetcher = Box::new(KeyFetcher::new(create_test_key_fetcher_wrapper(
+        let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
             user_id,
@@ -384,9 +385,9 @@ mod tests {
             key_id,
             /*user_secret=*/ b"test_secret1",
             /*public_key=*/ b"test_public_key1",
-        )));
+        ));
         let service = trusted_tvs::service::Service::new(
-            key_fetcher,
+            Arc::new(key_fetcher),
             &default_appraisal_policies(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,

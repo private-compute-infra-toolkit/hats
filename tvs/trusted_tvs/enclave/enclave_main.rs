@@ -18,6 +18,7 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::string::ToString;
+use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use enclave_service::EnclaveService;
@@ -36,7 +37,7 @@ use tvs_proto::privacy_sandbox::tvs::{
 
 #[entrypoint]
 fn start_server() -> ! {
-    let key_service = Box::new(KeyFetcherService {});
+    let key_service = Arc::new(KeyFetcherService {});
     let trusted_tvs = trusted_tvs::service::Service::new(
         key_service,
         get_appraisal_policies().as_slice(),
@@ -45,7 +46,7 @@ fn start_server() -> ! {
     )
     .expect("failed to create TrustedTvs service");
 
-    let enclave_service = EnclaveService::new(&trusted_tvs);
+    let enclave_service = EnclaveService::new(trusted_tvs);
     let server = TvsEnclaveServer::new(enclave_service);
     let mut invocation_stats =
         StaticSampleStore::<1000>::new().expect("failed to create StaticSampleStore");

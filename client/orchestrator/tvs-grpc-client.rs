@@ -393,7 +393,7 @@ mod tests {
             tvs_authentication_key: tvs_authentication_key.bytes().to_vec(),
             tvs_service: Arc::new(
                 trusted_tvs::service::Service::new(
-                    Box::new(key_fetcher::KeyFetcher::new(
+                    Arc::new(key_fetcher::KeyFetcher::new(
                         create_test_key_fetcher_wrapper(
                             /*primary_private_key=*/ &tvs_private_key.bytes(),
                             /*secondary_private_key,*/ &[],
@@ -474,7 +474,7 @@ mod tests {
             tvs_authentication_key: P256Scalar::generate().bytes().to_vec(),
             tvs_service: Arc::new(
                 trusted_tvs::service::Service::new(
-                    Box::new(key_fetcher::KeyFetcher::new(
+                    Arc::new(key_fetcher::KeyFetcher::new(
                         create_test_key_fetcher_wrapper(
                             /*primary_private_key=*/ &tvs_private_key.bytes(),
                             /*secondary_private_key,*/ &[],
@@ -547,7 +547,7 @@ mod tests {
             tvs_authentication_key: vec![],
             tvs_service: Arc::new(
                 trusted_tvs::service::Service::new(
-                    Box::new(key_fetcher::KeyFetcher::new(
+                    Arc::new(key_fetcher::KeyFetcher::new(
                         create_test_key_fetcher_wrapper(
                             /*primary_private_key=*/ &tvs_private_key.bytes(),
                             /*secondary_private_key,*/ &[],
