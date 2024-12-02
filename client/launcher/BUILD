@@ -160,7 +160,7 @@ cc_test(
         "//tvs/client:bridge/include",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_messages_cc_proto",
-        "//tvs/untrusted_tvs:tvs-service",
+        "//tvs/standalone_server:tvs-service",
         "@bazel_tools//tools/cpp/runfiles",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

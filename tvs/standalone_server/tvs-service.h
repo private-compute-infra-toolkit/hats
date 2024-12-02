@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HATS_TVS_UNTRUSTED_TVS_SERVICE_
-#define HATS_TVS_UNTRUSTED_TVS_SERVICE_
+#ifndef HATS_TVS_STANDALONE_SERVER_SERVICE_
+#define HATS_TVS_STANDALONE_SERVER_SERVICE_
 
 #include <memory>
 

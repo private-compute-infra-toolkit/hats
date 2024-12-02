@@ -32,7 +32,7 @@
 #include "status_macro/status_macros.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
-#include "tvs/untrusted_tvs/tvs-service.h"
+#include "tvs/standalone_server/tvs-service.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
 ABSL_FLAG(bool, enable_policy_signature, false,

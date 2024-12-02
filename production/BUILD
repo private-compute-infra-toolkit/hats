@@ -44,7 +44,7 @@ cc_binary(
 # TVS binary
 pkg_tar(
     name = "tvs_binary",
-    srcs = ["//tvs/untrusted_tvs:tvs-server_main"],
+    srcs = ["//tvs/standalone_server:tvs-server_main"],
     package_dir = "/usr/bin",
 )
 

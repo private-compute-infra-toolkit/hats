@@ -61,7 +61,7 @@ cc_binary(
         "//tvs/appraisal_policies:policy-fetcher-local",
         "//tvs/credentials",
         "//tvs/proto:appraisal_policies_cc_proto",
-        "//tvs/untrusted_tvs:tvs-service",
+        "//tvs/standalone_server:tvs-service",
         "@bazel_tools//tools/cpp/runfiles",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",

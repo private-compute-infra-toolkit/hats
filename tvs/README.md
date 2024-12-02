@@ -74,8 +74,8 @@ To run TVS in local mode:
 1.  Run the server:
 
     ```shell
-    $ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
-    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+    $ bazel build -c opt //tvs/standalone_server:tvs-server_main
+    $ bazel-bin/tvs/standalone_server/tvs-server_main \
         --port=8080 \
         --primary_private_key=<tvs-primary-private-key> \
         --secondary_private_key=<tvs-secondary-private-key> \
@@ -94,8 +94,8 @@ Alternatively, you can use the following pre-built test keys and appraisal
 policies:
 
 ```shell
-$ bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
-$ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+$ bazel build -c opt //tvs/standalone_server:tvs-server_main
+$ bazel-bin/tvs/standalone_server/tvs-server_main \
     --port=8080 \
     --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001 \
     --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto \
@@ -293,8 +293,8 @@ database, and populate the database with keys.
     Note: If using the split trust test client, run n tvs instances
 
     ```shell
-    $ bazel build //tvs/untrusted_tvs:tvs-server_main --define platform=gcp
-    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main --port=8080 \
+    $ bazel build //tvs/standalone_server:tvs-server_main --define platform=gcp
+    $ bazel-bin/tvs/standalone_server/tvs-server_main --port=8080 \
         --project_id=<project_id> \
         --instance_id=<spanner_instance> \
         --database_id=<spanner_database_id>

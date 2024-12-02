@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tvs/untrusted_tvs/tvs-service.h"
+#include "tvs/standalone_server/tvs-service.h"
 
 #include <fstream>
 #include <memory>

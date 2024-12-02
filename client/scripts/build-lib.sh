@@ -140,8 +140,8 @@ function build_hats_containers_images() {
 
 function build_tvs() {
   local BUILD_DIR="$1"
-  bazel build -c opt //tvs/untrusted_tvs:tvs-server_main
-  cp -f ../../bazel-bin/tvs/untrusted_tvs/tvs-server_main "$BUILD_DIR"
+  bazel build -c opt //tvs/standalone_server:tvs-server_main
+  cp -f ../../bazel-bin/tvs/standalone_server/tvs-server_main "$BUILD_DIR"
 }
 
 function build_test_keygen() {

@@ -48,7 +48,7 @@
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/credentials/credentials.h"
 #include "tvs/proto/appraisal_policies.pb.h"
-#include "tvs/untrusted_tvs/tvs-service.h"
+#include "tvs/standalone_server/tvs-service.h"
 
 const int kUserId = 64;
 const char kAppKey[] =

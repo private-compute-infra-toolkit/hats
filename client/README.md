@@ -133,8 +133,8 @@ with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
     To run a TVS server that listens to port 7774, use the instructions:
 
     ```shell
-    $ bazel build -c opt //tvs/untrusted_tvs:all
-    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+    $ bazel build -c opt //tvs/standalone_server:all
+    $ bazel-bin/tvs/standalone_server/tvs-server_main \
       --port=7774 \
       --tvs_private_key=<private_key> \
       --appraisal_policy_file=tvs/appraisal_policies/digests2.textproto
@@ -201,8 +201,8 @@ configuration and data.
     To run a TVS server that listens to port 7774, use the instructions:
 
     ```shell
-    $ bazel build -c opt //tvs/untrusted_tvs:all
-    $ bazel-bin/tvs/untrusted_tvs/tvs-server_main \
+    $ bazel build -c opt //tvs/standalone_server:all
+    $ bazel-bin/tvs/standalone_server/tvs-server_main \
       --port=7774 \
       --tvs_private_key=<private_key> \
       --appraisal_policy_file=tvs/appraisal_policies/digests2.textproto \

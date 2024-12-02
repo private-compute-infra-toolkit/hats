@@ -50,7 +50,7 @@
 #include "tvs/client/trusted-client.rs.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/untrusted_tvs/tvs-service.h"
+#include "tvs/standalone_server/tvs-service.h"
 
 namespace privacy_sandbox::client {
 namespace {
