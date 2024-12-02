@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use trusted_tvs_types::KeyProvider;
+
 // Define foreign function interface (FFI) to use the C++ KeyFetcherWrapper in
 // Rust.
-
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 pub mod ffi {
     struct IntResult {
@@ -76,7 +77,7 @@ impl KeyFetcher {
     }
 }
 
-impl key_provider::KeyProvider for KeyFetcher {
+impl KeyProvider for KeyFetcher {
     fn get_primary_private_key(&self) -> anyhow::Result<Vec<u8>> {
         let primary_private_key = self.key_fetcher_wrapper.get_primary_private_key();
         if !primary_private_key.error.is_empty() {

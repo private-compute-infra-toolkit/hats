@@ -11,8 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#![no_std]
-extern crate alloc;
+
 use alloc::vec::Vec;
 
 /// Trait to provide key materials to TVS service.

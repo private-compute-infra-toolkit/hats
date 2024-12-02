@@ -42,7 +42,7 @@ rust_library(
         "@enclave//handshake",
         ":key-fetcher",
         "@cxx.rs//:cxx",
-        ":key-provider",
+        "//tvs/trusted_tvs/types:trusted-tvs-types",
         "@oak_crates_index//:anyhow",
     ],
 )
@@ -94,7 +94,7 @@ rust_library(
     deps = [
         ":key-fetcher-wrapper",
         ":key-fetcher-wrapper-bridge",
-        ":key-provider",
+        "//tvs/trusted_tvs/types:trusted-tvs-types",
         "@cxx.rs//:cxx",
         "@oak_crates_index//:anyhow",
     ],
@@ -105,14 +105,6 @@ rust_cxx_bridge(
     src = "key-fetcher.rs",
     deps = [
         ":key-fetcher-wrapper",
-    ],
-)
-
-rust_library(
-    name = "key-provider",
-    srcs = ["key-provider.rs"],
-    deps = [
-        "@oak_crates_index//:anyhow",
     ],
 )
 
@@ -139,7 +131,7 @@ rust_library(
         "@oak//oak_attestation_verification",
         "@enclave//crypto:crypto_nostd",
         "@enclave//handshake:handshake_nostd",
-        ":key-provider",
+        "//tvs/trusted_tvs/types:trusted-tvs-types",
         "@oak_crates_index//:anyhow",
         "@oak//micro_rpc",
         "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
