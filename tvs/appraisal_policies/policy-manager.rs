@@ -34,6 +34,7 @@ use tvs_proto::privacy_sandbox::tvs::{
     stage0_measurement, AppraisalPolicies, AppraisalPolicy, Measurement,
 };
 
+#[derive(Clone)]
 pub struct PolicyManager {
     enable_policy_signature: bool,
     accept_insecure_policies: bool,

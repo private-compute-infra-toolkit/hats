@@ -19,15 +19,9 @@ rust_binary(
     srcs = ["enclave_main.rs"],
     platform = "@oak//:x86_64-unknown-none",
     deps = [
-        "//tvs/proto_rust:tvs-proto",
-        "//tvs/trusted_tvs:enclave_service",
-        "//tvs/trusted_tvs:key-provider",
         "//tvs/trusted_tvs:trusted-tvs-enclave",
         "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
-        "@oak//oak_proto_rust",
         "@oak//oak_restricted_kernel_sdk",
-        "@oak_crates_index//:anyhow",
         "@oak_crates_index//:log",
-        "@oak_crates_index//:prost",
     ],
 )

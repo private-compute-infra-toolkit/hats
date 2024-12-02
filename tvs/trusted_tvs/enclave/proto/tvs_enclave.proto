@@ -40,12 +40,47 @@ message TerminateSessionRequest {
   bytes session_id = 1;
 }
 
+message ProvisionKeysRequest {
+  bytes private_key = 1;
+}
+
+message LoadAppraisalPoliciesRequest {
+  bytes policies = 1;
+}
+
+message RegisterOrUpdateUserRequest {
+  int64 id = 1;
+  bytes authentication_key = 2;
+  bytes secret = 3;
+}
+
 service TvsEnclave {
+  // Provision keys/secrets to the enclave. The method must be called at startup
+  // in order for the enclave to function.
   // method_id: 1
-  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc ProvisionKeys(ProvisionKeysRequest) returns (.google.protobuf.Empty);
+
+  // Load appraisal policies to the enclave. The method must be called at
+  // startup.
   // method_id: 2
-  rpc DoCommand(DoCommandRequest) returns (DoCommandResponse);
+  rpc LoadAppraisalPolicies(LoadAppraisalPoliciesRequest)
+      returns (.google.protobuf.Empty);
+
+  // Register or update user. The user must be registered before using the TVS.
   // method_id: 3
+  rpc RegisterOrUpdateUser(RegisterOrUpdateUserRequest)
+      returns (.google.protobuf.Empty);
+
+  // Create a session with the enclave.
+  // method_id: 4
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+
+  // Validate attestation report, and return user's secret if successful.
+  // method_id: 5
+  rpc DoCommand(DoCommandRequest) returns (DoCommandResponse);
+
+  // Tear down the session.
+  // method_id: 6
   rpc TerminateSession(TerminateSessionRequest)
       returns (.google.protobuf.Empty);
 }

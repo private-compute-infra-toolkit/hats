@@ -120,11 +120,12 @@ rust_library(
 rust_library(
     name = "trusted-tvs-enclave",
     srcs = [
+        "enclave_service.rs",
         "request_handler.rs",
         "service.rs",
         "trusted_tvs.rs",
     ],
-    crate_features = ["noffi"],
+    crate_features = ["enclave"],
     crate_name = "trusted_tvs",
     crate_root = "trusted_tvs.rs",
     deps = [
@@ -141,16 +142,7 @@ rust_library(
         "@enclave//handshake:handshake_nostd",
         ":key-provider",
         "@oak_crates_index//:anyhow",
-    ],
-)
-
-rust_library(
-    name = "enclave_service",
-    srcs = ["enclave_service.rs"],
-    deps = [
-        "//tvs/trusted_tvs:trusted-tvs-enclave",
-        "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
         "@oak//micro_rpc",
-        "@oak_crates_index//:log",
+        "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
     ],
 )
