@@ -143,3 +143,14 @@ rust_library(
         "@oak_crates_index//:anyhow",
     ],
 )
+
+rust_library(
+    name = "enclave_service",
+    srcs = ["enclave_service.rs"],
+    deps = [
+        "//tvs/trusted_tvs:trusted-tvs-enclave",
+        "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
+        "@oak//micro_rpc",
+        "@oak_crates_index//:log",
+    ],
+)

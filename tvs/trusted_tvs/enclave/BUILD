@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 rust_binary(
     name = "enclave_main",
     srcs = ["enclave_main.rs"],
     platform = "@oak//:x86_64-unknown-none",
     deps = [
-        ":enclave_service",
         "//tvs/proto_rust:tvs-proto",
+        "//tvs/trusted_tvs:enclave_service",
         "//tvs/trusted_tvs:key-provider",
         "//tvs/trusted_tvs:trusted-tvs-enclave",
         "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
@@ -29,16 +29,5 @@ rust_binary(
         "@oak_crates_index//:anyhow",
         "@oak_crates_index//:log",
         "@oak_crates_index//:prost",
-    ],
-)
-
-rust_library(
-    name = "enclave_service",
-    srcs = ["enclave_service.rs"],
-    deps = [
-        "//tvs/trusted_tvs:trusted-tvs-enclave",
-        "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
-        "@oak//micro_rpc",
-        "@oak_crates_index//:log",
     ],
 )
