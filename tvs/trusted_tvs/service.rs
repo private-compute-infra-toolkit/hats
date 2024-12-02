@@ -25,13 +25,13 @@ pub struct Service {
     primary_public_key: [u8; P256_X962_LENGTH],
     secondary_private_key: Option<Arc<P256Scalar>>,
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
-    key_provider: Arc<dyn KeyProvider + Send + Sync>,
+    key_provider: Arc<dyn KeyProvider>,
     policy_manager: Arc<PolicyManager>,
 }
 
 impl Service {
     pub fn new(
-        key_provider: Arc<dyn KeyProvider + Send + Sync>,
+        key_provider: Arc<dyn KeyProvider>,
         policies: &[u8],
         enable_policy_signature: bool,
         accept_insecure_policies: bool,

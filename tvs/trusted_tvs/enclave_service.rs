@@ -130,7 +130,7 @@ impl TvsEnclave for EnclaveService {
             None,
             None,
             Arc::clone(&self.policy_manager),
-            Arc::clone(&self.key_provider) as Arc<dyn KeyProvider + Send + Sync>,
+            Arc::clone(&self.key_provider) as Arc<dyn KeyProvider>,
             /*user=*/ "",
         );
         let response = request_handler

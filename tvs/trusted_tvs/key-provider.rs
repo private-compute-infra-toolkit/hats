@@ -16,7 +16,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 /// Trait to provide key materials to TVS service.
-pub trait KeyProvider {
+pub trait KeyProvider: Sync + Send {
     /// Primary private key used by TVS for handshake.
     fn get_primary_private_key(&self) -> anyhow::Result<Vec<u8>>;
     /// Secondary private key used by TVS for handshake.

@@ -39,7 +39,7 @@ pub struct RequestHandler {
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
     policy_manager: Arc<PolicyManager>,
-    key_provider: Arc<dyn KeyProvider + Sync + Send>,
+    key_provider: Arc<dyn KeyProvider>,
     // Authenticated user if any.
     #[allow(dead_code)]
     user: String,
@@ -56,7 +56,7 @@ impl RequestHandler {
         secondary_private_key: Option<Arc<P256Scalar>>,
         secondary_public_key: Option<&[u8; P256_X962_LENGTH]>,
         policy_manager: Arc<PolicyManager>,
-        key_provider: Arc<dyn KeyProvider + Sync + Send>,
+        key_provider: Arc<dyn KeyProvider>,
         user: &str,
     ) -> Self {
         Self {
