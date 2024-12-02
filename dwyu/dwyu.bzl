@@ -18,8 +18,9 @@ load("@depend_on_what_you_use//:defs.bzl", "dwyu_aspect_factory")
 #   Includes that are come transitively (linux/types.h)
 #   Includes that are hard to have deps (cpuid.h)
 #   Includes it incorrectly says unused (grpcpp)
-### Additional things that manually have to be skipped/worked around
+### Additional things w/o manual skip, that must be manually ignored
 # "@com_github_grpc_grpc//:grpc++", may incorrectly be said unused
+#   (or the reflect version)
 # rust_cxx_bridge rules, doesn't accept tags that let it be skipped
 #   any .rs.h, as missing dep, or deps within
 

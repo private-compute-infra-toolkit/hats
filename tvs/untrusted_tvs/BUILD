@@ -70,7 +70,6 @@ cc_library(
     hdrs = ["tvs-service.h"],
     deps = [
         "//status_macro:status_macros",
-        "//status_macro:status_util",
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
@@ -81,7 +80,6 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
         ":bridge",
     ],
 )

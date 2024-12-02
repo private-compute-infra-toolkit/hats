@@ -83,7 +83,6 @@ cc_library(
     ],
     deps = [
         "//gcp_common:flags",
-        "//gcp_common:gcp-status",
         "//status_macro:status_macros",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status:statusor",
@@ -120,7 +119,7 @@ cc_library(
     name = "key-fetcher-local",
     srcs = ["key-fetcher-local.cc"],
     deps = [
-        "key-fetcher-interface",
+        ":key-fetcher-interface",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -132,6 +131,7 @@ cc_test(
     size = "small",
     srcs = [":key-fetcher-local_test.cc"],
     deps = [
+        ":key-fetcher-interface",
         ":key-fetcher-local",
         "//status_macro:status_test_macros",
         "@com_google_absl//absl/flags:flag",
@@ -147,11 +147,10 @@ cc_library(
         "key-fetcher-gcp.h",
     ],
     deps = [
-        "key-fetcher-interface",
+        ":key-fetcher-interface",
         "//crypto:aead-crypter",
         "//crypto:secret-data",
         "//gcp_common:flags",
-        "//gcp_common:gcp-status",
         "//key_manager:gcp-kms-client",
         "//status_macro:status_macros",
         "@com_google_absl//absl/flags:flag",
@@ -171,7 +170,6 @@ cc_test(
         ":key-fetcher-gcp",
         "//crypto:aead-crypter",
         "//crypto:secret-data",
-        "//status_macro:status_macros",
         "//status_macro:status_test_macros",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
@@ -187,7 +185,6 @@ cc_library(
     hdrs = ["test-key-fetcher.h"],
     deps = [
         ":key-fetcher-interface",
-        "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],

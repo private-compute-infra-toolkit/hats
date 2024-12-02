@@ -161,11 +161,13 @@ cc_test(
 
 cc_library(
     name = "test-ec-key",
+    testonly = True,
     srcs = ["test-ec-key.cc"],
     hdrs = ["test-ec-key.h"],
     deps = [
         ":ec-key",
         ":secret-data",
+        "//status_macro:status_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],

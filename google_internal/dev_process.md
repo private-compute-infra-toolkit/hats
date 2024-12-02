@@ -278,14 +278,14 @@ similar past issues (b/35888333) with clangd.
 ### Depend what you use
 
 Depend-what-you-use tries to have dependencies match includes for C++. It can be
-run via `bazel_rbe build --config=dwyu //target`. Some of the issues it runs
+run via `bazel_rbe build --config=dwyu --verbose_failures=false //target`. Some of the issues it runs
 into are skipped via `dwyu_ignore_includes.json`, but this is unable to cover
 everything. This covers includes that are hard to add, may incorrectly think
 unnecessary, or come transitively.
 
 It is unable to handle `rust_cxx_bridge` builds. Generally, it can help to run
 it on more narrow targets to avoid rust bridges.
-`@com_github_grpc_grpc//:grpc++` may be incorrectly declared unnecessary. Make
+In addition, `@com_github_grpc_grpc//:grpc++` may be incorrectly declared unnecessary. Make
 sure build still works.
 
 ### VS Code Development
