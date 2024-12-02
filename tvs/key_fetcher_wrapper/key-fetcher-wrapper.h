@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HATS_TVS_TRUSTED_TVS_KEY_FETCHER_WRAPPER_H_
-#define HATS_TVS_TRUSTED_TVS_KEY_FETCHER_WRAPPER_H_
+#ifndef HATS_M_HATS_TVS_KEY_FETCHER_WRAPPER_KEY_FETCHER_WRAPPER_H_
+#define HATS_M_HATS_TVS_KEY_FETCHER_WRAPPER_KEY_FETCHER_WRAPPER_H_
 
 #include <memory>
 

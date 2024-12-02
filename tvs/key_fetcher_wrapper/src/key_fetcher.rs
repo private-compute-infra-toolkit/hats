@@ -29,7 +29,7 @@ pub mod ffi {
     }
 
     unsafe extern "C++" {
-        include!("tvs/trusted_tvs/key-fetcher-wrapper.h");
+        include!("tvs/key_fetcher_wrapper/key-fetcher-wrapper.h");
 
         type KeyFetcherWrapper;
 
@@ -66,11 +66,11 @@ unsafe impl Sync for ffi::KeyFetcherWrapper {}
 unsafe impl Send for ffi::KeyFetcherWrapper {}
 
 pub struct KeyFetcher {
-    key_fetcher_wrapper: cxx::UniquePtr<crate::ffi::KeyFetcherWrapper>,
+    key_fetcher_wrapper: cxx::UniquePtr<ffi::KeyFetcherWrapper>,
 }
 
 impl KeyFetcher {
-    pub fn new(key_fetcher_wrapper: cxx::UniquePtr<crate::ffi::KeyFetcherWrapper>) -> Self {
+    pub fn new(key_fetcher_wrapper: cxx::UniquePtr<ffi::KeyFetcherWrapper>) -> Self {
         Self {
             key_fetcher_wrapper,
         }

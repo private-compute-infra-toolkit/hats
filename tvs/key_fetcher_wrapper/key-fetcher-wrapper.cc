@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tvs/trusted_tvs/key-fetcher-wrapper.h"
+#include "tvs/key_fetcher_wrapper/key-fetcher-wrapper.h"
 
 #include <algorithm>
 #include <memory>
@@ -26,8 +26,8 @@
 #include "absl/strings/string_view.h"
 #include "key_manager/key-fetcher.h"
 #include "key_manager/test-key-fetcher.h"
+#include "tvs/key_fetcher_wrapper/src/key_fetcher.rs.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/trusted_tvs/key-fetcher.rs.h"
 
 namespace privacy_sandbox::tvs::trusted {
 

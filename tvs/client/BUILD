@@ -63,7 +63,7 @@ rust_test(
     crate = ":trusted-client",
     crate_features = ["noffi"],
     deps = [
-        "//tvs/trusted_tvs:key-fetcher",
+        "//tvs/key_fetcher_wrapper:key-fetcher",
         "//tvs/trusted_tvs:trusted-tvs",
         "@oak_crates_index//:anyhow",
     ],

@@ -33,7 +33,7 @@ pub mod enclave_service;
 mod ffi {
 
     extern "C++" {
-        include!("tvs/trusted_tvs/key-fetcher-wrapper.h");
+        include!("tvs/key_fetcher_wrapper/key-fetcher-wrapper.h");
         type KeyFetcherWrapper = key_fetcher::ffi::KeyFetcherWrapper;
     }
 
