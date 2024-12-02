@@ -19,8 +19,8 @@ use alloc::format;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH};
-use key_provider::KeyProvider;
 use policy_manager::PolicyManager;
+use trusted_tvs_types::KeyProvider;
 use tvs_enclave::proto::privacy_sandbox::tvs::{
     CreateSessionRequest, CreateSessionResponse, DoCommandRequest, DoCommandResponse,
     LoadAppraisalPoliciesRequest, ProvisionKeysRequest, RegisterOrUpdateUserRequest,
@@ -212,7 +212,7 @@ impl KeyFetcherService {
     }
 }
 
-impl key_provider::KeyProvider for KeyFetcherService {
+impl KeyProvider for KeyFetcherService {
     fn get_primary_private_key(&self) -> anyhow::Result<Vec<u8>> {
         anyhow::bail!("unimplemented")
     }

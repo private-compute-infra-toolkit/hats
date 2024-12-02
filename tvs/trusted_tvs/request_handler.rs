@@ -20,11 +20,11 @@ use alloc::vec::Vec;
 use anyhow::Context;
 use crypto::{P256Scalar, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
-use key_provider::KeyProvider;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use policy_manager::PolicyManager;
 use prost::Message;
+use trusted_tvs_types::KeyProvider;
 use tvs_proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
@@ -371,7 +371,7 @@ mod tests {
         secret: Vec<u8>,
     }
 
-    impl key_provider::KeyProvider for TestKeyFetcher {
+    impl KeyProvider for TestKeyFetcher {
         fn get_primary_private_key(&self) -> anyhow::Result<Vec<u8>> {
             anyhow::bail!("unimplemented.")
         }

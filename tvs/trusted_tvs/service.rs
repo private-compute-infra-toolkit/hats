@@ -17,8 +17,8 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use crypto::P256_SCALAR_LENGTH;
 use crypto::{P256Scalar, P256_X962_LENGTH};
-use key_provider::KeyProvider;
 use policy_manager::PolicyManager;
+use trusted_tvs_types::KeyProvider;
 
 pub struct Service {
     primary_private_key: Arc<P256Scalar>,
