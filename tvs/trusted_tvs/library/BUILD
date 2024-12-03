@@ -49,6 +49,7 @@ rust_test(
     crate = ":trusted-tvs",
     crate_features = ["default"],
     deps = [
+        "//tvs/client:trusted-client-noffi",
         "@hats_crate_index//:hex",
     ],
 )

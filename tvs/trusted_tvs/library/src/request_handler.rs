@@ -266,31 +266,22 @@ mod tests {
     use super::*;
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
-    use p256::ecdsa::{signature::Signer, Signature, SigningKey};
     use tvs_proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, InitSessionRequest,
-        Measurement, Signature as PolicySignature, Stage0Measurement, VerifyReportRequestEncrypted,
+        Measurement, Signature as PolicySignature, Stage0Measurement,
     };
+    use tvs_trusted_client::TvsClient;
 
-    fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
-        oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../../../test_data/good_evidence.binarypb").as_slice(),
-        )
-        .expect("could not decode evidence")
+    fn get_good_evidence() -> Vec<u8> {
+        include_bytes!("../../../test_data/good_evidence.binarypb").to_vec()
     }
 
-    fn get_bad_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
-        oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../../../test_data/bad_evidence.binarypb").as_slice(),
-        )
-        .expect("could not decode evidence")
+    fn get_bad_evidence() -> Vec<u8> {
+        include_bytes!("../../../test_data/bad_evidence.binarypb").to_vec()
     }
 
-    fn get_malformed_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
-        oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../../../test_data/malformed_evidence.binarypb").as_slice(),
-        )
-        .expect("could not decode evidence")
+    fn get_malformed_evidence() -> Vec<u8> {
+        include_bytes!("../../../test_data/malformed_evidence.binarypb").to_vec()
     }
 
     fn get_genoa_vcek() -> Vec<u8> {
@@ -332,35 +323,6 @@ mod tests {
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
         buf
-    }
-
-    fn hash_and_sign(handshake_hash: &[u8], signing_key: &[u8]) -> anyhow::Result<Vec<u8>> {
-        let signing_key = SigningKey::from_slice(signing_key)
-            .map_err(|msg| anyhow::anyhow!("Failed to parse signing keys. {}", msg))?;
-        let signature: Signature = signing_key.sign(handshake_hash);
-        Ok(signature.to_vec())
-    }
-
-    fn create_attest_report_request(
-        handshake: Vec<u8>,
-        tvs_public_key: &[u8],
-        client_public_key: &[u8],
-    ) -> anyhow::Result<Vec<u8>> {
-        // Test initial handshake.
-        let message = AttestReportRequest {
-            request: Some(attest_report_request::Request::InitSessionRequest(
-                InitSessionRequest {
-                    client_message: handshake,
-                    tvs_public_key: tvs_public_key.to_vec(),
-                    client_public_key: client_public_key.to_vec(),
-                },
-            )),
-        };
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).map_err(|error| {
-            anyhow::anyhow!("Failed to serialize AttestReportRequest. {}", error)
-        })?;
-        Ok(message_bin)
     }
 
     const NOW_UTC_MILLIS: i64 = 1698829200000;
@@ -428,83 +390,33 @@ mod tests {
             "test_user1",
         );
 
-        let mut client = handshake::client::HandshakeInitiator::new(
-            HandshakeType::Kk,
-            &tvs_public_key,
-            Some(client_private_key.bytes()),
-        );
+        let mut tvs_client = TvsClient::new(&client_private_key.bytes(), &tvs_public_key).unwrap();
+
         // Ask TVS to do its handshake part
-        let handshake_bin = request_handler
+        let handshake_response = request_handler
+            .verify_report(&tvs_client.build_initial_message().unwrap())
+            .unwrap();
+
+        tvs_client
+            .process_handshake_response(&handshake_response)
+            .unwrap();
+
+        // Send the attestation report and get the secrets.
+        let secret_bin = request_handler
             .verify_report(
-                create_attest_report_request(
-                    client.build_initial_message().unwrap(),
-                    &tvs_public_key,
-                    &client_private_key.compute_public_key(),
-                )
-                .unwrap()
-                .as_slice(),
+                &tvs_client
+                    .build_verify_report_request(
+                        &get_good_evidence(),
+                        &get_genoa_vcek(),
+                        /*application_signing_key=*/
+                        "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                    )
+                    .unwrap(),
             )
             .unwrap();
 
-        let message_reponse: AttestReportResponse =
-            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
-        let handshake_response = match &message_reponse.response {
-            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
-                init_session.response_for_client.clone()
-            }
-            _ => panic!("Wrong response"),
-        };
-
-        let (handshake_hash, mut client_crypter) = client
-            .process_response(handshake_response.as_slice())
-            .unwrap();
-
-        // Test report verification.
-        let signing_key =
-            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
-                .unwrap();
-        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
-
-        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
-        VerifyReportRequest {
-            evidence: Some(get_good_evidence()),
-            tee_certificate: get_genoa_vcek(),
-            signature,
-        }
-        .encode(&mut verify_report_request_bin)
-        .unwrap();
-
-        let encrypted_report = client_crypter
-            .encrypt(verify_report_request_bin.as_slice())
-            .unwrap();
-
-        let message = AttestReportRequest {
-            request: Some(attest_report_request::Request::VerifyReportRequest(
-                VerifyReportRequestEncrypted {
-                    client_message: encrypted_report,
-                },
-            )),
-        };
-
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-
-        // Get the report.
-        let secret_bin = request_handler
-            .verify_report(message_bin.as_slice())
-            .unwrap();
-        let message_reponse: AttestReportResponse =
-            AttestReportResponse::decode(secret_bin.as_slice()).unwrap();
-
-        let report_response = match &message_reponse.response {
-            Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
-                report_response.response_for_client.clone()
-            }
-            _ => panic!("Wrong response"),
-        };
-
         assert_eq!(
-            client_crypter.decrypt(report_response.as_slice()).unwrap(),
+            tvs_client.process_response(secret_bin.as_slice()).unwrap(),
             secret
         );
     }
@@ -542,84 +454,34 @@ mod tests {
             "test_user2",
         );
 
-        let mut client = handshake::client::HandshakeInitiator::new(
-            HandshakeType::Kk,
-            &secondary_tvs_public_key,
-            Some(client_private_key.bytes()),
-        );
+        let mut tvs_client =
+            TvsClient::new(&client_private_key.bytes(), &secondary_tvs_public_key).unwrap();
 
         // Ask TVS to do its handshake part
-        let handshake_bin = request_handler
+        let handshake_response = request_handler
+            .verify_report(&tvs_client.build_initial_message().unwrap())
+            .unwrap();
+
+        tvs_client
+            .process_handshake_response(&handshake_response)
+            .unwrap();
+
+        // Send the attestation report and get the secrets.
+        let secret_bin = request_handler
             .verify_report(
-                create_attest_report_request(
-                    client.build_initial_message().unwrap(),
-                    &secondary_tvs_public_key,
-                    &client_private_key.compute_public_key(),
-                )
-                .unwrap()
-                .as_slice(),
+                &tvs_client
+                    .build_verify_report_request(
+                        &get_good_evidence(),
+                        &get_genoa_vcek(),
+                        /*application_signing_key=*/
+                        "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                    )
+                    .unwrap(),
             )
             .unwrap();
 
-        let message_reponse: AttestReportResponse =
-            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
-        let handshake_response = match &message_reponse.response {
-            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
-                init_session.response_for_client.clone()
-            }
-            _ => panic!("Wrong response"),
-        };
-
-        let (handshake_hash, mut client_crypter) = client
-            .process_response(handshake_response.as_slice())
-            .unwrap();
-
-        // Test report verification.
-        let signing_key =
-            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
-                .unwrap();
-        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
-
-        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
-        VerifyReportRequest {
-            evidence: Some(get_good_evidence()),
-            tee_certificate: get_genoa_vcek(),
-            signature,
-        }
-        .encode(&mut verify_report_request_bin)
-        .unwrap();
-
-        let encrypted_report = client_crypter
-            .encrypt(verify_report_request_bin.as_slice())
-            .unwrap();
-
-        let message = AttestReportRequest {
-            request: Some(attest_report_request::Request::VerifyReportRequest(
-                VerifyReportRequestEncrypted {
-                    client_message: encrypted_report,
-                },
-            )),
-        };
-
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-
-        // Get the report.
-        let secret_bin = request_handler
-            .verify_report(message_bin.as_slice())
-            .unwrap();
-        let message_reponse: AttestReportResponse =
-            AttestReportResponse::decode(secret_bin.as_slice()).unwrap();
-
-        let report_response = match &message_reponse.response {
-            Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
-                report_response.response_for_client.clone()
-            }
-            _ => panic!("Wrong response"),
-        };
-
         assert_eq!(
-            client_crypter.decrypt(report_response.as_slice()).unwrap(),
+            tvs_client.process_response(secret_bin.as_slice()).unwrap(),
             secret
         );
     }
@@ -656,101 +518,53 @@ mod tests {
             "test_user1",
         );
 
-        let mut client = handshake::client::HandshakeInitiator::new(
-            HandshakeType::Kk,
-            &tvs_public_key,
-            Some(client_private_key.bytes()),
-        );
+        let mut tvs_client = TvsClient::new(&client_private_key.bytes(), &tvs_public_key).unwrap();
 
         // Ask TVS to do its handshake part
-        let handshake_bin = request_handler
+        let handshake_response = request_handler
+            .verify_report(&tvs_client.build_initial_message().unwrap())
+            .unwrap();
+
+        tvs_client
+            .process_handshake_response(&handshake_response)
+            .unwrap();
+
+        // Send the attestation report and get the secrets.
+        let secret_bin = request_handler
             .verify_report(
-                create_attest_report_request(
-                    client.build_initial_message().unwrap(),
-                    &tvs_public_key,
-                    &client_private_key.compute_public_key(),
-                )
-                .unwrap()
-                .as_slice(),
+                &tvs_client
+                    .build_verify_report_request(
+                        &get_good_evidence(),
+                        &get_genoa_vcek(),
+                        /*application_signing_key=*/
+                        "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                    )
+                    .unwrap(),
             )
             .unwrap();
 
-        let message_reponse: AttestReportResponse =
-            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
-        let handshake_response = match &message_reponse.response {
-            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
-                init_session.response_for_client.clone()
-            }
-            _ => panic!("Wrong response"),
-        };
-
-        let (handshake_hash, mut client_crypter) = client
-            .process_response(handshake_response.as_slice())
-            .unwrap();
-
-        // Test report verification.
-        let signing_key =
-            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
-                .unwrap();
-        let signature = hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap();
-
-        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
-        VerifyReportRequest {
-            evidence: Some(get_good_evidence()),
-            tee_certificate: get_genoa_vcek(),
-            signature,
-        }
-        .encode(&mut verify_report_request_bin)
-        .unwrap();
-
-        let encrypted_report = client_crypter
-            .encrypt(verify_report_request_bin.as_slice())
-            .unwrap();
-
-        let message = AttestReportRequest {
-            request: Some(attest_report_request::Request::VerifyReportRequest(
-                VerifyReportRequestEncrypted {
-                    client_message: encrypted_report,
-                },
-            )),
-        };
-
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-
-        // Get the report.
-        let secret_bin = request_handler
-            .verify_report(message_bin.as_slice())
-            .unwrap();
-        let message_reponse: AttestReportResponse =
-            AttestReportResponse::decode(secret_bin.as_slice()).unwrap();
-
-        let report_response = match &message_reponse.response {
-            Some(attest_report_response::Response::VerifyReportResponse(report_response)) => {
-                report_response.response_for_client.clone()
-            }
-            _ => panic!("Wrong response"),
-        };
-
         assert_eq!(
-            client_crypter.decrypt(report_response.as_slice()).unwrap(),
+            tvs_client.process_response(secret_bin.as_slice()).unwrap(),
             secret
         );
 
-        match request_handler.verify_report(message_bin.as_slice()) {
+        // Send the attestation report again.
+        match request_handler.verify_report(
+            &tvs_client
+                .build_verify_report_request(
+                    &get_good_evidence(),
+                    &get_genoa_vcek(),
+                    /*application_signing_key=*/
+                    "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                )
+                .unwrap(),
+        ) {
             Ok(_) => panic!("verify_command() should fail."),
             Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
 
-        match request_handler.verify_report(
-            create_attest_report_request(
-                client.build_initial_message().unwrap(),
-                &tvs_public_key,
-                &client_private_key.compute_public_key(),
-            )
-            .unwrap()
-            .as_slice(),
-        ) {
+        // Try to initiate the handshake session again.
+        match request_handler.verify_report(&tvs_client.build_initial_message().unwrap()) {
             Ok(_) => panic!("verify_command() should fail."),
             Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
@@ -786,66 +600,29 @@ mod tests {
             "test_user",
         );
 
-        let mut client = handshake::client::HandshakeInitiator::new(
-            HandshakeType::Kk,
-            &tvs_public_key,
-            Some(client_private_key.bytes()),
-        );
+        let mut tvs_client = TvsClient::new(&client_private_key.bytes(), &tvs_public_key).unwrap();
+
         // Ask TVS to do its handshake part
-        let handshake_bin = request_handler
-            .verify_report(
-                create_attest_report_request(
-                    client.build_initial_message().unwrap(),
-                    &tvs_public_key,
-                    &client_private_key.compute_public_key(),
+        let handshake_response = request_handler
+            .verify_report(&tvs_client.build_initial_message().unwrap())
+            .unwrap();
+
+        tvs_client
+            .process_handshake_response(&handshake_response)
+            .unwrap();
+
+        // Send an attestation report whose measurements do not match any of
+        // the appraisal policies.
+        match request_handler.verify_report(
+            &tvs_client
+                .build_verify_report_request(
+                    &get_malformed_evidence(),
+                    &get_genoa_vcek(),
+                    /*application_signing_key=*/
+                    "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
                 )
-                .unwrap()
-                .as_slice(),
-            )
-            .unwrap();
-
-        let message_reponse: AttestReportResponse =
-            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
-        let handshake_response = match &message_reponse.response {
-            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
-                init_session.response_for_client.clone()
-            }
-            _ => panic!("Wrong response"),
-        };
-
-        let (handshake_hash, mut client_crypter) = client
-            .process_response(handshake_response.as_slice())
-            .unwrap();
-        // Test report verification.
-        let signing_key =
-            hex::decode("cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8")
-                .unwrap();
-        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
-        VerifyReportRequest {
-            evidence: Some(get_malformed_evidence()),
-            tee_certificate: get_genoa_vcek(),
-            signature: hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap(),
-        }
-        .encode(&mut verify_report_request_bin)
-        .unwrap();
-
-        let encrypted_report = client_crypter
-            .encrypt(verify_report_request_bin.as_slice())
-            .unwrap();
-        let message = AttestReportRequest {
-            request: Some(attest_report_request::Request::VerifyReportRequest(
-                VerifyReportRequestEncrypted {
-                    client_message: encrypted_report,
-                },
-            )),
-        };
-
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-
-        match request_handler.verify_report(message_bin.as_slice()) {
+                .unwrap(),
+        ) {
             Ok(_) => panic!("verify_command() should fail."),
             Err(e) => {
                 assert!(e
@@ -854,7 +631,17 @@ mod tests {
             }
         }
 
-        match request_handler.verify_report(message_bin.as_slice()) {
+        // Make sure the session is terminated if the attestation request failed.
+        match request_handler.verify_report(
+            &tvs_client
+                .build_verify_report_request(
+                    &get_malformed_evidence(),
+                    &get_genoa_vcek(),
+                    /*application_signing_key=*/
+                    "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                )
+                .unwrap(),
+        ) {
             Ok(_) => panic!("verify_command() should fail."),
             Err(e) => assert!(e.to_string().contains("The session is terminated.")),
         }
@@ -890,64 +677,27 @@ mod tests {
             "test_user",
         );
 
-        let mut client = handshake::client::HandshakeInitiator::new(
-            HandshakeType::Kk,
-            &tvs_public_key,
-            Some(client_private_key.bytes()),
-        );
+        let mut tvs_client = TvsClient::new(&client_private_key.bytes(), &tvs_public_key).unwrap();
+
         // Ask TVS to do its handshake part
-        let handshake_bin = request_handler
-            .verify_report(
-                create_attest_report_request(
-                    client.build_initial_message().unwrap(),
-                    &tvs_public_key,
-                    &client_private_key.compute_public_key(),
+        let handshake_response = request_handler
+            .verify_report(&tvs_client.build_initial_message().unwrap())
+            .unwrap();
+
+        tvs_client
+            .process_handshake_response(&handshake_response)
+            .unwrap();
+
+        match request_handler.verify_report(
+            &tvs_client
+                .build_verify_report_request(
+                    &get_bad_evidence(),
+                    &get_genoa_vcek(),
+                    /*application_signing_key=*/
+                    "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759",
                 )
-                .unwrap()
-                .as_slice(),
-            )
-            .unwrap();
-
-        let message_reponse: AttestReportResponse =
-            AttestReportResponse::decode(handshake_bin.as_slice()).unwrap();
-        let handshake_response = match &message_reponse.response {
-            Some(attest_report_response::Response::InitSessionResponse(init_session)) => {
-                init_session.response_for_client.clone()
-            }
-            _ => panic!("Wrong response"),
-        };
-
-        let (handshake_hash, mut client_crypter) = client
-            .process_response(handshake_response.as_slice())
-            .unwrap();
-        // Test report verification.
-        let signing_key =
-            hex::decode("df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759")
-                .unwrap();
-        let mut verify_report_request_bin: Vec<u8> = Vec::with_capacity(256);
-        VerifyReportRequest {
-            evidence: Some(get_bad_evidence()),
-            tee_certificate: get_genoa_vcek(),
-            signature: hash_and_sign(&handshake_hash, signing_key.as_slice()).unwrap(),
-        }
-        .encode(&mut verify_report_request_bin)
-        .unwrap();
-
-        let encrypted_report = client_crypter
-            .encrypt(verify_report_request_bin.as_slice())
-            .unwrap();
-        let message = AttestReportRequest {
-            request: Some(attest_report_request::Request::VerifyReportRequest(
-                VerifyReportRequestEncrypted {
-                    client_message: encrypted_report,
-                },
-            )),
-        };
-
-        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
-        message.encode(&mut message_bin).unwrap();
-
-        match request_handler.verify_report(message_bin.as_slice()) {
+                .unwrap(),
+        ) {
             Ok(_) => panic!("verify_command() should fail."),
             Err(e) => {
                 assert!(e
@@ -989,26 +739,38 @@ mod tests {
             "test_user",
         );
 
-        let mut client = handshake::client::HandshakeInitiator::new(
-            HandshakeType::Kk,
-            &secondary_tvs_public_key,
-            Some(client_private_key.bytes()),
-        );
+        let mut tvs_client =
+            TvsClient::new(&client_private_key.bytes(), &secondary_tvs_public_key).unwrap();
 
-        match request_handler.verify_report(
-            create_attest_report_request(
-                client.build_initial_message().unwrap(),
-                &secondary_tvs_public_key,
-                &client_private_key.compute_public_key(),
-            )
-            .unwrap()
-            .as_slice(),
-        ) {
+        // Ask TVS to perform its handshake part and expect it to fail as it does not recognize
+        // the public key the client used.
+        match request_handler.verify_report(&tvs_client.build_initial_message().unwrap()) {
             Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Unknown public key"),
         }
     }
 
+    fn create_attest_report_request(
+        handshake: Vec<u8>,
+        tvs_public_key: &[u8],
+        client_public_key: &[u8],
+    ) -> anyhow::Result<Vec<u8>> {
+        // Test initial handshake.
+        let message = AttestReportRequest {
+            request: Some(attest_report_request::Request::InitSessionRequest(
+                InitSessionRequest {
+                    client_message: handshake,
+                    tvs_public_key: tvs_public_key.to_vec(),
+                    client_public_key: client_public_key.to_vec(),
+                },
+            )),
+        };
+        let mut message_bin: Vec<u8> = Vec::with_capacity(256);
+        message.encode(&mut message_bin).map_err(|error| {
+            anyhow::anyhow!("Failed to serialize AttestReportRequest. {}", error)
+        })?;
+        Ok(message_bin)
+    }
     #[test]
     fn verify_report_unauthenticated_error() {
         let tvs_private_key = Arc::new(P256Scalar::generate());
@@ -1044,28 +806,19 @@ mod tests {
             "test_user1",
         );
 
-        let mut client = handshake::client::HandshakeInitiator::new(
-            HandshakeType::Kk,
-            &tvs_private_key.compute_public_key(),
-            Some(P256Scalar::generate().bytes()),
-        );
+        // Use a private key whose public counter-part is not registered in the
+        // TVS.
+        let mut tvs_client =
+            TvsClient::new(&P256Scalar::generate().bytes(), &tvs_public_key).unwrap();
 
         // Ask TVS to do its handshake part
-        match request_handler.verify_report(
-            create_attest_report_request(
-                client.build_initial_message().unwrap(),
-                &tvs_public_key,
-                &P256Scalar::generate().compute_public_key(),
-            )
-            .unwrap()
-            .as_slice(),
-        ) {
+        match request_handler.verify_report(&tvs_client.build_initial_message().unwrap()) {
             Ok(_) => panic!("verify_report() should fail."),
             Err(e) => assert_eq!(
                 e.to_string(),
                 "Unauthenticated, provided public key is not registered",
             ),
-        }
+        };
 
         // Test that requests where requests with client public key in the proto doesn't match
         // the one used in the handshake fail.
