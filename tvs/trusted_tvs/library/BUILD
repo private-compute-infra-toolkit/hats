@@ -25,7 +25,7 @@ rust_library(
     crate_features = ["default"],
     deps = [
         "//tvs/proto_rust:tvs-proto",
-        "//tvs/appraisal_policies:policy-manager",
+        "//tvs/appraisal_policies/policy_manager:policy-manager",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the
@@ -76,7 +76,7 @@ rust_library(
     ],
     deps = [
         "//tvs/proto_rust:tvs-proto",
-        "//tvs/appraisal_policies:policy-manager-noregex",
+        "//tvs/appraisal_policies/policy_manager:policy-manager-noregex",
         "@oak_crates_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the

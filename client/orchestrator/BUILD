@@ -71,7 +71,7 @@ rust_test(
     compile_data = ["//tvs/test_data:tvs_test_data"],
     deps = [
         ":build-for-test",
-        "//tvs/appraisal_policies:policy-manager",
+        "//tvs/appraisal_policies/policy_manager:policy-manager",
         "//tvs/client:trusted-client-noffi",
         "//tvs/key_fetcher_wrapper:key-fetcher",
         "//tvs/proto_rust:tvs-proto",

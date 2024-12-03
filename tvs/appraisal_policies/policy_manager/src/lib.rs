@@ -410,18 +410,18 @@ mod tests {
     }
 
     fn get_genoa_vcek() -> Vec<u8> {
-        include_bytes!("../test_data/vcek_genoa.crt").to_vec()
+        include_bytes!("../../../test_data/vcek_genoa.crt").to_vec()
     }
     fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../test_data/good_evidence.binarypb").as_slice(),
+            include_bytes!("../../../test_data/good_evidence.binarypb").as_slice(),
         )
         .expect("could not decode evidence")
     }
 
     fn get_bad_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../test_data/bad_evidence.binarypb").as_slice(),
+            include_bytes!("../../../test_data/bad_evidence.binarypb").as_slice(),
         )
         .expect("could not decode evidence")
     }
