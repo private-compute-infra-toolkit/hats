@@ -61,10 +61,9 @@ function build_untrusted_tvs() {
 }
 CUR_DIR="$(dirname "$0")"
 readonly CUR_DIR
-PREBUILT_DIR="$(readlink -f "$CUR_DIR/prebuilt")"
+PREBUILT_DIR="$(readlink -f "$CUR_DIR/binaries")"
 readonly PREBUILT_DIR
 cd "$CUR_DIR"
-mkdir -p "$PREBUILT_DIR"
 git submodule update --init --recursive
 
 build_oak_stage0 "$PREBUILT_DIR"

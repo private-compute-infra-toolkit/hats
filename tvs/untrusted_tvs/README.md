@@ -89,7 +89,7 @@ in Spanner and encrypted using KMS keys by following the same
 [instructions to run standalone TVS](../README.md), and adding the extra flags
 (to pass the path to various binaries).
 
-## Test the service:
+## Manually test the service:
 You can test the server by using a pre-built test keys and appraisal policies.
 
 
@@ -106,16 +106,16 @@ $ ./tvs/untrusted_tvs/build.sh
 From the repository root run:
 
 ```shell
-$ tvs/untrusted_tvs/prebuilt/tvs-server_main \
+$ tvs/untrusted_tvs/binaries/tvs-server_main \
     --port=8080 \
     --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001 \
     --appraisal_policy_file=tvs/test_data/on-perm-reference.textproto \
     --user_authentication_public_key=04a99c16a302716404b075086c8c125ea93d0822330f8a46675c8f7e5760478024811211845d43e6addae5280660ba3b5ba0f78834b79ec9449b626a725728b76d \
     --vmm_binary=$(which qemu-system-x86_64) \
-    --bios_binary=tvs/untrusted_tvs/prebuilt/stage0_bin \
-    --kernel=tvs/untrusted_tvs/prebuilt/wrapper_bzimage_virtio_console_channel \
-    --initrd=tvs/untrusted_tvs/prebuilt//oak_orchestrator \
-    --app_binary=tvs/untrusted_tvs/prebuilt/enclave_main \
+    --bios_binary=tvs/untrusted_tvs/binaries/stage0_bin \
+    --kernel=tvs/untrusted_tvs/binaries/wrapper_bzimage_virtio_console_channel \
+    --initrd=tvs/untrusted_tvs/binaries/oak_orchestrator \
+    --app_binary=tvs/untrusted_tvs/binaries/enclave_main \
     --memory_size=20G
 ```
 
@@ -134,7 +134,6 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_authentication_key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9
 ```
 
-
 To send an invalid report:
 
 ```shell
@@ -146,4 +145,13 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
    --verify_report_request_file=tvs/test_data/bad_verify_request_report.textproto \
    --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759   \
    --tvs_authentication_key=f1af8f26497c24e3944709baccd6b6f4c9326fd902317189f4b2c4adfe2e6af9
+```
+
+## Run the integration test:
+
+From the repository root run:
+
+```shell
+$ ./tvs/untrusted_tvs/build.sh
+$ bazel run  //tvs/untrusted_tvs:tvs-service_test
 ```

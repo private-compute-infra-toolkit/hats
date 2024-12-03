@@ -102,7 +102,7 @@ pub fn new_launcher(params: &Params) -> anyhow::Result<Box<Launcher>> {
 /// tokio's runtime.
 pub struct Launcher {
     runtime: Runtime,
-    instance: Box<dyn GuestInstance>,
+    instance: Option<Box<dyn GuestInstance>>,
     connector_handle: ConnectorHandle,
 }
 
@@ -127,14 +127,17 @@ impl Launcher {
 
         Ok(Box::new(Self {
             runtime,
-            instance,
+            instance: Some(instance),
             connector_handle,
         }))
     }
 
     /// Wait for the VMM until it terminates.
     pub fn wait(&mut self) -> anyhow::Result<()> {
-        match self.runtime.block_on(self.instance.wait()) {
+        let Some(ref mut instance) = self.instance else {
+            anyhow::bail!("no VMM instance to wait upon");
+        };
+        match self.runtime.block_on(instance.wait()) {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
@@ -147,6 +150,24 @@ impl Launcher {
             runtime: &self.runtime,
             inner_client: TvsEnclaveAsyncClient::new(self.connector_handle.clone()),
         })
+    }
+}
+
+/// Implement Drop trait for `Launcher` to kill the VMM process.
+/// `oak_launcher_utils::launcher::GuestInstance` provides
+/// `kill(self: Box<Self>)`. However, the method takes ownership of the object
+/// i.e. moves and rust does not allow moving out struct members.
+/// We wrap the GuestInstance into an option and use std::mem::replace() to get
+/// the wrapped GuestInstance while replacing it with None, then we call kill.
+/// If we do not kill the VMM process, the C++ launcher binary (or integration
+/// test) will not terminate.
+impl Drop for Launcher {
+    fn drop(&mut self) {
+        #[allow(clippy::mem_replace_option_with_none)]
+        let instance = std::mem::replace(&mut self.instance, None);
+        if let Some(instance) = instance {
+            let _ = self.runtime.block_on(instance.kill());
+        }
     }
 }
 

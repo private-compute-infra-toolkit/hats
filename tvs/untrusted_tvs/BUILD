@@ -83,3 +83,30 @@ cc_library(
         ":bridge",
     ],
 )
+
+cc_binary(
+    name = "tvs-service_test",
+    testonly = True,
+    srcs = ["tvs-service_test.cc"],
+    data = [
+        "//tvs/test_data:tvs_test_data",
+        "//tvs/untrusted_tvs:binaries",
+    ],
+    deps = [
+        ":tvs-service",
+        "//crypto:test-ec-key",
+        "//key_manager:test-key-fetcher",
+        "//status_macro:status_macros",
+        "//status_macro:status_test_macros",
+        "//tvs/proto:appraisal_policies_cc_proto",
+        "//tvs/proto:tvs_messages_cc_proto",
+        "//tvs/test_client:tvs-untrusted-client",
+        "@bazel_tools//tools/cpp/runfiles",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_protobuf//:protobuf_headers",
+    ],
+)

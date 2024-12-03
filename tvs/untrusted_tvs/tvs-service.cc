@@ -162,7 +162,8 @@ grpc::Status TvsService::VerifyReport(
         CreateSession(request, *key_fetcher_, *client);
     if (!create_session_result.status().ok()) {
       return grpc::Status(grpc::StatusCode::UNKNOWN,
-                          "Failed to create session.");
+                          absl::StrCat("Failed to create session.",
+                                       create_session_result.status()));
     }
     session_id = create_session_result->session_id;
     OpaqueMessage response;
