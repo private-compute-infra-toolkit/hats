@@ -26,7 +26,6 @@
 #include "absl/strings/string_view.h"
 #include "crypto/test-ec-key.h"
 #include "gmock/gmock.h"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/client_context.h"
 #include "grpcpp/server.h"
