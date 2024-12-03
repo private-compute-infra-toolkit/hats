@@ -47,10 +47,15 @@ rust_test(
     size = "small",
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = ":trusted-tvs",
-    crate_features = ["default"],
+    crate_features = [
+        "default",
+        "enclave",
+    ],
     deps = [
         "//tvs/client:trusted-client-noffi",
+        "//tvs/trusted_tvs/proto:tvs_enclave",
         "@hats_crate_index//:hex",
+        "@oak//micro_rpc",
     ],
 )
 
