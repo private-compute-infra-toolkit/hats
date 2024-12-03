@@ -83,6 +83,6 @@ rust_library(
         "//tvs/trusted_tvs/types:trusted-tvs-types",
         "@oak_crates_index//:anyhow",
         "@oak//micro_rpc",
-        "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
+        "//tvs/trusted_tvs/proto:tvs_enclave",
     ],
 )

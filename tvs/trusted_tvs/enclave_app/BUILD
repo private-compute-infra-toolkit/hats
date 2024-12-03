@@ -16,11 +16,11 @@ load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 rust_binary(
     name = "enclave_main",
-    srcs = ["enclave_main.rs"],
+    srcs = ["src/main.rs"],
     platform = "@oak//:x86_64-unknown-none",
     deps = [
-        "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
         "//tvs/trusted_tvs/library:trusted-tvs-enclave",
+        "//tvs/trusted_tvs/proto:tvs_enclave",
         "@oak//oak_restricted_kernel_sdk",
         "@oak_crates_index//:log",
     ],

@@ -20,7 +20,7 @@ rust_library(
     name = "launcher",
     srcs = ["launcher.rs"],
     deps = [
-        "//tvs/trusted_tvs/enclave/proto:tvs_enclave",
+        "//tvs/trusted_tvs/proto:tvs_enclave",
         "@cxx.rs//:cxx",
         "@oak//micro_rpc",
         "@oak//oak_launcher_utils",
