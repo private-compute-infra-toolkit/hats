@@ -15,6 +15,13 @@
 #![no_std]
 #![no_main]
 #![feature(alloc_error_handler)]
+
+/// TVS enclave main program.
+///
+/// The binary runs TVS enclave service in a non_std environment e.g. Oak's
+/// restricted kernel.
+/// The binary exports a number of RPCs over Microrpc to service client's
+/// requests proxied through the untrusted code (launcher).
 extern crate alloc;
 use alloc::boxed::Box;
 use oak_restricted_kernel_sdk::{

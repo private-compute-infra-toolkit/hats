@@ -30,6 +30,20 @@ use tvs_proto::privacy_sandbox::tvs::{
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
 
+/// Process requests from a single client session.
+///
+/// Attestation verification is a multiple step operation.
+/// Each session should be handled with the same RequestHandler.
+/// RequestHandler should not be used for multiple session.
+/// The attestation verification operation consists of the following:
+/// 1. Establish an encrypted channel: the module uses noise KK to make
+///    ensure that the channel is end-to-end encrypted. This step
+///    also includes authenticating the client.
+/// 2. Validate the attestation report signatures, and check measurements
+///    against the appraisal policies. Note that the client needs to prove
+///    that the report is generated from the same VM that sent the report
+///    by asking the client to sign the handshake hash with the report's
+///    application private key.
 pub struct RequestHandler {
     time_milis: i64,
     primary_private_key: Arc<P256Scalar>,
@@ -48,6 +62,22 @@ pub struct RequestHandler {
 }
 
 impl RequestHandler {
+    /// Create a new RequestHandler.  The function takes the following
+    /// parameters:
+    /// time_milis: the current time to be passed to Oak's attestation
+    /// verification library. The time is currently ignored in the verification
+    /// library.
+    /// primary_private_key: the primary private key used in the noise channel.
+    /// primary_public_key: public part of the primary_private_key.
+    /// secondary_private_key: a secondary key to be used in noise channel.
+    /// The key is optional and might only be used during rotation.
+    /// secondary_public_key: the public part of the secondary private key.
+    /// policy_manager: an object to check measurements against the appraisal
+    /// policies.
+    /// key_provider: an object that implements `KeyProvider` trait. The object
+    /// is used to fetch TVS private keys, and clients secrets.
+    /// user: username from other authentication mechanism e.g. GCP.
+    /// the user is ignored for now.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         time_milis: i64,
@@ -75,6 +105,9 @@ impl RequestHandler {
         }
     }
 
+    /// Process a verify report message from the client. Based on the type of
+    /// the message, the right operation is performed. The returned type is
+    /// a serialized proto.
     pub fn verify_report(&mut self, request: &[u8]) -> anyhow::Result<Vec<u8>> {
         if self.is_terminated() {
             anyhow::bail!("The session is terminated.");
@@ -252,10 +285,16 @@ impl RequestHandler {
         self.terminated = true;
     }
 
+    /// Check if the session should be terminated. The session is terminated
+    /// if one of the following is satisfied:
+    /// 1. The client performed the handshake and provided the attestation
+    ///    report.
+    /// 2. The request failed for any reason.
     pub fn is_terminated(&self) -> bool {
         self.terminated
     }
 
+    /// Get the handshake hash. This is used to identify the current session.
     pub fn handshake_hash(&self) -> Vec<u8> {
         self.handshake_hash.to_vec()
     }

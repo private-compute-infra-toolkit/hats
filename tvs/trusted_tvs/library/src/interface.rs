@@ -17,6 +17,16 @@ use crate::service::Service;
 use key_fetcher::KeyFetcher;
 use std::sync::Arc;
 
+/// Export Trusted TVS library to C++ code.
+///
+/// The entry point is NewService() function, which user should call to obtain
+/// a Service object before processing client's requests.
+/// The user need to pass a unique pointer to `KeyFetcherWrapper`, appraisal
+/// policies serialized as binary and flags to determine whether to check
+/// signatures on appraisal policies and whether or not to accept insecure
+/// policies i.e. allowing self-signed attestation reports (from non CVMs).
+/// Upon receiving a request, the client should call Service::create_request_handler()
+/// to process all requests from a session.
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 mod ffi {
 

@@ -20,6 +20,11 @@ use crypto::{P256Scalar, P256_X962_LENGTH};
 use policy_manager::PolicyManager;
 use trusted_tvs_types::KeyProvider;
 
+/// Public interface to use the crate.
+///
+/// Clients use this crate to create
+/// a Service object that owns key materials, policies and means to fetch user
+/// secrets.
 pub struct Service {
     primary_private_key: Arc<P256Scalar>,
     primary_public_key: [u8; P256_X962_LENGTH],
@@ -30,6 +35,16 @@ pub struct Service {
 }
 
 impl Service {
+    /// Create a new Service object. The function takes the following
+    /// parameters:
+    /// key_provider: an object that implements `KeyProvider` trait. The object
+    /// is used to fetch TVS private keys, and clients secrets.
+    /// policies: serialized bytes of `AppraisalPolicies` to validate
+    /// measurements against.
+    /// enable_policy_signature: whether or not to check signature on the
+    /// policies.
+    /// accept_insecure_policies: whether or not to accept policies allowing
+    /// measurement from non-CVM i.e. self signed reports.
     pub fn new(
         key_provider: Arc<dyn KeyProvider>,
         policies: &[u8],
@@ -81,6 +96,8 @@ impl Service {
         })
     }
 
+    /// Create `RequestHandler` object to process clients request from a single
+    /// session. Note that the handler should be used for one session only.
     pub fn create_request_handler(&self, time_milis: i64, user: &str) -> Box<RequestHandler> {
         Box::new(RequestHandler::new(
             time_milis,

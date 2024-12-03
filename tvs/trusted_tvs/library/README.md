@@ -9,7 +9,7 @@ TvsEnclave RPC service and export it over MicroRpc.
 The crate export the following modules:
 
 1. service: public interface to use the crate. Clients use this crate to create
-   Service object that owns key materials, policies and means to fetch user
+   a Service object that owns key materials, policies and means to fetch user
    secrets.
 1. request\_handler: an object to handle a single attestation session. The user
    obtain a handler for every request from *service*.
