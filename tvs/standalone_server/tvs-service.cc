@@ -29,7 +29,7 @@
 #include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
-#include "tvs/trusted_tvs/trusted_tvs.rs.h"
+#include "tvs/trusted_tvs/library/src/interface.rs.h"
 
 namespace privacy_sandbox::tvs {
 

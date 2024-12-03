@@ -75,7 +75,7 @@ rust_test(
         "//tvs/client:trusted-client-noffi",
         "//tvs/key_fetcher_wrapper:key-fetcher",
         "//tvs/proto_rust:tvs-proto",
-        "//tvs/trusted_tvs:trusted-tvs",
+        "//tvs/trusted_tvs/library:trusted-tvs",
         "@enclave//crypto",
         "@enclave//handshake",
         "@oak//oak_containers/orchestrator:oak_containers_orchestrator",

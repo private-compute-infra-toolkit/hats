@@ -12,23 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(feature = "enclave", no_std)]
-#[cfg(not(feature = "enclave"))]
+use crate::request_handler::RequestHandler;
+use crate::service::Service;
 use key_fetcher::KeyFetcher;
-#[cfg(not(feature = "enclave"))]
-use request_handler::RequestHandler;
-#[cfg(not(feature = "enclave"))]
-use service::Service;
-#[cfg(not(feature = "enclave"))]
 use std::sync::Arc;
 
-pub mod request_handler;
-pub mod service;
-
-#[cfg(feature = "enclave")]
-pub mod enclave_service;
-
-#[cfg(not(feature = "enclave"))]
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 mod ffi {
 
@@ -64,8 +52,7 @@ mod ffi {
     }
 }
 
-#[cfg(not(feature = "enclave"))]
-fn new_service(
+pub fn new_service(
     key_fetcher_wrapper: cxx::UniquePtr<ffi::KeyFetcherWrapper>,
     policies: &[u8],
     enable_policy_signature: bool,

@@ -22,7 +22,7 @@ use oak_restricted_kernel_sdk::{
     entrypoint,
     utils::samplestore::StaticSampleStore,
 };
-use trusted_tvs::enclave_service::EnclaveService;
+use trusted_tvs_enclave::enclave_service::EnclaveService;
 use tvs_enclave::proto::privacy_sandbox::tvs::TvsEnclaveServer;
 
 #[entrypoint]

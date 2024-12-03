@@ -97,7 +97,7 @@ impl Service {
 
 #[cfg(test)]
 mod tests {
-    use crate::new_service;
+    use crate::interface::new_service;
     use crypto::{P256Scalar, P256_SCALAR_LENGTH};
     use handshake::noise::HandshakeType;
     use key_fetcher::ffi::create_test_key_fetcher_wrapper;
@@ -113,13 +113,13 @@ mod tests {
 
     fn get_good_evidence() -> oak_proto_rust::oak::attestation::v1::Evidence {
         oak_proto_rust::oak::attestation::v1::Evidence::decode(
-            include_bytes!("../test_data/good_evidence.binarypb").as_slice(),
+            include_bytes!("../../../test_data/good_evidence.binarypb").as_slice(),
         )
         .expect("could not decode evidence")
     }
 
     fn get_genoa_vcek() -> Vec<u8> {
-        include_bytes!("../test_data/vcek_genoa.crt").to_vec()
+        include_bytes!("../../../test_data/vcek_genoa.crt").to_vec()
     }
 
     fn default_appraisal_policies() -> Vec<u8> {
