@@ -21,6 +21,7 @@
 #include "grpcpp/support/status.h"
 #include "grpcpp/support/sync_stream.h"
 #include "key_manager/key-fetcher.h"
+#include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
@@ -43,6 +44,15 @@ class TvsService final : public TeeVerificationService::Service {
   struct Options {
     std::unique_ptr<key_manager::KeyFetcher> key_fetcher;
     AppraisalPolicies appraisal_policies;
+    // Pass `policy_fetcher` to `the trusted_service_` instead
+    // of `appraisal_policies`,.
+    // Note that this option might cause the performance to degrade
+    // as the `policy_fetcher` will be queried for each `VerifyReport`
+    // request.
+    // This option takes precedent over `appraisal_policies`. If a
+    // non-nullptr object is passed, the dynamic policy fetching
+    // is enabled.
+    std::unique_ptr<PolicyFetcher> policy_fetcher = nullptr;
     bool enable_policy_signature = true;
     bool accept_insecure_policies = false;
   };

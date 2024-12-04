@@ -96,6 +96,61 @@ impl Service {
         })
     }
 
+    /// Create a new Service object with a given evidence validator, instead of
+    /// a list of appraisal policies. The service uses the provided validator
+    /// to check measurements in the attestation report.
+    /// The function takes the following parameters:
+    /// key_provider: an object that implements `KeyProvider` trait. The object
+    /// is used to fetch TVS private keys, and clients secrets.
+    /// evidence_validator: an object implementing EvidenceValidator trait to
+    /// check attestation report measurements against.
+    /// enable_policy_signature: whether or not to check signature on the
+    /// policies.
+    /// accept_insecure_policies: whether or not to accept policies allowing
+    /// measurement from non-CVM i.e. self signed reports.
+    pub fn new_with_evidence_validator(
+        key_provider: Arc<dyn KeyProvider>,
+        evidence_validator: Arc<dyn EvidenceValidator>,
+    ) -> anyhow::Result<Self> {
+        let primary_private_key: P256Scalar = key_provider
+            .get_primary_private_key()?
+            .as_slice()
+            .try_into()
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Invalid primary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
+            })?;
+        let secondary_private_key = key_provider.get_secondary_private_key();
+        let (secondary_public_key, secondary_private_key) = if secondary_private_key.is_some() {
+            // Using `unwrap()` since we already check `is_some()` is true above.
+            let secondary_private_key_value: P256Scalar = secondary_private_key
+                .unwrap()?
+                .as_slice()
+                .try_into()
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                    "Invalid secondary private key. Key should be {P256_SCALAR_LENGTH} bytes long."
+                )
+                })?;
+            (
+                Some(secondary_private_key_value.compute_public_key()),
+                Some(Arc::new(secondary_private_key_value)),
+            )
+        } else {
+            (None, None)
+        };
+
+        Ok(Self {
+            primary_public_key: primary_private_key.compute_public_key(),
+            primary_private_key: Arc::new(primary_private_key),
+            secondary_private_key,
+            secondary_public_key,
+            evidence_validator,
+            key_provider,
+        })
+    }
+
     /// Create `RequestHandler` object to process clients request from a single
     /// session. Note that the handler should be used for one session only.
     pub fn create_request_handler(&self, time_milis: i64, user: &str) -> Box<RequestHandler> {

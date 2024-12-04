@@ -40,6 +40,10 @@ ABSL_FLAG(bool, enable_policy_signature, false,
 ABSL_FLAG(bool, accept_insecure_policies, false,
           "Whether to accept policies allowing evidence from insecure "
           "hardware. Enable for testing only.");
+ABSL_FLAG(bool, enable_dynamic_policy_fetching, false,
+          "Whether or not to fetch policies from storage for every request. "
+          "Instead of pre-fetching policies once during boot time.  Note that "
+          "this option might cause the performance to degrade.");
 
 namespace {
 
@@ -62,27 +66,39 @@ absl::StatusOr<int> GetPort() {
   return port;
 }
 
+absl::StatusOr<privacy_sandbox::tvs::TvsService::Options>
+TvsServiceOptionsFromFlags() {
+  privacy_sandbox::tvs::TvsService::Options options;
+  options.key_fetcher = privacy_sandbox::key_manager::KeyFetcher::Create();
+  HATS_ASSIGN_OR_RETURN(
+      std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
+      privacy_sandbox::tvs::PolicyFetcher::Create(),
+      _.PrependWith("Failed to create a policy fetcher: "));
+  options.enable_policy_signature =
+      absl::GetFlag(FLAGS_enable_policy_signature);
+  options.accept_insecure_policies =
+      absl::GetFlag(FLAGS_accept_insecure_policies);
+  if (absl::GetFlag(FLAGS_enable_dynamic_policy_fetching)) {
+    options.policy_fetcher = std::move(policy_fetcher);
+  } else {
+    HATS_ASSIGN_OR_RETURN(
+        privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
+        policy_fetcher->GetLatestNPolicies(/*n=*/10),
+        _.PrependWith("Failed to get appraisal policies: "));
+    options.appraisal_policies = std::move(appraisal_policies);
+  }
+  return options;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
 
-  std::unique_ptr<privacy_sandbox::key_manager::KeyFetcher> key_fetcher =
-      privacy_sandbox::key_manager::KeyFetcher::Create();
   HATS_ASSIGN_OR_RETURN(
       int port, GetPort(),
       _.PrependWith("Cannot get server port: ").LogErrorAndExit());
-
-  HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
-      privacy_sandbox::tvs::PolicyFetcher::Create(),
-      _.PrependWith("Failed to create a policy fetcher: ").LogErrorAndExit());
-
-  HATS_ASSIGN_OR_RETURN(
-      privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
-      policy_fetcher->GetLatestNPolicies(/*n=*/5),
-      _.PrependWith("Failed to get appraisal policies: ").LogErrorAndExit());
 
   if (absl::GetFlag(FLAGS_accept_insecure_policies)) {
     LOG(WARNING) << "The server is accepting insecure policies. This should be "
@@ -90,15 +106,12 @@ int main(int argc, char* argv[]) {
   }
 
   HATS_ASSIGN_OR_RETURN(
+      privacy_sandbox::tvs::TvsService::Options tvs_service_options,
+      TvsServiceOptionsFromFlags(), _.LogErrorAndExit());
+
+  HATS_ASSIGN_OR_RETURN(
       std::unique_ptr<privacy_sandbox::tvs::TvsService> tvs_service,
-      privacy_sandbox::tvs::TvsService::Create({
-          .key_fetcher = std::move(key_fetcher),
-          .appraisal_policies = std::move(appraisal_policies),
-          .enable_policy_signature =
-              absl::GetFlag(FLAGS_enable_policy_signature),
-          .accept_insecure_policies =
-              absl::GetFlag(FLAGS_accept_insecure_policies),
-      }),
+      privacy_sandbox::tvs::TvsService::Create(std::move(tvs_service_options)),
       _.PrependWith("Failed to create TVS server: ").LogErrorAndExit());
 
   LOG(INFO) << "Starting TVS server on port " << port;

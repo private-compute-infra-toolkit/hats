@@ -47,7 +47,7 @@ KeyFetcherWrapper::KeyFetcherWrapper(
 VecU8Result KeyFetcherWrapper::GetPrimaryPrivateKey() const {
   absl::StatusOr<std::string> key = key_fetcher_->GetPrimaryPrivateKey();
   if (!key.ok()) {
-    return VecU8Result{
+    return {
         .error = absl::StrCat("Failed to get primary private key: ",
                               key.status().ToString()),
     };
@@ -62,7 +62,7 @@ VecU8Result KeyFetcherWrapper::GetPrimaryPrivateKey() const {
 VecU8Result KeyFetcherWrapper::GetSecondaryPrivateKey() const {
   absl::StatusOr<std::string> key = key_fetcher_->GetSecondaryPrivateKey();
   if (!key.ok()) {
-    return VecU8Result{
+    return {
         .error = absl::StrCat("Failed to get secondary private key: ",
                               key.status().ToString()),
     };
@@ -93,7 +93,7 @@ VecU8Result KeyFetcherWrapper::GetSecretsForUserId(int64_t user_id) const {
   absl::StatusOr<std::vector<key_manager::Secret>> secrets =
       key_fetcher_->GetSecretsForUserId(user_id);
   if (!secrets.ok()) {
-    return VecU8Result{
+    return {
         .error = absl::StrCat("Failed to get secret: ", secrets.status()),
     };
   }

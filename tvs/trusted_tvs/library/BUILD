@@ -26,6 +26,7 @@ rust_library(
     deps = [
         "//tvs/proto_rust:tvs-proto",
         "//tvs/appraisal_policies/policy_manager:policy-manager",
+        "//tvs/appraisal_policies/dynamic_policy_manager:dynamic-policy-manager",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the

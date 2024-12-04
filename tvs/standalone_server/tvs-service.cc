@@ -51,12 +51,21 @@ TvsService::TvsService(rust::Box<trusted::Service> trusted_service)
 
 absl::StatusOr<std::unique_ptr<TvsService>> TvsService::Create(
     Options options) {
-  absl::StatusOr<rust::Box<trusted::Service>> trusted_service =
-      trusted::NewService(
-          std::make_unique<trusted::KeyFetcherWrapper>(
-              std::move(options.key_fetcher)),
-          StringToRustSlice(options.appraisal_policies.SerializeAsString()),
-          options.enable_policy_signature, options.accept_insecure_policies);
+  absl::StatusOr<rust::Box<trusted::Service>> trusted_service;
+  if (options.policy_fetcher != nullptr) {
+    trusted_service = trusted::NewService(
+        std::make_unique<trusted::KeyFetcherWrapper>(
+            std::move(options.key_fetcher)),
+        std::make_unique<trusted::PolicyFetcherWrapper>(
+            std::move(options.policy_fetcher)),
+        options.enable_policy_signature, options.accept_insecure_policies);
+  } else {
+    trusted_service = trusted::NewService(
+        std::make_unique<trusted::KeyFetcherWrapper>(
+            std::move(options.key_fetcher)),
+        StringToRustSlice(options.appraisal_policies.SerializeAsString()),
+        options.enable_policy_signature, options.accept_insecure_policies);
+  }
 
   // Note: Status macros currently don't support setting the status code, and
   // the test checks the code type.

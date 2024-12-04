@@ -14,6 +14,7 @@
 
 use crate::request_handler::RequestHandler;
 use crate::service::Service;
+use dynamic_policy_manager::DynamicPolicyManager;
 use key_fetcher::KeyFetcher;
 use std::sync::Arc;
 
@@ -27,12 +28,16 @@ use std::sync::Arc;
 /// policies i.e. allowing self-signed attestation reports (from non CVMs).
 /// Upon receiving a request, the client should call Service::create_request_handler()
 /// to process all requests from a session.
+
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 mod ffi {
 
     extern "C++" {
         include!("tvs/key_fetcher_wrapper/key-fetcher-wrapper.h");
         type KeyFetcherWrapper = key_fetcher::ffi::KeyFetcherWrapper;
+
+        include!("tvs/appraisal_policies/dynamic_policy_manager/policy-fetcher-wrapper.h");
+        type PolicyFetcherWrapper = dynamic_policy_manager::ffi::PolicyFetcherWrapper;
     }
 
     extern "Rust" {
@@ -42,6 +47,14 @@ mod ffi {
         fn new_service(
             key_fetcher_wrapper: UniquePtr<KeyFetcherWrapper>,
             policies: &[u8],
+            enable_policy_signature: bool,
+            accept_insecure_policies: bool,
+        ) -> Result<Box<Service>>;
+
+        #[cxx_name = "NewService"]
+        fn new_service_with_policy_fetcher(
+            key_fetcher_wrapper: UniquePtr<KeyFetcherWrapper>,
+            policy_fetcher_wrapper: UniquePtr<PolicyFetcherWrapper>,
             enable_policy_signature: bool,
             accept_insecure_policies: bool,
         ) -> Result<Box<Service>>;
@@ -62,6 +75,7 @@ mod ffi {
     }
 }
 
+/// Create a new service object with pre-fetched policies.
 pub fn new_service(
     key_fetcher_wrapper: cxx::UniquePtr<ffi::KeyFetcherWrapper>,
     policies: &[u8],
@@ -75,6 +89,27 @@ pub fn new_service(
         enable_policy_signature,
         accept_insecure_policies,
     );
+    match service {
+        Ok(service) => Ok(Box::new(service)),
+        Err(err) => Err(err),
+    }
+}
+
+/// Create a new service object with dynamic policy fetching enabled.
+/// a policy fetcher is passed to the service.
+pub fn new_service_with_policy_fetcher(
+    key_fetcher_wrapper: cxx::UniquePtr<ffi::KeyFetcherWrapper>,
+    policy_fetcher_wrapper: cxx::UniquePtr<ffi::PolicyFetcherWrapper>,
+    enable_policy_signature: bool,
+    accept_insecure_policies: bool,
+) -> anyhow::Result<Box<Service>> {
+    let key_fetcher = Arc::new(KeyFetcher::new(key_fetcher_wrapper));
+    let dynamic_policy_manager = Arc::new(DynamicPolicyManager::new(
+        policy_fetcher_wrapper,
+        enable_policy_signature,
+        accept_insecure_policies,
+    ));
+    let service = Service::new_with_evidence_validator(key_fetcher, dynamic_policy_manager);
     match service {
         Ok(service) => Ok(Box::new(service)),
         Err(err) => Err(err),
