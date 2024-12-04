@@ -1,4 +1,65 @@
 policies {
+  description: "Policy for KV running in an insecure VM. Cores: 1, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+    acpi_table_sha256: "36eb161f7c53646a5c2c0e4857e34c132b9bf3244fc6e5c01ea6a8d049854cc3"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "cd45962a2b335d97e6f7ecfe09d4cea0bf3846471c197b7e6f95bf50eec7cccc966e626e4c9602cbd74408247d645e9ae13fbca8cc54e8f3e0696c126fb4e9c1"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an insecure VM. Cores: 2, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+    acpi_table_sha256: "60cdfd1741e06b1c121c70eea66644911edf08a2642c2cfecb41934410a81d00"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "2dd0b1c2fa1e3fd432f9304b8fa41f3edc63dbcd41a7a5a169808a3317731071e139d97c60e063b010504f5ab61ce3366a4b07b67dc70f7e853888895d8a4882"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an insecure VM. Cores: 3, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+    acpi_table_sha256: "b21799405af0a932c1798fc8fe5bc14b7efd490b9eacbb5e062819694c4d6a43"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "4615dd9c06b475d4cae241a877d9ea464b85b9a6157584903253e4986f799e6652de33dc6027067497136fb91e69e2de36fe3313466a9ff38806551a96e6c1c2"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an insecure VM. Cores: 4, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       insecure {}
@@ -14,6 +75,86 @@ policies {
   }
   signature {
     signature: "949dff4f5d78fe8e4785d92190679d971ce2a9de8000d8e078959f4ee764c914f81be7d265dbef2a9d9149a484cbe402950e2336e395533b54e314735c66daa8"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an insecure VM. Cores: 1, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "0426d345c21e3e7ecae3d7d73547242211c428ed937153cc13a42e804b235086"
+    acpi_table_sha256: "36eb161f7c53646a5c2c0e4857e34c132b9bf3244fc6e5c01ea6a8d049854cc3"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "5415e7b4540979a7f7e94d660087a0b1020063a27ea46181cbc7945d9209e76294d78870bdfc961cf30d900c1ab8c8ba3d0ef8c15298dc877c4530b2aac5fd1f"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an insecure VM. Cores: 2, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "0426d345c21e3e7ecae3d7d73547242211c428ed937153cc13a42e804b235086"
+    acpi_table_sha256: "60cdfd1741e06b1c121c70eea66644911edf08a2642c2cfecb41934410a81d00"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "3bf01299555c7a16bf6e35d5754614e164b9c154e45a255916ce882e81115aa4b9578b15ca9f455ef0ebd45baea7f3a5deb65de0565c3e78b19ce7b99825f3cc"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an insecure VM. Cores: 3, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "0426d345c21e3e7ecae3d7d73547242211c428ed937153cc13a42e804b235086"
+    acpi_table_sha256: "b21799405af0a932c1798fc8fe5bc14b7efd490b9eacbb5e062819694c4d6a43"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "36b06b147d9383d86193180e89496de69429646df91d46671fe50ff4eba59b5eb038a523669de22b78a065ff1b5b4dc251b192591cafdec58aabff3eca0a2b79"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an insecure VM. Cores: 4, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "0426d345c21e3e7ecae3d7d73547242211c428ed937153cc13a42e804b235086"
+    acpi_table_sha256: "668b5b4db79f9939c741d62182b5962e19c150c1eb78fa824864feb299c0e8c7"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "7bb74997695c4b70e37999dcea6ee4727d284be5bec8e441831ade36771609d03ace0b2cc4aa9181b38f02f2a6d10d869cc19ac43caa8094cb9a6e8a48898c9a"
     signer: "hats"
   }
 }
