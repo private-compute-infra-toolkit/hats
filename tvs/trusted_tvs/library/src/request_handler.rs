@@ -262,7 +262,6 @@ impl RequestHandler {
         // certificate, which contains claims and other values.
         let extracted_evidence = oak_attestation_verification::extract::extract_evidence(evidence)
             .context("extracting evidence")?;
-        // .map_err(|msg| format!("Failed to extract evidence {}", msg))?;
         let signature = Signature::from_slice(signature)
             .map_err(|err| anyhow::anyhow!("Failed to parse signature. {err}"))?;
         let verifying_key =
