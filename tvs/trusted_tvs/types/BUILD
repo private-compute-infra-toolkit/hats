@@ -22,6 +22,7 @@ rust_library(
     name = "trusted-tvs-types",
     srcs = glob(["src/**"]),
     deps = [
+        "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",
     ],
 )

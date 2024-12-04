@@ -20,7 +20,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH};
 use policy_manager::PolicyManager;
-use trusted_tvs_types::KeyProvider;
+use trusted_tvs_types::{EvidenceValidator, KeyProvider};
 use tvs_enclave::proto::privacy_sandbox::tvs::{
     CreateSessionRequest, CreateSessionResponse, DoCommandRequest, DoCommandResponse,
     LoadAppraisalPoliciesRequest, ProvisionKeysRequest, RegisterOrUpdateUserRequest,
@@ -129,7 +129,7 @@ impl TvsEnclave for EnclaveService {
             &self.primary_public_key,
             None,
             None,
-            Arc::clone(&self.policy_manager),
+            Arc::clone(&self.policy_manager) as Arc<dyn EvidenceValidator>,
             Arc::clone(&self.key_provider) as Arc<dyn KeyProvider>,
             /*user=*/ "",
         );

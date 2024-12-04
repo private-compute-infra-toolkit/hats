@@ -25,6 +25,7 @@ rust_library(
     deps = [
         "//tvs/appraisal_policies/policy_signature:policy-signature",
         "//tvs/proto_rust:tvs-proto",
+        "//tvs/trusted_tvs/types:trusted-tvs-types",
         "@hats_crate_index//:hex",
         "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",
         "@oak//oak_proto_rust",
@@ -43,12 +44,13 @@ rust_test(
 )
 
 rust_library(
-    name = "policy-manager-noregex",
+    name = "policy-manager-no-std",
     srcs = glob(["src/**"]),
     crate_name = "policy_manager",
     deps = [
         "//tvs/appraisal_policies/policy_signature:policy-signature",
         "//tvs/proto_rust:tvs-proto",
+        "//tvs/trusted_tvs/types:trusted-tvs-types",
         "@oak//oak_attestation_verification",
         "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",

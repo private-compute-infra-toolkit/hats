@@ -13,7 +13,20 @@
 // limitations under the License.
 
 #![no_std]
+
+/// Traits used by the trusted TVS code.
+///
+/// The client can customize TVS by implementing traits and pass them to TVS.
+/// The crate provides two traits:
+/// 1.  Keyprovider: used by TVS to provision the handshake keys and to fetch
+///     client authentication keys and secrets to be returned upon successful
+///     attestation.
+/// 2.  EvidenceValidator: validate attestation evidence against a given
+///     measurements (appraisal policies).
 extern crate alloc;
 
+pub use evidence_validator::EvidenceValidator;
 pub use key_provider::KeyProvider;
+
+pub mod evidence_validator;
 pub mod key_provider;

@@ -22,9 +22,8 @@ use crypto::{P256Scalar, P256_X962_LENGTH, SHA256_OUTPUT_LEN};
 use handshake::noise::HandshakeType;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
-use policy_manager::PolicyManager;
 use prost::Message;
-use trusted_tvs_types::KeyProvider;
+use trusted_tvs_types::{EvidenceValidator, KeyProvider};
 use tvs_proto::privacy_sandbox::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
@@ -52,7 +51,7 @@ pub struct RequestHandler {
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
     crypter: Option<handshake::Crypter>,
     handshake_hash: [u8; SHA256_OUTPUT_LEN],
-    policy_manager: Arc<PolicyManager>,
+    evidence_validator: Arc<dyn EvidenceValidator>,
     key_provider: Arc<dyn KeyProvider>,
     // Authenticated user if any.
     #[allow(dead_code)]
@@ -85,7 +84,7 @@ impl RequestHandler {
         primary_public_key: &[u8; P256_X962_LENGTH],
         secondary_private_key: Option<Arc<P256Scalar>>,
         secondary_public_key: Option<&[u8; P256_X962_LENGTH]>,
-        policy_manager: Arc<PolicyManager>,
+        evidence_validator: Arc<dyn EvidenceValidator>,
         key_provider: Arc<dyn KeyProvider>,
         user: &str,
     ) -> Self {
@@ -95,7 +94,7 @@ impl RequestHandler {
             primary_public_key: *primary_public_key,
             secondary_private_key,
             secondary_public_key: secondary_public_key.copied(),
-            policy_manager,
+            evidence_validator,
             key_provider,
             crypter: None,
             handshake_hash: [0; SHA256_OUTPUT_LEN],
@@ -217,7 +216,7 @@ impl RequestHandler {
             anyhow::bail!("Request does not have `evidence` proto.");
         };
         self.validate_signature(&evidence, verify_report_request.signature.as_slice())?;
-        self.policy_manager.check_evidence(
+        self.evidence_validator.check_evidence(
             self.time_milis,
             &evidence,
             verify_report_request.tee_certificate.as_slice(),
@@ -305,6 +304,7 @@ mod tests {
     use super::*;
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
+    use policy_manager::PolicyManager;
     use tvs_proto::privacy_sandbox::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, InitSessionRequest,
         Measurement, Signature as PolicySignature, Stage0Measurement,
@@ -840,7 +840,7 @@ mod tests {
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            Arc::clone(&policy_manager),
+            policy_manager.clone(),
             test_key_fetcher.clone(),
             "test_user1",
         );
@@ -867,7 +867,7 @@ mod tests {
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            Arc::clone(&policy_manager),
+            policy_manager.clone(),
             test_key_fetcher.clone(),
             "test_user1",
         );
@@ -899,7 +899,7 @@ mod tests {
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            Arc::clone(&policy_manager),
+            policy_manager.clone(),
             test_key_fetcher.clone(),
             "test_user1",
         );
@@ -952,7 +952,7 @@ mod tests {
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            Arc::clone(&policy_manager),
+            policy_manager.clone(),
             test_key_fetcher.clone(),
             "test_user",
         );
@@ -973,7 +973,7 @@ mod tests {
             &tvs_public_key,
             /*secondary_private_key=*/ None,
             /*secondary_public_key=*/ None,
-            Arc::clone(&policy_manager),
+            policy_manager.clone(),
             test_key_fetcher.clone(),
             "test_user",
         );

@@ -18,7 +18,7 @@ use alloc::sync::Arc;
 use crypto::P256_SCALAR_LENGTH;
 use crypto::{P256Scalar, P256_X962_LENGTH};
 use policy_manager::PolicyManager;
-use trusted_tvs_types::KeyProvider;
+use trusted_tvs_types::{EvidenceValidator, KeyProvider};
 
 /// Public interface to use the crate.
 ///
@@ -31,7 +31,7 @@ pub struct Service {
     secondary_private_key: Option<Arc<P256Scalar>>,
     secondary_public_key: Option<[u8; P256_X962_LENGTH]>,
     key_provider: Arc<dyn KeyProvider>,
-    policy_manager: Arc<PolicyManager>,
+    evidence_validator: Arc<dyn EvidenceValidator>,
 }
 
 impl Service {
@@ -91,7 +91,7 @@ impl Service {
             primary_private_key: Arc::new(primary_private_key),
             secondary_private_key,
             secondary_public_key,
-            policy_manager,
+            evidence_validator: policy_manager,
             key_provider,
         })
     }
@@ -105,7 +105,7 @@ impl Service {
             &self.primary_public_key,
             self.secondary_private_key.as_ref().cloned(),
             self.secondary_public_key.as_ref(),
-            Arc::clone(&self.policy_manager),
+            Arc::clone(&self.evidence_validator),
             Arc::clone(&self.key_provider),
             user,
         ))

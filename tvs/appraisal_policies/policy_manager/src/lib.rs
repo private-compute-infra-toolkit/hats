@@ -11,19 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#![no_std]
 
-/// Validate measurements against a given appraisal policies.
-///
-/// The crate takes serialized appraisal policies, decode them
-/// and convert them to Oak's ReferenceValue proto.
-/// oak_attestation_verification or (_regex) crate is used to validate and
-/// check the measurements against the appraisal policies.
-/// The crate itself does not use any crate that requires std environment.
-/// However, oak_attestation_verification_regex requires std to validate
-/// Linux kernel command line arguments against regex reference string.
-/// To make the crate fully no_std, turn off *regex* feature flag.
-/// This in turn would ignore Linux command line parameter validation.
+#![no_std]
 extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -41,9 +30,22 @@ use oak_proto_rust::oak::attestation::v1::{
 use oak_proto_rust::oak::RawDigest;
 use p256::ecdsa::VerifyingKey;
 use prost::Message;
+use trusted_tvs_types::EvidenceValidator;
 use tvs_proto::privacy_sandbox::tvs::{
     stage0_measurement, AppraisalPolicies, AppraisalPolicy, Measurement,
 };
+
+/// Validate measurements against a given appraisal policies.
+///
+/// The crate takes serialized appraisal policies, decode them
+/// and convert them to Oak's ReferenceValue proto.
+/// oak_attestation_verification or (_regex) crate is used to validate and
+/// check the measurements against the appraisal policies.
+/// The crate itself does not use any crate that requires std environment.
+/// However, oak_attestation_verification_regex requires std to validate
+/// Linux kernel command line arguments against regex reference string.
+/// To make the crate fully no_std, turn off *regex* feature flag.
+/// This in turn would ignore Linux command line parameter validation.
 
 #[derive(Clone)]
 pub struct PolicyManager {
@@ -109,7 +111,10 @@ impl PolicyManager {
         self.reference_values = reference_values;
         Ok(())
     }
+}
 
+#[cfg(feature = "regex")]
+impl EvidenceValidator for PolicyManager {
     /// Check evidence against the appraisal policies.
     /// The function takes the following parameters:
     /// time_milis: the current time to be passed to Oak's attestation
@@ -121,7 +126,7 @@ impl PolicyManager {
     /// sign the root attestation report. The certificate is used to validate
     /// the root layer signature. The certificate is validated against a cert
     /// chain issued by the vendor.
-    pub fn check_evidence(
+    fn check_evidence(
         &self,
         time_milis: i64,
         evidence: &Evidence,
@@ -139,7 +144,34 @@ impl PolicyManager {
                 Ok(_) => return Ok(()),
                 Err(_) => continue,
             };
-            #[cfg(not(feature = "regex"))]
+        }
+        Err(anyhow::anyhow!(
+            "Failed to verify report. No matching appraisal policy found"
+        ))
+    }
+}
+
+#[cfg(not(feature = "regex"))]
+impl EvidenceValidator for PolicyManager {
+    /// Check evidence against the appraisal policies.
+    /// The function takes the following parameters:
+    /// time_milis: the current time to be passed to Oak's attestation
+    /// verification library. The time is currently ignored in the verification
+    /// library.
+    /// evidence: an event log or DICE chain that contains the CVM full stack
+    /// measurements.
+    /// tee_certificate: certificate issued by the hardware vendor used to
+    /// sign the root attestation report. The certificate is used to validate
+    /// the root layer signature. The certificate is validated against a cert
+    /// chain issued by the vendor.
+    fn check_evidence(
+        &self,
+        time_milis: i64,
+        evidence: &Evidence,
+        tee_certificate: &[u8],
+    ) -> anyhow::Result<()> {
+        let endorsement = create_endorsements(tee_certificate);
+        for policy in &self.reference_values {
             match oak_attestation_verification::verifier::verify(
                 time_milis,
                 evidence,
