@@ -135,6 +135,7 @@ mod tests {
 
     fn get_test_policy() -> AppraisalPolicy {
         AppraisalPolicy{
+                description: "Test AMD-SNP measurements".to_string(),
                 measurement: Some(Measurement {
                     stage0_measurement: Some(Stage0Measurement{
                         r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{

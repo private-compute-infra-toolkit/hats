@@ -138,6 +138,7 @@ mod tests {
     fn default_appraisal_policies() -> Vec<u8> {
         let policies = AppraisalPolicies {
             policies: vec![AppraisalPolicy{
+                description: "Test AMD-SNP measurements".to_string(),
                 measurement: Some(Measurement {
                     stage0_measurement: Some(Stage0Measurement{
                         r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
@@ -175,6 +176,7 @@ mod tests {
     fn insecure_appraisal_policies() -> Vec<u8> {
         let policies = AppraisalPolicies {
             policies: vec![AppraisalPolicy{
+                description: "Test insecure VM measurements".to_string(),
                 measurement: Some(Measurement {
                     stage0_measurement: Some(Stage0Measurement{
                         r#type: Some(stage0_measurement::Type::Insecure(InsecureReferenceValues{})),

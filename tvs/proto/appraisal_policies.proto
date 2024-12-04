@@ -24,8 +24,11 @@ message AppraisalPolicies {
 }
 
 message AppraisalPolicy {
-  Measurement measurement = 1;
-  repeated Signature signature = 2;
+  // Describe the appraised measurements and virtual machine
+  // configuration.
+  string description = 1;
+  Measurement measurement = 2;
+  repeated Signature signature = 3;
 }
 
 message Signature {
