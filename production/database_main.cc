@@ -274,15 +274,24 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   // Table storing appraisal policies used to validate attestation report
   // against. columns:
   // * PolicyId: a string used to identify the appraisal policy.
+  // * ApplicationDigest: sha256 of the application bundle. This is used to
+  //   fetch policies for a certain application.
   // * UpdateTimestamp: timestamp of the last update to the row.
   // * Policy: binary representation of the appraisal policy proto.
   request.add_extra_statements(R"sql(
       CREATE TABLE AppraisalPolicies(
           PolicyId          INT64 DEFAULT
                             (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
+          ApplicationDigest BYTES(MAX) NOT NULL,
           Policy            BYTES(MAX) NOT NULL,
           UpdateTimestamp   TIMESTAMP NOT NULL,
       ) PRIMARY KEY (PolicyId))sql");
+
+  // Non-unique Index ApplicationDigest field to enable efficient retrieval of
+  // policies for a certain application.
+  request.add_extra_statements(R"sql(
+      CREATE INDEX ApplicationDigestIndex ON AppraisalPolicies
+          (ApplicationDigest))sql");
 
   google::cloud::spanner_admin::DatabaseAdminClient client(
       google::cloud::spanner_admin::MakeDatabaseAdminConnection());
@@ -491,25 +500,40 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
   google::cloud::spanner::Client spanner_client(
       google::cloud::spanner::MakeConnection(database));
 
-  auto commit = spanner_client.Commit(
-      [&spanner_client, &appraisal_policies = appraisal_policies](
-          google::cloud::spanner::Transaction transaction)
-          -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
-        for (const privacy_sandbox::tvs::AppraisalPolicy& appraisal_policy :
-             appraisal_policies.policies()) {
-          // Insert the appraisal policy.
-          google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO  AppraisalPolicies(UpdateTimestamp, Policy)
-              VALUES (CURRENT_TIMESTAMP(), @policy))sql",
-              {{"policy",
-                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                    appraisal_policy.SerializeAsString()))}});
-          HATS_ASSIGN_OR_RETURN(
-              auto _, spanner_client.ExecuteDml(std::move(transaction),
-                                                std::move(sql)));
-        }
-        return google::cloud::spanner::Mutations{};
-      });
+  auto commit = spanner_client.Commit([&spanner_client, &appraisal_policies =
+                                                            appraisal_policies](
+                                          google::cloud::spanner::Transaction
+                                              transaction)
+                                          -> google::cloud::StatusOr<
+                                              google::cloud::spanner::
+                                                  Mutations> {
+    for (const privacy_sandbox::tvs::AppraisalPolicy& appraisal_policy :
+         appraisal_policies.policies()) {
+      std::string application_digest;
+      if (!absl::HexStringToBytes(
+              appraisal_policy.measurement().container_binary_sha256(),
+              &application_digest)) {
+        return google::cloud::v2_29::Status(
+            google::cloud::StatusCode::kInvalidArgument,
+            "Failed to parse application digest. The digest should be in "
+            "formatted as "
+            "hex string.");
+      }
+      // Insert the appraisal policy.
+      google::cloud::spanner::SqlStatement sql(
+          R"sql(INSERT INTO  AppraisalPolicies(UpdateTimestamp, ApplicationDigest, Policy)
+              VALUES (CURRENT_TIMESTAMP(), @application_digest, @policy))sql",
+          {{"application_digest",
+            google::cloud::spanner::Value(
+                google::cloud::spanner::Bytes(application_digest))},
+           {"policy",
+            google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                appraisal_policy.SerializeAsString()))}});
+      HATS_ASSIGN_OR_RETURN(
+          auto _, spanner_client.ExecuteDml(transaction, std::move(sql)));
+    }
+    return google::cloud::spanner::Mutations{};
+  });
   HATS_RETURN_IF_ERROR(commit.status());
 
   return absl::OkStatus();

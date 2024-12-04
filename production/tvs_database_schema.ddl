@@ -26,19 +26,18 @@ CREATE SEQUENCE PolicyIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
 
-CREATE SEQUENCE SecretIdSequence OPTIONS (
-  sequence_kind = 'bit_reversed_positive'
-);
-
 CREATE SEQUENCE UserIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
 
 CREATE TABLE AppraisalPolicies (
   PolicyId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
+  ApplicationDigest BYTES(MAX) NOT NULL,
   Policy BYTES(MAX) NOT NULL,
   UpdateTimestamp TIMESTAMP NOT NULL,
 ) PRIMARY KEY(PolicyId);
+
+CREATE INDEX ApplicationDigestIndex ON AppraisalPolicies(ApplicationDigest);
 
 CREATE TABLE DataEncryptionKeys (
   DekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE DekIdSequence)),
