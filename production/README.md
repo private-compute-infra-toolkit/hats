@@ -153,7 +153,7 @@ deploy a Cloud Run Instance.
 1.  [Create a KMS asymmetric encryption key](https://cloud.google.com/kms/docs/create-key)
 1.  Create a Spanner database:
 
-    a. Obtain GCP credentials:
+    * Obtain GCP credentials:
 
     ```shell
     $ gcloud auth login
@@ -164,7 +164,7 @@ deploy a Cloud Run Instance.
     NOTE: `gcloud auth application-default login` is to enable database_main CLI
     to talk to Spanner and KMS, while `gcloud auth login` is for the gcloud CLI.
 
-    a. Create a Spanner database instance:
+    * Create a Spanner database instance:
 
     ```shell
     $ gcloud spanner instances create <instance_name> \
@@ -173,8 +173,9 @@ deploy a Cloud Run Instance.
     --nodes=<nodes>
     ```
 
-    a. Create a Spanner database: \
-    Note: For split trust, create n databases for n tvs instances
+    * Create a Spanner database:
+
+    NOTE: For split trust, create N databases for N TVS instances.
 
     ```shell
     $ bazel build //production:database_main
@@ -202,47 +203,56 @@ deploy a Cloud Run Instance.
         --appraisal_policy_path=<path to appraisal policy>
     ```
 
-1.  Register a user using split trust:
-
-    a. Create a pair of elliptical curve prime256v1 keys for authentication:
-
-    ```shell
-    $ bazel run //key_manager:key-gen
-    ```
-
-    a. Insert user information to the TVS database:
-
-    ```shell
-    $ bazel build //production:database_main
-    $ bazel-bin/production/database_main \
-    --operation=register_or_update_user_split_trust
-    --spanner_databases=<gcp_project>/<database_instance>/<database_name1>,<gcp_project>/<database_instance>/<database_name2> \
-    --key_resource_names=<kms_key_resource_name1>,<kms_key_resource_name2> \
-    --user_authentication_public_key=<public key from the above step> \
-    --user_name=<user_name> \
-    --user_origin=<domain>
-    ```
-
 1.  Register a user:
 
-    a. Create a pair of elliptical curve prime256v1 keys for authentication:
+    *   Single TVS use case: in the case of deploying a single TVS. You need to
+        register a user in a single instance.
 
-    ```shell
-    $ bazel run //key_manager:key-gen
-    ```
+        * Create a pair of elliptical curve prime256v1 keys for authentication:
 
-    a. Insert user information to the TVS database:
+        ```shell
+        $ bazel run //key_manager:key-gen
+        ```
 
-    ```shell
-    $ bazel build //production:database_main
-    $ bazel-bin/production/database_main \
-    --operation=register_or_update_user
-    --spanner_database=<gcp_project>/<database_instance>/<database_name> \
-    --key_resource_name=<kms_key_resource_name> \
-    --user_authentication_public_key=<public key from the above step> \
-    --user_name=<user_name> \
-    --user_origin=<domain>
-    ```
+        * Insert user information to the TVS database:
+
+        ```shell
+        $ bazel build //production:database_main
+        $ bazel-bin/production/database_main \
+        --operation=register_or_update_user
+        --spanner_database=<gcp_project>/<database_instance>/<database_name> \
+        --key_resource_name=<kms_key_resource_name> \
+        --user_authentication_public_key=<public key from the above step> \
+        --user_name=<user_name> \
+        --user_origin=<domain>
+        ```
+
+    *   Split trust TVS use case: in the case of deploying multiple TVSs.
+        You need to split the secret among the instances and save a share in
+        each instance database.
+
+        Run the following command to split the
+        secret and write it to multiple databases. Note that the secrets are
+        split using Shamir Secret schema.
+
+        * Create a pair of elliptical curve prime256v1 keys for authentication:
+
+        ```shell
+        $ bazel run //key_manager:key-gen
+        ```
+
+        * Insert user information to the TVS database:
+
+        ```shell
+        $ bazel build //production:database_main
+        $ bazel-bin/production/database_main \
+        --operation=register_or_update_user_split_trust
+        --spanner_databases=<gcp_project>/<database_instance>/<database_name1>,<gcp_project>/<database_instance>/<database_name2> \
+        --key_resource_names=<kms_key_resource_name1>,<kms_key_resource_name2> \
+        --user_authentication_public_key=<public key from the above step> \
+        --user_name=<user_name> \
+        --user_origin=<domain>
+        ```
 
 1.  Create and deploy an image to GCP:
 
@@ -259,7 +269,7 @@ deploy a Cloud Run Instance.
     a. Pass in the Spanner database information you created earlier in the
     entrypoint in the "tvs_image" rule.
 
-    a. Change "oci_push* rule to point to your GCP repository.
+    a. Change **oci_push** rule to point to your GCP repository.
 
     a. Build & push TVS server image:
 
