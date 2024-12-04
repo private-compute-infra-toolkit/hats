@@ -19,12 +19,19 @@ use alloc::vec::Vec;
 use p256::ecdsa::{signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey};
 use tvs_proto::privacy_sandbox::tvs::AppraisalPolicy;
 
+/// Validate and generate signatures attached to an appraisal policy.
+
+/// Sign an appraisal policy using the provided key. The measurements are
+/// converted from hex strings to bytes, concatenated and signed.
 // TODO(b/358413924): Support signature id, multiple signatures
 pub fn sign_policy(policy: &AppraisalPolicy, signing_key: &SigningKey) -> anyhow::Result<Vec<u8>> {
     let signature: Signature = signing_key.sign(&policy_to_bytes(policy)?);
     Ok(signature.to_vec())
 }
 
+/// Verify the signature on the given policy using the given verifying_keys.
+/// num_pass_required signifies the minimum number of valid signature on
+/// the policy.
 // TODO(b/358413924): Support signature id, multiple signatures
 pub fn verify_policy_signature(
     policy: &AppraisalPolicy,

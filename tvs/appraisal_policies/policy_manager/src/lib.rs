@@ -13,6 +13,17 @@
 // limitations under the License.
 #![no_std]
 
+/// Validate measurements against a given appraisal policies.
+///
+/// The crate takes serialized appraisal policies, decode them
+/// and convert them to Oak's ReferenceValue proto.
+/// oak_attestation_verification or (_regex) crate is used to validate and
+/// check the measurements against the appraisal policies.
+/// The crate itself does not use any crate that requires std environment.
+/// However, oak_attestation_verification_regex requires std to validate
+/// Linux kernel command line arguments against regex reference string.
+/// To make the crate fully no_std, turn off *regex* feature flag.
+/// This in turn would ignore Linux command line parameter validation.
 extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -42,6 +53,12 @@ pub struct PolicyManager {
 }
 
 impl PolicyManager {
+    /// Create a new policy manager object. The function takes the following
+    /// parameters:
+    /// enable_policy_signature: whether or not to check signature on the
+    /// policies.
+    /// accept_insecure_policies: whether or not to accept policies allowing
+    /// measurement from non-CVM i.e. self signed reports.
     pub fn new(enable_policy_signature: bool, accept_insecure_policies: bool) -> Self {
         Self {
             enable_policy_signature,
@@ -50,6 +67,15 @@ impl PolicyManager {
         }
     }
 
+    /// Create a new policy manager object with initial appraisal policies.
+    /// The function takes the following
+    /// parameters:
+    /// policies: serialized bytes of `AppraisalPolicies` to validate
+    /// measurements against.
+    /// enable_policy_signature: whether or not to check signature on the
+    /// policies.
+    /// accept_insecure_policies: whether or not to accept policies allowing
+    /// measurement from non-CVM i.e. self signed reports.
     pub fn new_with_policies(
         policies: &[u8],
         enable_policy_signature: bool,
@@ -60,6 +86,7 @@ impl PolicyManager {
         Ok(policy_manager)
     }
 
+    /// Update the appraisal policies used to check measurements against.
     pub fn update(&mut self, policies: &[u8]) -> anyhow::Result<()> {
         let appraisal_policies = AppraisalPolicies::decode(policies)
             .map_err(|_| anyhow::anyhow!("Failed to decode (serialize) appraisal policy."))?;
@@ -83,7 +110,17 @@ impl PolicyManager {
         Ok(())
     }
 
-    // Check evidence against the appraisal policies.
+    /// Check evidence against the appraisal policies.
+    /// The function takes the following parameters:
+    /// time_milis: the current time to be passed to Oak's attestation
+    /// verification library. The time is currently ignored in the verification
+    /// library.
+    /// evidence: an event log or DICE chain that contains the CVM full stack
+    /// measurements.
+    /// tee_certificate: certificate issued by the hardware vendor used to
+    /// sign the root attestation report. The certificate is used to validate
+    /// the root layer signature. The certificate is validated against a cert
+    /// chain issued by the vendor.
     pub fn check_evidence(
         &self,
         time_milis: i64,
