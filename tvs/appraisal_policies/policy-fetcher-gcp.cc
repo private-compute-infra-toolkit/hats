@@ -18,6 +18,7 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
@@ -44,8 +45,6 @@ PolicyFetcherGcp::PolicyFetcherGcp(absl::string_view project_id,
 
 absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPolicies(int n) {
   AppraisalPolicies appraisal_policies;
-  // TODO(b/358413924): Add signatures to spanner. Is "Policy" a signed policy,
-  // or should it be a separate field.
   google::cloud::spanner::SqlStatement select(
       R"sql(
       SELECT
@@ -55,6 +54,38 @@ absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPolicies(int n) {
       ORDER BY UpdateTimestamp DESC
       LIMIT @limit)sql",
       {{"limit", google::cloud::spanner::Value(n)}});
+  using RowType = std::tuple<google::cloud::spanner::Bytes>;
+  auto rows = spanner_client_.ExecuteQuery(std::move(select));
+  for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
+    HATS_RETURN_IF_ERROR(row.status());
+    AppraisalPolicy policy;
+    if (!policy.ParseFromString(std::get<0>(*row).get<std::string>())) {
+      return absl::FailedPreconditionError("Failed to parse a policy");
+    }
+    *appraisal_policies.add_policies() = std::move(policy);
+  }
+  if (appraisal_policies.policies_size() == 0) {
+    return absl::NotFoundError("No policies found");
+  }
+  return appraisal_policies;
+}
+
+absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPoliciesForDigest(
+    absl::string_view application_digest, int n) {
+  AppraisalPolicies appraisal_policies;
+  google::cloud::spanner::SqlStatement select(
+      R"sql(
+      SELECT
+          Policy
+      FROM
+          AppraisalPolicies
+      WHERE ApplicationDigest = @application_digest
+      ORDER BY UpdateTimestamp DESC
+      LIMIT @limit)sql",
+      {{"application_digest",
+        google::cloud::spanner::Value(
+            google::cloud::spanner::Bytes(application_digest))},
+       {"limit", google::cloud::spanner::Value(n)}});
   using RowType = std::tuple<google::cloud::spanner::Bytes>;
   auto rows = spanner_client_.ExecuteQuery(std::move(select));
   for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {

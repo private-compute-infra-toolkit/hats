@@ -19,10 +19,20 @@ package(
 )
 
 cc_library(
-    name = "policy-fetcher-local",
-    srcs = ["policy-fetcher-local.cc"],
+    name = "policy-fetcher-interface",
     hdrs = ["policy-fetcher.h"],
     deps = [
+        "//tvs/proto:appraisal_policies_cc_proto",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "policy-fetcher-local",
+    srcs = ["policy-fetcher-local.cc"],
+    deps = [
+        ":policy-fetcher-interface",
         "//status_macro:status_macros",
         "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/flags:flag",
@@ -54,10 +64,10 @@ cc_library(
     name = "policy-fetcher-gcp",
     srcs = ["policy-fetcher-gcp.cc"],
     hdrs = [
-        "policy-fetcher.h",
         "policy-fetcher-gcp.h",
     ],
     deps = [
+        ":policy-fetcher-interface",
         "//gcp_common:flags",
         "//status_macro:status_macros",
         "//tvs/proto:appraisal_policies_cc_proto",

@@ -16,6 +16,8 @@
 #define HATS_TVS_APPRAISAL_POLICIES_POLICY_FETCHER_GCP_H_
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -35,6 +37,9 @@ class PolicyFetcherGcp final : public PolicyFetcher {
       google::cloud::spanner::Client spanner_client);
 
   absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) override;
+
+  absl::StatusOr<AppraisalPolicies> GetLatestNPoliciesForDigest(
+      absl::string_view application_digest, int n) override;
 
  private:
   // For unit-tests only.

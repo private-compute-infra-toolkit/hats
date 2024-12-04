@@ -17,8 +17,10 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
 namespace privacy_sandbox::tvs {
@@ -30,7 +32,16 @@ class PolicyFetcher {
       const std::string& file_path);
   virtual ~PolicyFetcher() = default;
 
+  // Get latest `n` policies. The method retrieve the last `n` inserted
+  // appraisal policies from the storage.
   virtual absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) = 0;
+
+  // Get latest `n` policies that has has `application_digest` in the
+  // container_binary_sha256 field.
+  // Note that the application_digest is in binary representation (versus hex
+  // digit string).
+  virtual absl::StatusOr<AppraisalPolicies> GetLatestNPoliciesForDigest(
+      absl::string_view application_digest, int n) = 0;
 };
 
 }  // namespace privacy_sandbox::tvs

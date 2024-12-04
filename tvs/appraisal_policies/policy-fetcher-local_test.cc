@@ -19,9 +19,11 @@
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
+#include "src/google/protobuf/test_textproto.h"
 #include "status_macro/status_test_macros.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
@@ -31,6 +33,7 @@ ABSL_DECLARE_FLAG(std::string, appraisal_policy_file);
 namespace privacy_sandbox::tvs {
 namespace {
 
+using ::google::protobuf::EqualsProto;
 using ::testing::HasSubstr;
 
 constexpr absl::string_view kTestAppraisalPolicies = R"pb(
@@ -77,17 +80,28 @@ absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
   return policies;
 }
 
-TEST(PolicyFetcherLocal, Normal) {
+TEST(PolicyFetcherLocal, GetLatestNPoliciesSuccessfull) {
   HATS_ASSERT_OK_AND_ASSIGN(std::string policy_file, WriteTestPolicyToFile());
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_policies,
                             GetTestAppraisalPolicies());
   absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
   HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
                             PolicyFetcher::Create());
-  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies policies,
-                            policy_fetcher->GetLatestNPolicies(/*n=*/1));
-  EXPECT_EQ(policies.SerializeAsString(),
-            expected_policies.SerializeAsString());
+  HATS_EXPECT_OK_AND_HOLDS(policy_fetcher->GetLatestNPolicies(/*n=*/1),
+                           EqualsProto(kTestAppraisalPolicies));
+}
+
+TEST(PolicyFetcherLocal, GetLatestNPoliciesNotFoundError) {
+  // Create an empty file
+  std::string test_file = absl::StrCat(testing::TempDir(), "policy_file");
+  std::ofstream policy_file(test_file);
+  ASSERT_TRUE(policy_file.is_open());
+  policy_file.close();
+  absl::SetFlag(&FLAGS_appraisal_policy_file, test_file);
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
+                            PolicyFetcher::Create());
+  HATS_EXPECT_STATUS_MESSAGE(policy_fetcher->GetLatestNPolicies(/*n=*/1),
+                             absl::StatusCode::kNotFound, "No policies found");
 }
 
 TEST(PolicyFetcherLocal, CreateError) {
@@ -95,6 +109,37 @@ TEST(PolicyFetcherLocal, CreateError) {
   HATS_EXPECT_STATUS_MESSAGE(PolicyFetcher::Create(),
                              absl::StatusCode::kFailedPrecondition,
                              "Failed to open: nonexistent");
+}
+
+TEST(PolicyFetcherLocal, GetLatestNPoliciesForDigestSuccessfull) {
+  HATS_ASSERT_OK_AND_ASSIGN(std::string policy_file, WriteTestPolicyToFile());
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_policies,
+                            GetTestAppraisalPolicies());
+  absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
+                            PolicyFetcher::Create());
+
+  std::string application_digest;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      expected_policies.policies(0).measurement().container_binary_sha256(),
+      &application_digest));
+  HATS_EXPECT_OK_AND_HOLDS(
+      policy_fetcher->GetLatestNPoliciesForDigest(application_digest,
+                                                  /*n=*/5),
+      EqualsProto(kTestAppraisalPolicies));
+}
+
+TEST(PolicyFetcherLocal, GetLatestNPoliciesForDigestNotFoundError) {
+  HATS_ASSERT_OK_AND_ASSIGN(std::string policy_file, WriteTestPolicyToFile());
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_policies,
+                            GetTestAppraisalPolicies());
+  absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
+                            PolicyFetcher::Create());
+  HATS_EXPECT_STATUS_MESSAGE(policy_fetcher->GetLatestNPoliciesForDigest(
+                                 /*application_digest*/ "some_digest",
+                                 /*n=*/5),
+                             absl::StatusCode::kNotFound, "No policies found");
 }
 
 }  // namespace

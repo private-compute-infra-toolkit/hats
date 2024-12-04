@@ -15,10 +15,13 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
@@ -49,24 +52,81 @@ absl::StatusOr<AppraisalPolicies> ReadAppraisalPolicies(
   return appraisal_policies;
 }
 
+absl::StatusOr<std::unordered_map<std::string, AppraisalPolicies>>
+IndexAppraisalPolicies(AppraisalPolicies appraisal_policies) {
+  std::unordered_map<std::string, AppraisalPolicies> indexed_appraisal_policies;
+  // Use non-const to enable effective use of std::move().
+  for (AppraisalPolicy& appraisal_policy :
+       *appraisal_policies.mutable_policies()) {
+    std::string application_digest;
+    if (!absl::HexStringToBytes(
+            appraisal_policy.measurement().container_binary_sha256(),
+            &application_digest)) {
+      return absl::InvalidArgumentError(
+          "Failed to parse application digest. The digest should be in "
+          "formatted as "
+          "hex string.");
+    }
+    // operator[] inserts a key with default value if not there; otherwise it
+    // returns the value for that key. We then insert the given policy.
+    AppraisalPolicies& policies =
+        indexed_appraisal_policies[application_digest];
+    *policies.add_policies() = std::move(appraisal_policy);
+  }
+  return indexed_appraisal_policies;
+}
+
 class PolicyFetcherLocal final : public PolicyFetcher {
  public:
   PolicyFetcherLocal() = delete;
-  PolicyFetcherLocal(AppraisalPolicies policies)
+  PolicyFetcherLocal(
+      std::unordered_map<std::string, AppraisalPolicies> policies)
       : policies_(std::move(policies)) {}
 
   // Arbitrary return `n` policies as we don't have update timestamp
-  // in the file, and we don't need them as we can always create new
-  absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) {
+  // in the file.
+  absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) override {
+    // Number of policies found;
+    int counter = 0;
     AppraisalPolicies result;
-    for (int i = 0; i < n && i < policies_.policies_size(); ++i) {
-      *result.add_policies() = policies_.policies()[i];
+    for (const auto& [_, policies] : policies_) {
+      for (const AppraisalPolicy& policy : policies.policies()) {
+        *result.add_policies() = policy;
+        if (++counter == n) return result;
+      }
     }
-    return policies_;
+
+    if (result.policies().size() == 0) {
+      return absl::NotFoundError("No policies found");
+    }
+    return result;
+  }
+
+  // Arbitrary return `n` policies as we don't have update timestamp
+  // in the file.
+  absl::StatusOr<AppraisalPolicies> GetLatestNPoliciesForDigest(
+      absl::string_view application_digest, int n) override {
+    // Number of policies found;
+    int counter = 0;
+    AppraisalPolicies result;
+    if (auto it = policies_.find(std::string(application_digest));
+        it != policies_.end()) {
+      for (const AppraisalPolicy& policy : it->second.policies()) {
+        *result.add_policies() = policy;
+        if (++counter == n) return result;
+      }
+    }
+
+    if (result.policies().size() == 0) {
+      return absl::NotFoundError("No policies found");
+    }
+    return result;
   }
 
  private:
-  const AppraisalPolicies policies_;
+  // Policies keyed by application digest i.e. container_binary_sha256 filed.
+  // The key is the byte representation of the digest.
+  const std::unordered_map<std::string, AppraisalPolicies> policies_;
 };
 
 }  // namespace
@@ -75,14 +135,22 @@ absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create() {
   HATS_ASSIGN_OR_RETURN(
       AppraisalPolicies policies,
       ReadAppraisalPolicies(absl::GetFlag(FLAGS_appraisal_policy_file)));
-  return std::make_unique<PolicyFetcherLocal>(std::move(policies));
+  std::unordered_map<std::string, AppraisalPolicies> indexed_appraisal_policies;
+  HATS_ASSIGN_OR_RETURN(indexed_appraisal_policies,
+                        IndexAppraisalPolicies(std::move(policies)));
+  return std::make_unique<PolicyFetcherLocal>(
+      std::move(indexed_appraisal_policies));
 }
 
 absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create(
     const std::string& file_path) {
   HATS_ASSIGN_OR_RETURN(AppraisalPolicies policies,
                         ReadAppraisalPolicies(file_path));
-  return std::make_unique<PolicyFetcherLocal>(std::move(policies));
+  std::unordered_map<std::string, AppraisalPolicies> indexed_appraisal_policies;
+  HATS_ASSIGN_OR_RETURN(indexed_appraisal_policies,
+                        IndexAppraisalPolicies(std::move(policies)));
+  return std::make_unique<PolicyFetcherLocal>(
+      std::move(indexed_appraisal_policies));
 }
 
 }  // namespace privacy_sandbox::tvs
