@@ -21,9 +21,9 @@ use trusted_tvs_types::EvidenceValidator;
 /// Validate measurements against appraisal policies from storage.
 ///
 /// The crate takes C++ PolicyFetcherWrapper to retrieve policies
-/// from storage (local or Spanner). The crate extract application
-/// layer digest, and searches for policies that matches the digest
-/// then it evaluates evidence against them using PolicyManager module from
+/// from storage (local or Spanner). The crate extracts the application
+/// layer digest, searches for policies that matches the digest, and then it
+/// evaluates evidence against them using PolicyManager module from
 /// policy_manager crate.
 /// The crate implements EvidenceValidator trait to make it usable to
 /// TrustedTvs.

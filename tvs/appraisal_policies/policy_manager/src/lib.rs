@@ -134,7 +134,6 @@ impl EvidenceValidator for PolicyManager {
     ) -> anyhow::Result<()> {
         let endorsement = create_endorsements(tee_certificate);
         for policy in &self.reference_values {
-            #[cfg(feature = "regex")]
             match oak_attestation_verification_with_regex::verifier::verify(
                 time_milis,
                 evidence,
