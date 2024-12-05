@@ -28,7 +28,7 @@ protoc --encode="oak.attestation.v1.Evidence" \
 ```
 
 Note that you might need to run `bazel build //...` in order to populate
-`bazel-hats`. Alternativley, you can pull `Oak` repository and point `protoc` to
+`bazel-hats`. Alternatively, you can pull `Oak` repository and point `protoc` to
 the Oak proto directory.
 
 To convert a proto that depends on multiple protos e.g. VerifyReportRequest, run
