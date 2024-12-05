@@ -375,7 +375,7 @@ TEST(LauncherServer, Successful) {
       /*channel_map=*/
       std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>{
           {0, tvs_server->InProcessChannel(grpc::ChannelArguments())}},
-      /*fetch_tee_certificate=*/true);
+      /*tee_certificate=*/"");
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
@@ -499,7 +499,7 @@ TEST(LauncherServer, SplitSuccessful) {
           {2, tvs_server3->InProcessChannel(grpc::ChannelArguments())},
           {1, tvs_server2->InProcessChannel(grpc::ChannelArguments())},
       },
-      /*fetch_tee_certificate=*/true);
+      /*tee_certificate=*/"");
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
@@ -581,7 +581,7 @@ TEST(LauncherServer, BadReportError) {
       /*channel_map=*/
       std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>>{
           {0, tvs_server->InProcessChannel(grpc::ChannelArguments())}},
-      /*fetch_tee_certificate=*/true);
+      /*tee_certificate=*/"");
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
 

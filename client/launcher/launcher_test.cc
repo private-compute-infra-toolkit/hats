@@ -76,6 +76,7 @@ TEST(HatsLauncher, Successful) {
       GetRunfilePath("launcher_config_port_forwarding.textproto"));
   HATS_ASSERT_OK_AND_ASSIGN(LauncherConfig config,
                             ParseLauncherConfigFromFile(runfile_path));
+
   HATS_ASSERT_OK_AND_ASSIGN(std::string system_bundle,
                             GetRunfilePath("system_bundle.tar"));
   config.mutable_cvm_config()->set_hats_system_bundle(system_bundle);

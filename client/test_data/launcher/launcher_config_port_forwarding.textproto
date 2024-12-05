@@ -1,5 +1,5 @@
 cvm_config {
-  cvm_type: CVMTYPE_SEVSNP
+  cvm_type: CVMTYPE_DEFAULT
   runc_runtime_bundle: "./runtime_bundle.tar"
   hats_system_bundle: "./system_bundle.tar"
   num_cpus: 4

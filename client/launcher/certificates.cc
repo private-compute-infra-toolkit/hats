@@ -173,4 +173,5 @@ absl::StatusOr<std::string> DownloadCertificate() {
   HATS_ASSIGN_OR_RETURN(std::string url, GetCertificateUrl(api));
   return DownloadCertificate(url);
 }
+
 }  // namespace privacy_sandbox::client

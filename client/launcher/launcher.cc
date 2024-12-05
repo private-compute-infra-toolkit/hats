@@ -34,6 +34,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "client/launcher/certificates.h"
 #include "client/launcher/launcher-server.h"
 #include "client/launcher/logs-service.h"
 #include "client/launcher/qemu.h"
@@ -398,6 +399,10 @@ class HatsLauncherImpl final : public HatsLauncher {
   // The mutex is only for controlling access to started_.
   mutable absl::Mutex mu_;
   bool started_ ABSL_GUARDED_BY(mu_) = false;
+
+  // TEE chip endorsement certificate (VCEK for AMD SEV-SNP).
+  // Might be empty if we are not running in an SEV-SNP machine.
+  const std::string tee_certificate_;
 };
 
 absl::Status HatsLauncherImpl::Start() {
@@ -498,12 +503,15 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
                         GetQemuOptions(deps, config.config));
   qemu_options.log_to_std = config.qemu_log_to_std;
 
-  // Whether or not to fetch tee certificate.
-  const bool fetch_tee_certificate =
-      config.config.cvm_config().cvm_type() == CVMTYPE_SEVSNP;
+  std::string tee_certificate;
+  // We don't fetch certificates in case we are not running in an SEV-SNP
+  if (config.config.cvm_config().cvm_type() == CVMTYPE_SEVSNP) {
+    HATS_ASSIGN_OR_RETURN(tee_certificate, DownloadCertificate());
+  }
+
   auto launcher_server = std::make_unique<client::LauncherServer>(
       config.tvs_authentication_key_bytes, config.private_key_wrapping_keys,
-      config.tvs_channels, fetch_tee_certificate);
+      config.tvs_channels, tee_certificate);
 
   auto launcher_oak_server = std::make_unique<LauncherOakServer>(
       deps.oak_system_image_path, deps.container_bundle, kMaxGrpcResponseSize);
@@ -552,6 +560,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
 
   HATS_ASSIGN_OR_RETURN(std::unique_ptr<Qemu> qemu, Qemu::Create(qemu_options));
   deps.vmm_binary_path = qemu_options.vmm_binary;
+
   return std::make_unique<HatsLauncherImpl>(
       deps, std::move(qemu), std::move(launcher_oak_server),
       std::move(launcher_server), std::move(logs_service),

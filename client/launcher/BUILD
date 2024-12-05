@@ -82,6 +82,7 @@ cc_library(
     srcs = ["launcher.cc"],
     hdrs = ["launcher.h"],
     deps = [
+        ":certificates",
         ":launcher-server",
         ":logs-service",
         ":qemu",
@@ -129,7 +130,6 @@ cc_library(
     srcs = ["launcher-server.cc"],
     hdrs = ["launcher-server.h"],
     deps = [
-        ":certificates",
         "//client/proto:launcher_cc_grpc",
         "//client/proto:launcher_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
