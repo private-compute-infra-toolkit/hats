@@ -36,7 +36,7 @@ class PolicyFetcher {
   // appraisal policies from the storage.
   virtual absl::StatusOr<AppraisalPolicies> GetLatestNPolicies(int n) = 0;
 
-  // Get latest `n` policies that has has `application_digest` in the
+  // Get latest `n` policies that have `application_digest` in the
   // container_binary_sha256 field.
   // Note that the application_digest is in binary representation (versus hex
   // digit string).
