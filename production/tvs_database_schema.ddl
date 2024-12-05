@@ -31,7 +31,7 @@ CREATE SEQUENCE UserIdSequence OPTIONS (
 );
 
 CREATE TABLE AppraisalPolicies (
-  PolicyId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
+  PolicyId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE PolicyIdSequence)),
   ApplicationDigest BYTES(MAX) NOT NULL,
   Policy BYTES(MAX) NOT NULL,
   UpdateTimestamp TIMESTAMP NOT NULL,

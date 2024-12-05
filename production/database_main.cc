@@ -281,7 +281,7 @@ absl::Status CreateDatabase(absl::string_view spanner_database) {
   request.add_extra_statements(R"sql(
       CREATE TABLE AppraisalPolicies(
           PolicyId          INT64 DEFAULT
-                            (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
+                            (GET_NEXT_SEQUENCE_VALUE(SEQUENCE PolicyIdSequence)),
           ApplicationDigest BYTES(MAX) NOT NULL,
           Policy            BYTES(MAX) NOT NULL,
           UpdateTimestamp   TIMESTAMP NOT NULL,
