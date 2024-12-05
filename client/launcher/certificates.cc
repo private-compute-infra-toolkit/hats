@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <stdint.h>
+#include <sys/file.h>
 
 #include <string>
 
@@ -172,6 +173,58 @@ absl::StatusOr<std::string> DownloadCertificate() {
   KernelApi api;
   HATS_ASSIGN_OR_RETURN(std::string url, GetCertificateUrl(api));
   return DownloadCertificate(url);
+}
+
+constexpr char kCertificateFile[] = "/tmp/tee_certificate";
+
+absl::StatusOr<std::string> ReadOrDownloadCertificate() {
+  // Open the file for read and write as we might need to write
+  // if it's empty.
+  int file_descriptor = open(kCertificateFile, O_RDWR | O_CREAT, 0644);
+  if (file_descriptor == -1) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "Failed to open '", kCertificateFile, "': ", strerror(errno)));
+  }
+
+  auto cleanup = [file_descriptor] {
+    flock(file_descriptor, LOCK_UN);
+    close(file_descriptor);
+  };
+  std::string certificate;
+  // Acquire an exclusive lock, the method blocks if another process is
+  // holding the lock.
+  if (flock(file_descriptor, LOCK_EX) == -1) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("Failed acquire the lock on '", kCertificateFile,
+                     "': ", strerror(errno)));
+  }
+
+  // Now we have the lock, we check the file size.
+  off_t file_size = lseek(file_descriptor, 0, SEEK_END);
+  if (file_size == 0) {
+    // File is empty, we will download the certficiate.
+    HATS_ASSIGN_OR_RETURN(certificate, DownloadCertificate());
+    // Write the certificate to the file.
+    if (write(file_descriptor, certificate.data(), certificate.size()) == -1) {
+      cleanup();
+      return absl::UnknownError(absl::StrCat(
+          "Failed to write to '", kCertificateFile, "': ", strerror(errno)));
+    }
+  } else {
+    // Read the certificate from `kCertificateFile`.
+    certificate.resize(file_size);
+    if (lseek(file_descriptor, 0, SEEK_SET) == -1) {
+      return absl::UnknownError(
+          absl::StrCat("lseek() failed: '", strerror(errno)));
+    }
+    if (read(file_descriptor, certificate.data(), file_size) == -1) {
+      cleanup();
+      return absl::UnknownError(absl::StrCat(
+          "Failed to read from '", kCertificateFile, "': ", strerror(errno)));
+    }
+  }
+  cleanup();
+  return certificate;
 }
 
 }  // namespace privacy_sandbox::client

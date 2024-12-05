@@ -506,7 +506,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   std::string tee_certificate;
   // We don't fetch certificates in case we are not running in an SEV-SNP
   if (config.config.cvm_config().cvm_type() == CVMTYPE_SEVSNP) {
-    HATS_ASSIGN_OR_RETURN(tee_certificate, DownloadCertificate());
+    HATS_ASSIGN_OR_RETURN(tee_certificate, ReadOrDownloadCertificate());
   }
 
   auto launcher_server = std::make_unique<client::LauncherServer>(
