@@ -20,13 +20,24 @@ package(
 )
 
 cc_library(
+    name = "kms-client-interface",
+    hdrs = [
+        "kms-client.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:string_view",
+    ],
+)
+
+cc_library(
     name = "gcp-kms-client",
     srcs = ["gcp-kms-client.cc"],
     hdrs = [
         "gcp-kms-client.h",
-        "kms-client.h",
     ],
     deps = [
+        ":kms-client-interface",
         "//status_macro:status_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
