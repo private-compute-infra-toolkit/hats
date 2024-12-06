@@ -175,15 +175,18 @@ absl::StatusOr<std::string> DownloadCertificate() {
   return DownloadCertificate(url);
 }
 
-constexpr char kCertificateFile[] = "/tmp/tee_certificate";
+constexpr char kCertificateFilePrefix[] = "/tmp/tee_certificate";
 
 absl::StatusOr<std::string> ReadOrDownloadCertificate() {
+  // Append the current user to the certificate file name.
+  // This way we don't need to make the file world readable/writable.
+  std::string certificate_file = absl::StrCat(certificate_file, getlogin());
   // Open the file for read and write as we might need to write
   // if it's empty.
-  int file_descriptor = open(kCertificateFile, O_RDWR | O_CREAT, 0644);
+  int file_descriptor = open(certificate_file.c_str(), O_RDWR | O_CREAT, 0644);
   if (file_descriptor == -1) {
     return absl::FailedPreconditionError(absl::StrCat(
-        "Failed to open '", kCertificateFile, "': ", strerror(errno)));
+        "Failed to open '", certificate_file, "': ", strerror(errno)));
   }
 
   auto cleanup = [file_descriptor] {
@@ -195,7 +198,7 @@ absl::StatusOr<std::string> ReadOrDownloadCertificate() {
   // holding the lock.
   if (flock(file_descriptor, LOCK_EX) == -1) {
     return absl::FailedPreconditionError(
-        absl::StrCat("Failed acquire the lock on '", kCertificateFile,
+        absl::StrCat("Failed acquire the lock on '", certificate_file,
                      "': ", strerror(errno)));
   }
 
@@ -208,10 +211,10 @@ absl::StatusOr<std::string> ReadOrDownloadCertificate() {
     if (write(file_descriptor, certificate.data(), certificate.size()) == -1) {
       cleanup();
       return absl::UnknownError(absl::StrCat(
-          "Failed to write to '", kCertificateFile, "': ", strerror(errno)));
+          "Failed to write to '", certificate_file, "': ", strerror(errno)));
     }
   } else {
-    // Read the certificate from `kCertificateFile`.
+    // Read the certificate from `certificate_file`.
     certificate.resize(file_size);
     if (lseek(file_descriptor, 0, SEEK_SET) == -1) {
       return absl::UnknownError(
@@ -220,7 +223,7 @@ absl::StatusOr<std::string> ReadOrDownloadCertificate() {
     if (read(file_descriptor, certificate.data(), file_size) == -1) {
       cleanup();
       return absl::UnknownError(absl::StrCat(
-          "Failed to read from '", kCertificateFile, "': ", strerror(errno)));
+          "Failed to read from '", certificate_file, "': ", strerror(errno)));
     }
   }
   cleanup();
