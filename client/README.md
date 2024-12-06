@@ -390,30 +390,30 @@ reverse-shell.cc):
     * Create the following appraisal policy in the prebuilt directory and call
     it appraisal_policy.prototext:
 
-    ```
-policies {
-  measurement {
-    stage0_measurement {
-      amd_sev {
-        sha384: "4cca87bd71495f8484343f9524bf9a866c98851b8bfcadbd385fdc798ace74fce976ebe70c3d6ded70b86980cab5e4c5"
-        min_tcb_version {
-          boot_loader: 7
-          snp: 15
-          microcode: 62
+      ```
+      policies {
+        measurement {
+          stage0_measurement {
+            amd_sev {
+              sha384: "4cca87bd71495f8484343f9524bf9a866c98851b8bfcadbd385fdc798ace74fce976ebe70c3d6ded70b86980cab5e4c5"
+              min_tcb_version {
+                boot_loader: 7
+                snp: 15
+                microcode: 62
+              }
+            }
+          }
+          kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+          kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+          init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+          memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+          acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+          kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+          system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+          container_binary_sha256: "<digest from the step above>"
         }
       }
-    }
-    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
-    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
-    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
-    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
-    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
-    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
-    container_binary_sha256: "<digest from the step above>"
-  }
-}
-    ```
+      ```
 
 1. Generate a pair of prime256v1 of keys to use it as an authentication key to
    the TVS by running:
@@ -442,22 +442,22 @@ policies {
 1. Create or edit a file in the prebuilt directory launcher_config.prototext
 and copy the following:
 
-```
-cvm_config {
-  cvm_type: CVMTYPE_SEVSNP
-  runc_runtime_bundle: "./runtime_bundle.tar"
-  hats_system_bundle: "./system_bundle.tar"
-  num_cpus: 4
-  ramdrive_size_kb: 10485760
-  ram_size_kb: 8000000
-  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
-  network_config {
-    inbound_only {
-      host_enclave_app_proxy_port: 8050
+  ```
+  cvm_config {
+    cvm_type: CVMTYPE_SEVSNP
+    runc_runtime_bundle: "./runtime_bundle.tar"
+    hats_system_bundle: "./system_bundle.tar"
+    num_cpus: 4
+    ramdrive_size_kb: 10485760
+    ram_size_kb: 8000000
+    vmm_binary: "/usr/local/bin/qemu-system-x86_64"
+    network_config {
+      inbound_only {
+        host_enclave_app_proxy_port: 8050
+      }
     }
   }
-}
-```
+  ```
 
 1. Launch the CVM:
 
@@ -510,22 +510,22 @@ launches your program run the following from the host:
 1. Create or edit a file in the prebuilt directory launcher_config.prototext
 and copy the following:
 
-```
-cvm_config {
-  cvm_type: CVMTYPE_SEVSNP
-  runc_runtime_bundle: "./runtime_bundle.tar"
-  hats_system_bundle: "./system_bundle.tar"
-  num_cpus: 4
-  ramdrive_size_kb: 10485760
-  ram_size_kb: 8000000
-  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
-  network_config {
-    inbound_and_outbound {
-      host_enclave_app_proxy_port: 8050
+    ```
+    cvm_config {
+      cvm_type: CVMTYPE_SEVSNP
+      runc_runtime_bundle: "./runtime_bundle.tar"
+      hats_system_bundle: "./system_bundle.tar"
+      num_cpus: 4
+      ramdrive_size_kb: 10485760
+      ram_size_kb: 8000000
+      vmm_binary: "/usr/local/bin/qemu-system-x86_64"
+      network_config {
+        inbound_and_outbound {
+          host_enclave_app_proxy_port: 8050
+        }
+      }
     }
-  }
-}
-```
+    ```
 
 1. Modify the kernel_cmd_line_regex in the appraisal policy to be
 
@@ -583,24 +583,24 @@ from the host, and can be accessible from the network.
 1. Create or edit a file in the prebuilt directory launcher_config.prototext
 and copy the following:
 
-```
-cvm_config {
-  cvm_type: CVMTYPE_SEVSNP
-  runc_runtime_bundle: "./runtime_bundle.tar"
-  hats_system_bundle: "./system_bundle.tar"
-  num_cpus: 4
-  ramdrive_size_kb: 10485760
-  ram_size_kb: 8000000
-  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
-  network_config {
-    virtual_bridge {
-        virtual_bridge_device: "my_bridge"
-        cvm_ip_addr: "192.168.111.12"
-        cvm_gateway_addr: "192.168.111.11"
+    ```
+    cvm_config {
+      cvm_type: CVMTYPE_SEVSNP
+      runc_runtime_bundle: "./runtime_bundle.tar"
+      hats_system_bundle: "./system_bundle.tar"
+      num_cpus: 4
+      ramdrive_size_kb: 10485760
+      ram_size_kb: 8000000
+      vmm_binary: "/usr/local/bin/qemu-system-x86_64"
+      network_config {
+        virtual_bridge {
+            virtual_bridge_device: "my_bridge"
+            cvm_ip_addr: "192.168.111.12"
+            cvm_gateway_addr: "192.168.111.11"
+        }
+      }
     }
-  }
-}
-```
+    ```
 
     We gave the CVM 192.168.111.12 address, and told it the gateway is the host
     (192.168.111.11) and we told the launcher to add the TAP interface to
