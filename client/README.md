@@ -1,26 +1,35 @@
-# TVS client
+# HATs CVM (Client Code)
 
-This directory contains code intended to run in the client machine.
+This directory contains code and configuration to a workload in a CVM.
 
-For example, scripts and code to run and launch oak containers.
+HATs provides a framework to run application in confidential virtual
+machines with remote attestation. The goal is to provide a mechanism to run
+workload and *ensure* the workload is running in a CVM operated on approved
+hardware and software.
+To do so, HATs utilizes Oak containers with hardware capable of generating
+attestation reports with signatures chained to trusted vendors.
+Client package the workload into a runtime bundle and run it in HATs CVM that
+that generates an attestation report containing measurements of the CVM stack.
+The CVM launches the workload after it receives clearance and necessary
+materials from the tee verification service (TVS). The TVS typically stores
+cryptographic key materials that are released after it receives a valid report
+over an authenticated channel.
+The measurements in the attestation report should pass the appraisal policy
+loaded into the TVS.
 
-## Launch Oak containers system with KV server using SEV-SNP and QEMU {#build-basic}
+NOTE: All the instructions below assumes that the current working directory is
+HATs repository root (all paths are relative to the repository root).
 
-Note: this setup is based on AMD's
-[V15 patch](https://lore.kernel.org/kvm/20240502231140.GC13783@ls.amr.corp.intel.com/T/).
+NOTE: You can run HATs framework on insecure VM for testing.
 
-1.  Build Oak stack and KV server in your workstation, or cloudtop:
+# Prerequisite
 
-    *   Navigate into the cloned hats directory: `$ cd hats`
+In order to use HATs CVM you need:
 
-    *   Fetch the needed submodules `$ git submodule update --init --recursive`
+1. AMD SEV-SNP machine running Linux: the machine should have SEV-SNP enabled
+in the BIOS and the kernel.
 
-    *   Build the KV server, base system image, stage0, stage1, linux kernels,
-        launchers, etc. `$ ./scripts/build.sh`
-
-    The artifacts will be located at the `prebuilt` sub-directory.
-
-1.  Build QEMU from Yu's branch on an SEV-SNP server:
+1. QEMU (version >= 9.2.0-rc3): build QEMU in the SNP machine.
 
     *   Install build dependencies:
 
@@ -34,220 +43,609 @@ Note: this setup is based on AMD's
         might not be able to use QEMU binaries built on your workstation or
         cloudtop.
 
-    *   Fetch QEMU from Yu's branch and build the binary:
 
-        Note: Yu's branch is one commit ahead of AMD's branch
-        [snp-v4-wip3c](https://github.com/amdese/qemu/commits/snp-v4-wip3c)
+    * Download and compile QEMU:
 
         ```shell
-        $ git clone https://github.com/dingelish/qemu.git \
-            --branch ding-qemu/ding-snp-v4-wip3c-patched
-        $ cd qemu
-        $ ./configure --enable-kvm --target-list=x86_64-softmmu
+        $ wget https://download.qemu.org/qemu-9.2.0-rc3.tar.xz
+        $ tar xvJf qemu-9.2.0-rc3.tar.xz
+        $ cd qemu-9.2.0-rc3
+        $ ./configure
         $ make -j32
         ```
-
-        The output binary is `./build/qemu-system-x86_64`.
-
-1.  Copy binaries to SEV-SNP machine:
-
-    Copy the prebuilt folder that contains the binaries you built in the first
-    step to the SEV-SNP machine (you can use `scp` or `rsync). Copy
-    qemu-system-x86 binary from the previous step to the same folder.
-
-1.  Run oak_container_launcher:
-
-    The command will run the launcher that runs the oak container. You may need
-    to tweak he path in the script a little to make it work on the SEV-SNP
-    server.
-
-    `./scripts/start-oak-sevsnp.sh`
-
-    Note, in this QEMU setup, you do not need shortleash. The local network
-    between ost and guest has hardcoded IP addresses: 10.0.2.100 for host and
-    10.0.2.15 for guest.
-
-    gLinux offers grpc-cli in its apt. On the SNP machine you need to compile it
-    from source.
+    * Copy the build QEMU binary to a known location e.g. `/usr/local/bin`:
 
     ```shell
-    $ git clone --recursive --branch v1.64.0 https://github.com/grpc/grpc
-    $ cd grpc
-    $ mkdir -p cmake/build
-    $ cd cmake/build
-    $ cmake -DgRPC_BUILD_TESTS=ON ../..
-    $ make -j32 grpc_cli
-    $ ls -l grpc_cli
+    $ cp qemu-9.2.0-rc3/build/qemu-system-x86_64 /usr/local/bin/
     ```
 
-    Finally run this command to talk with the KV server
+    * Give the current user permission to use /dev/kvm and /dev/sev. You can
+    do so by adding the user to `kvm` group, and give the group read access
+    to the devices:
 
     ```shell
-    $ ./grpc/cmake/build/grpc_cli call localhost:50051 \
-        kv_server.v1.KeyValueService.GetValues \
-       'kv_internal: "hi"'  \
-       --channel_creds_type=insecure
+    $ sudo usermod -G kvm ${USER}
+    $ sudo chgrp kvm /dev/kvm
+    $ sudo chgrp kvm /dev/sev
+    $ sudo chmod g+r+w /dev/kvm
+    $ sudo chmod g+r+w /dev/sev
     ```
 
-## Launch Oak containers system with TVS
+    * Build CVM binaries: Oak's stage0, kernel, stage1, and HATs system image.
+    You can use `./client/scripts/build-for-hats.sh` to build the binaries.
+    The script copies the built binaries to `./client/prebuit`.
 
-The goal of this section is to provide instructions on launching Oak containers
-with QEMU on SEV-SNP that talks to a TVS server and obtains a JWT token.
+    NOTE: the binaries can be built from your workstation they do not need
+    to be build on the SEV-SNP server.
 
-1.  Build Oak stack with a patched orchestrator and launcher.
-
-    In your workstation or cloudtop:
-
-    *   Navigate into the cloned hats directory:
-
-        ```shell
-        $ cd hats
-        ```
-
-    *   Fetch the needed submodules:
-
-        ```shell
-        $ git submodule update --init --recursive
-        ```
-
-    *   Call the build script and pass it the TVS public key, which will be
-        baked into the configuration that launches the orchestrator:
-
-        ```shell
-        $ ./scripts/build-for-hats.sh <tvs_public_key_in_hex_format>
-        ```
-
-    The artifacts will be located at the `prebuilt` sub-directory.
-
-1.  Build QEMU: follow the same instructions in
-    [the previous section](#build-basic)
-
-1.  Copy binaries to SEV-SNP machine:
-
-    Copy the prebuilt folder that contains the binaries you built in the first
-    step to the SEV-SNP machine (you can use `scp` or `rsync1). Copy
-    qemu-system-x86 binary from the previous step to the same folder.
-
-1.  Run oak_container_launcher and TVS server:
-
-    To run a TVS server that listens to port 7774, use the instructions:
+    * Build TVS server:
 
     ```shell
-    $ bazel build -c opt //tvs/standalone_server:all
-    $ bazel-bin/tvs/standalone_server/tvs-server_main \
-      --port=7774 \
-      --tvs_private_key=<private_key> \
-      --appraisal_policy_file=tvs/appraisal_policies/digests2.textproto
+    $ bazel build bazel build -c opt //tvs/standalone_server:tvs-server_main
+    ```
+    Or you can use `./client/scripts/build-for-hats.sh` that build TVS server
+    and copies it to `./client/prebuit`.
+
+    * Run a TVS Server: follow this [instructions](../tvs/README.md).
+
+    * Write a CVM configuration file:
 
     ```
+    cvm_config {
+        cvm_type: CVMTYPE_SEVSNP
+        runc_runtime_bundle: <path to the workload runc bundle>
+        hats_system_bundle: "client/prebuilt/system_bundle.tar"
+        num_cpus: 4
+        ramdrive_size_kb: 10485760
+        ram_size_kb: 8000000
+        vmm_binary: "/usr/local/bin/qemu-system-x86_64"
+        network_config {
+            inbound_only {
+                host_enclave_app_proxy_port: <port that the workload litens to>
+            }
+        }
+    }
+    ```
 
-    Launch the container and pass it the TVS address you ran above.
-    `./scripts/start-hats-sevsnp.sh http://localhost:7779`
+    * Run the launcher in an SEV-SNP machine:
+
+    ```shell
+    $ client/prebuilt/launcher_main \
+        --tvs_addresses=localhost:7779 \
+        --use_tls=false \
+        --launcher_config_path=<path to launcher configuration> \
+        --tvs_authentication_key=<authentication key> \
+    ```
 
 ## Launch Oak containers system with TVS and Parc
 
-The goal of this section is to provide instructions on launching a binary in Oak
-Containers (with QEMU on SEP-SNP) that communicate with Parc and TVS. The
-orchestrator talks to TVS, obtains a token and pass it to the trusted
-application. The trusted application communicates with Parc to fetch
-configuration and data.
+The goal of this section is to provide instructions on launching KV-server in
+HATs CVM that communicate with Parc.
 
-1.  Build Oak containers stack and hats launcher and orchestrator:
+You will start a CVM that runs
+KV-server, the CVM orchestrator talks to a TVS to obtain HPKE private keys, pass
+the keys to KV-server, and the launcher starts a PARC server that loads data
+into KV.
 
-    In your workstation or cloudtop:
+All the instructions below assumes that the current working directory is HATs
+repository root (all paths are relative to the repository root).
 
-    *   Navigate into the cloned hats directory:
-
-        ```shell
-        $ cd hats
-        ```
-
-    *   Fetch the needed submodules:
-
-        ```shell
-        $ git submodule update --init --recursive
-        ```
-
-    *   Copy the binary you intend to run in a confidential VM to
-        client/prebuilt. `$ mkdir -p client/prebuilt && cp <YOUR_BINARY>
-        client/prebuilt/`
-
-    *   Modify client/scripts/launch-trusted-app.sh to run your application.
-        Note: your application is copied to the CVM under `/usr/bin/server`.
-        Result from TVS attestation validation is passed to the shell script as
-        the first argument - saved into `$1`.
-
-    *   Call the build script and pass it the TVS public key, which will be
-        baked into the configuration that launches the orchestrator:
-
-        ```
-        $ ./scripts/build-for-parc.sh <tvs_public_key_in_hex_format>
-        ```
-
-    The artifacts will be located in the `prebuilt` sub-directory. Parc
-    configuration/data will be located in `prebuilt/parc` sub-directory.
-
-1.  Build QEMU: follow the same instructions in
-    [the previous section](#build-basic)
-
-1.  Copy binaries to SEV-SNP machine:
-
-    Copy the prebuilt folder that contains the binaries you built in the first
-    step to the SEV-SNP machine (you can use `scp` or `rsync1). Copy
-    qemu-system-x86 binary from the previous step to the same folder.
-
-1.  Run hats launcher and TVS server:
-
-    To run a TVS server that listens to port 7774, use the instructions:
+1. Build the binaries by running:
 
     ```shell
-    $ bazel build -c opt //tvs/standalone_server:all
-    $ bazel-bin/tvs/standalone_server/tvs-server_main \
-      --port=7774 \
-      --tvs_private_key=<private_key> \
-      --appraisal_policy_file=tvs/appraisal_policies/digests2.textproto \
-      --token=<private_hpke_key>
+    $ ./client/scripts/build-kv.sh
     ```
 
-    Launch the container and pass it the TVS address you ran above.
-    `./scripts/start-hats-parc-sevsnp.sh localhost:7779`
+    This builds Oak's stage0, kernel, initrd, HATs system image, launcher, TVS
+    server and build KV-server and package it into a tar bundle. It will also
+    The built binaries are copied to `./client/prebuilt`. The script also copies
+    and appraisal policy and CVM configuration file to the directory.
 
-1.  (Optional): To run KV-Server that fetches an HPKE private key from TVS You
-    can apply client/kv-server.patch to a KV server so that it takes the private
-    key as a flag. After running KV-server in a CVM, send encrypted OHTTP
-    requests using the public key corresponding the private key passed to the
-    private server. You can use the binary in `client/kv-test-client` as
-    follows: `kv-test-client --public_key=<public_hpke_key>`. The default park
-    data, contains the following keys: foo0, foo1, foo2, foo3, and foo4.
+    NOTE: if you want to test on an insecure VM run
+    `./client/scripts/build-kv-insecure.sh` instead.
 
-## Steps to download VCEK cert, CA cert and CRL from AMD
+1. Generate a pair of prime256v1 of keys to use it as an authentication key to
+   the TVS by running:
 
-After running `./scripts/build.sh` you have a `snphost` binary in the prebuilt
-directory. Copy that to the SNP machine and run
+   ```shell
+   $ bazel run //key_manager:key-gen -- --key-type secp128r1
+   ```
+   The command above prints a public and private key in hex string format.
+   The private key is passed to the CVM through the launcher, the public key
+   is given to the TVS.
 
-```shell
-sudo ./snphost show vcek-url # gives you the URL to download VCEK
-sudo ./snphost fetch ca pem . # download the ca cert to `.` in pem format
-sudo ./snphost fetch vcek pem . # download the vcek to `.` in pem format
-sudo ./snphost fetch crl . # download the revokation list to `.`
+1. Generate a pair of HPKE for KV-server by running:
+
+    ```shell
+    $ bazel run //key_manager:key-gen -- --key-type x25519-hkdf-sha256
+    ```
+    The command above prints a public and private key in hex string format.
+    The private key is passed to TVS (it will give it to the CVM if it passes
+    the attestation process). The public key is used to encrypt requests sent
+    by the CLI client.
+
+1. Run an instance of TVS in local mode (this in contract to a GCP mode where
+keys are stored in Spanner encrypted by KMS):
+
+    ```shell
+    $ ./client/prebuilt/tvs-server_main \
+    --port=7779  \
+    --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001   \
+    --appraisal_policy_file=./client/prebuilt/appraisal_policy.prototext \
+    --user_authentication_public_key=<public key of prime256v1 from two steps above> \
+    --user_secret=<private HPKE key from one step above> \
+    --user_key_id=1 \
+    --enable_policy_signature
+    ```
+    You can change the port number passed to TVS. You also can change
+    ```---primary_private_key``` but you need to provide the public part to the
+    CVM. You can do so by changing the value in client/system_image/tvs_public_keys.txt.
+    You also need to change system_image_sha256 field in the appraisal policy as
+    the system image hash will change.
+
+    NOTE: if you test to test on an insecure VM pass
+    `--accept_insecure_policies` as an additional flag to the TVS
+
+1. Launch the CVM:
+
+    ```shell
+    $ cd client/prebuilt/
+    $ ./launcher_main \
+     --tvs_addresses=localhost:7779 \
+     --use_tls=false \
+     --launcher_config_path=./launcher_config.prototext \
+     --tvs_authentication_key=<private key of prime256v1 from three steps above> \
+     --minloglevel=0 \
+     --stderrthreshold=0
+    ```
+1. Send encrypted requests to KV server: once the CVM starts and launches KV
+   server, you can send encrypted requests to the server and inspect the response.
+   The launcher starts a PARC server and makes it accessible to the KV server
+   to load key/value data from it.
+   The text version of the key/value data are in
+   `client/test_data/parc_data/blob_root/kv_data.csv`.
+   Pick a key from the file, encrypt it and send it and expect the server
+   to respond with the corresponding value, in this example we will use hats100.
+
+   To send an encrypted request run the following:
+
+   ```shell
+   $ cd client/kv-test-client/
+   $ bazel run :kv-test-client_main -- \
+   --public_key=<public HPKE key from four steps above> \
+   --key_id=1 \
+   --kv_server=localhost:8050 \
+   --data_key=hats100
+   ```
+    You should receive the following response with the following value:
+
+    ```
+    YOyybkGOOjEJzsYrcaJBHJklrJYTibRZTOlPPisgTjDYNczZgpokpnXqHPcDKJPEMulDNriOXewoayszrapHSJmyhwEXziQraCNlvPLFCcpcxNXCNWcqoaFnjewWxZjsVrAerUqsEfDBFMOXQRSmqbJQVneJcWUZbmiVKYWTmmPQnAreUcywcsMMCUyegDriagvduqRKEaObfdObNgpVkEeRfwOOTVFrGVxVVsCrfXAsjXuSgaJlEokraQmMVmdlzvpQphrbBuPmbcwFFaNiqChklJIuYTtmOoNukohnXxfD
+    ```
+
+    This means that the CVM was able to attest itself with TVS, obtain the HPKE
+    private key and pass it to KV-server. And that KV-server was able to reach
+    to the PARC server and load the data properly.
+
+# CVM Networking
+
+HATs offers three way to configure networking for a CVM:
+
+NOTE: networking configuration is visible in the attestation report, and needs
+to be specified in the TVS appraisal policy. The configuration are passed to the
+CVM via kernel command line arguments.
+
+1. inbound_only: only inbound traffic to a single port from the host to the CVM.
+The configuration specifies a port in the host that is forwarded to port 8080
+in the CVM. Outbound connection to the host is allowed but there are no routing
+rules added to tell the CVM to use the host as a gateway.
+
+1. inbound_and_outbound: arbitrary outbound traffic to the network is allowed
+(the host can forward the traffic to the outside world). only inbound traffic to
+a single port from the host to the CVM. The configuration specifies a port in
+the host that is forwarded to port 8080 in the CVM.
+
+1. virtual_bridge: a TAP interface connected to the CVM is added to a virtual
+bridge in the host. The user can add the physical network interface to the
+bridge to allow CVM to connect to the DHCP in the network. Or the user can
+create a subnet for the CVM in the host and if they choose to they can route
+traffic from and to the CVM.
+
+
+For illustration, we will create a toy shell and try it with the different
+network configuration.
+
+## Setup
+
+1.Build CVM binaries: Oak's stage0, kernel, stage1, and HATs system image.
+
+   ```shell
+   $ ./client/scripts/build-for-hats.sh
+   ```
+
+   The script copies the binaris to `client/prebuilt`. Copy the directory to
+   the SEV-SNP machine.
+
+1. Open your favorite editor and copy the following code (we will name the file
+reverse-shell.cc):
+
+    ```
+    #include <netinet/in.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <sys/socket.h>
+    #include <unistd.h>
+
+    #include <cstdlib>
+
+    int main(int argc, char** argv) {
+    int server_fd, new_socket;
+    struct sockaddr_in address;
+    int opt = 1;
+    socklen_t addrlen = sizeof(address);
+
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("socket() failed\n");
+        return 1;
+    }
+
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
+                    sizeof(opt))) {
+        printf("setsockopt() failed\n");
+        return 1;
+    }
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(8080);
+
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+        printf("bind() failed\n");
+        return 1;
+    }
+
+    if (listen(server_fd, 3) < 0) {
+        printf("listen() failed\n");
+        return 1;
+    }
+
+    while (true) {
+        if ((new_socket = accept(server_fd, (struct sockaddr*)&address, &addrlen)) <
+            0) {
+        printf("accept() failed\n");
+        return 1;
+        }
+        printf("Accepting connection...\n");
+        dup2(new_socket, 0);
+        dup2(new_socket, 1);
+        dup2(new_socket, 2);
+        system("/bin/sh");
+    }
+    }
+    ```
+
+1. Compile the program and copy it to the `/tmp` directory:
+
+    ```shell
+    $ g++ reverse-shell.cc -o reverse-shell
+    $ cp reverse-shell /tmp/
+    ```
+
+1. Package the program into a runtime bundle:
+
+    * Create a temporary directory:
+
+    ```shell
+    $ mkdir /tmp/my_bundle
+    ```
+
+    * Create a rootf: we will use busybox docker image:
+
+    ```shell
+    $ cd /tmp/my_bundle
+    $ mkdir rootfs
+    $ docker export $(docker create busybox) | tar -C rootfs -xvf -
+    ```
+
+    * Copy your reverse-shell into the rootfs:
+
+    ```shell
+    $ cp /tmp/reverse-shell rootfs/bin/
+    ```
+
+    * Create a rootless spec:
+
+    ```shell
+    $ cd /tmp/my_bundle
+    $ runc spec --rootless
+    ```
+
+    *  Open `/tmp/my_bundle/config.json` and change the *args* section to be as
+    follows:
+
+    ```
+                "args": [
+                        "/bin/reverse-shell"
+                ],
+    ```
+
+    * Create a bundle tarball:
+
+    ```shell
+    $ cd /tmp/my_bundle
+    $ tar cf runtime_bundle.tar *
+    ```
+
+    * Copy runtime_bundle.tar to the prebuilt directory.
+
+
+1. Create an appraisal policy:
+
+    * Calculate the sha256 of the runtime_bundle.tar
+
+    ```shell
+    $ openssl sha256 runtime_bundle.tar
+    ```
+
+    * Create the following appraisal policy in the prebuilt directory and call
+    it appraisal_policy.prototext:
+
+    ```
+policies {
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "4cca87bd71495f8484343f9524bf9a866c98851b8bfcadbd385fdc798ace74fce976ebe70c3d6ded70b86980cab5e4c5"
+        min_tcb_version {
+          boot_loader: 7
+          snp: 15
+          microcode: 62
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "49a3b093050502412e0c7dd2f58a9f2197ca0c48c3a46fad048da80a04bfc601"
+    container_binary_sha256: "<digest from the step above>"
+  }
+}
+    ```
+
+1. Generate a pair of prime256v1 of keys to use it as an authentication key to
+   the TVS by running:
+
+   ```shell
+   $ bazel run //key_manager:key-gen -- --key-type secp128r1
+   ```
+   The command above prints a public and private key in hex string format.
+   The private key is passed to the CVM through the launcher, the public key
+   is given to the TVS.
+
+
+1. Run TVS server: navigate to the prebuilt directory and run the following
+
+    ```shell
+    $ tvs-server_main \
+    --port=7779  \
+    --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001   \
+    --appraisal_policy_file=./appraisal_policy.prototext \
+    --user_authentication_public_key=<public key of prime256v1 from the steps above> \
+    --user_key_id=1 \
+    ```
+
+## inbound_only networking mode:
+
+1. Create or edit a file in the prebuilt directory launcher_config.prototext
+and copy the following:
+
+```
+cvm_config {
+  cvm_type: CVMTYPE_SEVSNP
+  runc_runtime_bundle: "./runtime_bundle.tar"
+  hats_system_bundle: "./system_bundle.tar"
+  num_cpus: 4
+  ramdrive_size_kb: 10485760
+  ram_size_kb: 8000000
+  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
+  network_config {
+    inbound_only {
+      host_enclave_app_proxy_port: 8050
+    }
+  }
+}
 ```
 
-If you need the certificates in `der` format, just replace `pem` with `der`.
+1. Launch the CVM:
 
-## Steps to launch Oak containers system with KV server using Cloud Hypervisor
+    ```shell
+    ./launcher_main \
+        --tvs_addresses=localhost:7779 \
+        --use_tls=false \
+        --launcher_config_path=./launcher_config.prototext \
+        --tvs_authentication_key=<private key of prime256v1 from above> \
+        --minloglevel=0 \
+        --stderrthreshold=0
+    ```
 
-```shell
-./scripts/build.sh
-./scripts/setup-network.sh
-./scripts/start-ch.sh
+1. Connect to the CVM from the host over port 8050: after the CVM boots and
+launches your program run the following from the host:
+
+    ```shell
+    $ nc localhost 8050
+    ls
+    ```
+
+    You will see the following:
+
+    ```shell
+    bin
+    dev
+    etc
+    home
+    lib
+    lib64
+    oak_utils
+    proc
+    root
+    sys
+    tmp
+    usr
+    var
+    ```
+
+1. Try to connect from the CVM to the outside world (this should fail).
+
+    ```shell
+        $ nc localhost 8050
+        nslookup www.google.com 4.2.2.2
+        nslookup: can't connect to remote host (4.2.2.2): Network is unreachable
+    ```
+
+## inbound_and_outbound networking mode:
+
+1. Create or edit a file in the prebuilt directory launcher_config.prototext
+and copy the following:
+
+```
+cvm_config {
+  cvm_type: CVMTYPE_SEVSNP
+  runc_runtime_bundle: "./runtime_bundle.tar"
+  hats_system_bundle: "./system_bundle.tar"
+  num_cpus: 4
+  ramdrive_size_kb: 10485760
+  ram_size_kb: 8000000
+  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
+  network_config {
+    inbound_and_outbound {
+      host_enclave_app_proxy_port: 8050
+    }
+  }
+}
 ```
 
-Login with root/root, and run `dhclient` to acquire an IP. Then you can run `apt
-update` and install more packages. To shut down, run `poweroff`. The KV server
-automatically starts on system startup.
+1. Modify the kernel_cmd_line_regex in the appraisal policy to be
 
-To clean up the network settings, run
+    ```
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15::10.0.2.2:255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    ```
+1. Restart the TVS server
 
-```shell
-./scripts/clean_network.sh
+1. Launch the CVM:
+
+    ```shell
+    ./launcher_main \
+        --tvs_addresses=localhost:7779 \
+        --use_tls=false \
+        --launcher_config_path=./launcher_config.prototext \
+        --tvs_authentication_key=<private key of prime256v1 from above> \
+        --minloglevel=0 \
+        --stderrthreshold=0
+    ```
+
+1. Connect to the CVM from the host over port 8050: after the CVM boots and
+launches your program run the following from the host:
+
+    ```shell
+    $ nc localhost 8050
+    nslookup www.google.com 4.2.2.2
+    Server:         4.2.2.2
+    Address:        4.2.2.2:53
+
+    Non-authoritative answer:
+    Name:   www.google.com
+    Address: 142.250.191.36
+
+    Non-authoritative answer:
+    Name:   www.google.com
+    Address: 2607:f8b0:4005:80e::2004
+    ```
+
+You notice that the CVM was able to reach the outside world as it was
+using the host as a gateway.
+
+# virtual_bridge networking mode:
+
+We will assign a routable IP address to the CVM. The IP address is accessible
+from the host, and can be accessible from the network.
+
+1. Create virtual bridge and assign 192.168.111.11 address to it:
+
+    ```shell
+    $ sudo brctl addbr my_bridge
+    $ sudo ifconfig my_bridge up
+    $ sudo ifconfig my_bridge 192.168.111.11
+    ```
+
+1. Create or edit a file in the prebuilt directory launcher_config.prototext
+and copy the following:
+
 ```
+cvm_config {
+  cvm_type: CVMTYPE_SEVSNP
+  runc_runtime_bundle: "./runtime_bundle.tar"
+  hats_system_bundle: "./system_bundle.tar"
+  num_cpus: 4
+  ramdrive_size_kb: 10485760
+  ram_size_kb: 8000000
+  vmm_binary: "/usr/local/bin/qemu-system-x86_64"
+  network_config {
+    virtual_bridge {
+        virtual_bridge_device: "my_bridge"
+        cvm_ip_addr: "192.168.111.12"
+        cvm_gateway_addr: "192.168.111.11"
+    }
+  }
+}
+```
+
+    We gave the CVM 192.168.111.12 address, and told it the gateway is the host
+    (192.168.111.11) and we told the launcher to add the TAP interface to
+    my_bridge.
+
+1. Modify the kernel_cmd_line_regex in the appraisal policy to be
+
+    ```
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=192.168.111.12::192.168.111.11:255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"    ```
+
+1. Restart the TVS server
+
+1. Launch the CVM (notice you either need root or ADMIN_NET_CAP:
+
+    ```shell
+    .sudo /launcher_main \
+        --tvs_addresses=localhost:7779 \
+        --use_tls=false \
+        --launcher_config_path=./launcher_config.prototext \
+        --tvs_authentication_key=<private key of prime256v1 from above> \
+        --minloglevel=0 \
+        --stderrthreshold=0
+    ```
+
+1. Connect to the CVM from the host over port 8080: after the CVM boots and
+launches your program run the following from the host:
+
+    You will see the following:
+
+    ```shell
+    bin
+    dev
+    etc
+    home
+    lib
+    lib64
+    oak_utils
+    proc
+    root
+    sys
+    tmp
+    usr
+    var
+    ```
+
+Notice that we connected to the CVM using its address and the port that the
+workload is listening to instead of a forwarded port.
+In this mode you can reach the CVM directly.
