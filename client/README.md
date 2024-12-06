@@ -429,7 +429,7 @@ reverse-shell.cc):
 1. Run TVS server: navigate to the prebuilt directory and run the following
 
     ```shell
-    $ tvs-server_main \
+    $ ./tvs-server_main \
     --port=7779  \
     --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001   \
     --appraisal_policy_file=./appraisal_policy.prototext \
