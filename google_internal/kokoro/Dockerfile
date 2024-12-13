@@ -25,6 +25,6 @@ RUN echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8
 
 RUN curl https://bazel.build/bazel-release.pub.gpg | apt-key add - && apt update
 
-RUN apt install -y bazel-7.1.2
+RUN apt install -y bazel-7.4.1
 
-RUN ln -s /usr/bin/bazel-7.1.2 /usr/bin/bazel
+RUN ln -s /usr/bin/bazel-7.4.1 /usr/bin/bazel
