@@ -2,18 +2,21 @@
   "extra_ignore_include_paths": [
     "linux/types.h",
     "cpuid.h",
-    "sys/ioctl.h",
     "initializer_list",
     "type_traits",
     "unordered_map",
     "linux/vm_sockets.h",
     "src/core/lib/iomgr/socket_mutator.h",
     "src/google/protobuf/test_textproto.h",
-    "google/protobuf/util/json_util.h"
+    "google/protobuf/util/json_util.h",
+    "tvs/appraisal_policies/policy-fetcher.h",
+    "key_manager/key-fetcher.h",
+    "include/cxx.h"
   ],
   "ignore_include_patterns": [
     ".*:bridge",
     ".*:bridge/include",
+    "sys/.*",
     "grpcpp/.*"
   ]
 }

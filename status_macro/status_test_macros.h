@@ -17,8 +17,8 @@
 
 #include <utility>  // IWYU pragma: keep for std::move
 
-#include "absl/status/status_matchers.h"
-#include "status_macro/status_util.h"  // IWYU pragma: keep for ToAbslStatus
+#include "absl/status/status_matchers.h"  // IWYU pragma: keep for absl_testing
+#include "status_macro/status_util.h"     // IWYU pragma: keep for ToAbslStatus
 
 namespace privacy_sandbox {
 

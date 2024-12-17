@@ -64,7 +64,7 @@ build:clippy --output_groups=+clippy_checks
 # depend_on_what_you_use build check
 build:dwyu --aspects=//dwyu:dwyu.bzl%hats_dwyu_aspect
 build:dwyu --output_groups=dwyu
-build:dwyu --verbose_failures=false
+build:dwyu --noverbose_failures
 
 # this rule is to enable the rust analyzer in vs code
 build --@rules_rust//:rustc_output_diagnostics=true --output_groups=+rust_lib_rustc_output,+rust_metadata_rustc_output

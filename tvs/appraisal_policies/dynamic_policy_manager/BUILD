@@ -26,7 +26,6 @@ cc_library(
         "//tvs/appraisal_policies:policy-fetcher-interface",
         "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
         "@cxx.rs//:cxx",
     ],
 )

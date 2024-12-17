@@ -16,8 +16,6 @@
 #define HATS_TVS_APPRAISAL_POLICIES_POLICY_FETCHER_GCP_H_
 
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"

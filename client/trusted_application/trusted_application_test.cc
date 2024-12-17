@@ -22,8 +22,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/flags/flag.h"
-#include "absl/flags/parse.h"
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
@@ -36,7 +34,6 @@
 #include "client/proto/trusted_service.pb.h"
 #include "client/trusted_application/trusted_application_client.h"
 #include "crypto/test-ec-key.h"
-#include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"

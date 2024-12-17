@@ -15,14 +15,16 @@
 load("@depend_on_what_you_use//:defs.bzl", "dwyu_aspect_factory")
 
 ### dwyu_ignore_includes.json
-#   Includes that are come transitively (linux/types.h)
-#   Includes that are hard to have deps (cpuid.h)
+#   Includes that come transitively (linux/types.h)
+#   Includes that are hard to have deps (cpuid.h, sys/*)
 #   Includes it incorrectly says unused (grpcpp)
+#   policy-fetcher.h, key_fetcher.h: Comes from -local or -gcp
 ### Additional things w/o manual skip, that must be manually ignored
 # "@com_github_grpc_grpc//:grpc++", may incorrectly be said unused
 #   (or the reflect version)
 # rust_cxx_bridge rules, doesn't accept tags that let it be skipped
 #   any .rs.h, as missing dep, or deps within
+# policy-fetcher-interface: Indirectly the source of policy-fetcher.h
 
 # Recursive .rs.h oddly are fixed by pragma once but not include guards
 

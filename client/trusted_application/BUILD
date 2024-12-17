@@ -63,8 +63,6 @@ cc_binary(
         "//tvs/proto:appraisal_policies_cc_proto",
         "//tvs/standalone_server:tvs-service",
         "@bazel_tools//tools/cpp/runfiles",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:flags",
         "@com_google_absl//absl/log:initialize",
@@ -88,7 +86,6 @@ cc_library(
         "//crypto:secret-data",
         "//status_macro:status_macros",
         "//status_macro:status_util",
-        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -102,7 +99,7 @@ cc_library(
         "//client/proto:trusted_service_cc_proto",
         "//crypto:aead-crypter",
         "//crypto:secret-data",
-        "//status_macro:status_test_macros",
+        "//status_macro:status_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
     ],

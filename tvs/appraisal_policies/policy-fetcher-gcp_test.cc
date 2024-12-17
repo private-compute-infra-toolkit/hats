@@ -27,6 +27,7 @@
 #include "src/google/protobuf/test_textproto.h"
 #include "status_macro/status_test_macros.h"
 #include "tvs/proto/appraisal_policies.pb.h"
+
 namespace privacy_sandbox::tvs {
 namespace {
 
