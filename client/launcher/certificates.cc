@@ -180,7 +180,8 @@ constexpr char kCertificateFilePrefix[] = "/tmp/tee_certificate";
 absl::StatusOr<std::string> ReadOrDownloadCertificate() {
   // Append the current user to the certificate file name.
   // This way we don't need to make the file world readable/writable.
-  std::string certificate_file = absl::StrCat(certificate_file, getlogin());
+  std::string certificate_file =
+      absl::StrCat(kCertificateFilePrefix, getlogin());
   // Open the file for read and write as we might need to write
   // if it's empty.
   int file_descriptor = open(certificate_file.c_str(), O_RDWR | O_CREAT, 0644);
