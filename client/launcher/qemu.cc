@@ -173,8 +173,8 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
     script_file.open(script_template);
     script_file << "#!/bin/sh" << std::endl;
     script_file << "/sbin/ifconfig $1 0.0.0.0 promisc up" << std::endl;
-    script_file << "/usr/sbin/brctl addif " << options.virtual_bridge << " $1"
-                << std::endl;
+    script_file << "/usr/sbin/ip link set dev $1 master "
+                << options.virtual_bridge << std::endl;
     script_file.close();
     if (close(file_descriptor) == -1) {
       return absl::FailedPreconditionError(
@@ -193,7 +193,7 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
                                 ",script=", script_template));
     args.push_back("-device");
     std::string mac_address = absl::StrFormat(
-        "d6:ef:77:16:a5:%0x",
+        "d6:ef:77:16:a5:%02x",
         absl::Uniform(bitgen, 0, std::numeric_limits<uint8_t>::max()));
     args.push_back(absl::StrCat(
         "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="

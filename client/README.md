@@ -50,7 +50,7 @@ in the BIOS and the kernel.
         $ wget https://download.qemu.org/qemu-9.2.0-rc3.tar.xz
         $ tar xvJf qemu-9.2.0-rc3.tar.xz
         $ cd qemu-9.2.0-rc3
-        $ ./configure --enable-slirp
+        $ ./configure --enable-slirp --enable-kvm --target-list=x86_64-softmmu
         $ make -j32
         ```
     * Copy the build QEMU binary to a known location e.g. `/usr/local/bin`:
@@ -116,6 +116,10 @@ in the BIOS and the kernel.
         --launcher_config_path=<path to launcher configuration> \
         --tvs_authentication_key=<authentication key> \
     ```
+
+    NOTE: In case of Error downloading certificate from ... with error code 77, please
+    specify the CA bundle with `--curl_opt_cainfo='<path to ca bundle certs>'`.
+    You can find the CA bundle with `curl-config --ca` if curl is installed.
 
 ## Launch Oak containers system with TVS and Parc
 
@@ -575,9 +579,9 @@ from the host, and can be accessible from the network.
 1. Create virtual bridge and assign 192.168.111.11 address to it:
 
     ```shell
-    $ sudo brctl addbr my_bridge
-    $ sudo ifconfig my_bridge up
-    $ sudo ifconfig my_bridge 192.168.111.11
+    $ sudo ip link add my_bridge type bridge
+    $ sudo ip link set my_bridge up
+    $ sudo ip addr add 192.168.111.11/24 dev my_bridge
     ```
 
 1. Create or edit a file in the prebuilt directory launcher_config.prototext
