@@ -106,4 +106,79 @@ The folder contains the following Rust crates:
 
 1. dynamic_policy_manager: validate measurements against appraisal policies from
    storage. The crate calls C++ PolicyFetcher object to retrieve policies from
-   stroage and then passes the to policy_mnager for validation.
+   storage and then passes the to policy_mnager for validation.
+
+## Create an Appraisal Policy
+
+To create appraisal policy for your application to be accepted by a Tee
+Verification Service (TVS), you need to specify digests for various components
+of the CVM stack, command line parameters, and minimum TCB versions.
+
+Start building the necessary components by following the instructions to build
+[HATs CVM](../../client/README.md).
+
+*   amd_sev stage0 measurement:
+
+    *   sha384: use [sev-snp-measure](https://github.com/virtee/sev-snp-measure)
+        to calculate the hash. Run the following command from any machine:
+
+        ```shell
+        $ ./sev-snp-measure.py --ovmf=<path to stage0> \
+          --mode=snp \
+          --vcpu-family=<family> \
+          --vcpu-model=<model> \
+          --vcpu-stepping=<stepping> \
+          --vcpus <num_cpus>
+        ```
+
+        *   `--ovmf` is the path to stage0_bin. The file is in system_bundle.tar
+            in the prebuilt directory.
+
+        *   `--vcpu-family`: is the SEV-SNP CPU family running the CVM. You can
+            get the model by running `cat /proc/cpuinfo | grep "cpu family"` in
+            the SEV-SNP machine.
+
+        *   `--vcpu-model`: is the SEV-SNP CPU model running the CVM. You can
+            get the model by running `cat /proc/cpuinfo | grep "model" | grep -v
+            name` in the SEV-SNP machine.
+
+        *   `--vcpu-model`: is the SEV-SNP CPU stepping running the CVM. You can
+            get the model by running `cat /proc/cpuinfo | grep "stepping"` in
+            the SEV-SNP machine.
+
+        *   `--vcpus`: the number of virtual CPUs in the CVM. This should
+            matches `num_cpus` in the
+            [launcher configuration proto](../../client/proto/launcher_config.proto)
+
+    *   min_tcb_version: is the minimum accepted TCB version. You can get the
+        TCB version in your SEV_SNP machine by using
+        [snphost tool](https://github.com/virtee/snphost). You can run the
+        following:
+
+        ```shell
+        $ snphost show tcb
+        ```
+
+*   kernel_image_sha256: Copy *Kernel image digest* from the launcher log.
+
+*   kernel_setup_data_sha256: Copy *Kernel setup data digest* from the launcher
+    log.
+
+*   init_ram_fs_sha256: Copy *Initial RAM disk digest* from the launcher log.
+
+*   memory_map_sha256: Copy *E820 table digest* from the launcher log.
+
+*   acpi_table_sha256: Copy *ACPI table generation digest* from the launcher
+    log.
+
+*   kernel_cmd_line_regex: Write a regular expression that matches *Kernel
+    command-line* from the launcher log.
+
+*   system_image_sha256: sha256 digest of system.tar.xz file is in
+    system_bundle.tar in the prebuilt directory.
+
+*   container_binary_sha256: sha256 digest of the application tarball bundle.
+
+Note: follow the instructions in [HATs CVM](../../client/README.md).
+ to run the launcher and add `--qemu_log_to_std` parameter to print measurements
+ to standard output.

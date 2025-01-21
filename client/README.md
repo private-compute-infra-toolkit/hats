@@ -50,7 +50,7 @@ in the BIOS and the kernel.
         $ wget https://download.qemu.org/qemu-9.2.0-rc3.tar.xz
         $ tar xvJf qemu-9.2.0-rc3.tar.xz
         $ cd qemu-9.2.0-rc3
-        $ ./configure
+        $ ./configure --enable-slirp
         $ make -j32
         ```
     * Copy the build QEMU binary to a known location e.g. `/usr/local/bin`:

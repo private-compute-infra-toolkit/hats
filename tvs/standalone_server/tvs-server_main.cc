@@ -83,7 +83,7 @@ TvsServiceOptionsFromFlags() {
   } else {
     HATS_ASSIGN_OR_RETURN(
         privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
-        policy_fetcher->GetLatestNPolicies(/*n=*/10),
+        policy_fetcher->GetLatestNPolicies(/*n=*/30),
         _.PrependWith("Failed to get appraisal policies: "));
     options.appraisal_policies = std::move(appraisal_policies);
   }

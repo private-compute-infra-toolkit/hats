@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
 
   HATS_ASSIGN_OR_RETURN(
       privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
-      policy_fetcher->GetLatestNPolicies(/*n=*/5),
+      policy_fetcher->GetLatestNPolicies(/*n=*/30),
       _.PrependWith("Failed to get appraisal policies: ").LogErrorAndExit());
 
   HATS_ASSIGN_OR_RETURN(

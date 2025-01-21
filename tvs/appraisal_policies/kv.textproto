@@ -1,5 +1,5 @@
 policies {
-  description: "Policy for KV running in an AMD SEV-SNP CVM. Cores: 1, RAM: 8000000 KB"
+  description: "Policy for KV running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 1, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -26,7 +26,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for KV running in an AMD SEV-SNP CVM. Cores: 2, RAM: 8000000 KB"
+  description: "Policy for KV running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 2, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -53,7 +53,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for KV running in an AMD SEV-SNP CVM. Cores: 3, RAM: 8000000 KB"
+  description: "Policy for KV running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 3, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -80,7 +80,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for KV running in an AMD SEV-SNP CVM. Cores: 4, RAM: 8000000 KB"
+  description: "Policy for KV running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -107,7 +107,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for KV running in an AMD SEV-SNP CVM. Cores: 1, RAM: 4000000 KB"
+  description: "Policy for KV running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 1, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -134,7 +134,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for KV running in an AMD SEV-SNP CVM. Cores: 2, RAM: 4000000 KB"
+  description: "Policy for KV running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 2, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -161,7 +161,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for KV running in an AMD SEV-SNP CVM. Cores: 3, RAM: 4000000 KB"
+  description: "Policy for KV running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 3, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -188,7 +188,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for KV running in an AMD SEV-SNP CVM. Cores: 4, RAM: 4000000 KB"
+  description: "Policy for KV running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 4, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -211,6 +211,222 @@ policies {
   }
   signature {
     signature: "a9898ca40ea5c1be0b03391e0b30ad5cdebac63fba3cb37b7a325c9913799f7049c40e5266021042b4cc07e0ef29c03cb1e91c5668243795b85d5bf7b3e5730f"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 1, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "6ecaca8fac956f016772ee890356a30df7ea35882d2d0372a9f9de7e78a46a8f9aba3832bb94e20dccfe4a4f45b1dc20"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "453d27f58b75156f3f9fdbd4d4cf1eaec4fb5a3968fb6aca198ebb56ad9f20fc"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "371e6c98316b094378e87a06704e7fd08ad68eeef627e05e50d3345b90065a91"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "6f14d5a5b06e4e46a704bbef0779d85837dc76c9008d278b25ac8d95701ef2f4b5743e583d07ff1fde19e6ec35abc34e72078d799957087fa2005e4d1fda1ac3"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1). Cores: 2, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "fe21dd7648c63f0529f05b375c2cd1d00c049cd3fbd752de9ea24f0701e56db7b8a062ebd41fa16a1385213c40af76f8"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "31744737e735c44fbbd5137ccf65df0d0d90ba47b6a1d5528a2a43bd4fd8af84"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "371e6c98316b094378e87a06704e7fd08ad68eeef627e05e50d3345b90065a91"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "7f7ba4319938e647e5d47b807c4484e9c9df1a5deda1ba0ee904753ad72e6ccc0dee1c81ef832f6e9f1a786c008c429de893d9b7b402e901ab1a330fa802d434"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an AMD SEV-SNP  (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 3, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "e4927eec0b5bab67f79838a9ec35ce5dbae6cec208dd5c8f5d54c3c454382d8d9b316a625bce13ad377c01d734de8024"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "0119e15545140af6503c159199540d86c09cd6bf75b51d4d4b569ecab24e1343"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "371e6c98316b094378e87a06704e7fd08ad68eeef627e05e50d3345b90065a91"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "99c68ecd244aaae230f172b46f363067ba3704d4fb55401303dce096b23c987823644a38bf7d7286de0419696b0f3815c761b6aad944720b4e3244c4db333004"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "73711ed75cda7074ad1952cafa01f8a5016729b9e09e6c35363655c2530e51932d4e5fbc3d01a39650d7db85e9cc945e"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "371e6c98316b094378e87a06704e7fd08ad68eeef627e05e50d3345b90065a91"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "c0c7c8fe15037ed4da0670d4ceab4b4f57150d10b9d09d4b2ca7da8c6b23f02f0581fc3b78416844bd696071c18292ff3716a798b01d45d870c94d4f4c491611"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 1, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "6ecaca8fac956f016772ee890356a30df7ea35882d2d0372a9f9de7e78a46a8f9aba3832bb94e20dccfe4a4f45b1dc20"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
+    acpi_table_sha256: "22fd2b1eb93d6ba0e6fb99e1b09bd9ba8e4c2e5a020ff87006a672dbde49b477"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "371e6c98316b094378e87a06704e7fd08ad68eeef627e05e50d3345b90065a91"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "bbfb7ebeb808621df5226274b3967b8900bb16e90d0795e2c99cf1b41b5e93591faec8601d9497ba24f7dbf128415c1592b29da28786be080e531234ac12cc00"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1)  CVM. Cores: 2, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "fe21dd7648c63f0529f05b375c2cd1d00c049cd3fbd752de9ea24f0701e56db7b8a062ebd41fa16a1385213c40af76f8"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
+    acpi_table_sha256: "a9891c38bb0899381cb71519df9d13e798d937c686e46be8e55ffc909f188450"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "371e6c98316b094378e87a06704e7fd08ad68eeef627e05e50d3345b90065a91"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "b8faa5b9b62972a5a33f575ecd52f72477ef70fcf651d9a818c425836a3a656d61c8dd7618de1d74938b88a89f3b2dbf0965a16a616baa00728ab00144001ecf"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 3, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "e4927eec0b5bab67f79838a9ec35ce5dbae6cec208dd5c8f5d54c3c454382d8d9b316a625bce13ad377c01d734de8024"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
+    acpi_table_sha256: "5aac17f2d4b4fcb901fa11a358360448e7fad88f6f93aabaf313f19ba11bf316"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "371e6c98316b094378e87a06704e7fd08ad68eeef627e05e50d3345b90065a91"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "23314da6086b3ae0a78d9c3c32bbc3e85d471b5a5164b19589802eb4fae986c74880cba3ca0446ce672b0a392e10d2d868f7c026f82b6a88f6d2c2a252893a8c"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for KV running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "73711ed75cda7074ad1952cafa01f8a5016729b9e09e6c35363655c2530e51932d4e5fbc3d01a39650d7db85e9cc945e"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
+    acpi_table_sha256: "601307f3dccc02cfe2d9967ff5bd1abefe8221606090a84d051509a3dbb659b3"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "371e6c98316b094378e87a06704e7fd08ad68eeef627e05e50d3345b90065a91"
+    container_binary_sha256: "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c"
+  }
+  signature {
+    signature: "52ffdf7cfb2af3eaedd81b54087627b5186a9d6de6c9ef0e87a85c2e44eb53c3658792c31ff3be28b162791427d5af8980932c537281f132ce6a2cad7230f154"
     signer: "hats"
   }
 }

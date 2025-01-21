@@ -81,7 +81,7 @@ impl DynamicPolicyManager {
     }
 }
 
-const NUM_OF_POLICIES: i32 = 10;
+const NUM_OF_POLICIES: i32 = 30;
 
 impl EvidenceValidator for DynamicPolicyManager {
     /// Check evidence against the appraisal policies.
