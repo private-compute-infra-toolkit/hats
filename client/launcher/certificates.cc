@@ -20,6 +20,7 @@
 
 #include <string>
 
+#include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
@@ -29,6 +30,8 @@
 #include "curl/curl.h"
 #include "external/psp-sev/file/psp-sev.h"
 #include "status_macro/status_macros.h"
+
+ABSL_FLAG(std::string, curl_opt_cainfo, "", "path to CA bundle");
 
 namespace privacy_sandbox::client {
 namespace {
@@ -158,12 +161,16 @@ absl::StatusOr<std::string> DownloadCertificate(const std::string& url) {
   }
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, ResponseHandler);
+  if (std::string curl_opt_cainfo = absl::GetFlag(FLAGS_curl_opt_cainfo);
+      !curl_opt_cainfo.empty()) {
+    curl_easy_setopt(curl, CURLOPT_CAINFO, curl_opt_cainfo.c_str());
+  }
   std::string certificate;
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &certificate);
   if (CURLcode res = curl_easy_perform(curl); res != CURLE_OK) {
     curl_easy_cleanup(curl);
-    return absl::UnknownError(
-        absl::StrCat("Error downloading certificate from '", url, "'"));
+    return absl::UnknownError(absl::StrCat(
+        "Error downloading certificate from '", url, "' error code: ", res));
   }
   curl_easy_cleanup(curl);
   return certificate;
