@@ -123,7 +123,7 @@ TEST(HatsLauncher, Successful) {
   // In the test, we mock out the QEMU process with simple /usr/bin/echo to
   // capture the parameters.
   HATS_ASSERT_OK_AND_ASSIGN(std::string qemu_log,
-                            launcher->GetQemuLogFilename());
+                            launcher->GetVmmLogFilename());
   std::ifstream qemu_log_file(qemu_log);
   std::string qemu_log_content((std::istreambuf_iterator<char>(qemu_log_file)),
                                std::istreambuf_iterator<char>());

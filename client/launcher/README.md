@@ -39,5 +39,5 @@ exports the following command line flags:
 * `--tvs_access_token`: a token to be attached to the gRPC meta-data for
   authentication. Used by GCP to authenticate requests.
 
-* `--qemu_log_to_std`: whether or not to send QEMU logs to standard output.
+* `--vmm_log_to_std`: whether or not to send VMM logs to standard output.
   By default logs are written to a temporary file.

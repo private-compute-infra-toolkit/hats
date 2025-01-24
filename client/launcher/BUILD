@@ -174,10 +174,24 @@ cc_test(
 )
 
 cc_library(
+    name = "vmm-interface",
+    hdrs = ["vmm.h"],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/random",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+cc_library(
     name = "qemu",
     srcs = ["qemu.cc"],
     hdrs = ["qemu.h"],
     deps = [
+        ":vmm-interface",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/random",

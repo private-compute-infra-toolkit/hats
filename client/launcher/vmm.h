@@ -17,20 +17,19 @@
 #include <string>
 #include <vector>
 
-#include "absl/flags/declare.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/synchronization/mutex.h"
 
-#ifndef HATS_CLIENT_LAUNCHER_QEMU_H_
-#define HATS_CLIENT_LAUNCHER_QEMU_H_
-
-ABSL_DECLARE_FLAG(bool, qemu_use_microvm);
+#ifndef HATS_CLIENT_LAUNCHER_VMM_H_
+#define HATS_CLIENT_LAUNCHER_VMM_H_
 
 namespace privacy_sandbox::client {
 
-// Main Qemu struct
-class Qemu final {
+// Defines an interface for implementing a VMM.
+// This interface defines common options availble to the VMMs
+// as well as common functionality such as turning up a VM and
+// or shutting it down
+class Vmm {
  public:
   // Types of confidential VMs
   // TODO(alexorozco): implement TDX once supported
@@ -114,46 +113,29 @@ class Qemu final {
     bool log_to_std = false;
   };
 
-  Qemu() = delete;
-  Qemu(const Qemu&) = delete;
-  Qemu& operator=(const Qemu&) = delete;
-  static absl::StatusOr<std::unique_ptr<Qemu>> Create(const Options& options);
+  virtual ~Vmm() = default;
+  static absl::StatusOr<std::unique_ptr<Vmm>> Create(const Options& options);
 
   // This function should be called once and only once.
   // The function returns an error if it was called multiple times.
-  absl::Status Start() ABSL_LOCKS_EXCLUDED(mu_);
+  virtual absl::Status Start() = 0;
 
   // Exposed for unit test.
-  std::string GetCommand() const;
+  virtual std::string GetCommand() const = 0;
 
   // Return the file where VMM stderr and stdout are written.
-  absl::StatusOr<std::string> LogFilename() const ABSL_LOCKS_EXCLUDED(mu_);
+  virtual absl::StatusOr<std::string> LogFilename() const = 0;
 
-  // Check status of the QEMU process
-  bool CheckStatus() const;
+  // Check status of the Vmm process
+  virtual bool CheckStatus() const = 0;
 
-  // Wait until QEMU terminates.
-  void Wait() ABSL_LOCKS_EXCLUDED(mu_);
+  // Wait until Vmm terminates.
+  virtual void Wait() = 0;
 
-  // Shutdown QEMU subprocess.
-  void Shutdown() ABSL_LOCKS_EXCLUDED(mu_);
-
- private:
-  Qemu(std::string binary, std::vector<std::string> args, bool log_to_std);
-
-  const std::string binary_;
-  std::vector<std::string> args_;
-  mutable absl::Mutex mu_;
-  // Whether a QEMU was started or not.
-  bool started_ ABSL_GUARDED_BY(mu_) = false;
-  // Process id of the QEMU process.
-  pid_t process_id_ ABSL_GUARDED_BY(mu_);
-  // file name where qemu output is written to.
-  std::string log_filename_ ABSL_GUARDED_BY(mu_);
-  // Whether to log to stdout/stderr.
-  const bool log_to_std_ = false;
+  // Shutdown Vmm subprocess.
+  virtual void Shutdown() = 0;
 };
 
 }  // namespace privacy_sandbox::client
 
-#endif  // HATS_CLIENT_LAUNCHER_QEMU_H_
+#endif  // HATS_CLIENT_LAUNCHER_VMM_H_

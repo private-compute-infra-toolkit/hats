@@ -32,7 +32,7 @@ struct HatsLauncherConfig {
   std::string tvs_authentication_key_bytes;
   PrivateKeyWrappingKeys private_key_wrapping_keys;
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> tvs_channels;
-  bool qemu_log_to_std = false;
+  bool vmm_log_to_std = false;
 };
 
 // HatsLauncher untars the hats bundle into a hosted location:
@@ -51,7 +51,7 @@ class HatsLauncher {
 
   virtual std::optional<uint16_t> GetTcpPort() const = 0;
 
-  virtual absl::StatusOr<std::string> GetQemuLogFilename() const = 0;
+  virtual absl::StatusOr<std::string> GetVmmLogFilename() const = 0;
 
   // Wait for the process ready to receive requests.
   virtual void WaitUntilReady() = 0;
@@ -66,7 +66,7 @@ class HatsLauncher {
   // Whether the enclave app ready for service.
   virtual bool IsAppReady() const = 0;
 
-  // Whether qemu has exited with an error
+  // Whether vmm has exited with an error
   virtual bool CheckStatus() const = 0;
 };
 
