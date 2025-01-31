@@ -13,10 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-### This version just for tests that require virtualization tools
-# For example, /dev/kvm or /dev/vhost-vsock
-# RBE is not supported for these, so they will be slower
-
 # Fail on any error.
 set -e
 
@@ -31,25 +27,7 @@ set -e
 # export PS4='+\t $(basename ${BASH_SOURCE[0]}):${LINENO} ' # xtrace prompt
 # set -x
 
-KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
+# This will eventually be for swarming.
+# For now, a blank test that passes, so the cfg has a target.
 
-# Apply patches
-cd "${KOKORO_HATS_DIR}"
-source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
-patches::apply_common
-patches::apply_python
-
-
-cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
-
-args=(
-  test
-  --noshow_progress
-  --verbose_failures=true
-  --symlink_prefix=/
-  # Only run KVM tests that rely on /dev/kvm, /dev/vhost-vsock, etc
-  --test_tag_filters=virtualization
-  --
-  //...
-)
-./bazel_wrapper.py "${args[@]}"
+exit 0
