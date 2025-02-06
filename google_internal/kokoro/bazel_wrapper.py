@@ -16,8 +16,16 @@
 """bazel_wrapper.py helps user populate configs for BES and foundry.
 
 This is a modified copy of google3/devtools/kokoro/scripts/bazel_wrapper.py
+Foundry/BES removed, since not relevant to our builds currently.
 
-Currently, RBE is disabled, so this builds using local bazel.
+This script will read environment variables from build VM, and populate the
+bazel command line flags accordingly. The environment variables will be injected
+by Kokoro build config.
+
+Note that the InjectInvocationId function allows Kokoro to know about all of
+the bazel invocations triggered during the build.
+This can be used in a variety of ways, see the doc
+http://g3doc/devtools/kokoro/g3doc/userdocs/general/ignore_failures.
 """
 
 import os
@@ -37,8 +45,9 @@ def BuildBazelCommand(argv, invocation_id):
   """
   cmd_flags = argv[1:]
 
-  # Use the default bazel from $PATH
-  cmd = ['bazel']
+  # Use the bazel binary specified by KOKORO_BAZEL_BIN, or default to bazel from
+  # $PATH.
+  cmd = [os.environ.get('KOKORO_BAZEL_BIN', 'bazel')]
   # bazel use '--' to prevent the '-//foo' target be interpreted as an option.
   # any option added after '--' will treated as targets.
   if '--' not in cmd_flags:
@@ -76,7 +85,7 @@ def main(argv):
   invocation_id = InjectInvocationId()
   cmd = BuildBazelCommand(argv, invocation_id)
   print('executing following commands:')
-  print(cmd)
+  print(cmd, flush=True)
   sys.exit(subprocess.call(cmd))
 
 
