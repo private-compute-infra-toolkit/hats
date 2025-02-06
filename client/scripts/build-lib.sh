@@ -100,6 +100,13 @@ function build_test_application_container_bundle_tar() {
   cp -f ../../bazel-bin/client/trusted_application/bundle.tar "$BUILD_DIR"
 }
 
+function build_trusted_application_client() {
+  local BUILD_DIR="$1"
+  printf "\nBUILDING TRUSTED APPLICATION CLIENT..."
+  bazel build -c opt //client/trusted_application:trusted_application_client_main
+  cp -f ../../bazel-bin/client/trusted_application/trusted_application_client_main "$BUILD_DIR"
+}
+
 function build_snphost() {
   local BUILD_DIR="$1"
   pushd ../../submodules/oak

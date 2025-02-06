@@ -1,0 +1,48 @@
+// Copyright 2025 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <iostream>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "absl/flags/flag.h"
+#include "absl/flags/parse.h"
+#include "absl/log/flags.h"  // IWYU pragma: keep
+#include "absl/strings/escaping.h"
+#include "client/proto/orchestrator.pb.h"
+#include "client/sdk/hats_orchestrator_client.h"
+#include "client/trusted_application/trusted_application_client.h"
+
+ABSL_FLAG(std::string, app_key,
+          "67ff77cf4cf44dde9591555ac55402176d5a161880fede6badbf9e2202c2363d",
+          "AES-256 application key for encrypting the payload");
+ABSL_FLAG(std::string, address, "localhost:8000",
+          "address used for making grpc calls to this service");
+ABSL_FLAG(int, key_id, 1, "key_id to retrieve from orchestrator");
+
+int main(int argc, char* argv[]) {
+  absl::ParseCommandLine(argc, argv);
+  std::string key;
+  if (!absl::HexStringToBytes(absl::GetFlag(FLAGS_app_key), &key)) {
+    std::cerr << "Application key must be a hex string" << std::endl;
+    return 1;
+  }
+  privacy_sandbox::client::TrustedApplicationClient app_client(
+      absl::GetFlag(FLAGS_address), key, absl::GetFlag(FLAGS_key_id));
+  privacy_sandbox::client::DecryptedResponse response =
+      app_client.SendEcho().value();
+  std::cout << *response.mutable_response();
+}
