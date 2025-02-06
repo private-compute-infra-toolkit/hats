@@ -25,7 +25,7 @@ exclude: (?x)^(
             third_party/.*|
          )$
 
-fail_fast: true
+fail_fast: false
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0
@@ -43,9 +43,10 @@ repos:
   - id: check-vcs-permalinks
   - id: check-executables-have-shebangs
   - id: detect-private-key
+  - id: check-ast
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
-  rev: v19.1.1
+  rev: v19.1.7
   hooks:
   - id: clang-format
     types_or:
@@ -117,3 +118,9 @@ repos:
     args:
     - --filter=-build/c++11,+build/c++20,-build/header_guard,-build/include_order,+build/include_what_you_use,-build/include_subdir,-readability/casting,-readability/todo,-whitespace/braces,-runtime/references,-whitespace/indent_namespace
     - --quiet
+
+- repo: https://github.com/PyCQA/isort
+  rev: 6.0.0
+  hooks:
+  - id: isort
+    name: "Python: Import sort"
