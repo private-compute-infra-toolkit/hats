@@ -43,7 +43,6 @@ source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
 patches::apply_common
 patches::apply_python
 
-
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 
 #shellcheck disable=SC1091
@@ -51,6 +50,10 @@ source "${KOKORO_HATS_DIR}/google_internal/lib_build.sh"
 
 lib_build::configure_gcloud_access
 lib_build::set_rbe_flags
+
+# Given as space delimited string, which is for builders lib
+# This converts them to array, so bash parses them as multiple arguments
+IFS=" " read -r -a BAZEL_DIRECT_ARGS <<< "$BAZEL_DIRECT_ARGS"
 
 # Skip builds/tests that fail on Kokoro
 # nopresubmit: general tests that Kokoro can't run
@@ -61,14 +64,10 @@ tag_filters="-nopresubmit,-virtualization"
 args=(
   "${BAZEL_STARTUP_ARGS_ABSL}"
   test
-  # "${BAZEL_DIRECT_ARGS}"
-  # Multiple args in one strings breaks, due to py wrapper
-  --config=rbecache
+  "${BAZEL_DIRECT_ARGS[@]}"
   --config=kokoro
-  --google_default_credentials
-  --noshow_progress
   --verbose_failures=true
-  --symlink_prefix=/
+  --experimental_convenience_symlinks=ignore
   --build_tag_filters="${tag_filters}"
   --test_tag_filters="${tag_filters}"
   --
