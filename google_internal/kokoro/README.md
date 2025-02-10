@@ -143,13 +143,13 @@ it specifically created a presubmit job.
     *   [pool\_resource\_acl](http://google3/devtools/kokoro/config/data/pool_resource_acl.gcl)
         defines the default pool
     *   [git\_on\_borg\_resource\_acl.gcl](http://google3/devtools/kokoro/config/data/git_on_borg_resource_acl.gcl)
-    *   Determines what repos Kokoro is allowed to access
-    *   Points to `rpc://privacysandbox", so can work on any sub-repo
-    *   Also includes sub-modules and similar that are needed.
+        *   Determines what repos Kokoro is allowed to access
+        *   Points to `rpc://privacysandbox", so can work on any sub-repo
+        *   Also includes sub-modules and similar that are needed.
     *   [gfile\_resource\_acl.gcl](http://google3/devtools/kokoro/config/data/gfile_resource_acl.gcl)
     *   Gfile resources that Kokoro can grab, see
         [go/kokoro-gfile-inputs](http://go/kokoro-gfile-inputs)
-    *   Was for x20 Bazel, to be deprecated.
+        *   For a fixed version of Bazel from x20
 *   Job definition
     *   Under
         [google3/devtools/kokoro/config/prod/privacy-sandbox/hats](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats)
@@ -158,18 +158,20 @@ it specifically created a presubmit job.
         Top level project common configuration
     *   hats subdirectory
     *   For `rpc://privacysandbox/hats` path specifically
-    *   [common.cfg](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/common.cfg)
+    *   [common.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/common.gcl)
         Bottom level job common
         *   Picks out branch for auto-triggering (main)
         *   Points to label to use (Kokoro)
         *   Path to config directory `hats/kokoro` in the repository
         *   Individually picks which sub-modules for Kokoro to include.
-    *   [presubmit.cfg](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit.cfg)
+    *   [presubmit.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit.gcl)
         *   Defines the job type, and the instance pool to use
             (hats-presubmit-l2/default)
         *   Should have the same file name as the executable in the config
             directory
         *   Full path sets job name: `privacy-sandbox/hats/hats/presubmit`
+    *   [presubmit_ubuntu.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit_ubuntu.gcl)
+        *   Needed for Keystore access, as Kokoro RBE instances does not support keystore.
 
 ### Kokoro meta configuration
 
@@ -207,7 +209,7 @@ stored under the `kokoro` sub-directory
 *   bazel_wrapper.py
     *   Based on
         [google3/devtools/kokoro/scripts/bazel_wrapper.py](http://google3/devtools/kokoro/scripts/bazel_wrapper.py)
-    *   Originally for RBE, simplified for local execution
+    *   Provides an invocation ID, which has future uses.
 
 ## Other options, TODOs
 
@@ -248,11 +250,6 @@ To update the image:
     $ docker push us-docker.pkg.dev/ps-hats-playground/gcr.io/presubmit
     ```
 
-### Moving to GCP Docker Ubuntu
-
-In progress is a move from Kokoro instances to GCP Docker Ubuntu, for better
-docker and VM support.
-
 ### Release builds
 
 Kokoro also supports e.g. the creation of release builds (and also continuous
@@ -260,6 +257,6 @@ testing).
 
 ### Additional presubmit checks
 
-Some other presubmits planned included formatting and license checking. See
-b/351144496. There are plans to run this in Kokoro, possibly as a separate
-check.
+Currently `pre-commit run -a` is run at the start of the Kokoro job.
+This checks formatting, lint, buildifier, licenses, etc.
+This may make more sense as a separate label/job.
