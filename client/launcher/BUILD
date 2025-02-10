@@ -111,6 +111,7 @@ cc_test(
     deps = [
         ":launcher",
         "//client/proto:launcher_cc_grpc",
+        "//status_macro:status_macros",
         "//status_macro:status_test_macros",
         "@bazel_tools//tools/cpp/runfiles",
         "@com_google_absl//absl/status",

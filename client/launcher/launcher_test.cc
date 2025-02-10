@@ -33,6 +33,7 @@
 #include "google/protobuf/text_format.h"
 #include "grpcpp/create_channel.h"
 #include "gtest/gtest.h"
+#include "status_macro/status_macros.h"
 #include "status_macro/status_test_macros.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
@@ -41,10 +42,21 @@ namespace {
 
 using ::testing::HasSubstr;
 
+absl::StatusOr<std::string> GetSelfPath() {
+  char buf[PATH_MAX + 1];
+  ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf));
+  if (len == -1)
+    return absl::NotFoundError("Failed to get the executable path.");
+  if (len >= PATH_MAX)
+    return absl::OutOfRangeError("Executable path is too long.");
+  return std::string(buf, len);
+}
+
 absl::StatusOr<std::string> GetRunfilePath(absl::string_view filename) {
+  HATS_ASSIGN_OR_RETURN(std::string self_path, GetSelfPath());
   std::string runfiles_error;
-  auto runfiles =
-      bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&runfiles_error);
+  auto runfiles = bazel::tools::cpp::runfiles::Runfiles::Create(
+      self_path, BAZEL_CURRENT_REPOSITORY, &runfiles_error);
   if (runfiles == nullptr) {
     return absl::UnknownError(
         absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
