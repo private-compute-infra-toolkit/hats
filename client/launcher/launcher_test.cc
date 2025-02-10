@@ -70,7 +70,7 @@ absl::StatusOr<LauncherConfig> ParseLauncherConfigFromFile(
 
 TEST(HatsLauncher, Successful) {
   // Ensure that the folders are correctly generated and QEMU process is
-  // correctly spanwed.
+  // correctly spawned.
   HATS_ASSERT_OK_AND_ASSIGN(
       std::string runfile_path,
       GetRunfilePath("launcher_config_port_forwarding.textproto"));
@@ -114,7 +114,19 @@ TEST(HatsLauncher, Successful) {
   while (reader->Read(&response)) {
     system_image += response.image_chunk();
   }
-  HATS_EXPECT_OK_GRPC(reader->Finish());
+  grpc::Status finish_status = reader->Finish();
+  if ((finish_status.error_code() == grpc::StatusCode::UNAVAILABLE) &&
+      (finish_status.error_message().ends_with("No such device"))) {
+    std::string loopback_message =
+        "Check if the kernel module vsock_loopback is installed, as it is "
+        "needed for this test. You can load the module by running "
+        "`sudo modprobe vsock_loopback`.";
+    finish_status =
+        grpc::Status(finish_status.error_code(),
+                     finish_status.error_message() + "\n" + loopback_message,
+                     finish_status.error_details());
+  }
+  HATS_EXPECT_OK_GRPC(finish_status);
   EXPECT_EQ(system_image, "");
   // Connect to the launcher service and check if everything is functional.
   launcher->Shutdown();
