@@ -60,7 +60,7 @@ constexpr uint16_t kVmLocalPort = 8080;
 // Host always has address of *2*.
 constexpr uint32_t kVmAddrCidHost = 2;
 
-Qemu::Options Qemu::Options::Default() {
+Vmm::Options Vmm::Options::Default() {
   return {
       .vmm_binary = "./qemu-system-x86_64",
       .stage0_binary = "stage0_bin",
@@ -418,4 +418,5 @@ void Qemu::Shutdown() {
   // Graceful shutdown signal.
   kill(process_id_, SIGTERM);
 }
+
 }  // namespace privacy_sandbox::client

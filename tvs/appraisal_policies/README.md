@@ -180,5 +180,5 @@ Start building the necessary components by following the instructions to build
 *   container_binary_sha256: sha256 digest of the application tarball bundle.
 
 Note: follow the instructions in [HATs CVM](../../client/README.md).
- to run the launcher and add `--qemu_log_to_std` parameter to print measurements
+ to run the launcher and add `--vmm_log_to_std` parameter to print measurements
  to standard output.

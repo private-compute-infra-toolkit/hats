@@ -52,8 +52,8 @@ ABSL_FLAG(std::vector<std::string>, private_key_wrapping_keys, {},
 ABSL_FLAG(std::string, tvs_access_token, "",
           "Oauth bearer token got from TVS hosting provider used to talk to "
           "TVS server");
-ABSL_FLAG(bool, qemu_log_to_std, false,
-          "Whether to send qemu logs to stdout/stderr instead of a temporary "
+ABSL_FLAG(bool, vmm_log_to_std, false,
+          "Whether to send vmm logs to stdout/stderr instead of a temporary "
           "file.");
 
 absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
               std::move(tvs_authentication_key_bytes),
           .private_key_wrapping_keys = std::move(wrapping_keys),
           .tvs_channels = std::move(channel_map),
-          .qemu_log_to_std = absl::GetFlag(FLAGS_qemu_log_to_std),
+          .vmm_log_to_std = absl::GetFlag(FLAGS_vmm_log_to_std),
       }),
       _.PrependWith("Failed to create launcher: ").LogErrorAndExit());
 

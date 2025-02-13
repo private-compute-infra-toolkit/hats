@@ -197,7 +197,7 @@ TEST(TrustedApplication, SuccessfulEcho) {
           .private_key_wrapping_keys =
               privacy_sandbox::client::PrivateKeyWrappingKeys(),
           .tvs_channels = std::move(channel_map),
-          .qemu_log_to_std = true,
+          .vmm_log_to_std = true,
       }));
 
   // Generate the log file randomly.

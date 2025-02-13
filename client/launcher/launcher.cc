@@ -159,15 +159,15 @@ struct LauncherExtDeps {
   std::string vmm_binary_path;
 };
 
-absl::StatusOr<Qemu::Options> GetQemuOptions(
+absl::StatusOr<Vmm::Options> GetVmmOptions(
     const LauncherExtDeps& deps, const LauncherConfig& launcher_config) {
   CVMConfig cvm_config = launcher_config.cvm_config();
-  Qemu::Options option = {
+  Vmm::Options option = {
       .vmm_binary = cvm_config.vmm_binary(),
       .stage0_binary = deps.stage0_binary_path.data(),
       .kernel = deps.kernel_binary_path.data(),
       .initrd = deps.initrd_cpio_xz_path.data(),
-      .memory_size = absl::StrFormat("%dk", cvm_config.ram_size_kb()),
+      .memory_size = absl::StrFormat("%dK", cvm_config.ram_size_kb()),
       .num_cpus = cvm_config.num_cpus(),
       .ramdrive_size = cvm_config.ramdrive_size_kb(),
   };
@@ -176,16 +176,16 @@ absl::StatusOr<Qemu::Options> GetQemuOptions(
     option.virtio_guest_cid = cvm_config.virtio_guest_cid();
   switch (cvm_config.cvm_type()) {
     case CVMTYPE_DEFAULT:
-      option.vm_type = Qemu::VmType::kDefault;
+      option.vm_type = Vmm::VmType::kDefault;
       break;
     case CVMTYPE_SEV:
-      option.vm_type = Qemu::VmType::kSev;
+      option.vm_type = Vmm::VmType::kSev;
       break;
     case CVMTYPE_SEVES:
-      option.vm_type = Qemu::VmType::kSevEs;
+      option.vm_type = Vmm::VmType::kSevEs;
       break;
     case CVMTYPE_SEVSNP:
-      option.vm_type = Qemu::VmType::kSevSnp;
+      option.vm_type = Vmm::VmType::kSevSnp;
       break;
     case CVMTYPE_TDX:
       return absl::UnimplementedError("tdx is not implemented");
@@ -198,17 +198,17 @@ absl::StatusOr<Qemu::Options> GetQemuOptions(
     option.telnet_port = cvm_config.debug_telnet_port();
   }
   if (cvm_config.network_config().has_inbound_only()) {
-    option.network_mode = Qemu::NetworkMode::kRestricted;
+    option.network_mode = Vmm::NetworkMode::kRestricted;
     option.host_proxy_port = cvm_config.network_config()
                                  .inbound_only()
                                  .host_enclave_app_proxy_port();
   } else if (cvm_config.network_config().has_inbound_and_outbound()) {
-    option.network_mode = Qemu::NetworkMode::kOutboundAllowed;
+    option.network_mode = Vmm::NetworkMode::kOutboundAllowed;
     option.host_proxy_port = cvm_config.network_config()
                                  .inbound_and_outbound()
                                  .host_enclave_app_proxy_port();
   } else if (cvm_config.network_config().has_virtual_bridge()) {
-    option.network_mode = Qemu::NetworkMode::kRoutableIp;
+    option.network_mode = Vmm::NetworkMode::kRoutableIp;
     option.virtual_bridge =
         cvm_config.network_config().virtual_bridge().virtual_bridge_device();
     option.vm_ip_address =
@@ -348,7 +348,7 @@ class HatsLauncherImpl final : public HatsLauncher {
 
   std::optional<uint16_t> GetTcpPort() const override;
 
-  absl::StatusOr<std::string> GetQemuLogFilename() const override
+  absl::StatusOr<std::string> GetVmmLogFilename() const override
       ABSL_LOCKS_EXCLUDED(mu_);
 
   // Wait for the process ready to receive requests.
@@ -367,7 +367,7 @@ class HatsLauncherImpl final : public HatsLauncher {
 
   // private:
   HatsLauncherImpl(
-      LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
+      LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Vmm>> vmm,
       absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
       absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
       absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
@@ -382,7 +382,7 @@ class HatsLauncherImpl final : public HatsLauncher {
   // The external dependencies are not owned by HatsLauncher but required
   // for system health.
   const LauncherExtDeps deps_;
-  absl::Nonnull<std::unique_ptr<Qemu>> qemu_;
+  absl::Nonnull<std::unique_ptr<Vmm>> vmm_;
   absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server_;
   absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server_;
   absl::Nonnull<std::unique_ptr<LogsService>> logs_service_;
@@ -414,9 +414,9 @@ absl::Status HatsLauncherImpl::Start() {
   }
   started_ = true;
 
-  LOG(INFO) << "Qemu command:" << qemu_->GetCommand();
-  HATS_RETURN_IF_ERROR(qemu_->Start());
-  LOG(INFO) << "Qemu LogFilename:" << qemu_->LogFilename();
+  LOG(INFO) << "Vmm command:" << vmm_->GetCommand();
+  HATS_RETURN_IF_ERROR(vmm_->Start());
+  LOG(INFO) << "Vmm LogFilename:" << vmm_->LogFilename();
   return absl::OkStatus();
 }
 
@@ -427,10 +427,10 @@ void HatsLauncherImpl::Wait() {
       return;
     }
   }
-  qemu_->Wait();
+  vmm_->Wait();
 }
 
-bool HatsLauncherImpl::CheckStatus() const { return qemu_->CheckStatus(); }
+bool HatsLauncherImpl::CheckStatus() const { return vmm_->CheckStatus(); }
 
 uint32_t HatsLauncherImpl::GetVsockPort() const { return vsock_port_; }
 
@@ -438,15 +438,15 @@ std::optional<uint16_t> HatsLauncherImpl::GetTcpPort() const {
   return tcp_port_;
 }
 
-absl::StatusOr<std::string> HatsLauncherImpl::GetQemuLogFilename() const {
+absl::StatusOr<std::string> HatsLauncherImpl::GetVmmLogFilename() const {
   absl::MutexLock lock(&mu_);
-  return qemu_->LogFilename();
+  return vmm_->LogFilename();
 }
 
 void HatsLauncherImpl::Shutdown() {
   absl::MutexLock lock(&mu_);
-  // Qemu object and gRPC servers have internal Mutex lock.
-  qemu_->Shutdown();
+  // Vmm object and gRPC servers have internal Mutex lock.
+  vmm_->Shutdown();
   vsock_server_->Shutdown();
   if (tcp_server_ != nullptr) tcp_server_->Shutdown();
 }
@@ -468,7 +468,7 @@ bool HatsLauncherImpl::IsAppReady() const {
 }
 
 HatsLauncherImpl::HatsLauncherImpl(
-    LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Qemu>> qemu,
+    LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Vmm>> vmm,
     absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
     absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
     absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
@@ -479,7 +479,7 @@ HatsLauncherImpl::HatsLauncherImpl(
     absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server,
     std::optional<uint16_t> tcp_port)
     : deps_(std::move(deps)),
-      qemu_(std::move(qemu)),
+      vmm_(std::move(vmm)),
       launcher_oak_server_(std::move(launcher_oak_server)),
       launcher_server_(std::move(launcher_server)),
       logs_service_(std::move(logs_service)),
@@ -499,9 +499,9 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
 
   deps.container_bundle = config.config.cvm_config().runc_runtime_bundle();
 
-  HATS_ASSIGN_OR_RETURN(Qemu::Options qemu_options,
-                        GetQemuOptions(deps, config.config));
-  qemu_options.log_to_std = config.qemu_log_to_std;
+  HATS_ASSIGN_OR_RETURN(Vmm::Options vmm_options,
+                        GetVmmOptions(deps, config.config));
+  vmm_options.log_to_std = config.vmm_log_to_std;
 
   std::string tee_certificate;
   // We don't fetch certificates in case we are not running in an SEV-SNP
@@ -532,7 +532,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   vsock_builder.SetOption(std::move(socket_mutator_server_builder_options));
   std::unique_ptr<grpc::Server> vsock_server = vsock_builder.BuildAndStart();
   HATS_ASSIGN_OR_RETURN(uint32_t vsock_port, grpc_socket_mutator.GetPort());
-  qemu_options.launcher_vsock_port = vsock_port;
+  vmm_options.launcher_vsock_port = vsock_port;
 
   // parc and tcp servers are nullptr when they are not specified.
   std::unique_ptr<privacysandbox::parc::local::v0::ParcServer> parc_server;
@@ -549,7 +549,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
     builder.AddListeningPort("0.0.0.0:0", grpc::InsecureServerCredentials(),
                              &port);
     tcp_server = builder.BuildAndStart();
-    qemu_options.workload_service_port = port;
+    vmm_options.workload_service_port = port;
     tcp_port = port;
     LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
               << vsock_port << "' and '0.0.0.0:" << port << "'";
@@ -558,11 +558,11 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
               << vsock_port << "'";
   }
 
-  HATS_ASSIGN_OR_RETURN(std::unique_ptr<Qemu> qemu, Qemu::Create(qemu_options));
-  deps.vmm_binary_path = qemu_options.vmm_binary;
+  HATS_ASSIGN_OR_RETURN(std::unique_ptr<Vmm> vmm, Qemu::Create(vmm_options));
+  deps.vmm_binary_path = vmm_options.vmm_binary;
 
   return std::make_unique<HatsLauncherImpl>(
-      deps, std::move(qemu), std::move(launcher_oak_server),
+      deps, std::move(vmm), std::move(launcher_oak_server),
       std::move(launcher_server), std::move(logs_service),
       std::move(vsock_server), vsock_port, std::move(parc_server),
       std::move(tcp_server), tcp_port);
