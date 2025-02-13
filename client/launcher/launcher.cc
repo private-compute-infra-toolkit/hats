@@ -344,6 +344,9 @@ class HatsLauncherImpl final : public HatsLauncher {
   // Terminate all services and subprocesses.
   void Shutdown() override ABSL_LOCKS_EXCLUDED(mu_);
 
+  // Shutdown if it's started
+  ~HatsLauncherImpl();
+
   uint32_t GetVsockPort() const override;
 
   std::optional<uint16_t> GetTcpPort() const override;
@@ -449,6 +452,12 @@ void HatsLauncherImpl::Shutdown() {
   vmm_->Shutdown();
   vsock_server_->Shutdown();
   if (tcp_server_ != nullptr) tcp_server_->Shutdown();
+}
+
+HatsLauncherImpl::~HatsLauncherImpl() {
+  // Only call shutdown if it's been started.
+  if (!started_) return;
+  Shutdown();
 }
 
 void HatsLauncherImpl::WaitUntilReady() {
