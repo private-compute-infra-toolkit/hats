@@ -24,7 +24,7 @@ declare -r REPO=us-docker.pkg.dev/kiwi-air-force-remote-build
 declare -r TEST_IMAGE=privacysandbox/builders/build-debian
 declare -r -a IMAGE_LIST=(
   "build-debian"
-  "build-amazonlinux2"
+  "build-amazonlinux2023"
   "presubmit"
   "release"
   "test-tools"
