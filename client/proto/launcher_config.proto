@@ -36,15 +36,10 @@ enum CVMType {
   // Default is used for testing only. Production must run in confidential
   // guest.
   CVMTYPE_DEFAULT = 0;
-  CVMTYPE_SEV = 1;
-  CVMTYPE_SEVES = 2;
-  CVMTYPE_SEVSNP = 3;
-  CVMTYPE_TDX = 4;
+  CVMTYPE_SEVSNP = 1;
 }
 
 // Configuration for the CVM hosted by the launcher through QEMU.
-// TODO(sidachen): We may need to separate out the proto representing the CVM
-// workload.
 message CVMConfig {
   // CVM Type supported by the current host launcher runs on.
   CVMType cvm_type = 1;

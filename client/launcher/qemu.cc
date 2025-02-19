@@ -122,26 +122,6 @@ absl::StatusOr<std::unique_ptr<Qemu>> Qemu::Create(const Options& options) {
       args.push_back("-machine");
       args.push_back(kMicroVmCommon);
       break;
-    case VmType::kSev:
-      // TODO(alwabel): make this work.
-      args.push_back("-machine");
-      args.push_back(kMicroVmCommon);
-      args.push_back("-machine");
-      args.push_back(sev_common_object);
-      args.push_back("-object");
-      args.push_back(
-          absl::StrCat("sev-guest,", sev_common_object, ",policy=0x1"));
-      break;
-    case VmType::kSevEs:
-      // TODO(alwabel): make this work.
-      args.push_back("-machine");
-      args.push_back(kMicroVmCommon);
-      args.push_back("-machine");
-      args.push_back(sev_common_object);
-      args.push_back("-object");
-      args.push_back(
-          absl::StrCat("sev-guest,", sev_common_object, ",policy=0x1"));
-      break;
     case VmType::kSevSnp:
       args.push_back("-machine");
       if (absl::GetFlag(FLAGS_qemu_use_microvm)) {

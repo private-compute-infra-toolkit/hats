@@ -178,17 +178,9 @@ absl::StatusOr<Vmm::Options> GetVmmOptions(
     case CVMTYPE_DEFAULT:
       option.vm_type = Vmm::VmType::kDefault;
       break;
-    case CVMTYPE_SEV:
-      option.vm_type = Vmm::VmType::kSev;
-      break;
-    case CVMTYPE_SEVES:
-      option.vm_type = Vmm::VmType::kSevEs;
-      break;
     case CVMTYPE_SEVSNP:
       option.vm_type = Vmm::VmType::kSevSnp;
       break;
-    case CVMTYPE_TDX:
-      return absl::UnimplementedError("tdx is not implemented");
     case CVMType_INT_MIN_SENTINEL_DO_NOT_USE_:
     case CVMType_INT_MAX_SENTINEL_DO_NOT_USE_:
       return absl::UnknownError("invalid CVMType");

@@ -77,40 +77,6 @@ INSTANTIATE_TEST_SUITE_P(
                 "-- --launcher-addr=vsock://2:2196799786 -serial stdio",
         },
         {
-            .test_name = "SuccessSevEs",
-            .options =
-                {
-                    .vmm_binary = "vmm_binary",
-                    .stage0_binary = "stage0_binary",
-                    .kernel = "kernel",
-                    .initrd = "initrd",
-                    .memory_size = "memory_size",
-                    .num_cpus = 5,
-                    .ramdrive_size = 6,
-                    .virtio_guest_cid = 8,
-                    .vm_type = Qemu::VmType::kSevEs,
-                    .launcher_vsock_port = 2296799786,
-                    .workload_service_port = 8080,
-                    .host_proxy_port = 8083,
-                },
-            .expected_output =
-                "vmm_binary vmm_binary -enable-kvm -cpu host -m memory_size "
-                "-smp 5 -nodefaults -nographic -no-reboot -machine "
-                "microvm,acpi=on,pcie=on -machine "
-                "memory-backend-memfd,id=ram1,size=memory_size,share=true,"
-                "reserve=false -object "
-                "sev-guest,memory-backend-memfd,id=ram1,size=memory_size,share="
-                "true,reserve=false,policy=0x1 -netdev "
-                "user,id=netdev,hostfwd=tcp:127.0.0.1:8083-10.0.2.15:8080,"
-                "guestfwd=tcp:10.0.2.100:8080-cmd:nc 127.0.0.1 8080 -device "
-                "virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev="
-                "netdev,romfile= -device vhost-vsock-pci,guest-cid=8,rombar=0 "
-                "-bios stage0_binary -kernel kernel -initrd initrd -append  "
-                "console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=6 "
-                "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet "
-                "-- --launcher-addr=vsock://2:2296799786 -serial stdio",
-        },
-        {
             .test_name = "SuccessVmTypeDefault",
             .options =
                 {

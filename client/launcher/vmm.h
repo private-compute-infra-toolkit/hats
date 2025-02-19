@@ -32,11 +32,8 @@ namespace privacy_sandbox::client {
 class Vmm {
  public:
   // Types of confidential VMs
-  // TODO(alexorozco): implement TDX once supported
   enum VmType {
     kDefault,
-    kSev,
-    kSevEs,
     kSevSnp,
   };
 
