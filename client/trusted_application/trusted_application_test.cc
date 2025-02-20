@@ -167,6 +167,19 @@ TEST(TrustedApplication, SuccessfulEcho) {
   HATS_ASSERT_OK_AND_ASSIGN(privacy_sandbox::client::LauncherConfig config,
                             LoadConfig(launcher_config_path));
 
+  privacy_sandbox::client::NetworkConfig network_config =
+      config.cvm_config().network_config();
+  int client_proxy_port;
+  if (network_config.has_inbound_only()) {
+    client_proxy_port =
+        network_config.inbound_only().host_enclave_app_proxy_port();
+  } else if (network_config.has_inbound_and_outbound()) {
+    client_proxy_port =
+        network_config.inbound_and_outbound().host_enclave_app_proxy_port();
+  } else {
+    FAIL() << "Launcher config has no host enclave app proxy port";
+  }
+
   HATS_ASSERT_OK_AND_ASSIGN(std::string system_bundle,
                             GetRunfilePath("system_bundle.tar"));
 
@@ -201,7 +214,7 @@ TEST(TrustedApplication, SuccessfulEcho) {
       }));
 
   // Generate the log file randomly.
-  HATS_EXPECT_OK(launcher->Start());
+  HATS_ASSERT_OK(launcher->Start());
 
   // Now here we need to check if app is ready, if it is, start up app client
   // and talk to it.
@@ -211,10 +224,12 @@ TEST(TrustedApplication, SuccessfulEcho) {
     std::this_thread::sleep_for(std::chrono::seconds(5));
     counter--;
   }
-  EXPECT_EQ(launcher->CheckStatus(), true);
+  ASSERT_EQ(launcher->CheckStatus(), true);
 
   privacy_sandbox::client::TrustedApplicationClient app_client =
-      privacy_sandbox::client::TrustedApplicationClient(app_key, kUserId);
+      privacy_sandbox::client::TrustedApplicationClient(
+          absl::StrCat("localhost:", std::to_string(client_proxy_port)),
+          app_key, kUserId);
 
   HATS_ASSERT_OK_AND_ASSIGN(privacy_sandbox::client::DecryptedResponse response,
                             app_client.SendEcho());

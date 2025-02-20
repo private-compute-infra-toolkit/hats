@@ -1,14 +1,14 @@
 cvm_config {
   cvm_type: CVMTYPE_DEFAULT
-  runc_runtime_bundle: "/usr/local/google/home/alexorozco/hats/client/prebuilt/runtime_bundle.tar"
-  hats_system_bundle: "/usr/local/google/home/alexorozco/hats/client/prebuilt/system_bundle.tar"
+  runc_runtime_bundle: "unused_field"
+  hats_system_bundle: "unused_field"
   num_cpus: 4
   ramdrive_size_kb: 10485760
   ram_size_kb: 8000000
   vmm_binary: "/usr/bin/qemu-system-x86_64"
   network_config {
     inbound_only {
-      host_enclave_app_proxy_port: 8000
+      host_enclave_app_proxy_port: 8079
     }
   }
 }

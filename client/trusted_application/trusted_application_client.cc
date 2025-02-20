@@ -63,7 +63,7 @@ absl::StatusOr<DecryptedResponse> TrustedApplicationClient::SendEcho(
 
   HATS_RETURN_IF_ERROR(
       trusted_service_stub_->Echo(&context, request, &response))
-      .PrependWith("Failed to decrypt message: ");
+      .PrependWith("Client failed to decrypt message: ");
 
   return response;
 }
