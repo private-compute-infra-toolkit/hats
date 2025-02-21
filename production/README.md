@@ -246,7 +246,7 @@ deploy a Cloud Run Instance.
         ```shell
         $ bazel build //production:database_main
         $ bazel-bin/production/database_main \
-        --operation=register_or_update_user_split_trust
+        --operation=register_or_update_user_split_trust \
         --spanner_databases=<gcp_project>/<database_instance>/<database_name1>,<gcp_project>/<database_instance>/<database_name2> \
         --key_resource_names=<kms_key_resource_name1>,<kms_key_resource_name2> \
         --user_authentication_public_key=<public key from the above step> \

@@ -57,6 +57,7 @@
  * --user_name=default --user_origin="http://example.com"
  */
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -840,13 +841,19 @@ absl::Status RegisterOrUpdateUserSplitTrust(
         "Number of KMS key resources should be equivalent to the number of "
         "Spanner databases.");
   }
+  if (spanner_databases.size() < 2) {
+    return absl::InvalidArgumentError(
+        "Number of spanner_databases should be greater than or equal to 2 for "
+        "split trust.");
+  }
   HATS_ASSIGN_OR_RETURN(std::unique_ptr<HPKEKey> hpke_key, HPKEKey::Create());
   HATS_ASSIGN_OR_RETURN(std::string user_public_key,
                         hpke_key->GetPublicKeyInHex());
   HATS_ASSIGN_OR_RETURN(SecretData user_private_key, hpke_key->GetPrivateKey());
 
   int num_shares = spanner_databases.size();
-  int threshold = num_shares - 1;
+  // Threshold must be atleast 2.
+  int threshold = std::max(num_shares - 1, 2);
   bool double_wrap = (user_dek != "");
   std::string dec;
   if (!absl::HexStringToBytes(user_dek, &dec)) {
