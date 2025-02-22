@@ -14,6 +14,3 @@
 	path = submodules/common
 	url = sso://team/privacy-sandbox-team/servers/common
 	branch = parc
-[submodule "submodules/bidding-auction-server"]
-	path = submodules/bidding-auction-server
-	url = sso://team/android-privacy-sandbox-remarketing/fledge/servers/bidding-auction-server
