@@ -53,10 +53,6 @@ oci_image(
     base = "@distroless_cc_debian12",
     entrypoint = [
         "/usr/bin/tvs-server_main",
-        # Spanner database information
-        "--project_id=ps-hats-playground",
-        "--instance_id=tvs-instance",
-        "--database_id=tvs-db",
     ],
     tars = [
         ":tvs_binary",
