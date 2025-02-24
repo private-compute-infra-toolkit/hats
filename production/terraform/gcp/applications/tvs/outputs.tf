@@ -19,3 +19,8 @@ output "tvs_key_encryption_key_id" {
 output "tvs_db_instance_name" {
   value = module.tvs_db.tvs_db_instance_name
 }
+
+output "tvs_cloudrun_url" {
+  description = "The cloud run URL."
+  value       = module.tvs.tvs_cloudrun_url
+}

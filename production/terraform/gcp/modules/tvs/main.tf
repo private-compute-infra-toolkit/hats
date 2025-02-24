@@ -30,3 +30,99 @@ resource "google_kms_crypto_key" "key_encryption_key" {
     prevent_destroy = true
   }
 }
+
+resource "google_service_account" "tvs_service_account" {
+  project = var.project_id
+  # Service account id has a 30 character limit
+  account_id   = "${var.environment}-tvsuser"
+  display_name = "TVS Service Account"
+}
+
+# IAM entry for service account to read/write the database
+resource "google_spanner_database_iam_member" "tvs_spannerdb_iam_policy" {
+  project  = var.project_id
+  instance = var.spanner_instance_name
+  database = var.spanner_database_name
+  role     = "roles/spanner.databaseUser"
+  member   = "serviceAccount:${google_service_account.tvs_service_account.email}"
+}
+
+# Allow TVS service account to encrypt/decrypt
+resource "google_kms_key_ring_iam_member" "key_encryption_ring_iam" {
+  key_ring_id = google_kms_key_ring.key_encryption_ring.id
+  role        = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member      = "serviceAccount:${google_service_account.tvs_service_account.email}"
+}
+
+# IAM entry to invoke allow unauthenticated
+resource "google_cloud_run_service_iam_binding" "allow_unauthenticated_iam_policy" {
+  count = var.allow_unauthenticated ? 1 : 0
+
+  project  = var.project_id
+  location = google_cloud_run_v2_service.tvs.location
+  service  = google_cloud_run_v2_service.tvs.name
+  role     = "roles/run.invoker"
+  members = [
+    "allUsers"
+  ]
+}
+
+# IAM entry to invoke the cloud run service.
+resource "google_cloud_run_service_iam_member" "private_key_service" {
+  count = !var.allow_unauthenticated ? 1 : 0
+
+  project  = var.project_id
+  location = google_cloud_run_v2_service.tvs.location
+  service  = google_cloud_run_v2_service.tvs.name
+
+  role   = "roles/run.invoker"
+  member = "group:${var.allowed_operator_user_group}"
+}
+
+# Cloud Run Service
+resource "google_cloud_run_v2_service" "tvs" {
+  project  = var.project_id
+  name     = "${var.environment}-${var.region}-tvs"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    containers {
+      image = var.tvs_image
+      args = ["--project_id=${var.project_id}",
+        "--instance_id=${var.spanner_instance_name}",
+        "--database_id=${var.spanner_database_name}",
+      "--stderrthreshold=0"]
+
+      resources {
+        limits = {
+          cpu    = var.tvs_cpus
+          memory = "${var.tvs_cloudrun_memory_mb}M"
+        }
+      }
+
+      ports {
+        name           = "h2c"
+        container_port = 8080
+      }
+    }
+
+    scaling {
+      min_instance_count = var.tvs_cloudrun_min_instances
+      max_instance_count = var.tvs_cloudrun_max_instances
+    }
+
+    max_instance_request_concurrency = var.tvs_request_concurrency
+    timeout                          = "${var.cloudrun_timeout_seconds}s"
+
+    labels = {
+      # Create a new revision if cloud_run_revision_force_replace is true. This
+      # is done by applying a unique timestamp label on each deployment.
+      force_new_revision_timestamp = var.cloud_run_revision_force_replace ? formatdate("YYYY-MM-DD_hh_mm_ss", timestamp()) : null,
+    }
+
+    service_account = google_service_account.tvs_service_account.email
+  }
+
+  custom_audiences = var.tvs_custom_audiences
+}

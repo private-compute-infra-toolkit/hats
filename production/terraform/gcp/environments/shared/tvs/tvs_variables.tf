@@ -26,6 +26,11 @@ variable "environment" {
   type        = string
 }
 
+variable "primary_region" {
+  description = "Region where all services will be created."
+  type        = string
+}
+
 ################################################################################
 # Spanner Database Variables.
 ################################################################################
@@ -38,4 +43,73 @@ variable "spanner_instance_config" {
 variable "spanner_processing_units" {
   description = "Spanner's compute capacity. 1000 processing units = 1 node and must be set as a multiple of 100."
   type        = number
+}
+
+################################################################################
+# Cloud Run Variables.
+################################################################################
+
+variable "tvs_cloudrun_memory_mb" {
+  description = "Memory size in MB for cloudrun."
+  type        = number
+  default     = 1024
+}
+
+variable "tvs_cloudrun_min_instances" {
+  description = "The minimum number of container instances that may coexist at a given time."
+  type        = number
+  default     = 0
+}
+
+variable "tvs_cloudrun_max_instances" {
+  description = "The maximum number of container instances that may coexist at a given time."
+  type        = number
+  default     = 100
+}
+
+variable "tvs_request_concurrency" {
+  description = "The maximum number of requests to allow to be concurrently processed by a container instance."
+  type        = number
+  default     = 80
+}
+
+variable "tvs_cpus" {
+  description = "The number of CPUs used in a single container instance."
+  type        = number
+  default     = 2
+}
+
+variable "cloudrun_timeout_seconds" {
+  description = "Number of seconds after which a container instance times out."
+  type        = number
+  default     = 60
+}
+
+variable "cloud_run_revision_force_replace" {
+  description = "Whether to create a new Cloud Run revision for every deployment."
+  type        = bool
+  default     = false
+}
+
+variable "tvs_image" {
+  description = "The container image of Cloud Run service deployment for TVS."
+  type        = string
+}
+
+variable "tvs_custom_audiences" {
+  description = "List of custom audiences for TVS on Cloud Run."
+  type        = list(string)
+  default     = []
+}
+
+variable "allow_unauthenticated" {
+  description = "Whether to allow unauthenticated requests."
+  type        = bool
+  default     = false
+}
+
+variable "allowed_operator_user_group" {
+  description = "Google group of allowed operators to which to give API access. Required when allow_unauthenticated is false."
+  type        = string
+  default     = null
 }

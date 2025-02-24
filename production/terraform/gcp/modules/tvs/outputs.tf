@@ -15,3 +15,8 @@
 output "tvs_key_encryption_key_id" {
   value = google_kms_crypto_key.key_encryption_key.id
 }
+
+output "tvs_cloudrun_url" {
+  description = "The cloud run URL."
+  value       = google_cloud_run_v2_service.tvs.uri
+}

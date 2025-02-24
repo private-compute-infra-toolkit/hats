@@ -17,6 +17,22 @@ module "tvs" {
 
   environment = var.environment
   project_id  = var.project_id
+  region      = var.primary_region
+
+  # Cloud Run vars
+  spanner_database_name            = "tvs-db" # Generate DB in terraform instead.
+  spanner_instance_name            = module.tvs_db.tvs_db_instance_name
+  cloudrun_timeout_seconds         = var.cloudrun_timeout_seconds
+  tvs_cloudrun_memory_mb           = var.tvs_cloudrun_memory_mb
+  tvs_cloudrun_min_instances       = var.tvs_cloudrun_min_instances
+  tvs_cloudrun_max_instances       = var.tvs_cloudrun_max_instances
+  tvs_request_concurrency          = var.tvs_request_concurrency
+  tvs_cpus                         = var.tvs_cpus
+  cloud_run_revision_force_replace = var.cloud_run_revision_force_replace
+  tvs_image                        = var.tvs_image
+  tvs_custom_audiences             = var.tvs_custom_audiences
+  allow_unauthenticated            = var.allow_unauthenticated
+  allowed_operator_user_group      = var.allowed_operator_user_group
 }
 
 
