@@ -9,7 +9,6 @@
 [submodule "builders"]
 	path = builders
 	url = https://github.com/privacysandbox/build-system
-	branch = release-0.68.1
 [submodule "submodules/common"]
 	path = submodules/common
 	url = sso://team/privacy-sandbox-team/servers/common
