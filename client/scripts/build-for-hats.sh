@@ -40,6 +40,7 @@ build_hats_containers_images "$PREBUILT_DIR"
 build_oak_hello_world_container_bundle_tar "$PREBUILT_DIR"
 
 # bundle everything nicely
+# TODO: kernel-cmd-line-only.txtpb does not exist
 build_launch_bundle \
   "$PREBUILT_DIR" \
   "$PREBUILT_DIR/stage0_bin" \
@@ -47,5 +48,5 @@ build_launch_bundle \
   "$PREBUILT_DIR/bzImage" \
   "$PREBUILT_DIR/hats_system_image.tar.xz" \
   "$PREBUILT_DIR/oak_container_example_oci_filesystem_bundle.tar" \
-  "../../tvs/appraisal_policies/kernel-cmd-line-only1.textproto" \
-  "./launcher_configs/launcher_config_port_forwarding.textproto"
+  "../../tvs/appraisal_policies/kernel-cmd-line-only1.txtpb" \
+  "./launcher_configs/launcher_config_port_forwarding.txtpb"

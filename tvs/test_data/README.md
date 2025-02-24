@@ -18,12 +18,12 @@ operating systems.
    -I<proto_dep2> ... -I<proto_dep3> < <textproto> > <binary_proto>
 ```
 
-For example, to regenerate good\_evidence.textproto run the following:
+For example, to regenerate good\_evidence.txtpb run the following:
 
 ```shell
 protoc --encode="oak.attestation.v1.Evidence" \
   bazel-hats/external/oak/proto/attestation/evidence.proto \
-  < tvs/test_data/good_evidence.textproto \
+  < tvs/test_data/good_evidence.txtpb \
   > tvs/test_data/good_evidence.binarypb
 ```
 
@@ -37,6 +37,6 @@ the following:
 ```shell
 protoc --encode="privacy_sandbox.tvs.VerifyReportRequest" \
   tvs/proto/tvs_messages.proto -Itvs/proto -Ibazel-hats/external/oak \
- < tvs/test_data/good_verify_request_report.textproto \
+ < tvs/test_data/good_verify_request_report.txtpb \
  > tvs/test_data/good_verify_request_report.binarypb
 ```

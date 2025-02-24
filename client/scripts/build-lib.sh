@@ -194,8 +194,8 @@ function build_launch_bundle() {
   mv -f "$SYSTEM" "$TAR_DIR/system.tar.xz"
   tar -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
   mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
-  cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.prototext"
-  cp "$APPRISAL_POLICY" "$BUILD_DIR/appraisal_policy.prototext"
+  cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.txtpb"
+  cp "$APPRISAL_POLICY" "$BUILD_DIR/appraisal_policy.txtpb"
   # Init script to generate fake test keys.
   cp "../scripts/keygen-local-init.sh" "$BUILD_DIR/"
   cp "../scripts/launcher-up.sh" "$BUILD_DIR/"

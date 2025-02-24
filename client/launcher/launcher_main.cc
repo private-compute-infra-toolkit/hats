@@ -32,7 +32,7 @@
 #include "status_macro/status_macros.h"
 #include "tvs/credentials/credentials.h"
 
-ABSL_FLAG(std::string, launcher_config_path, "./launcher_config.textproto",
+ABSL_FLAG(std::string, launcher_config_path, "./launcher_config.txtpb",
           "path to read launcher configuration");
 // MUST PASS ADDRESSES IN SAME ORDER AS ORCHESTRATOR WILL RECEIVE THEM
 ABSL_FLAG(std::vector<std::string>, tvs_addresses,
@@ -69,7 +69,7 @@ absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
   privacy_sandbox::client::LauncherConfig config;
   if (!google::protobuf::TextFormat::ParseFromString(raw_config, &config)) {
     return absl::InvalidArgumentError(
-        absl::StrCat("invalid prototext message at path '", path, "'"));
+        absl::StrCat("invalid textproto message at path '", path, "'"));
   }
 
   return config;

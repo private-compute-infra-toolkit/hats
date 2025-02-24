@@ -175,7 +175,7 @@ keys are stored in Spanner encrypted by KMS):
     $ ./client/prebuilt/tvs-server_main \
     --port=7779  \
     --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001   \
-    --appraisal_policy_file=./client/prebuilt/appraisal_policy.prototext \
+    --appraisal_policy_file=./client/prebuilt/appraisal_policy.txtpb \
     --user_authentication_public_key=<public key of prime256v1 from two steps above> \
     --user_secret=<private HPKE key from one step above> \
     --user_key_id=1 \
@@ -197,7 +197,7 @@ keys are stored in Spanner encrypted by KMS):
     $ ./launcher_main \
      --tvs_addresses=localhost:7779 \
      --use_tls=false \
-     --launcher_config_path=./launcher_config.prototext \
+     --launcher_config_path=./launcher_config.txtpb \
      --tvs_authentication_key=<private key of prime256v1 from three steps above> \
      --minloglevel=0 \
      --stderrthreshold=0
@@ -392,7 +392,7 @@ reverse-shell.cc):
     ```
 
     * Create the following appraisal policy in the prebuilt directory and call
-    it appraisal_policy.prototext:
+    it appraisal_policy.txtpb:
 
       ```
       policies {
@@ -436,14 +436,14 @@ reverse-shell.cc):
     $ ./tvs-server_main \
     --port=7779  \
     --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001   \
-    --appraisal_policy_file=./appraisal_policy.prototext \
+    --appraisal_policy_file=./appraisal_policy.txtpb \
     --user_authentication_public_key=<public key of prime256v1 from the steps above> \
     --user_key_id=1 \
     ```
 
 ## inbound_only networking mode:
 
-1. Create or edit a file in the prebuilt directory launcher_config.prototext
+1. Create or edit a file in the prebuilt directory launcher_config.txtpb
 and copy the following:
 
   ```
@@ -469,7 +469,7 @@ and copy the following:
     ./launcher_main \
         --tvs_addresses=localhost:7779 \
         --use_tls=false \
-        --launcher_config_path=./launcher_config.prototext \
+        --launcher_config_path=./launcher_config.txtpb \
         --tvs_authentication_key=<private key of prime256v1 from above> \
         --minloglevel=0 \
         --stderrthreshold=0
@@ -511,7 +511,7 @@ launches your program run the following from the host:
 
 ## inbound_and_outbound networking mode:
 
-1. Create or edit a file in the prebuilt directory launcher_config.prototext
+1. Create or edit a file in the prebuilt directory launcher_config.txtpb
 and copy the following:
 
     ```
@@ -544,7 +544,7 @@ and copy the following:
     ./launcher_main \
         --tvs_addresses=localhost:7779 \
         --use_tls=false \
-        --launcher_config_path=./launcher_config.prototext \
+        --launcher_config_path=./launcher_config.txtpb \
         --tvs_authentication_key=<private key of prime256v1 from above> \
         --minloglevel=0 \
         --stderrthreshold=0
@@ -584,7 +584,7 @@ from the host, and can be accessible from the network.
     $ sudo ip addr add 192.168.111.11/24 dev my_bridge
     ```
 
-1. Create or edit a file in the prebuilt directory launcher_config.prototext
+1. Create or edit a file in the prebuilt directory launcher_config.txtpb
 and copy the following:
 
     ```
@@ -623,7 +623,7 @@ and copy the following:
     .sudo /launcher_main \
         --tvs_addresses=localhost:7779 \
         --use_tls=false \
-        --launcher_config_path=./launcher_config.prototext \
+        --launcher_config_path=./launcher_config.txtpb \
         --tvs_authentication_key=<private key of prime256v1 from above> \
         --minloglevel=0 \
         --stderrthreshold=0

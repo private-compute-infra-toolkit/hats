@@ -50,8 +50,8 @@
 const int kUserId = 64;
 const char kAppKey[] =
     "0e4fb4a3b7a7eeb42306db3cbc6108a2424bf8ef510101059b2edef36fe1687f";
-const char kLauncherConfig[] = "launcher_config.prototext";
-const char kAppraisalPolicy[] = "appraisal_policy.prototext";
+const char kLauncherConfig[] = "launcher_config.txtpb";
+const char kAppraisalPolicy[] = "appraisal_policy.txtpb";
 // TODO: Generate key here when we no longer bake the keys into the system
 // image.
 const char kTvsPrimaryKey[] =
@@ -93,7 +93,7 @@ absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
   privacy_sandbox::client::LauncherConfig config;
   if (!google::protobuf::TextFormat::ParseFromString(raw_config, &config)) {
     return absl::InvalidArgumentError(
-        absl::StrCat("invalid prototext message at path '", path, "'"));
+        absl::StrCat("invalid textproto message at path '", path, "'"));
   }
 
   return config;

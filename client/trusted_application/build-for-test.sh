@@ -44,5 +44,5 @@ build_test_bundles \
   "$PREBUILT_DIR/bzImage" \
   "$PREBUILT_DIR/hats_system_image.tar.xz" \
   "$PREBUILT_DIR/bundle.tar" \
-  "../trusted_application/test_data/appraisal_policy.prototext" \
-  "../trusted_application/test_data/launcher_config.prototext"
+  "../trusted_application/test_data/appraisal_policy.txtpb" \
+  "../trusted_application/test_data/launcher_config.txtpb"

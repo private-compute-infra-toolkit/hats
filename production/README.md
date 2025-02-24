@@ -84,7 +84,7 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_public_key=042e74bb902c240274100314da105239f36ce1667658758685c57478e46ec55629b66636bdea80332a5b66354e98eac54e3aae245b421d9463597cdc8da946eb74 \
     --tvs_authentication_key=92d113dcf5f9d5cf2823724e30cfcce4e3bfb39bc1b0eaae7b7b92063cced052 \
     --use_tls \
-    --verify_report_request_file=tvs/test_data/good_verify_request_report.textproto \
+    --verify_report_request_file=tvs/test_data/good_verify_request_report.txtpb \
     --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23
 ```
 
@@ -101,7 +101,7 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_public_key=042e74bb902c240274100314da105239f36ce1667658758685c57478e46ec55629b66636bdea80332a5b66354e98eac54e3aae245b421d9463597cdc8da946eb74 \
     --tvs_authentication_key=92d113dcf5f9d5cf2823724e30cfcce4e3bfb39bc1b0eaae7b7b92063cced052 \
     --use_tls \
-    --verify_report_request_file=tvs/test_data/bad_verify_request_report.textproto \
+    --verify_report_request_file=tvs/test_data/bad_verify_request_report.txtpb \
     --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759
 ```
 
@@ -120,7 +120,7 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_public_key=042e74bb902c240274100314da105239f36ce1667658758685c57478e46ec55629b66636bdea80332a5b66354e98eac54e3aae245b421d9463597cdc8da946eb74 \
     --tvs_authentication_key=92d113dcf5f9d5cf2823724e30cfcce4e3bfb39bc1b0eaae7b7b92063cced052 \
     --use_tls \
-    --verify_report_request_file=tvs/test_data/good_verify_request_report.textproto \
+    --verify_report_request_file=tvs/test_data/good_verify_request_report.txtpb \
     --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
     --access_token=$(gcloud auth print-identity-token)
 ```
@@ -141,7 +141,7 @@ $ bazel-bin/tvs/test_client/tvs-client_main \
     --tvs_public_key=042e74bb902c240274100314da105239f36ce1667658758685c57478e46ec55629b66636bdea80332a5b66354e98eac54e3aae245b421d9463597cdc8da946eb74 \
     --tvs_authentication_key=92d113dcf5f9d5cf2823724e30cfcce4e3bfb39bc1b0eaae7b7b92063cced052 \
     --use_tls \
-    --verify_report_request_file=tvs/test_data/good_verify_request_report.textproto \
+    --verify_report_request_file=tvs/test_data/good_verify_request_report.txtpb \
     --application_signing_key=b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23 \
     --access_token=$(gcloud auth print-identity-token --impersonate-service-account <service-account>@<project>.iam.gserviceaccount.com)
 ```

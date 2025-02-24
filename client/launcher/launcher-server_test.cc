@@ -85,7 +85,7 @@ absl::StatusOr<tvs::VerifyReportRequest> GetGoodReportRequest() {
         absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
   }
   return VerifyReportRequestFromFile(runfiles->Rlocation(
-      "_main/tvs/test_data/good_verify_request_report.textproto"));
+      "_main/tvs/test_data/good_verify_request_report.txtpb"));
 }
 
 absl::StatusOr<tvs::VerifyReportRequest> GetBadReportRequest() {
@@ -97,7 +97,7 @@ absl::StatusOr<tvs::VerifyReportRequest> GetBadReportRequest() {
         absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
   }
   return VerifyReportRequestFromFile(runfiles->Rlocation(
-      "_main/tvs/test_data/bad_verify_request_report.textproto"));
+      "_main/tvs/test_data/bad_verify_request_report.txtpb"));
 }
 
 absl::StatusOr<tvs::AppraisalPolicies> GetTestAppraisalPolicies() {

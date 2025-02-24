@@ -184,7 +184,7 @@ Kokoro needs permission to access the repo. This also creates the label.
     *   Define Kokoro label (values, condition, requirement)
     *   kokoro-gob-readers to `refs/for/*` for review read access
     *   kokoro-dedicated to `refs/heads/*`, for (non-meta) label access
-*   [google3/configs/production/gerritcodereview/prod/privacysandbox/config.textproto](http://google3/configs/production/gerritcodereview/prod/privacysandbox/config.textproto)
+*   [google3/configs/production/gerritcodereview/prod/privacysandbox/config.txtpb](http://google3/configs/production/gerritcodereview/prod/privacysandbox/config.txtpb)
     *   Following
         [go/kokoro-gob-scm#acl-via-config-file-in-piper](go/kokoro-gob-scm#acl-via-config-file-in-piper)
     *   Adding kokoro-gob-readers as reader to acl for directory and host

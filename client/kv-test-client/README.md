@@ -78,7 +78,7 @@ keys are stored in Spanner encrypted by KMS):
     $ ./client/prebuilt/tvs-server_main \
     --port=7779  \
     --primary_private_key=0000000000000000000000000000000000000000000000000000000000000001   \
-    --appraisal_policy_file=./client/prebuilt/appraisal_policy.prototext \
+    --appraisal_policy_file=./client/prebuilt/appraisal_policy.txtpb \
     --user_authentication_public_key=<public key of prime256v1 from two steps above> \
     --user_secret=<private HPKE key from one step above> \
     --user_key_id=1 \
@@ -100,7 +100,7 @@ keys are stored in Spanner encrypted by KMS):
     $ ./launcher_main \
      --tvs_addresses=localhost:7779 \
      --use_tls=false \
-     --launcher_config_path=./launcher_config.prototext \
+     --launcher_config_path=./launcher_config.txtpb \
      --tvs_authentication_key=<private key of prime256v1 from three steps above> \
      --minloglevel=0 \
      --stderrthreshold=0

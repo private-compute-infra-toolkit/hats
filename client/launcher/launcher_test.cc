@@ -85,7 +85,7 @@ TEST(HatsLauncher, Successful) {
   // correctly spawned.
   HATS_ASSERT_OK_AND_ASSIGN(
       std::string runfile_path,
-      GetRunfilePath("launcher_config_port_forwarding.textproto"));
+      GetRunfilePath("launcher_config_port_forwarding.txtpb"));
   HATS_ASSERT_OK_AND_ASSIGN(LauncherConfig config,
                             ParseLauncherConfigFromFile(runfile_path));
 
@@ -157,7 +157,7 @@ TEST(HatsLauncher, Successful) {
 TEST(HatsLauncherTest, Unsuccessful) {
   HATS_ASSERT_OK_AND_ASSIGN(
       std::string runfile_path,
-      GetRunfilePath("launcher_config_port_forwarding.textproto"));
+      GetRunfilePath("launcher_config_port_forwarding.txtpb"));
   HATS_ASSERT_OK_AND_ASSIGN(LauncherConfig config,
                             ParseLauncherConfigFromFile(runfile_path));
   HATS_ASSERT_OK_AND_ASSIGN(std::string system_bundle,

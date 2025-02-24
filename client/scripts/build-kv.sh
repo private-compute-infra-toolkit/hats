@@ -47,5 +47,5 @@ build_launch_bundle \
   "$PREBUILT_DIR/bzImage" \
   "$PREBUILT_DIR/hats_system_image.tar.xz" \
   "$PREBUILT_DIR/kv-bundle.tar" \
-  "../../tvs/appraisal_policies/kv.textproto" \
-  "./launcher_configs/kv_launcher_config.textproto"
+  "../../tvs/appraisal_policies/kv.txtpb" \
+  "./launcher_configs/kv_launcher_config.txtpb"
