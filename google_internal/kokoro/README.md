@@ -241,13 +241,13 @@ To update the image:
 1.  Tag docker container:
 
     ```shell
-    $ docker tag presubmit us-docker.pkg.dev/ps-hats-playground/gcr.io/presubmit
+    $ docker tag presubmit us-central1-docker.pkg.dev/ps-hats-playground/presubmit/presubmit
     ```
 
 1.  Push the container to presubmit Artifact Registry in ps-hats-playground:
 
     ```shell
-    $ docker push us-docker.pkg.dev/ps-hats-playground/gcr.io/presubmit
+    $ docker push us-central1-docker.pkg.dev/ps-hats-playground/presubmit/presubmit
     ```
 
 ### Release builds
