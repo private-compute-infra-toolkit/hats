@@ -173,7 +173,7 @@ class [[nodiscard]] StatusBuilder {
   template <typename Enum>
   StatusBuilder& SetErrorCode(Enum code) &;
   template <typename Enum>
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetErrorCode(Enum code) &&;
+  [[nodiscard]] StatusBuilder&& SetErrorCode(Enum code) &&;
 
   ////// Convenient wrappers for common use cases
 

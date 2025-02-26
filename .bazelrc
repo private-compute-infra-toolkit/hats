@@ -51,7 +51,10 @@ test --test_arg=--nocapture
 
 build:clang --cxxopt='-std=c++20'
 build:clang --host_cxxopt='-std=c++20'
-# Warn if not every switch case is covered
+# Error on specific warnings
+build:clang --cxxopt='-Werror=return-type'
+build:clang --per_file_copt='external/.*@-Wno-return-type'
+build:clang --cxxopt='-Werror=unused-result'
 build:clang --cxxopt='-Wswitch'
 build:clang --cxxopt='-Werror=switch'
 
