@@ -1,6 +1,6 @@
 [submodule "oak"]
 	path = submodules/oak
-	url = sso://oak/oak
+	url = https://github.com/project-oak/oak
 	branch = main
 [submodule "kv-server"]
 	path = submodules/kv-server
