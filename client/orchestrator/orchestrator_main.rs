@@ -19,6 +19,7 @@ use oak_containers_orchestrator::ipc_server::create_services;
 use oak_containers_orchestrator::launcher_client::LauncherClient;
 use oak_proto_rust::oak::attestation::v1::{endorsements, Endorsements, OakContainersEndorsements};
 use prost::Message;
+use secret_sharing::SecretSplit;
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 
@@ -47,40 +48,38 @@ struct Args {
     // tvs_id2:tvs_public_key2 (1:abcde1234567890)
     #[arg(long, default_value = "/hats/tvs_public_keys.txt")]
     tvs_public_keys_file: String,
+
+    // Determines type of secret shares for split secret recovery. Valid values are XOR & SHAMIR.
+    #[arg(long, default_value = "SHAMIR")]
+    secret_share_type: String,
 }
 
-struct KeyShares {
+struct KeyShares<'a> {
     public_key: String,
-    shares: Vec<secret_sharing::Share>,
+    shares: Vec<&'a [u8]>,
 }
 
-pub fn recover_secrets(response_vec: &Vec<VerifyReportResponse>) -> Result<Vec<u8>, anyhow::Error> {
+pub fn recover_secrets(
+    response_vec: &Vec<VerifyReportResponse>,
+    secret_split: &dyn SecretSplit,
+) -> Result<Vec<u8>, anyhow::Error> {
     let mut recovered_secrets: Vec<Secret> = Vec::new();
     // this maps key_id to (public key, private key shares)
     let mut share_map: HashMap<i64, KeyShares> = HashMap::new();
     for response in response_vec {
         for secret in &response.secrets {
-            let share = secret_sharing::desearialize_share(&secret.private_key)
-                .map_err(|e| anyhow!("Invalid key({:?}) stored:{:?}", secret.key_id, e))?;
             let key_shares = share_map.entry(secret.key_id).or_insert(KeyShares {
                 public_key: (*secret.public_key).to_string(),
                 shares: vec![],
             });
-            key_shares.shares.push(share);
+            key_shares.shares.push(&secret.private_key);
         }
     }
     for (key_id, key_shares) in share_map {
-        // we set the threshold to be 1 less than number of shares
-        let numshares = key_shares.shares.len();
-        let sham = secret_sharing::SecretSharing {
-            numshares,
-            prime: secret_sharing::get_prime(),
-            threshold: numshares - 1,
-        };
         recovered_secrets.push(Secret {
             key_id,
             public_key: (*key_shares.public_key).to_string(),
-            private_key: sham
+            private_key: secret_split
                 .recover(&key_shares.shares)
                 .map_err(|err| anyhow::anyhow!("Failed to recover the secret: {err:?}"))?,
         });
@@ -164,6 +163,19 @@ async fn main() -> anyhow::Result<()> {
 
     let encoded_report: Vec<u8>;
     if tvs_grpc_clients.len() > 1 {
+        let numshares = tvs_grpc_clients.len();
+        let secret_split: Box<dyn SecretSplit> = match args.secret_share_type.as_str() {
+            "XOR" => Box::new(secret_sharing::xor_sharing::XorSharing { numshares }),
+            "SHAMIR" => Box::new(secret_sharing::shamir_sharing::ShamirSharing {
+                numshares,
+                prime: secret_sharing::shamir_sharing::get_prime(),
+                // we set the threshold to be 1 less than number of shares
+                threshold: numshares - 1,
+            }),
+            _ => {
+                return Err(anyhow!("Invalid secret share type"));
+            }
+        };
         let mut response_vec: Vec<VerifyReportResponse> = Vec::new();
         for tvs_grpc_client in tvs_grpc_clients {
             response_vec.push(VerifyReportResponse::decode(
@@ -174,7 +186,7 @@ async fn main() -> anyhow::Result<()> {
                     .as_slice(),
             )?);
         }
-        encoded_report = recover_secrets(&response_vec)?;
+        encoded_report = recover_secrets(&response_vec, &*secret_split)?;
     } else {
         encoded_report = tvs_grpc_clients[0]
             .send_evidence(evidence.clone(), instance_keys.signing_key.clone())

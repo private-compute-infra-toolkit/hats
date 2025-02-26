@@ -79,7 +79,7 @@
 #include "crypto/aead-crypter.h"
 #include "crypto/ec-key.h"
 #include "crypto/secret-data.h"
-#include "crypto/secret-sharing.rs.h"
+#include "crypto/secret_sharing/src/interface.rs.h"
 #include "google/cloud/spanner/admin/database_admin_client.h"
 #include "google/cloud/spanner/client.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
@@ -117,6 +117,9 @@ ABSL_FLAG(std::string, user_name, "", "Name of the user.");
 ABSL_FLAG(std::string, user_origin, "", "Origin of the user.");
 ABSL_FLAG(std::string, user_dek, "",
           "Aead Key to use for encrypting user secrets/private keys");
+ABSL_FLAG(std::string, share_split_type, "SHAMIR",
+          "Describe the type of way to split the shares. Valid values are: "
+          "SHAMIR, XOR");
 
 namespace {
 
@@ -625,22 +628,25 @@ absl::StatusOr<WrappedSecrets> WrapSecret(
   };
 }
 
-absl::StatusOr<std::vector<SecretData>> SplitSecret(int num_shares,
-                                                    int threshold,
-                                                    const SecretData& secret,
-                                                    bool double_wrapped) {
+absl::StatusOr<std::vector<SecretData>> SplitSecret(
+    int num_shares, int threshold, const SecretData& secret,
+    absl::string_view share_split_type) {
   SecretData secret_to_split = SecretData(secret);
-  HATS_ASSIGN_OR_RETURN(
-      rust::Vec<rust::String> shares,
-      privacy_sandbox::crypto::SplitSecret(
-          rust::Slice<const std::uint8_t>(secret_to_split.GetData(),
-                                          secret_to_split.GetSize()),
-          num_shares, threshold, double_wrapped),
-      _.PrependWith("Failed to split secret: "));
-
   std::vector<SecretData> result;
-  for (const rust::String& share : shares) {
-    result.push_back(SecretData(static_cast<std::string>(share)));
+  if (share_split_type == "SHAMIR") {
+    HATS_ASSIGN_OR_RETURN(
+        rust::Vec<rust::String> shares,
+        privacy_sandbox::crypto::ShamirSplitSecret(
+            rust::Slice<const std::uint8_t>(secret_to_split.GetData(),
+                                            secret_to_split.GetSize()),
+            num_shares, threshold),
+        _.PrependWith("Failed to split secret: "));
+    for (const rust::String& share : shares) {
+      result.push_back(SecretData(static_cast<std::string>(share)));
+    }
+  } else {
+    return absl::UnimplementedError(
+        absl::StrCat("Unknown split type '", share_split_type, "'"));
   }
   return result;
 }
@@ -835,7 +841,7 @@ absl::Status RegisterOrUpdateUserSplitTrust(
     const std::vector<std::string>& kms_key_resource_names,
     absl::string_view user_authentication_public_key,
     absl::string_view user_name, absl::string_view user_origin,
-    absl::string_view user_dek) {
+    absl::string_view user_dek, absl::string_view share_split_type) {
   if (spanner_databases.size() != kms_key_resource_names.size()) {
     return absl::FailedPreconditionError(
         "Number of KMS key resources should be equivalent to the number of "
@@ -870,7 +876,7 @@ absl::Status RegisterOrUpdateUserSplitTrust(
   }
   HATS_ASSIGN_OR_RETURN(
       std::vector<SecretData> shares,
-      SplitSecret(num_shares, threshold, to_split, double_wrap));
+      SplitSecret(num_shares, threshold, to_split, share_split_type));
 
   if (shares.size() != spanner_databases.size()) {
     return absl::InternalError(
@@ -938,7 +944,8 @@ int main(int argc, char* argv[]) {
             absl::GetFlag(FLAGS_key_resource_names),
             absl::GetFlag(FLAGS_user_authentication_public_key),
             absl::GetFlag(FLAGS_user_name), absl::GetFlag(FLAGS_user_origin),
-            absl::GetFlag(FLAGS_user_dek)))
+            absl::GetFlag(FLAGS_user_dek),
+            absl::GetFlag(FLAGS_share_split_type)))
         .PrependWith("Failed to register user: ")
         .LogErrorAndExit();
   } else {

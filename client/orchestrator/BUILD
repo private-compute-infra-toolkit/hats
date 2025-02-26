@@ -25,7 +25,7 @@ rust_binary(
     deps = [
         ":hats-server",
         ":tvs-grpc-client",
-        "//crypto:secret-sharing-noffi",
+        "//crypto/secret_sharing:secret-sharing-noffi",
         "@hats_crate_index//:hex",
         "@oak//oak_containers/attestation:oak_containers_attestation",
         "@oak//oak_containers/orchestrator:oak_containers_orchestrator",

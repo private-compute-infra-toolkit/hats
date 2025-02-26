@@ -45,8 +45,8 @@ cc_binary(
     deps = [
         ":tvs-untrusted-client",
         "//crypto:aead-crypter",
-        "//crypto:bridge",
         "//crypto:secret-data",
+        "//crypto/secret_sharing:bridge",
         "//status_macro:status_macros",
         "//tvs/credentials",
         "//tvs/proto:tvs_messages_cc_proto",

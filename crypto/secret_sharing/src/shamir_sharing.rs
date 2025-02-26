@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,113 +13,25 @@
 // limitations under the License.
 extern crate alloc;
 
+use crate::{Error, SecretSplit};
 use anyhow::Result;
 use num_bigint::{BigInt, RandBigInt, Sign};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
-pub struct SecretSharing {
+pub struct ShamirSharing {
     pub threshold: usize,
     pub numshares: usize,
     pub prime: BigInt,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Share {
-    pub index: usize,
-    value: Vec<u8>,
-    wrapped: bool,
+pub(crate) struct Share {
+    pub(crate) value: Vec<u8>,
+    index: usize,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Error {
-    BelowThreshold,
-    ThresholdGreaterThanNumShares,
-    MustSplitTrust,
-    SecretMustBeInRangePrime,
-    ImproperCoeffs,
-    NotAShareObject,
-    MalformedSecret,
-}
-
-// Do not use cxx:bridge if `noffi` is enabled. This is to avoid
-// linking against C++ standard and cxx libraries in pure rust code.
-#[cfg(not(feature = "noffi"))]
-#[cxx::bridge(namespace = "privacy_sandbox::crypto")]
-mod ffi {
-    // The struct is used in C++. Rust thinks its deadcode as its not aware of
-    // The C++ code using it.
-    #[allow(dead_code)]
-    pub struct SecretSharing {
-        pub threshold: usize,
-        pub numshares: usize,
-    }
-
-    extern "Rust" {
-        #[cxx_name = "SplitSecret"]
-        fn split_wrap(
-            secret_bytes: &[u8],
-            numshares: usize,
-            threshold: usize,
-            wrapped: bool,
-        ) -> Result<Vec<String>>;
-
-        #[cxx_name = "RecoverSecret"]
-        fn recover_wrap(
-            shares_vec: &Vec<String>,
-            numshares: usize,
-            threshold: usize,
-        ) -> Result<Vec<u8>>;
-    }
-}
-
-#[cfg(not(feature = "noffi"))]
-pub fn split_wrap(
-    secret_bytes: &[u8],
-    numshares: usize,
-    threshold: usize,
-    wrapped: bool,
-) -> Result<Vec<String>, String> {
-    let sham = SecretSharing {
-        numshares,
-        threshold,
-        prime: get_prime(),
-    };
-    let shares = sham
-        .split(secret_bytes, wrapped)
-        .map_err(|err| format!("Error splitting secret: {:#?}", err))?;
-    let mut serialized_shares: Vec<String> = Vec::new();
-    for share in shares {
-        let ser_share = serde_json::to_string(&share)
-            .map_err(|err| format!("Error splitting secret: {err}"))?;
-        serialized_shares.push(ser_share);
-    }
-    Ok(serialized_shares)
-}
-
-#[cfg(not(feature = "noffi"))]
-pub fn recover_wrap(
-    shares_vec: &Vec<String>,
-    numshares: usize,
-    threshold: usize,
-) -> Result<Vec<u8>, String> {
-    let sham = SecretSharing {
-        numshares,
-        threshold,
-        prime: get_prime(),
-    };
-
-    let mut shares: Vec<Share> = Vec::new();
-    for ser_share in shares_vec {
-        let share: Share =
-            serde_json::from_value(serde_json::from_str(ser_share).unwrap()).unwrap();
-        shares.push(share);
-    }
-    sham.recover(&shares)
-        .map_err(|_| "Error recovering secrets".to_string())
-}
-
-pub fn desearialize_share(serialized_share: &[u8]) -> Result<Share, Error> {
+fn deserialize_share(serialized_share: &[u8]) -> Result<Share, Error> {
     let string: String =
         String::from_utf8(serialized_share.to_vec()).map_err(|_| Error::NotAShareObject)?;
     let share: Share = serde_json::from_value(serde_json::from_str(&string).unwrap())
@@ -195,8 +107,8 @@ fn not_in_range_prime(bi_key: &BigInt, prime: &BigInt) -> bool {
 
 const LABEL: &[u8; 4] = b"hats";
 
-impl SecretSharing {
-    pub fn split(&self, secret_bytes: &[u8], wrapped: bool) -> Result<Vec<Share>, Error> {
+impl SecretSplit for ShamirSharing {
+    fn split(&self, secret_bytes: &[u8]) -> Result<Vec<String>, Error> {
         if self.numshares < self.threshold {
             return Err(Error::ThresholdGreaterThanNumShares);
         }
@@ -216,24 +128,29 @@ impl SecretSharing {
         if poly.len() == 1 {
             return Err(Error::ImproperCoeffs);
         }
-        let mut output: Vec<Share> = Vec::new();
+        let mut output: Vec<String> = Vec::new();
         for x in 1..=self.numshares {
-            output.push(Share {
+            let serialized_share = serde_json::to_string(&Share {
                 value: eval(poly.clone(), x, &self.prime),
                 index: x,
-                wrapped,
-            });
+            })
+            .map_err(|_| Error::SerializationFailure)?;
+            output.push(serialized_share);
         }
         Ok(output)
     }
 
-    pub fn recover(&self, shares: &[Share]) -> Result<Vec<u8>, Error> {
-        if shares.len() < self.threshold {
+    fn recover(&self, serialized_shares: &[&[u8]]) -> Result<Vec<u8>, Error> {
+        if serialized_shares.len() < 2 {
+            return Err(Error::MustSplitTrust);
+        }
+        if serialized_shares.len() < self.threshold {
             return Err(Error::BelowThreshold);
         }
         let mut indices: Vec<usize> = Vec::new();
         let mut shares_bytes: Vec<Vec<u8>> = Vec::new();
-        for share in shares.iter().take(self.threshold) {
+        for serialized_share in serialized_shares.iter().take(self.threshold) {
+            let share = deserialize_share(serialized_share)?;
             indices.push(share.index);
             shares_bytes.push(share.value.clone());
         }
@@ -257,6 +174,9 @@ fn remove_label(secret_with_size: Vec<u8>) -> Result<Vec<u8>, Error> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::interface::shamir_recover_wrap;
+    use crate::interface::shamir_split_wrap;
+    use crate::xor_sharing;
     use bssl_crypto::hpke;
     use crypto::P256Scalar;
 
@@ -268,28 +188,29 @@ mod test {
 
     #[test]
     fn test_shamir2of3() {
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 2,
             numshares: 3,
             prime: get_prime(),
         };
 
         let secret = get_valid_private_key();
-        let shares = sham.split(&secret, false).unwrap();
+        let splits = sham.split(&secret).unwrap();
+        let shares: Vec<&[u8]> = splits.iter().map(|s| s.as_bytes()).collect();
 
         let recovered_secret12 = sham.recover(&shares[0..2]).unwrap();
         let recovered_secret23 = sham.recover(&shares[1..3]).unwrap();
         assert_eq!(secret, recovered_secret12);
         assert_eq!(secret, recovered_secret23);
 
-        let shares31 = vec![shares[2].clone(), shares[0].clone()];
+        let shares31 = vec![shares[2], shares[0]];
         let recovered_secret31 = sham.recover(&shares31).unwrap();
         assert_eq!(secret, recovered_secret31);
     }
 
     #[test]
     fn test_shamir3of5() {
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 3,
             numshares: 5,
             prime: get_prime(),
@@ -297,7 +218,8 @@ mod test {
 
         let secret = get_valid_private_key();
 
-        let shares = sham.split(&secret, false).unwrap();
+        let splits = sham.split(&secret).unwrap();
+        let shares: Vec<&[u8]> = splits.iter().map(|s| s.as_bytes()).collect();
 
         let recovered_secret123 = sham.recover(&shares[0..3]).unwrap();
         let recovered_secret234 = sham.recover(&shares[1..4]).unwrap();
@@ -306,14 +228,14 @@ mod test {
         assert_eq!(secret, recovered_secret234);
         assert_eq!(secret, recovered_secret345);
 
-        let shares152 = vec![shares[0].clone(), shares[4].clone(), shares[1].clone()];
+        let shares152 = vec![shares[0], shares[4], shares[1]];
         let recovered_secret152 = sham.recover(&shares152).unwrap();
         assert_eq!(secret, recovered_secret152);
     }
 
     #[test]
     fn test_shamir4of4() {
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 4,
             numshares: 4,
             prime: get_prime(),
@@ -321,24 +243,20 @@ mod test {
 
         let secret = get_valid_private_key();
 
-        let shares = sham.split(&secret, false).unwrap();
+        let splits = sham.split(&secret).unwrap();
+        let shares: Vec<&[u8]> = splits.iter().map(|s| s.as_bytes()).collect();
 
         let recovered_secret = sham.recover(&shares).unwrap();
         assert_eq!(secret, recovered_secret);
 
-        let shares = vec![
-            shares[0].clone(),
-            shares[3].clone(),
-            shares[2].clone(),
-            shares[1].clone(),
-        ];
+        let shares = vec![shares[0], shares[3], shares[2], shares[1]];
         let recovered_secret_unordered = sham.recover(&shares).unwrap();
         assert_eq!(secret, recovered_secret_unordered);
     }
 
     #[test]
     fn test_more_than_threshold() {
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 2,
             numshares: 5,
             prime: get_prime(),
@@ -346,7 +264,8 @@ mod test {
 
         let secret = get_valid_private_key();
 
-        let shares = sham.split(&secret, false).unwrap();
+        let splits = sham.split(&secret).unwrap();
+        let shares: Vec<&[u8]> = splits.iter().map(|s| s.as_bytes()).collect();
 
         let recovered_secret123 = sham.recover(&shares[0..3]).unwrap();
         let recovered_secret2345 = sham.recover(&shares[1..5]).unwrap();
@@ -355,12 +274,7 @@ mod test {
         assert_eq!(secret, recovered_secret2345);
         assert_eq!(secret, recovered_secret_all);
 
-        let shares1524 = vec![
-            shares[0].clone(),
-            shares[4].clone(),
-            shares[1].clone(),
-            shares[3].clone(),
-        ];
+        let shares1524 = vec![shares[0], shares[4], shares[1], shares[3]];
         let recovered_secret1524 = sham.recover(&shares1524).unwrap();
         assert_eq!(secret, recovered_secret1524);
     }
@@ -368,24 +282,24 @@ mod test {
     #[test]
     fn test_errors() {
         let secret = get_valid_private_key();
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 3,
             numshares: 2,
             prime: get_prime(),
         };
 
-        let e = sham.split(&secret, false).unwrap_err();
+        let e = sham.split(&secret).unwrap_err();
         assert_eq!(e, Error::ThresholdGreaterThanNumShares);
 
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 1,
             numshares: 1,
             prime: get_prime(),
         };
-        let e = sham.split(&secret, false).unwrap_err();
+        let e = sham.split(&secret).unwrap_err();
         assert_eq!(e, Error::MustSplitTrust);
 
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 3,
             numshares: 5,
             prime: get_prime(),
@@ -393,7 +307,8 @@ mod test {
 
         let secret_bytes = get_valid_private_key();
 
-        let shares = sham.split(&secret_bytes, false).unwrap();
+        let splits = sham.split(&secret_bytes).unwrap();
+        let shares: Vec<&[u8]> = splits.iter().map(|s| s.as_bytes()).collect();
         let e = sham.recover(&shares[0..2]).unwrap_err();
         assert_eq!(e, Error::BelowThreshold);
     }
@@ -402,15 +317,16 @@ mod test {
     fn test_shamir4of4_wrap() {
         let secret = get_valid_private_key();
 
-        let shares = split_wrap(&secret, /*numshares=*/ 4, /*threshold=*/ 4, false).unwrap();
+        let shares = shamir_split_wrap(&secret, /*numshares=*/ 4, /*threshold=*/ 4).unwrap();
 
-        let recovered_secret = recover_wrap(&shares, /*numshares=*/ 4, /*threshold=*/ 4).unwrap();
+        let recovered_secret =
+            shamir_recover_wrap(&shares, /*numshares=*/ 4, /*threshold=*/ 4).unwrap();
         assert_eq!(secret, recovered_secret);
     }
 
     #[test]
     fn test_shamir_encrypted_secret_size() {
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 4,
             numshares: 4,
             prime: get_prime(),
@@ -422,7 +338,8 @@ mod test {
             .try_into()
             .unwrap();
         let secret = public.to_vec();
-        let shares = sham.split(&secret, false).unwrap();
+        let splits = sham.split(&secret).unwrap();
+        let shares: Vec<&[u8]> = splits.iter().map(|s| s.as_bytes()).collect();
 
         let recovered_secret = sham.recover(&shares).unwrap();
         assert_eq!(secret, recovered_secret);
@@ -430,7 +347,7 @@ mod test {
 
     #[test]
     fn secret_with_leading_zeros() {
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 2,
             numshares: 3,
             prime: get_prime(),
@@ -439,21 +356,22 @@ mod test {
         let secret =
             hex::decode("00000000000000000000000000000000000000000000dc663a8ceba6108c0840")
                 .unwrap();
-        let shares = sham.split(&secret, false).unwrap();
+        let splits = sham.split(&secret).unwrap();
+        let shares: Vec<&[u8]> = splits.iter().map(|s| s.as_bytes()).collect();
 
         let recovered_secret12 = sham.recover(&shares[0..2]).unwrap();
         let recovered_secret23 = sham.recover(&shares[1..3]).unwrap();
         assert_eq!(secret, recovered_secret12);
         assert_eq!(secret, recovered_secret23);
 
-        let shares31 = vec![shares[2].clone(), shares[0].clone()];
+        let shares31 = vec![shares[2], shares[0]];
         let recovered_secret31 = sham.recover(&shares31).unwrap();
         assert_eq!(secret, recovered_secret31);
     }
 
     #[test]
     fn secret_all_zeros() {
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 2,
             numshares: 3,
             prime: get_prime(),
@@ -462,36 +380,68 @@ mod test {
         let secret =
             hex::decode("0000000000000000000000000000000000000000000000000000000000000000")
                 .unwrap();
-        let shares = sham.split(&secret, false).unwrap();
+        let splits = sham.split(&secret).unwrap();
+        let shares: Vec<&[u8]> = splits.iter().map(|s| s.as_bytes()).collect();
 
         let recovered_secret12 = sham.recover(&shares[0..2]).unwrap();
         let recovered_secret23 = sham.recover(&shares[1..3]).unwrap();
         assert_eq!(secret, recovered_secret12);
         assert_eq!(secret, recovered_secret23);
 
-        let shares31 = vec![shares[2].clone(), shares[0].clone()];
+        let shares31 = vec![shares[2], shares[0]];
         let recovered_secret31 = sham.recover(&shares31).unwrap();
         assert_eq!(secret, recovered_secret31);
     }
 
     #[test]
     fn recover_malformed_secret_error() {
-        let sham = SecretSharing {
+        let sham = ShamirSharing {
             threshold: 2,
             numshares: 3,
             prime: get_prime(),
         };
 
-        assert_eq!(sham.recover(&[Share {
-        index: 1,
+        assert_eq!(sham.recover(&[&serde_json::to_string(&Share {
         value: hex::decode("64bb92a1cb8933d951d8ab8a75e8089ba1ddac8d89266dc59ae4dc2e2670d35f970fc784405c01453f4eaf539fe6ad9a0c401433d9652856f53cb50ea4a54fb0").unwrap(),
-        wrapped: false,
-        },
-        Share {
-            index: 3,
+        index: 1,
+        }).unwrap().into_bytes(),
+        &serde_json::to_string(&Share {
             value: hex::decode("6522dd434132d95730c3a013e0dbfd01bc96b7a0110b7cdccea2d5e4383edefb6b0bfcc811576518256cf1602c35c674933777e3afcd0f4caede1693f7a4ccb7").unwrap(),
-            wrapped: false,
-        },
+            index: 3,
+        }).unwrap().into_bytes(),
         ]).unwrap_err(), Error::MalformedSecret);
+    }
+
+    #[test]
+    fn shamir_mixed_share_error() {
+        let sham = ShamirSharing {
+            threshold: 2,
+            numshares: 3,
+            prime: get_prime(),
+        };
+
+        assert_eq!(sham.recover(&[&serde_json::to_string(&Share {
+            value: hex::decode("64bb92a1cb8933d951d8ab8a75e8089ba1ddac8d89266dc59ae4dc2e2670d35f970fc784405c01453f4eaf539fe6ad9a0c401433d9652856f53cb50ea4a54fb0").unwrap(),
+            index: 1,
+            }).unwrap().into_bytes(),
+            &serde_json::to_string(&xor_sharing::Share {
+                value: hex::decode("6522dd434132d95730c3a013e0dbfd01bc96b7a0110b7cdccea2d5e4383edefb6b0bfcc811576518256cf1602c35c674933777e3afcd0f4caede1693f7a4ccb7").unwrap(),
+            }).unwrap().into_bytes(),
+            ]).unwrap_err(), Error::NotAShareObject);
+    }
+
+    #[test]
+    fn recover_not_enough_splits_error() {
+        let sham = ShamirSharing {
+            threshold: 2,
+            numshares: 3,
+            prime: get_prime(),
+        };
+
+        assert_eq!(sham.recover(&[]).unwrap_err(), Error::MustSplitTrust);
+        assert_eq!(sham.recover(&[&serde_json::to_string(&Share {
+            value: hex::decode("64bb92a1cb8933d951d8ab8a75e8089ba1ddac8d89266dc59ae4dc2e2670d35f970fc784405c01453f4eaf539fe6ad9a0c401433d9652856f53cb50ea4a54fb0").unwrap(),
+            index: 1,
+            }).unwrap().into_bytes()]).unwrap_err(), Error::MustSplitTrust);
     }
 }
