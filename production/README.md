@@ -43,7 +43,8 @@ it with *latest*.
     $ gcloud run deploy tvs-service \
     --image=us-docker.pkg.dev/ps-hats-playground/gcr.io/tvs_image:latest \
     --use-http2 --min-instances 3 --region us-central1 \
-    --allow-unauthenticated
+    --allow-unauthenticated \
+    --args="--project_id=ps-hats-playground","--instance_id=tvs-instance","--database_id=tvs-db"
     ```
 
 1.  Deploy TVS Cloud Run instance that enforces IAM authentication:
@@ -52,7 +53,8 @@ it with *latest*.
     $ gcloud run deploy tvs-service-authn \
         --image=us-docker.pkg.dev/ps-hats-playground/gcr.io/tvs_image:latest \
         --use-http2 --min-instances 3 --region us-central1 \
-        --no-allow-unauthenticated
+        --no-allow-unauthenticated \
+        --args="--project_id=ps-hats-playground","--instance_id=tvs-instance","--database_id=tvs-db"
     ```
 
 ### Test tvs-server in GCP
@@ -280,5 +282,5 @@ deploy a Cloud Run Instance.
 1.  Deploy TVS Cloud Run instance:
 
     ```shell
-    $ gcloud run deploy tvs-service --image=<image_url> --use-http2  --min-instances 3 --region <region>
+    $ gcloud run deploy tvs-service --image=<image_url> --use-http2  --min-instances 3 --region <region> --args="--project_id=<project_id>","--instance_id=<spanner_instance_id>","--database_id=<spanner_db_id>"
     ```
