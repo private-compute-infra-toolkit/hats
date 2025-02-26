@@ -51,6 +51,7 @@ cc_test(
     srcs = ["gcp-kms-client_test.cc"],
     deps = [
         ":gcp-kms-client",
+        ":kms-client-interface",
         "//status_macro:status_test_macros",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",

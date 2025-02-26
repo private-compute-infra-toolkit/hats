@@ -111,9 +111,6 @@ cc_binary(
     srcs = ["trusted_application_client_main.cc"],
     deps = [
         ":trusted_application_client",
-        "//client/proto:orchestrator_cc_proto",
-        "//client/sdk:hats_orchestrator_client",
-        "//status_macro:status_macros",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log:flags",

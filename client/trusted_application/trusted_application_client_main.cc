@@ -13,17 +13,12 @@
 // limitations under the License.
 
 #include <iostream>
-#include <memory>
 #include <string>
-#include <utility>
-#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/strings/escaping.h"
-#include "client/proto/orchestrator.pb.h"
-#include "client/sdk/hats_orchestrator_client.h"
 #include "client/trusted_application/trusted_application_client.h"
 
 ABSL_FLAG(std::string, app_key,
