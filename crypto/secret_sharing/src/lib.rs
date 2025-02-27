@@ -14,7 +14,7 @@
 use anyhow::Result;
 
 /// Trait to split and recover secrets
-pub trait SecretSplit {
+pub trait SecretSplit: Send + Sync {
     /// Splits secret into multiple shares
     /// This function takes the following parameters:
     /// secret_bytes: the secret to split
