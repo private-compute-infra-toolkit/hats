@@ -82,6 +82,8 @@ pub fn new_service(
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
 ) -> anyhow::Result<Box<Service>> {
+    // Intentionally ignore event logger initialization error.
+    let _ = env_logger::try_init();
     let key_fetcher = Arc::new(KeyFetcher::new(key_fetcher_wrapper));
     let service = Service::new(
         key_fetcher,
@@ -103,6 +105,8 @@ pub fn new_service_with_policy_fetcher(
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
 ) -> anyhow::Result<Box<Service>> {
+    // Intentionally ignore event logger initialization error.
+    let _ = env_logger::try_init();
     let key_fetcher = Arc::new(KeyFetcher::new(key_fetcher_wrapper));
     let dynamic_policy_manager = Arc::new(DynamicPolicyManager::new(
         policy_fetcher_wrapper,

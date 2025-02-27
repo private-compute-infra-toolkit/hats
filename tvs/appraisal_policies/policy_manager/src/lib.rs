@@ -144,9 +144,209 @@ impl EvidenceValidator for PolicyManager {
                 Err(_) => continue,
             };
         }
+
+        if log::log_enabled!(log::Level::Debug) {
+            if let Err(err) = debug::suggest_appraisal_policy(evidence) {
+                log::debug!(
+                    "Failed to suggest appraisal policy based on the provided evidence: {err}"
+                );
+            }
+        }
+
         Err(anyhow::anyhow!(
             "Failed to verify report. No matching appraisal policy found"
         ))
+    }
+}
+
+#[cfg(feature = "regex")]
+mod debug {
+    use alloc::{format, string::String};
+    use anyhow::Context;
+    use oak_proto_rust::oak::attestation::v1::{
+        binary_reference_value, kernel_binary_reference_value, reference_values,
+        text_reference_value, BinaryReferenceValue, Evidence, KernelLayerReferenceValues,
+        RootLayerReferenceValues,
+    };
+
+    pub(crate) fn suggest_appraisal_policy(evidence: &Evidence) -> anyhow::Result<()> {
+        let extracted_evidence =
+            oak_attestation_verification_with_regex::extract::extract_evidence(evidence)?;
+        let reference_values =
+            oak_attestation_verification_with_regex::reference_values_from_evidence(
+                extracted_evidence,
+            );
+
+        let Some(reference_values::Type::OakContainers(oak_reference_values)) =
+            reference_values.r#type
+        else {
+            anyhow::bail!("Evidence is not of OakContainers type.");
+        };
+
+        let Some(root_layer) = &oak_reference_values.root_layer else {
+            anyhow::bail!("Evidence does not have root layer.")
+        };
+
+        let Some(kernel_layer) = oak_reference_values.kernel_layer else {
+            anyhow::bail!("Evidence does not have kernel layer");
+        };
+
+        let Some(system_layer) = oak_reference_values.system_layer else {
+            anyhow::bail!("Evidence does not have system layer.");
+        };
+
+        let Some(container_layer) = oak_reference_values.container_layer else {
+            anyhow::bail!("Evidence does not have container layer.");
+        };
+
+        let (kernel, setup_data) = kernel_measurements(&kernel_layer)?;
+
+        let kernel_cmd_line = {
+            let Some(kernel_cmd_line_text) = kernel_layer.kernel_cmd_line_text else {
+                anyhow::bail!("Evidence does not have kernel command line text.")
+            };
+            let Some(text_reference_value::Type::StringLiterals(kernel_cmd_line)) =
+                kernel_cmd_line_text.r#type
+            else {
+                anyhow::bail!("Evidence does not have kernel command line text.")
+            };
+            kernel_cmd_line.value.join("")
+        };
+
+        log::debug!(
+            r#"Maybe try the following appraisal policy:
+                policies {{
+                  measurement {{
+                    stage0_measurement {{
+                      {}
+                    }}
+                    kernel_image_sha256: "{}"
+                    kernel_setup_data_sha256: "{}"
+                    init_ram_fs_sha256: "{}"
+                    memory_map_sha256: "{}"
+                    acpi_table_sha256: "{}"
+                    kernel_cmd_line_regex: "{}"
+                    system_image_sha256: "{}"
+                    container_binary_sha256: "{}"
+                  }}
+                }}"#,
+            text_stage0_measurement_from_evidence(root_layer)
+                .context("extracting stage0 measurement digest.")?,
+            kernel,
+            setup_data,
+            binary_reference_value_to_hex(kernel_layer.init_ram_fs.as_ref())
+                .context("extracting init ram fs digest.")?,
+            binary_reference_value_to_hex(kernel_layer.memory_map.as_ref())
+                .context("extracting memory map digest.")?,
+            binary_reference_value_to_hex(kernel_layer.acpi.as_ref())
+                .context("extracting acpi table digest.")?,
+            kernel_cmd_line,
+            binary_reference_value_to_hex(system_layer.system_image.as_ref())
+                .context("extracting system image digest.")?,
+            binary_reference_value_to_hex(container_layer.binary.as_ref())
+                .context("extracting container binary  digest.")?
+        );
+
+        Ok(())
+    }
+
+    fn text_stage0_measurement_from_evidence(
+        root_layer: &RootLayerReferenceValues,
+    ) -> anyhow::Result<String> {
+        if let Some(amd_sev) = &root_layer.amd_sev {
+            let Some(stage0) = &amd_sev.stage0 else {
+                anyhow::bail!("No amd_sev stage0 measurement found.");
+            };
+            let Some(binary_reference_value::Type::Digests(digests)) = &stage0.r#type else {
+                anyhow::bail!("No stage0 digest found.");
+            };
+            if digests.digests.len() != 1 {
+                anyhow::bail!(
+                    "stage0 digest size mismatch: want 1, got {}.",
+                    digests.digests.len()
+                )
+            };
+
+            let tcb_version = amd_sev.min_tcb_version.clone().unwrap_or_default();
+            return Ok(format!(
+                r#"
+                  amd_sev {{
+                    sha384: "{}"
+                    min_tcb_version {{
+                      boot_loader: {}
+                      snp: {}
+                      microcode: {}
+                    }}
+                  }}"#,
+                hex::encode(&digests.digests[0].sha2_384),
+                tcb_version.boot_loader,
+                tcb_version.snp,
+                tcb_version.microcode
+            ));
+        };
+        if root_layer.insecure.is_some() {
+            return Ok(String::from("insecure {}"));
+        }
+        anyhow::bail!("No stage0 measurement found.");
+    }
+
+    fn kernel_measurements(
+        kernel_layer: &KernelLayerReferenceValues,
+    ) -> anyhow::Result<(String, String)> {
+        let Some(ref kernel_measurement) = kernel_layer.kernel else {
+            anyhow::bail!("No kernel measurement found.");
+        };
+
+        let Some(kernel_binary_reference_value::Type::Digests(ref kernel_digests)) =
+            kernel_measurement.r#type
+        else {
+            anyhow::bail!("No digest in kernel measurement found.");
+        };
+
+        let Some(image) = &kernel_digests.image else {
+            anyhow::bail!("No image field in kernel digest found.");
+        };
+
+        let Some(setup_data) = &kernel_digests.setup_data else {
+            anyhow::bail!("No setup_data field in kernel digest found.");
+        };
+
+        if image.digests.len() != 1 {
+            anyhow::bail!(
+                "image digest size mismatch: want 1, got {}.",
+                image.digests.len()
+            );
+        };
+
+        if setup_data.digests.len() != 1 {
+            anyhow::bail!(
+                "setup_data digest size mismatch: want 1, got {}.",
+                setup_data.digests.len()
+            );
+        }
+
+        Ok((
+            hex::encode(&image.digests[0].sha2_256),
+            hex::encode(&setup_data.digests[0].sha2_256),
+        ))
+    }
+
+    fn binary_reference_value_to_hex(
+        binary_reference: Option<&BinaryReferenceValue>,
+    ) -> anyhow::Result<String> {
+        let Some(binary_reference) = binary_reference else {
+            anyhow::bail!("No binary reference field found.");
+        };
+        let Some(binary_reference_value::Type::Digests(digests)) = &binary_reference.r#type else {
+            anyhow::bail!("No digest in binary reference found.");
+        };
+        if digests.digests.len() != 1 {
+            anyhow::bail!(
+                "digest size mismatch: want 1, got {}.",
+                digests.digests.len()
+            );
+        }
+        Ok(hex::encode(&digests.digests[0].sha2_256))
     }
 }
 

@@ -40,6 +40,7 @@ rust_library(
         "@cxx.rs//:cxx",
         "//tvs/trusted_tvs/types:trusted-tvs-types",
         "@oak_crates_index//:anyhow",
+        "@oak_crates_index//:env_logger",
     ],
 )
 

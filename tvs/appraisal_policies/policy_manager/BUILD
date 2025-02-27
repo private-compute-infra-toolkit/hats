@@ -30,6 +30,7 @@ rust_library(
         "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",
         "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",
+        "@oak_crates_index//:log",
         "@oak_crates_index//:p256",
         "@oak_crates_index//:prost",
     ],
