@@ -21,6 +21,9 @@
 # Prebuilt binaries that shouldn't checked in.
 prebuilt/
 
+# Tar files build by test scripts
+client/trusted_application/test_data/*_bundle.tar
+
 # Rust Analyzer
 **/rust-project.json
 
