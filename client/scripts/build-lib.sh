@@ -37,7 +37,7 @@ function build_oak_containers_kernel() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS KERNEL..."
   pushd ../../submodules/oak/
-  nix develop --command just oak_containers_kernel && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_kernel && \
     rsync artifacts/oak_containers_kernel "$BUILD_DIR//bzImage"
   popd
 }
@@ -46,7 +46,7 @@ function build_oak_containers_images() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS IMAGES..."
   pushd ../../submodules/oak/oak_containers_system_image
-  nix develop --command ./build-old.sh && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command ./build-old.sh && \
     rsync target/output.img "$BUILD_DIR" && \
     rsync target/image-old.tar "$BUILD_DIR" && \
     xz --force "$BUILD_DIR/image-old.tar"
@@ -57,7 +57,7 @@ function build_oak_containers_launcher() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS LAUNCHER..."
   pushd ../../submodules/oak
-  nix develop --command just oak_containers_launcher && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_launcher && \
     rsync ./target/x86_64-unknown-linux-gnu/release/oak_containers_launcher "$BUILD_DIR"
   popd
 }
@@ -66,7 +66,7 @@ function build_oak_containers_stage0() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS STAGE0..."
   pushd ../../submodules/oak
-  nix develop --command just stage0_bin && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command just stage0_bin && \
     rsync ./artifacts/stage0_bin "$BUILD_DIR"
   popd
 }
@@ -75,7 +75,7 @@ function build_oak_containers_stage1() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS STAGE1..."
   pushd ../../submodules/oak
-  nix develop --command just stage1_cpio && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command just stage1_cpio && \
     rsync ./artifacts/stage1.cpio "$BUILD_DIR"
   popd
 }
@@ -87,7 +87,7 @@ function build_oak_hello_world_container_bundle_tar() {
   # just command to build the container tries to copy a file to
   # a folder it doesn't have permission to do so and it fails at that
   # step; so here we copy after we call `just`.
-  nix develop --command  bazel build --compilation_mode opt //oak_containers/examples/hello_world/trusted_app:bundle.tar && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command  bazel build --compilation_mode opt //oak_containers/examples/hello_world/trusted_app:bundle.tar && \
     rsync ./bazel-bin/oak_containers/examples/hello_world/trusted_app/bundle.tar "$BUILD_DIR/oak_container_example_oci_filesystem_bundle.tar"
 
   popd
@@ -110,7 +110,7 @@ function build_trusted_application_client() {
 function build_snphost() {
   local BUILD_DIR="$1"
   pushd ../../submodules/oak
-  nix develop --command cargo install --root "$BUILD_DIR" snphost && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command cargo install --root "$BUILD_DIR" snphost && \
     mv "$BUILD_DIR"/bin/snphost "$BUILD_DIR" && \
     rmdir "$BUILD_DIR/bin"
   popd
@@ -132,10 +132,26 @@ exports_files([
 ])
 EOF
   printf "\nBUILDING OAK CONTAINERS SYSLOGD"
-  pushd ../../submodules/oak
-  nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
-    cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
-  popd
+  . /etc/os-release
+  if [[ "$ID" == "centos" ]]
+  then
+    printf "\nCentOS requires building inside a docker container to prevent linking issue"
+    pushd ../../submodules/oak
+    docker build . --tag local_oak_builder:latest
+    popd
+    pushd ../..
+    docker run -v "$(readlink -f .)":/workspace -v "$(readlink -f "$BUILD_DIR")":/hats_build -w /workspace local_oak_builder:latest /bin/bash -c "
+    cd /workspace/submodules/oak && git config --global --add safe.directory /workspace/submodules/oak && git status && \
+    nix develop --extra-experimental-features 'nix-command flakes' \
+      --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
+    cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd /hats_build/oak_containers_syslogd"
+    popd
+  else
+    pushd ../../submodules/oak
+    nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
+      cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
+    popd
+  fi
 }
 
 function build_hats_containers_images() {

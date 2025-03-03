@@ -19,7 +19,7 @@ function build_oak_stage0() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK STAGE0..."
   pushd ../../submodules/oak/
-  nix develop --command just stage0_bin && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command just stage0_bin && \
     rsync artifacts/stage0_bin "$BUILD_DIR"
   popd
 }
@@ -28,7 +28,7 @@ function build_oak_restricted_kernel() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK RESTRICTED KERNEL..."
   pushd ../../submodules/oak/
-  nix develop --command just oak_restricted_kernel_wrapper_virtio_console_channel && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command just oak_restricted_kernel_wrapper_virtio_console_channel && \
     rsync oak_restricted_kernel_wrapper/bin/wrapper_bzimage_virtio_console_channel "$BUILD_DIR"
   popd
 }
@@ -37,7 +37,7 @@ function build_oak_orchestrator() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK ORCHESTRATOR..."
   pushd ../../submodules/oak/
-  nix develop --command just build_oak_orchestrator && \
+  nix develop --extra-experimental-features 'nix-command flakes' --command just build_oak_orchestrator && \
     rsync artifacts/enclave_apps/oak_orchestrator "$BUILD_DIR"
   popd
 }
