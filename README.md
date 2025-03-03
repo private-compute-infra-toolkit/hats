@@ -1,3 +1,3 @@
-# Harware Attested TEEs
+# On-Premise Trusted Servers
 
-This repo is for all Privacy Sandbox code related to Hardware Attested TEEs.
+This repo is for all Privacy Sandbox code related to On-Premise Trusted Servers.
