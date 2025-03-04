@@ -24,3 +24,11 @@ output "tvs_cloudrun_url" {
   description = "The cloud run URL."
   value       = module.tvs.tvs_cloudrun_url
 }
+
+output "tvs_loadbalancer_ip" {
+  value = module.tvs.tvs_loadbalancer_ip
+}
+
+output "tvs_base_url" {
+  value = module.tvs.tvs_base_url
+}

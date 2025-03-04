@@ -12,23 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "tvs_key_encryption_key_id" {
-  value = module.tvs.tvs_key_encryption_key_id
+variable "enable_domain_management" {
+  description = "Manage domain SSL cert creation and routing for public and encryption key services."
+  type        = bool
 }
 
-output "tvs_db_instance_name" {
-  value = module.tvs_db.tvs_db_instance_name
+variable "parent_domain_name" {
+  description = "Custom domain name to use with key hosting APIs."
+  type        = string
 }
 
-output "tvs_cloudrun_url" {
-  description = "The cloud run URL."
-  value       = module.tvs.tvs_cloudrun_url
+variable "parent_domain_name_project" {
+  description = "Project ID where custom domain name hosted zone is located."
+  type        = string
 }
 
-output "tvs_loadbalancer_ip" {
-  value = module.tvs.tvs_loadbalancer_ip
-}
-
-output "tvs_base_url" {
-  value = var.enable_domain_management ? "${local.tvs_domain}" : "${module.tvs.tvs_cloudrun_url}:443"
+variable "service_domain_to_address_map" {
+  description = "Map with Key: Service domain and Value: Load Balancer IP address."
+  type        = map(string)
 }

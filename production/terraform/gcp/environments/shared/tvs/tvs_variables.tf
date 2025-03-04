@@ -113,3 +113,42 @@ variable "allowed_operator_user_group" {
   type        = string
   default     = null
 }
+
+################################################################################
+# Routing Variables.
+################################################################################
+
+variable "enable_domain_management" {
+  description = "Manage domain SSL cert creation and routing for this service."
+  type        = bool
+}
+
+variable "parent_domain_name" {
+  description = <<-EOT
+    Custom domain name to register and use with key hosting APIs.
+    Default to null so it does not have to be populated when enable_domain_management = false".
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "parent_domain_name_project" {
+  description = <<-EOT
+    Project ID where custom domain name hosted zone is located.
+    Default to null so it does not have to be populated when enable_domain_management = false".
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "service_subdomain_suffix" {
+  description = "When set, the value replaces `-$${var.environment}` as the service subdomain suffix."
+  type        = string
+  default     = null
+}
+
+variable "tvs_subdomain" {
+  description = "Subdomain to use to create a managed SSL cert for this service."
+  type        = string
+  default     = "tvs"
+}
