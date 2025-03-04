@@ -14,7 +14,6 @@
 
 workspace(name = "hats")
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 load("//builders/bazel:deps.bzl", "python_deps")
 
@@ -264,33 +263,6 @@ switched_rules_by_language(
     grpc = True,
 )
 
-local_repository(
-    name = "kv-test-client",
-    path = "client/kv-test-client",
-)
-
-# NOTE: For kokoro, make sure submodule is on commit, and patches are applied in script
-git_repository(
-    name = "google_privacysandbox_servers_common",
-    commit = "8e3a351b33ed127e52584b7769ece6205492b725",
-    patches = [
-        "//patches/parc:parc.patch",
-    ],
-    remote = "sso://team/privacy-sandbox-team/servers/common",
-)
-
-load("@google_privacysandbox_servers_common//third_party:cpp_deps.bzl", parc_cpp_dep = "cpp_dependencies")
-
-parc_cpp_dep()
-
-load("@google_privacysandbox_servers_common//third_party:deps1.bzl", parc_dep1 = "deps1")
-
-parc_dep1()
-
-load("@google_privacysandbox_servers_common//third_party:deps2.bzl", parc_dep2 = "deps2")
-
-parc_dep2()
-
 # Bazel rules for building OCI images and runtime bundles.
 http_archive(
     name = "rules_oci",
@@ -367,23 +339,8 @@ gcc_register_toolchain(
 
 # Declare submodules as local repository so that `build //...` doesn't try to build them.
 local_repository(
-    name = "submodule1",
-    path = "submodules/kv-server",
-)
-
-local_repository(
     name = "submodule2",
     path = "submodules/oak",
-)
-
-local_repository(
-    name = "submodule3",
-    path = "submodules/common",
-)
-
-local_repository(
-    name = "submodule4",
-    path = "submodules/bidding-auction-server",
 )
 
 http_file(

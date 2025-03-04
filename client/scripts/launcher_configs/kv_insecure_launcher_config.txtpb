@@ -12,7 +12,3 @@ cvm_config {
     }
   }
 }
-parc_config {
-  parameters_file_path: "./parc_data/parameters/parameters-local.json"
-  blob_storage_root: "./parc_data/blob_root"
-}

@@ -52,7 +52,6 @@ export PATH="${BAZEL_TMP_DIR}:${PATH}"
 # Apply patches
 pushd "${KOKORO_HATS_DIR}"
 source "patches/apply_patches.sh"
-patches::apply_common
 patches::apply_python
 popd
 

@@ -19,16 +19,6 @@ package privacy_sandbox.client;
 message LauncherConfig {
   // Address to talk to Tee Verification Service ( TVS ).
   CVMConfig cvm_config = 1;
-  // Configuration to optionally launch a local PARC server.
-  ParcConfig parc_config = 2;
-}
-
-// Configuration for the local PARC server.
-message ParcConfig {
-  // Server config Parameters served by local PARC for KV or B&A init.
-  string parameters_file_path = 1;
-  // File system path root for PARC blob lookup.
-  string blob_storage_root = 2;
 }
 
 // Type of the machine the VM runs on.

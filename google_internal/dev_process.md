@@ -232,7 +232,7 @@ This currently must be done through a wrapper, for example
 ### Status macros
 
 Codebase has useful macros for dealing with Status and StatusOr.
-Based on submodules/common and //util
+Based on privacysandbox/data-plane-shared-libraries and //util
 
 For more details see Readme in status_macros folder
 

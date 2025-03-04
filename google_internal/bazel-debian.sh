@@ -44,9 +44,7 @@ set -o errexit
 # Exists as a wrapper around builders/tools/bazel-debian
 # Ideally, the wrapper isn't needed.
 # The wrapper is to allow it to run on everything.
-# 1. Apply patches to common, else it can't build the git module
-#    Once common no longer needs the patch (c versions), this won't be needed
-# 2. Build python related things (tar_pkg), avoiding root issues
+# 1. Build python related things (tar_pkg), avoiding root issues
 #    Once bazel-debian is the default dev invocation, WORKSPACE can register the
 #    python toolchain by default (which uses bazel-debian python path),
 #    and so the patch won't be needed
@@ -54,12 +52,10 @@ set -o errexit
 # Usage: 'google_internal/bazel-debian test //...'
 
 source "patches/apply_patches.sh"
-patches::apply_common
 patches::apply_python
 
 # Always revert patches, even if bazel failure or sigint
 function cleanup() {
-  patches::revert_common
   patches::revert_python
 }
 

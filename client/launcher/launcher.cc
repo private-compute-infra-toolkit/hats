@@ -39,8 +39,6 @@
 #include "client/launcher/logs-service.h"
 #include "client/launcher/qemu.h"
 #include "client/proto/launcher_config.pb.h"
-#include "external/google_privacysandbox_servers_common/src/parc/servers/local/parameters.h"
-#include "external/google_privacysandbox_servers_common/src/parc/servers/local/parc_server.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"
 #include "libarchive/archive.h"
@@ -131,21 +129,6 @@ absl::Status UntarHatsBundle(archive* reader, archive* writer,
     HATS_RETURN_IF_ERROR(UntarOneFile(reader, writer));
   }
   return absl::OkStatus();
-}
-
-absl::StatusOr<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-CreateParcServer(const ParcConfig& config) {
-  // 8 MiB.
-  constexpr int64_t kBlobChunkSizeMax = 8 * 1 << 20;
-  const std::string blob_storage_root = std::filesystem::path(
-      static_cast<std::string>(config.blob_storage_root()));
-  const std::string parameters_file_path = std::filesystem::path(
-      static_cast<std::string>(config.parameters_file_path()));
-  HATS_ASSIGN_OR_RETURN(privacysandbox::parc::local::v0::Parameters parameters,
-                        privacysandbox::parc::local::v0::Parameters::Create(
-                            parameters_file_path));
-  return std::make_unique<privacysandbox::parc::local::v0::ParcServer>(
-      std::move(parameters), blob_storage_root, kBlobChunkSizeMax);
 }
 
 // External dependencies to the file system or other places for the launcher to
@@ -341,8 +324,6 @@ class HatsLauncherImpl final : public HatsLauncher {
 
   uint32_t GetVsockPort() const override;
 
-  std::optional<uint16_t> GetTcpPort() const override;
-
   absl::StatusOr<std::string> GetVmmLogFilename() const override
       ABSL_LOCKS_EXCLUDED(mu_);
 
@@ -367,12 +348,7 @@ class HatsLauncherImpl final : public HatsLauncher {
       absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
       absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
       absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
-      uint32_t vsock_port,
-      absl::Nullable<
-          std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-          parc_server,
-      absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server,
-      std::optional<uint16_t> tcp_port);
+      uint32_t vsock_port);
 
   // The external dependencies are not owned by HatsLauncher but required
   // for system health.
@@ -383,13 +359,6 @@ class HatsLauncherImpl final : public HatsLauncher {
   absl::Nonnull<std::unique_ptr<LogsService>> logs_service_;
   std::unique_ptr<grpc::Server> vsock_server_;
   uint32_t vsock_port_;
-  // Parc server is null when it's not specified.
-  absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-      parc_server_;
-  // Tcp server is null when Parc is not enabled.
-  absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server_;
-  std::optional<uint16_t> tcp_port_;
-
   // Whether all underlying processes was started or not.
   // The mutex is only for controlling access to started_.
   mutable absl::Mutex mu_;
@@ -429,10 +398,6 @@ bool HatsLauncherImpl::CheckStatus() const { return vmm_->CheckStatus(); }
 
 uint32_t HatsLauncherImpl::GetVsockPort() const { return vsock_port_; }
 
-std::optional<uint16_t> HatsLauncherImpl::GetTcpPort() const {
-  return tcp_port_;
-}
-
 absl::StatusOr<std::string> HatsLauncherImpl::GetVmmLogFilename() const {
   absl::MutexLock lock(&mu_);
   return vmm_->LogFilename();
@@ -443,7 +408,6 @@ void HatsLauncherImpl::Shutdown() {
   // Vmm object and gRPC servers have internal Mutex lock.
   vmm_->Shutdown();
   vsock_server_->Shutdown();
-  if (tcp_server_ != nullptr) tcp_server_->Shutdown();
 }
 
 HatsLauncherImpl::~HatsLauncherImpl() {
@@ -474,21 +438,14 @@ HatsLauncherImpl::HatsLauncherImpl(
     absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
     absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
     absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
-    uint32_t vsock_port,
-    absl::Nullable<std::unique_ptr<privacysandbox::parc::local::v0::ParcServer>>
-        parc_server,
-    absl::Nullable<std::unique_ptr<grpc::Server>> tcp_server,
-    std::optional<uint16_t> tcp_port)
+    uint32_t vsock_port)
     : deps_(std::move(deps)),
       vmm_(std::move(vmm)),
       launcher_oak_server_(std::move(launcher_oak_server)),
       launcher_server_(std::move(launcher_server)),
       logs_service_(std::move(logs_service)),
       vsock_server_(std::move(vsock_server)),
-      vsock_port_(vsock_port),
-      parc_server_(std::move(parc_server)),
-      tcp_server_(std::move(tcp_server)),
-      tcp_port_(tcp_port) {}
+      vsock_port_(vsock_port) {}
 
 }  // namespace
 
@@ -535,29 +492,8 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   HATS_ASSIGN_OR_RETURN(uint32_t vsock_port, grpc_socket_mutator.GetPort());
   vmm_options.launcher_vsock_port = vsock_port;
 
-  // parc and tcp servers are nullptr when they are not specified.
-  std::unique_ptr<privacysandbox::parc::local::v0::ParcServer> parc_server;
-  std::unique_ptr<grpc::Server> tcp_server;
-
-  std::optional<uint16_t> tcp_port;
-  if (config.config.has_parc_config()) {
-    HATS_ASSIGN_OR_RETURN(parc_server,
-                          CreateParcServer(config.config.parc_config()));
-    grpc::ServerBuilder builder;
-    builder.RegisterService(parc_server.get());
-    int port;
-    // Pass wildcard port i.e 0 so that grpc chooses a port for us.
-    builder.AddListeningPort("0.0.0.0:0", grpc::InsecureServerCredentials(),
-                             &port);
-    tcp_server = builder.BuildAndStart();
-    vmm_options.workload_service_port = port;
-    tcp_port = port;
-    LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
-              << vsock_port << "' and '0.0.0.0:" << port << "'";
-  } else {
-    LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
-              << vsock_port << "'";
-  }
+  LOG(INFO) << "Server listening on 'vsock:" << VMADDR_CID_HOST << ":"
+            << vsock_port << "'";
 
   HATS_ASSIGN_OR_RETURN(std::unique_ptr<Vmm> vmm, Qemu::Create(vmm_options));
   deps.vmm_binary_path = vmm_options.vmm_binary;
@@ -565,8 +501,7 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
   return std::make_unique<HatsLauncherImpl>(
       deps, std::move(vmm), std::move(launcher_oak_server),
       std::move(launcher_server), std::move(logs_service),
-      std::move(vsock_server), vsock_port, std::move(parc_server),
-      std::move(tcp_server), tcp_port);
+      std::move(vsock_server), vsock_port);
 }
 
 }  // namespace privacy_sandbox::client

@@ -12,7 +12,7 @@ beyond Status, and other manipulation.
 <!-- copybara:strip_begin: TOTW and internal util reference -->
 
 The original version is found in `//util/task/status_macros.h` and similar. This
-version is based on `submodules/common/src/util/status_macro/status_macros.h`.
+version is based on `https://github.com/privacysandbox/data-plane-shared-libraries/blob/main/src/util/status_macro/status_macros.h`.
 See also [go/totw/121](go/totw/121)
 
 <!-- copybara:strip_end: TOTW and internal util reference -->
@@ -169,7 +169,8 @@ As noted, only HATS_RETURN_IF_ERROR is able to cast non-absl statuses to absl
 statuses from its expression. Currently, HATS_ASSIGN_OR_RETURN does not support
 expressions using non-absl statuses. Their return can still be cast as desired.
 
-Status code changes are currently not supported, similar to submodules/common.
+Status code changes are currently not supported, similar to
+privacysandbox/data-plane-shared-libraries.
 
 In a few places, for some reason only `ASSIGN(auto _, x)` is supported, but not
 `RETURN(x.status())`. This seems to be when nested within another macro and/or

@@ -49,8 +49,6 @@ class HatsLauncher {
 
   virtual uint32_t GetVsockPort() const = 0;
 
-  virtual std::optional<uint16_t> GetTcpPort() const = 0;
-
   virtual absl::StatusOr<std::string> GetVmmLogFilename() const = 0;
 
   // Wait for the process ready to receive requests.

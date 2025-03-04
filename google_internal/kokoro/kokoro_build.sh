@@ -40,7 +40,6 @@ pre-commit run -a
 # Apply patches
 cd "${KOKORO_HATS_DIR}"
 source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
-patches::apply_common
 patches::apply_python
 
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"

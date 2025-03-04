@@ -2,15 +2,7 @@
 	path = submodules/oak
 	url = https://github.com/project-oak/oak
 	branch = main
-[submodule "kv-server"]
-	path = submodules/kv-server
-	url = sso://team/kiwi-air-force-eng-team/kv-server
-	branch = parc
 [submodule "builders"]
 	path = builders
-	url = https://github.com/privacysandbox/build-system
-	branch = release-0.79.2
-[submodule "submodules/common"]
-	path = submodules/common
-	url = sso://team/privacy-sandbox-team/servers/common
-	branch = parc
+  url = https://github.com/privacysandbox/build-system
+  branch = release-0.79.2

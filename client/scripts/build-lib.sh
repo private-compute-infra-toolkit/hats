@@ -15,24 +15,6 @@
 
 set -e
 
-function build_kv_bundle() {
-  local BUILD_DIR="$1"
-  printf "\nBUILDING KV SERVICE..."
-  pushd ../../submodules/kv-server
-  # kv-server has submodules that we need to pull newer commits manually.
-  pushd common
-  git checkout ca6f05ec8af424f55eb7a67811077b650c6d295c
-  popd
-  ./builders/tools/bazel-debian build \
-    //production/packaging/hats/data_server:kv-bundle \
-    --config=local_instance \
-    --config=local_platform \
-    --config=enable_parc \
-    --config=enable_hats
-  rsync bazel-bin/production/packaging/hats/data_server/kv-bundle.tar "$BUILD_DIR"
-  popd
-}
-
 function build_oak_containers_kernel() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS KERNEL..."
@@ -121,7 +103,6 @@ function build_hats_launcher() {
   echo "BUILDING LAUNCHER CC"
   bazel build -c opt //client/launcher:launcher_main
   cp -f ../../bazel-bin/client/launcher/launcher_main "$BUILD_DIR"
-  cp -r ../test_data/parc_data "$BUILD_DIR"
 }
 
 function build_oak_containers_syslogd() {
