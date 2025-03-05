@@ -30,6 +30,13 @@ CREATE SEQUENCE UserIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
 
+-- Table storing appraisal policies used to validate attestation report
+-- against. The table contains the following columns:
+-- * PolicyId: a string used to identify the appraisal policy.
+-- * ApplicationDigest: sha256 of the application bundle. This is used to
+--   fetch policies for a certain application.
+-- * UpdateTimestamp: timestamp of the last update to the row.
+-- * Policy: binary representation of the appraisal policy proto.
 CREATE TABLE AppraisalPolicies (
   PolicyId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE PolicyIdSequence)),
   ApplicationDigest BYTES(MAX) NOT NULL,
@@ -37,14 +44,27 @@ CREATE TABLE AppraisalPolicies (
   UpdateTimestamp TIMESTAMP NOT NULL,
 ) PRIMARY KEY(PolicyId);
 
+-- Non-unique Index ApplicationDigest field to enable efficient retrieval of
+-- policies for a certain application.
 CREATE INDEX ApplicationDigestIndex ON AppraisalPolicies(ApplicationDigest);
 
+-- Table storing wrapped data encryption keys (DEK)s. DEKs are encrypted with
+-- KekId. The table contains the following columns:
+-- * DekId: a unique identifier for a DEK.
+-- * KekId: specifies the KEK used to wrap the DEK.
+-- * Dek: a DEK encrypted with KekId.
 CREATE TABLE DataEncryptionKeys (
   DekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE DekIdSequence)),
   KekId INT64 NOT NULL,
   Dek BYTES(MAX) NOT NULL,
 ) PRIMARY KEY(DekId);
 
+-- Table storing key encryption keys (KEK)s metadata. KEK resides in KMS and
+-- never leaves. The table contains the following columns:
+-- * KekId: a unique identifier for a KEK.
+-- * ResourceName: KMS key resource name in the following format
+--   projects/<project_name>/location/<location>/KeyRings/<key_ring_name>/
+--   cryptoKeys/<key_name>.
 CREATE TABLE KeyEncryptionKeys (
   KekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE KekIdSequence)),
   ResourceName STRING(1024) NOT NULL,
@@ -52,6 +72,15 @@ CREATE TABLE KeyEncryptionKeys (
 
 CREATE UNIQUE INDEX KekResourceNameIndex ON KeyEncryptionKeys(ResourceName);
 
+-- Table storing secrets to be returned to entities passing TVS attestation.
+-- Secret could be full or partial HPKE keys or any arbitrary strings. The
+-- stored secrets are wrapped with a DEK. The table contains the following
+-- columns:
+-- * SecretId: a unique identifier for secrets.
+-- * UserId: the ID of the user owning the secret.
+-- * DekId: specifies the DEK used to wrap the secret.
+-- * Secret: a secret wrapped with DekId.
+-- * UpdateTimestamp: timestamp of the last update to the row.
 CREATE TABLE Secrets (
   SecretId INT64 NOT NULL,
   UserId INT64 NOT NULL,
@@ -60,28 +89,48 @@ CREATE TABLE Secrets (
   UpdateTimestamp TIMESTAMP NOT NULL,
 ) PRIMARY KEY(SecretId, UserId);
 
+-- Table storing wrapped TVS private EC keys. The keys are used in the noise
+-- protocol. The table contains the following columns:
+-- * KeyId: a string used to identify the TVS key e.g. primary_key.
+-- * DekId: specifies the DEK used to wrap the TVS key.
+-- * PrivateKey: a TVS private key encrypted with DekId.
 CREATE TABLE TVSPrivateKeys (
   KeyId STRING(1024),
   DekId INT64 NOT NULL,
   PrivateKey BYTES(MAX) NOT NULL,
 ) PRIMARY KEY(KeyId);
 
+-- Table storing TVS public keys. The public keys are stored in a separate
+-- tables so that we can relax the ACLs on it.
 CREATE TABLE TVSPublicKeys (
   KeyId STRING(1024),
   PublicKey STRING(MAX) NOT NULL,
 ) PRIMARY KEY(KeyId);
 
+-- Table storing public keys used by a particular user. The table contains
+-- the following columns:
+-- * UserId: the ID of the user owning the private part of the given public
+--           key.
+-- * PublicKey: the public part of the key that the user uses when
+--              authenticating with the TVS.
 CREATE TABLE UserAuthenticationKeys (
   UserId INT64 NOT NULL,
   PublicKey BYTES(MAX) NOT NULL,
 ) PRIMARY KEY(UserId, PublicKey);
 
+-- Table storing public keys of the users.
 CREATE TABLE UserPublicKeys (
   SecretId INT64 NOT NULL,
   UserId INT64 NOT NULL,
   PublicKey STRING(1024) NOT NULL,
 ) PRIMARY KEY(SecretId);
 
+-- Table storing information about the registered users. Registered users
+-- are the one allowed to use TVS. The table contains the following columns:
+-- * UserId: a unique identifier for the user.
+-- * Name: a name to identify the user.
+-- * Origin: protocol, hostname, and port (in essence the URL used by the
+-- user).
 CREATE TABLE Users (
   UserId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
   Name STRING(1024) NOT NULL,
