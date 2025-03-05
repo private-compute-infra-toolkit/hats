@@ -84,7 +84,9 @@ resource "google_cloud_run_v2_service" "tvs" {
   project  = var.project_id
   name     = "${var.environment}-${var.region}-tvs"
   location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  # Terraform google_compute_backend_service does not currently support H2C which is needed for unauthenticated GRPC.
+  # A load balancer will not be created if enable_domain_management is not enabled.
+  ingress = var.enable_domain_management ? "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER" : "INGRESS_TRAFFIC_ALL"
 
   template {
     containers {

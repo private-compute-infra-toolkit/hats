@@ -20,3 +20,7 @@ output "tvs_cloudrun_url" {
   description = "The cloud run URL."
   value       = google_cloud_run_v2_service.tvs.uri
 }
+
+output "tvs_loadbalancer_ip" {
+  value = length(google_compute_global_address.tvs_ip_address) > 0 ? google_compute_global_address.tvs_ip_address[0].address : ""
+}

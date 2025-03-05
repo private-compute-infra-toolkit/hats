@@ -91,3 +91,13 @@ variable "allowed_operator_user_group" {
   description = "Google group of allowed operators to which to give API access. Required when allow_unauthenticated is false."
   type        = string
 }
+
+variable "enable_domain_management" {
+  description = "Manage domain SSL cert creation and routing for this service."
+  type        = bool
+}
+
+variable "tvs_domain" {
+  description = "Domain to use to create a managed SSL cert for this service."
+  type        = string
+}

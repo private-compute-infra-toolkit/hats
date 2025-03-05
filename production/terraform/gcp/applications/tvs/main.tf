@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+locals {
+  service_subdomain_suffix = var.service_subdomain_suffix != null ? var.service_subdomain_suffix : "-${var.environment}"
+  parent_domain_name       = var.parent_domain_name != null ? var.parent_domain_name : ""
+  tvs_domain               = var.environment != "prod" ? "${var.tvs_subdomain}${local.service_subdomain_suffix}.${local.parent_domain_name}" : "${var.tvs_subdomain}.${local.parent_domain_name}"
+}
+
 module "tvs" {
   source = "../../modules/tvs"
 
@@ -33,7 +39,25 @@ module "tvs" {
   tvs_custom_audiences             = var.tvs_custom_audiences
   allow_unauthenticated            = var.allow_unauthenticated
   allowed_operator_user_group      = var.allowed_operator_user_group
+
+  # Domain Management
+  enable_domain_management = var.enable_domain_management
+  tvs_domain               = local.tvs_domain
 }
+
+module "domain_a_records" {
+  source = "../../modules/domain_a_records"
+
+  enable_domain_management = var.enable_domain_management
+
+  parent_domain_name         = var.parent_domain_name
+  parent_domain_name_project = var.parent_domain_name_project
+
+  service_domain_to_address_map = var.enable_domain_management ? {
+    (local.tvs_domain) : module.tvs.tvs_loadbalancer_ip
+  } : {}
+}
+
 
 
 module "tvs_db" {

@@ -42,4 +42,11 @@ module "tvs" {
   tvs_custom_audiences             = var.tvs_custom_audiences
   allow_unauthenticated            = var.allow_unauthenticated
   allowed_operator_user_group      = var.allowed_operator_user_group
+
+  # Routing vars
+  enable_domain_management   = var.enable_domain_management
+  parent_domain_name         = var.parent_domain_name
+  parent_domain_name_project = var.parent_domain_name_project
+  service_subdomain_suffix   = var.service_subdomain_suffix
+  tvs_subdomain              = var.tvs_subdomain
 }

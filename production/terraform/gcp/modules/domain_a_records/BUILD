@@ -12,23 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "tvs_key_encryption_key_id" {
-  value = module.tvs.tvs_key_encryption_key_id
-}
+load("@rules_pkg//:mappings.bzl", "pkg_files")
 
-output "tvs_db_instance_name" {
-  value = module.tvs_db.tvs_db_instance_name
-}
+package(default_visibility = ["//visibility:public"])
 
-output "tvs_cloudrun_url" {
-  description = "The cloud run URL."
-  value       = module.tvs.tvs_cloudrun_url
-}
-
-output "tvs_loadbalancer_ip" {
-  value = module.tvs.tvs_loadbalancer_ip
-}
-
-output "tvs_base_url" {
-  value = var.enable_domain_management ? "${local.tvs_domain}" : "${module.tvs.tvs_cloudrun_url}:443"
-}
+pkg_files(
+    name = "domain_a_records",
+    srcs = glob(
+        ["*"],
+        exclude = [
+            "BUILD",
+        ],
+    ),
+    prefix = "domain_a_records",
+)
