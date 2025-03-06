@@ -126,7 +126,7 @@ In order to use HATs CVM you need:
     installed.
 
 ## Launch Oak containers system with TVS and Trusted Application
-TODO: Alex please fill in.
+Please follow the instructions [here](https://github.com/privacysandbox/on-prem-trusted-server-demo/tree/main/trusted-application-single-host) to spin up an example of a fully attested Trusted Application. Here the Trusted Application is a simple echo server that receives encrypted messages, then decrypts the message with the keys derived from the TVS and returns it.
 
 # CVM Networking
 
