@@ -32,7 +32,7 @@ The server runs in two modes:
 
 NOTE: TVS in local mode allows for one user only.
 
-To run TVS in local mode:
+To run TVS in local mode using fresh keys:
 
 1.  Generate TVS primary noise key:
 
@@ -352,4 +352,5 @@ $ bazel-bin/tvs/test_client/tvs-client-split_main \
     --application_signing_key=df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759 \
 ```
 
-To run TVS in split trust mode follow the instructions to run [Untrusted TVS](untrusted_tvs/README.md).
+To run TVS in split trust mode follow the instructions to run
+[Untrusted TVS](untrusted_tvs/README.md).
