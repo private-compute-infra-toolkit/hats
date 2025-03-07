@@ -12,10 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+locals {
+  ddl = join("", [for line in split("\n", file("${path.module}/files/tvs_database_schema.ddl")) : replace(line, "/^--(.*)$/", "")])
+  sql_statements = split(";", local.ddl)
+}
+
 resource "google_spanner_instance" "tvs_db_instance" {
   project          = var.project_id
   name             = "${var.environment}-tvs-dbinstance"
   display_name     = "${var.environment}-tvs-dbinstance"
   config           = var.spanner_instance_config
   processing_units = var.spanner_processing_units
+}
+
+resource "google_spanner_database" "tvs_db" {
+  project                  = var.project_id
+  instance                 = google_spanner_instance.tvs_db_instance.name
+  name                     = "${var.environment}-tvsdb"
+  version_retention_period = var.tvs_db_retention_period
+
+  # Do NOT modify existing DDL files. Terraform would recreate the database, causing data loss.
+  # Instead, create a file containing the new DDL statements and append it to this list or update the existing schema append-only.
+  ddl = concat(local.sql_statements, [])
+
+  deletion_protection = false
 }

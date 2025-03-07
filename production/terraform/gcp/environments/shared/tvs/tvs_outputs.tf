@@ -20,6 +20,11 @@ output "tvs_db_instance_name" {
   value = module.tvs.tvs_db_instance_name
 }
 
+output "tvs_db_name" {
+  value       = module.tvs.tvs_db_name
+  description = "Name of the Spanner database"
+}
+
 output "tvs_cloudrun_url" {
   description = "The cloud run URL."
   value       = module.tvs.tvs_cloudrun_url

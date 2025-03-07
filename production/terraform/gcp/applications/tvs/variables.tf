@@ -45,6 +45,14 @@ variable "spanner_processing_units" {
   type        = number
 }
 
+# Similar to Point-in-time recovery for AWS DynamoDB
+# Must be between 1 hour and 7 days. Can be specified in days, hours, minutes, or seconds.
+# eg: 1d, 24h, 1440m, and 86400s are equivalent.
+variable "tvs_db_retention_period" {
+  description = "Duration to maintain table versioning for point-in-time recovery."
+  type        = string
+}
+
 ################################################################################
 # Cloud Run Variables.
 ################################################################################

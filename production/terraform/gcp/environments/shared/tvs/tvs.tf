@@ -29,6 +29,7 @@ module "tvs" {
 
   spanner_instance_config  = var.spanner_instance_config
   spanner_processing_units = var.spanner_processing_units
+  tvs_db_retention_period  = var.tvs_db_retention_period
 
   # Cloud Run vars
   cloudrun_timeout_seconds         = var.cloudrun_timeout_seconds

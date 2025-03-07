@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "tvs_db_instance_name" {
-  value       = google_spanner_instance.tvs_db_instance.name
-  description = "Name of the Spanner database instance"
-}
+load("@rules_pkg//:mappings.bzl", "pkg_files")
 
-output "tvs_db_name" {
-  value       = google_spanner_database.tvs_db.name
-  description = "Name of the Spanner database"
-}
+package(default_visibility = ["//visibility:public"])
+
+pkg_files(
+    name = "files",
+    srcs = glob(
+        ["*"],
+        exclude = ["BUILD"],
+    ),
+    prefix = "tvs_db/files",
+)

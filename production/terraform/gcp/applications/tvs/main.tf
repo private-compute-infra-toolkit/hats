@@ -26,7 +26,7 @@ module "tvs" {
   region      = var.primary_region
 
   # Cloud Run vars
-  spanner_database_name            = "tvs-db" # Generate DB in terraform instead.
+  spanner_database_name            = module.tvs_db.tvs_db_name
   spanner_instance_name            = module.tvs_db.tvs_db_instance_name
   cloudrun_timeout_seconds         = var.cloudrun_timeout_seconds
   tvs_cloudrun_memory_mb           = var.tvs_cloudrun_memory_mb
@@ -67,4 +67,5 @@ module "tvs_db" {
   environment              = var.environment
   spanner_instance_config  = var.spanner_instance_config
   spanner_processing_units = var.spanner_processing_units
+  tvs_db_retention_period  = var.tvs_db_retention_period
 }
