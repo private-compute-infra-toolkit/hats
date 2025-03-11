@@ -16,7 +16,7 @@ use clap::{Parser, ValueEnum};
 use crypto::P256Scalar;
 use hpke::{kem::X25519HkdfSha256, Kem, Serializable};
 use rand::{rngs::StdRng, SeedableRng};
-use secret_sharing::{shamir_sharing, SecretSplit};
+use secret_sharing::SecretSplit;
 
 #[derive(Default, Clone, ValueEnum)]
 enum KeyType {
@@ -24,6 +24,13 @@ enum KeyType {
     Secp128r1,
     X25519HkdfSha256,
     Random256Key,
+}
+
+#[derive(Default, Clone, ValueEnum)]
+enum ShareSplitType {
+    #[default]
+    Shamir,
+    Xor,
 }
 
 #[derive(Parser)]
@@ -38,6 +45,8 @@ struct Args {
     threshold: usize,
     #[arg(long, required = false, default_value = "false")]
     wrap: bool,
+    #[arg(long, required = false, value_enum, default_value_t = ShareSplitType::default())]
+    share_split_type: ShareSplitType,
 }
 
 fn generate_secp128r1_keypairs() -> (String, String) {
@@ -98,14 +107,24 @@ fn main() {
     };
 
     if Args::parse().split {
-        let sham = shamir_sharing::ShamirSharing {
-            numshares: Args::parse().numshares,
-            threshold: Args::parse().threshold,
-            prime: shamir_sharing::get_prime(),
+        let shares = match Args::parse().share_split_type {
+            ShareSplitType::Shamir => {
+                let sham = secret_sharing::shamir_sharing::ShamirSharing::new(
+                    Args::parse().numshares,
+                    Args::parse().threshold,
+                    secret_sharing::shamir_sharing::get_prime(),
+                )
+                .unwrap();
+                sham.split(&hex::decode(secret).unwrap()).unwrap()
+            }
+            ShareSplitType::Xor => {
+                let xor =
+                    secret_sharing::xor_sharing::XorSharing::new(Args::parse().numshares).unwrap();
+                xor.split(&hex::decode(secret).unwrap()).unwrap()
+            }
         };
-        let shares = sham.split(&hex::decode(secret).unwrap()).unwrap();
         for (i, share) in shares.iter().enumerate() {
-            println!("Shamir Share[{}]: {}", i + 1, hex::encode(share));
+            println!("Share[{}]: {}", i + 1, hex::encode(share));
         }
     }
 }

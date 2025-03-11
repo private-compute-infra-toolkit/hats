@@ -165,13 +165,19 @@ async fn main() -> anyhow::Result<()> {
     if tvs_grpc_clients.len() > 1 {
         let numshares = tvs_grpc_clients.len();
         let secret_split: Box<dyn SecretSplit> = match args.secret_share_type.as_str() {
-            "XOR" => Box::new(secret_sharing::xor_sharing::XorSharing { numshares }),
-            "SHAMIR" => Box::new(secret_sharing::shamir_sharing::ShamirSharing {
-                numshares,
-                prime: secret_sharing::shamir_sharing::get_prime(),
-                // we set the threshold to be 1 less than number of shares
-                threshold: numshares - 1,
-            }),
+            "XOR" => Box::new(
+                secret_sharing::xor_sharing::XorSharing::new(numshares)
+                    .map_err(|error| anyhow!("couldn't create xor sharing object: {:?}", error))?,
+            ),
+            "SHAMIR" => Box::new(
+                secret_sharing::shamir_sharing::ShamirSharing::new(
+                    numshares,
+                    // we set the threshold to be 1 less than number of shares
+                    numshares - 1,
+                    secret_sharing::shamir_sharing::get_prime(),
+                )
+                .map_err(|error| anyhow!("couldn't create shamir sharing object: {:?}", error))?,
+            ),
             _ => {
                 return Err(anyhow!("Invalid secret share type"));
             }

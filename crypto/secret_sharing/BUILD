@@ -25,6 +25,7 @@ rust_library(
     deps = [
         "@boringssl//rust/bssl-crypto",
         "@cxx.rs//:cxx",
+        "@enclave//crypto",
         "@hats_crate_index//:num-bigint",
         "@hats_crate_index//:rand",
         "@hats_crate_index//:serde",
@@ -40,6 +41,7 @@ rust_library(
     crate_name = "secret_sharing",
     deps = [
         "@boringssl//rust/bssl-crypto",
+        "@enclave//crypto",
         "@hats_crate_index//:num-bigint",
         "@hats_crate_index//:rand",
         "@hats_crate_index//:serde",

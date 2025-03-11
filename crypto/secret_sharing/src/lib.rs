@@ -41,6 +41,6 @@ pub enum Error {
     ImproperCoeffs,
     NotAShareObject,
     MalformedSecret,
-    MixedShareType,
     SerializationFailure,
+    NumSharesMismatch,
 }
