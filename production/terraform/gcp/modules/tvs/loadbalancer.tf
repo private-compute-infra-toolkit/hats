@@ -35,6 +35,7 @@ resource "google_compute_backend_service" "tvs_cloud_run" {
   description = "Load balancer backend service for Trusted Verification services (TVS)."
 
   enable_cdn = false
+  load_balancing_scheme = "EXTERNAL_MANAGED"
   protocol   = "HTTP2"
 
   backend {
@@ -85,6 +86,7 @@ resource "google_compute_global_forwarding_rule" "tvs_cloud_run" {
   name       = "${var.environment}-tvs-cloud-run"
   ip_address = google_compute_global_address.tvs_ip_address[0].address
   port_range = "443"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
 
   target = (
     google_compute_target_https_proxy.tvs_cloud_run[0].id
