@@ -173,7 +173,7 @@ function build_launch_bundle() {
   mv -f "$INITRD" "$TAR_DIR/initrd.cpio.xz"
   mv -f "$KERNEL" "$TAR_DIR/kernel_bin"
   mv -f "$SYSTEM" "$TAR_DIR/system.tar.xz"
-  tar -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
+  tar --mode a=rx,u+w --mtime='@0' --sort=name --owner=root:0 --group=root:0 -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
   mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
   cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.txtpb"
   cp "$APPRISAL_POLICY" "$BUILD_DIR/appraisal_policy.txtpb"
@@ -206,7 +206,7 @@ function build_test_bundles() {
   mv -f "$INITRD" "$TAR_DIR/initrd.cpio.xz"
   mv -f "$KERNEL" "$TAR_DIR/kernel_bin"
   mv -f "$SYSTEM" "$TAR_DIR/system.tar.xz"
-  tar -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
+  tar --mode a=r,u+w,a+X --mtime='@0' --sort=name --owner=root:0 --group=root:0 -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
   mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
   # Clean up the extra stuff in the folder.
   rm -rf ../prebuilt
