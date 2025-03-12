@@ -12,52 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library")
 
 package(
     default_visibility = ["//visibility:public"],
-)
-
-rust_library(
-    name = "secret-sharing",
-    srcs = ["secret-sharing.rs"],
-    deps = [
-        "@boringssl//rust/bssl-crypto",
-        "@cxx.rs//:cxx",
-        "@hats_crate_index//:num-bigint",
-        "@hats_crate_index//:rand",
-        "@hats_crate_index//:serde",
-        "@hats_crate_index//:serde_json",
-        "@oak_crates_index//:anyhow",
-    ],
-)
-
-rust_library(
-    name = "secret-sharing-noffi",
-    srcs = ["secret-sharing.rs"],
-    crate_features = ["noffi"],
-    crate_name = "secret_sharing",
-    deps = [
-        "@boringssl//rust/bssl-crypto",
-        "@hats_crate_index//:num-bigint",
-        "@hats_crate_index//:rand",
-        "@hats_crate_index//:serde",
-        "@hats_crate_index//:serde_json",
-        "@oak_crates_index//:anyhow",
-    ],
-)
-
-rust_test(
-    name = "secret-sharing_test",
-    size = "small",
-    crate = ":secret-sharing",
-    deps = [
-        ":bridge",
-        "@enclave//crypto",
-        "@hats_crate_index//:hex",
-    ],
 )
 
 rust_library(
@@ -120,14 +79,6 @@ cc_test(
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-    ],
-)
-
-rust_cxx_bridge(
-    name = "bridge",
-    src = "secret-sharing.rs",
-    deps = [
-        ":secret-sharing",
     ],
 )
 

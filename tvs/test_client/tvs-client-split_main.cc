@@ -27,7 +27,7 @@
 #include "absl/strings/escaping.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
-#include "crypto/secret-sharing.rs.h"
+#include "crypto/secret_sharing/src/interface.rs.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/channel.h"
@@ -163,7 +163,7 @@ int main(int argc, char* argv[]) {
   for (const auto& [key_id, shared_secret] : keys) {
     HATS_ASSIGN_OR_RETURN(
         rust::Vec<uint8_t> recovered_secret,
-        privacy_sandbox::crypto::RecoverSecret(
+        privacy_sandbox::crypto::ShamirRecoverSecret(
             StringVecToRustVec(shared_secret.secret_shares),
             tvs_addresses.size(), tvs_addresses.size() - 1),
         _.PrependWith("Failed to recover secret: ").LogErrorAndExit());

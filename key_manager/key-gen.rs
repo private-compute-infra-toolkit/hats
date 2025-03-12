@@ -16,7 +16,7 @@ use clap::{Parser, ValueEnum};
 use crypto::P256Scalar;
 use hpke::{kem::X25519HkdfSha256, Kem, Serializable};
 use rand::{rngs::StdRng, SeedableRng};
-use secret_sharing::SecretSharing;
+use secret_sharing::{shamir_sharing, SecretSplit};
 
 #[derive(Default, Clone, ValueEnum)]
 enum KeyType {
@@ -98,18 +98,14 @@ fn main() {
     };
 
     if Args::parse().split {
-        let sham = SecretSharing {
+        let sham = shamir_sharing::ShamirSharing {
             numshares: Args::parse().numshares,
             threshold: Args::parse().threshold,
-            prime: secret_sharing::get_prime(),
+            prime: shamir_sharing::get_prime(),
         };
-        let shares = sham.split(&hex::decode(secret).unwrap(), false).unwrap();
-        for share in shares {
-            println!(
-                "Share[{}]: {}",
-                share.index,
-                hex::encode(serde_json::to_string(&share).unwrap())
-            );
+        let shares = sham.split(&hex::decode(secret).unwrap()).unwrap();
+        for (i, share) in shares.iter().enumerate() {
+            println!("Shamir Share[{}]: {}", i + 1, hex::encode(share));
         }
     }
 }
