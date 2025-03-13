@@ -46,11 +46,9 @@ pub fn shamir_split_wrap(
     numshares: usize,
     threshold: usize,
 ) -> Result<Vec<String>, String> {
-    let sham = shamir_sharing::ShamirSharing {
-        numshares,
-        threshold,
-        prime: shamir_sharing::get_prime(),
-    };
+    let sham =
+        shamir_sharing::ShamirSharing::new(numshares, threshold, shamir_sharing::get_prime())
+            .map_err(|err| format!("Error splitting secret: {:#?}", err))?;
     let shares = sham
         .split(secret_bytes)
         .map_err(|err| format!("Error splitting secret: {:#?}", err))?;
@@ -62,11 +60,9 @@ pub fn shamir_recover_wrap(
     numshares: usize,
     threshold: usize,
 ) -> Result<Vec<u8>, String> {
-    let sham = shamir_sharing::ShamirSharing {
-        numshares,
-        threshold,
-        prime: shamir_sharing::get_prime(),
-    };
+    let sham =
+        shamir_sharing::ShamirSharing::new(numshares, threshold, shamir_sharing::get_prime())
+            .map_err(|err| format!("Error recovering secret: {:#?}", err))?;
 
     let mut shares: Vec<&[u8]> = Vec::new();
     for share in shares_vec {
@@ -77,7 +73,8 @@ pub fn shamir_recover_wrap(
 }
 
 pub fn xor_split_wrap(secret_bytes: &[u8], numshares: usize) -> Result<Vec<String>, String> {
-    let xor = xor_sharing::XorSharing { numshares };
+    let xor = xor_sharing::XorSharing::new(numshares)
+        .map_err(|err| format!("Error splitting secret: {:#?}", err))?;
     let shares = xor
         .split(secret_bytes)
         .map_err(|err| format!("Error splitting secret: {:#?}", err))?;
@@ -85,7 +82,8 @@ pub fn xor_split_wrap(secret_bytes: &[u8], numshares: usize) -> Result<Vec<Strin
 }
 
 pub fn xor_recover_wrap(shares_vec: &Vec<String>, numshares: usize) -> Result<Vec<u8>, String> {
-    let xor = xor_sharing::XorSharing { numshares };
+    let xor = xor_sharing::XorSharing::new(numshares)
+        .map_err(|err| format!("Error recovering secrets: {:#?}", err))?;
 
     let mut shares: Vec<&[u8]> = Vec::new();
     for share in shares_vec {

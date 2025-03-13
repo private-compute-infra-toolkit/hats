@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -60,6 +61,10 @@ ABSL_FLAG(std::string, tvs_authentication_key, "",
 ABSL_FLAG(std::string, user_dek, "",
           "Private key used to authenticate with TVS in hex format "
           "e.g. deadbeef");
+ABSL_FLAG(
+    std::string, share_split_type, "SHAMIR",
+    "Describe the type of way to recover the split shares. Valid values are: "
+    "SHAMIR, XOR");
 
 rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
   return rust::Slice<const std::uint8_t>(
@@ -161,12 +166,29 @@ int main(int argc, char* argv[]) {
     }
   }
   for (const auto& [key_id, shared_secret] : keys) {
-    HATS_ASSIGN_OR_RETURN(
-        rust::Vec<uint8_t> recovered_secret,
-        privacy_sandbox::crypto::ShamirRecoverSecret(
-            StringVecToRustVec(shared_secret.secret_shares),
-            tvs_addresses.size(), tvs_addresses.size() - 1),
-        _.PrependWith("Failed to recover secret: ").LogErrorAndExit());
+    absl::string_view share_split_type = absl::GetFlag(FLAGS_share_split_type);
+    rust::Vec<uint8_t> recovered_secret;
+    if (share_split_type == "XOR") {
+      HATS_ASSIGN_OR_RETURN(
+          recovered_secret,
+          privacy_sandbox::crypto::XorRecoverSecret(
+              StringVecToRustVec(shared_secret.secret_shares),
+              tvs_addresses.size()),
+          _.PrependWith("Failed to recover XOR secret: ").LogErrorAndExit());
+    } else if (share_split_type == "SHAMIR") {
+      HATS_ASSIGN_OR_RETURN(
+          recovered_secret,
+          privacy_sandbox::crypto::ShamirRecoverSecret(
+              StringVecToRustVec(shared_secret.secret_shares),
+              tvs_addresses.size(),
+              std::max(tvs_addresses.size() - 1, static_cast<size_t>(2))),
+          _.PrependWith("Failed to recover SHAMIR secret: ").LogErrorAndExit());
+    } else {
+      LOG(ERROR) << absl::StrCat("Unknown split type '", share_split_type, "'")
+                 << std::endl;
+      return 1;
+    }
+
     std::string bytes;
     if (absl::GetFlag(FLAGS_user_dek) != "") {
       std::string wrapped_key = RustVecToString(recovered_secret);

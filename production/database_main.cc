@@ -640,7 +640,18 @@ absl::StatusOr<std::vector<SecretData>> SplitSecret(
             rust::Slice<const std::uint8_t>(secret_to_split.GetData(),
                                             secret_to_split.GetSize()),
             num_shares, threshold),
-        _.PrependWith("Failed to split secret: "));
+        _.PrependWith("Failed to shamir split secret: "));
+    for (const rust::String& share : shares) {
+      result.push_back(SecretData(static_cast<std::string>(share)));
+    }
+  } else if (share_split_type == "XOR") {
+    HATS_ASSIGN_OR_RETURN(
+        rust::Vec<rust::String> shares,
+        privacy_sandbox::crypto::XorSplitSecret(
+            rust::Slice<const std::uint8_t>(secret_to_split.GetData(),
+                                            secret_to_split.GetSize()),
+            num_shares),
+        _.PrependWith("Failed to xor split secret: "));
     for (const rust::String& share : shares) {
       result.push_back(SecretData(static_cast<std::string>(share)));
     }
