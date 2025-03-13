@@ -41,7 +41,7 @@ CREATE TABLE AppraisalPolicies (
   PolicyId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE PolicyIdSequence)),
   ApplicationDigest BYTES(MAX) NOT NULL,
   Policy BYTES(MAX) NOT NULL,
-  UpdateTimestamp TIMESTAMP NOT NULL,
+  UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 ) PRIMARY KEY(PolicyId);
 
 -- Non-unique Index ApplicationDigest field to enable efficient retrieval of
@@ -86,7 +86,7 @@ CREATE TABLE Secrets (
   UserId INT64 NOT NULL,
   DekId INT64 NOT NULL,
   Secret BYTES(MAX) NOT NULL,
-  UpdateTimestamp TIMESTAMP NOT NULL,
+  UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 ) PRIMARY KEY(SecretId, UserId);
 
 -- Table storing wrapped TVS private EC keys. The keys are used in the noise
@@ -94,10 +94,12 @@ CREATE TABLE Secrets (
 -- * KeyId: a string used to identify the TVS key e.g. primary_key.
 -- * DekId: specifies the DEK used to wrap the TVS key.
 -- * PrivateKey: a TVS private key encrypted with DekId.
+-- * UpdateTimestamp: timestamp of the last update to the row.
 CREATE TABLE TVSPrivateKeys (
   KeyId STRING(1024),
   DekId INT64 NOT NULL,
   PrivateKey BYTES(MAX) NOT NULL,
+  UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 ) PRIMARY KEY(KeyId);
 
 -- Table storing TVS public keys. The public keys are stored in a separate
@@ -105,6 +107,7 @@ CREATE TABLE TVSPrivateKeys (
 CREATE TABLE TVSPublicKeys (
   KeyId STRING(1024),
   PublicKey STRING(MAX) NOT NULL,
+  UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 ) PRIMARY KEY(KeyId);
 
 -- Table storing public keys used by a particular user. The table contains
