@@ -87,6 +87,7 @@
 #include "key_manager/gcp-kms-client.h"
 #include "openssl/bn.h"
 #include "openssl/hpke.h"
+#include "production/_tvs_database_schema.h"
 #include "status_macro/status_macros.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
@@ -139,168 +140,57 @@ absl::StatusOr<google::cloud::spanner::Database> CreateSpannerDatabase(
                                           /*database_id=*/parts[2]);
 }
 
+absl::StatusOr<std::vector<std::string>> GetDatabaseSchema() {
+  std::stringstream ss;
+  absl::string_view schema(
+      reinterpret_cast<const char*>(_binary_production_tvs_database_schema),
+      _binary_production_tvs_database_schema_size);
+  ss << schema;
+  std::string line;
+  std::string current_item;
+  std::vector<std::string> result;
+  // Strip comments and separate each SQL statement.
+  while (std::getline(ss, line)) {
+    if (!absl::StartsWith(line, "--")) {
+      current_item += line;
+      if (absl::EndsWith(line, ";")) {
+        current_item.pop_back();
+        result.push_back(std::move(current_item));
+        current_item = "";
+      }
+    }
+  }
+
+  return result;
+}
+
 // Create a spanner database used to store TVS secrets.
 absl::Status CreateDatabase(absl::string_view spanner_database) {
   HATS_ASSIGN_OR_RETURN(google::cloud::spanner::Database database,
                         CreateSpannerDatabase(spanner_database));
 
-  google::spanner::admin::database::v1::CreateDatabaseRequest request;
-  request.set_parent(database.instance().FullName());
-  request.set_create_statement(
-      absl::StrCat("CREATE DATABASE `", database.database_id(), "`"));
-
-  // A sequence to generate key encryption key (KEK) IDs.
-  request.add_extra_statements(R"sql(
-      CREATE SEQUENCE KekIdSequence OPTIONS (
-      sequence_kind="bit_reversed_positive"))sql");
-
-  // Table storing key encryption keys (KEK)s metadata. KEK resides in KMS and
-  // never leaves. The table contains the following columns:
-  // * KekId: a unique identifier for a KEK.
-  // * ResourceName: KMS key resource name in the following format
-  //   projects/<project_name>/location/<location>/KeyRings/<key_ring_name>/
-  //   cryptoKeys/<key_name>.
-  request.add_extra_statements(R"sql(
-      CREATE TABLE KeyEncryptionKeys(
-          KekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE KekIdSequence)),
-          ResourceName STRING(1024) NOT NULL,
-      ) PRIMARY KEY (KekId))sql");
-
-  // Make sure that resource name is unique.
-  request.add_extra_statements(R"sql(
-      CREATE UNIQUE INDEX KekResourceNameIndex ON KeyEncryptionKeys
-          (ResourceName))sql");
-
-  // A sequence to generate data encryption key (DEK) IDs.
-  request.add_extra_statements(R"sql(
-      CREATE SEQUENCE DekIdSequence OPTIONS (
-      sequence_kind="bit_reversed_positive"))sql");
-
-  // Table storing wrapped data encryption keys (DEK)s. DEKs are encrypted with
-  // KekId. The table contains the following columns:
-  // * DekId: a unique identifier for a DEK.
-  // * KekId: specifies the KEK used to wrap the DEK.
-  // * Dek: a DEK encrypted with KekId.
-  request.add_extra_statements(R"sql(
-      CREATE TABLE DataEncryptionKeys(
-          DekId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE DekIdSequence)),
-          KekId INT64 NOT NULL,
-          Dek  BYTES(MAX) NOT NULL,
-      ) PRIMARY KEY (DekId))sql");
-
-  // Table storing wrapped TVS private EC keys. The keys are used in the noise
-  // protocol. The table contains the following columns:
-  // * KeyId: a string used to identify the TVS key e.g. primary_key.
-  // * DekId: specifies the DEK used to wrap the TVS key.
-  // * PrivateKey: a TVS private key encrypted with DekId.
-  request.add_extra_statements(R"sql(
-      CREATE TABLE TVSPrivateKeys(
-          KeyId STRING(1024),
-          DekId INT64 NOT NULL,
-          PrivateKey BYTES(MAX) NOT NULL,
-      ) PRIMARY KEY (KeyId))sql");
-
-  // Table storing TVS public keys. The public keys are stored in a separate
-  // tables so that we can relax the ACLs on it.
-  request.add_extra_statements(R"sql(
-      CREATE TABLE TVSPublicKeys(
-          KeyId STRING(1024),
-          PublicKey String(MAX) NOT NULL,
-      ) PRIMARY KEY (KeyId))sql");
-
-  // A sequence to generate user IDs.
-  request.add_extra_statements(R"sql(
-      CREATE SEQUENCE UserIdSequence OPTIONS (
-      sequence_kind="bit_reversed_positive"))sql");
-
-  // Table storing information about the registered users. Registered users
-  // are the one allowed to use TVS. The table contains the following columns:
-  // * UserId: a unique identifier for the user.
-  // * Name: a name to identify the user.
-  // * Origin: protocol, hostname, and port (in essence the URL used by the
-  // user).
-  request.add_extra_statements(R"sql(
-      CREATE TABLE Users(
-          UserId INT64 DEFAULT
-                (GET_NEXT_SEQUENCE_VALUE(SEQUENCE UserIdSequence)),
-          Name   STRING(1024) NOT NULL,
-          Origin STRING(1024),
-          LockExpiryTime TIMESTAMP NOT NULL,
-      ) PRIMARY KEY (UserId))sql");
-
-  request.add_extra_statements(R"sql(
-      CREATE UNIQUE INDEX UserNameIndex ON Users
-          (Name))sql");
-
-  // Table storing public keys used by a particular user. The table contains
-  // the following columns:
-  // * UserId: the ID of the user owning the private part of the given public
-  //           key.
-  // * PublicKey: the public part of the key that the user uses when
-  //              authentcating with the TVS.
-  request.add_extra_statements(R"sql(
-      CREATE TABLE UserAuthenticationKeys(
-          UserId INT64 NOT NULL,
-          PublicKey BYTES(MAX) NOT NULL,
-      ) PRIMARY KEY (UserId, PublicKey))sql");
-
-  // Table storing secrets to be returned to entities passing TVS attestation.
-  // Secret could be full or partial HPKE keys or any arbitrary strings. The
-  // stored secrets are wrapped with a DEK. The table contains the following
-  // columns:
-  // * SecretId: a unique identifier for secrets.
-  // * UserId: the ID of the user owning the secret.
-  // * DekId: specifies the DEK used to wrap the secret.
-  // * Secret: a secret wrapped with DekId.
-  // * UpdateTimestamp: timestamp of the last update to the row.
-  request.add_extra_statements(R"sql(
-      CREATE TABLE Secrets(
-          SecretId INT64 NOT NULL,
-          UserId   INT64 NOT NULL,
-          DekId    INT64 NOT NULL,
-          Secret   BYTES(MAX) NOT NULL,
-          UpdateTimestamp   TIMESTAMP NOT NULL,
-      ) PRIMARY KEY (SecretId, UserId))sql");
-
-  // Table storing public keys of the users. Right now we allow the user
-  // to have only one secret and one public key.
-  request.add_extra_statements(R"sql(
-      CREATE TABLE UserPublicKeys(
-          SecretId INT64 NOT NULL,
-          UserId   INT64 NOT NULL,
-          PublicKey STRING(1024) NOT NULL,
-      ) PRIMARY KEY (SecretId))sql");
-
-  // A sequence to generate policy IDs.
-  request.add_extra_statements(R"sql(
-      CREATE SEQUENCE PolicyIdSequence OPTIONS (
-      sequence_kind="bit_reversed_positive"))sql");
-  // Table storing appraisal policies used to validate attestation report
-  // against. columns:
-  // * PolicyId: a string used to identify the appraisal policy.
-  // * ApplicationDigest: sha256 of the application bundle. This is used to
-  //   fetch policies for a certain application.
-  // * UpdateTimestamp: timestamp of the last update to the row.
-  // * Policy: binary representation of the appraisal policy proto.
-  request.add_extra_statements(R"sql(
-      CREATE TABLE AppraisalPolicies(
-          PolicyId          INT64 DEFAULT
-                            (GET_NEXT_SEQUENCE_VALUE(SEQUENCE PolicyIdSequence)),
-          ApplicationDigest BYTES(MAX) NOT NULL,
-          Policy            BYTES(MAX) NOT NULL,
-          UpdateTimestamp   TIMESTAMP NOT NULL,
-      ) PRIMARY KEY (PolicyId))sql");
-
-  // Non-unique Index ApplicationDigest field to enable efficient retrieval of
-  // policies for a certain application.
-  request.add_extra_statements(R"sql(
-      CREATE INDEX ApplicationDigestIndex ON AppraisalPolicies
-          (ApplicationDigest))sql");
+  HATS_ASSIGN_OR_RETURN(std::vector<std::string> ddl_content,
+                        GetDatabaseSchema());
 
   google::cloud::spanner_admin::DatabaseAdminClient client(
       google::cloud::spanner_admin::MakeDatabaseAdminConnection());
 
-  HATS_RETURN_IF_ERROR(client.CreateDatabase(request).get().status());
+  if (!client.GetDatabase(database.FullName())) {
+    std::cout << "Creating Database: " << database.instance().FullName()
+              << std::endl;
+    HATS_RETURN_IF_ERROR(
+        client
+            .CreateDatabase(
+                database.instance().FullName(),
+                absl::StrCat("CREATE DATABASE `", database.database_id(), "`"))
+            .get()
+            .status());
+  }
+
+  HATS_RETURN_IF_ERROR(
+      client.UpdateDatabaseDdl(database.FullName(), ddl_content)
+          .get()
+          .status());
 
   return absl::OkStatus();
 }

@@ -13,13 +13,20 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_cc_embed_binary//embed_binary:defs.bzl", "cc_embed_binary")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+
+cc_embed_binary(
+    name = "tvs_database_schema",
+    src = "tvs_database_schema.ddl",
+)
 
 cc_binary(
     name = "database_main",
     srcs = ["database_main.cc"],
     deps = [
+        ":tvs_database_schema",
         "//crypto:aead-crypter",
         "//crypto:ec-key",
         "//crypto:secret-data",
