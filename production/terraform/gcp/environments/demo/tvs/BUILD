@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_pkg//:mappings.bzl", "pkg_files", "pkg_mklink")
+load("@rules_pkg//:mappings.bzl", "pkg_files")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -21,24 +21,9 @@ pkg_files(
     srcs = [
         "demo.auto.tfvars",
         "main.tf",
+        "tvs.tf",
+        "tvs_outputs.tf",
+        "tvs_variables.tf",
     ],
     prefix = "tvs",
-)
-
-pkg_mklink(
-    name = "tvs_link",
-    link_name = "tvs/tvs.tf",
-    target = "../../shared/tvs/tvs.tf",
-)
-
-pkg_mklink(
-    name = "tvs_variables_link",
-    link_name = "tvs/tvs_variables.tf",
-    target = "../../shared/tvs/tvs_variables.tf",
-)
-
-pkg_mklink(
-    name = "tvs_outputs_link",
-    link_name = "tvs/tvs_outputs.tf",
-    target = "../../shared/tvs/tvs_outputs.tf",
 )

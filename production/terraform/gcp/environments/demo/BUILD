@@ -20,9 +20,6 @@ pkg_filegroup(
     name = "tvs_demo",
     srcs = [
         "//production/terraform/gcp/environments/demo/tvs:tvs_demo",
-        "//production/terraform/gcp/environments/demo/tvs:tvs_link",
-        "//production/terraform/gcp/environments/demo/tvs:tvs_outputs_link",
-        "//production/terraform/gcp/environments/demo/tvs:tvs_variables_link",
     ],
     prefix = "environments/demo",
 )

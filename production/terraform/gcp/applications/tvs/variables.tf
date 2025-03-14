@@ -112,6 +112,11 @@ variable "allowed_operator_user_group" {
   type        = string
 }
 
+variable "enable_dynamic_policy_fetching" {
+  description = "Enable dynamic policy fetching for TVS."
+  type        = bool
+}
+
 ################################################################################
 # Routing Variables.
 ################################################################################

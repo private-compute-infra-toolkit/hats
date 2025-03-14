@@ -39,17 +39,12 @@ module "tvs" {
   tvs_custom_audiences             = var.tvs_custom_audiences
   allow_unauthenticated            = var.allow_unauthenticated
   allowed_operator_user_group      = var.allowed_operator_user_group
+  enable_dynamic_policy_fetching   = var.enable_domain_management
 
   # Domain Management
   enable_domain_management = var.enable_domain_management
   tvs_domain               = local.tvs_domain
-}
-
-module "domain_a_records" {
-  source = "../../modules/domain_a_records"
-
-  enable_domain_management = var.enable_domain_management
-
+  # domain_a_records
   parent_domain_name         = var.parent_domain_name
   parent_domain_name_project = var.parent_domain_name_project
 
@@ -57,8 +52,6 @@ module "domain_a_records" {
     (local.tvs_domain) : module.tvs.tvs_loadbalancer_ip
   } : {}
 }
-
-
 
 module "tvs_db" {
   source = "../../modules/tvs_db"

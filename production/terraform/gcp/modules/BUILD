@@ -18,7 +18,6 @@ package(default_visibility = ["//visibility:public"])
 pkg_filegroup(
     name = "tvs_modules_pkg",
     srcs = [
-        "//production/terraform/gcp/modules/domain_a_records",
         "//production/terraform/gcp/modules/tvs",
         "//production/terraform/gcp/modules/tvs_db",
         "//production/terraform/gcp/modules/tvs_db/files",

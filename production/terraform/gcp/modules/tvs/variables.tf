@@ -67,6 +67,11 @@ variable "spanner_instance_name" {
   type        = string
 }
 
+variable "enable_dynamic_policy_fetching" {
+  description = "Enable dynamic policy fetching for TVS."
+  type        = bool
+}
+
 variable "cloud_run_revision_force_replace" {
   description = "Whether to create a new Cloud Run revision for every deployment."
   type        = bool
@@ -100,4 +105,22 @@ variable "enable_domain_management" {
 variable "tvs_domain" {
   description = "Domain to use to create a managed SSL cert for this service."
   type        = string
+}
+
+################################################################################
+# domain_a_records
+################################################################################
+variable "parent_domain_name" {
+  description = "Custom domain name to use with key hosting APIs."
+  type        = string
+}
+
+variable "parent_domain_name_project" {
+  description = "Project ID where custom domain name hosted zone is located."
+  type        = string
+}
+
+variable "service_domain_to_address_map" {
+  description = "Map with Key: Service domain and Value: Load Balancer IP address."
+  type        = map(string)
 }

@@ -12,26 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_pkg//:mappings.bzl", "pkg_files")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-
-pkg_files(
-    name = "readme",
-    srcs = [
-        "README.md",
-    ],
-    prefix = "/",
-)
 
 # Set of Terraform files for deployment without binaries.
 common_files = [
-    ":readme",
 ]
 
 tvs_files = [
     "//production/terraform/gcp/applications:tvs_applications_pkg",
     "//production/terraform/gcp/environments/demo:tvs_demo",
-    "//production/terraform/gcp/environments/shared:tvs_shared",
     "//production/terraform/gcp/modules:tvs_modules_pkg",
 ]
 
