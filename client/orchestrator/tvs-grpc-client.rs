@@ -17,6 +17,7 @@ use crate::proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse;
 use crate::proto::privacy_sandbox::client::ForwardingTvsMessage;
 use crate::proto::privacy_sandbox::tvs::OpaqueMessage;
 use anyhow::Context;
+use mockall::automock;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
 use prost::Message;
@@ -33,6 +34,52 @@ pub mod proto {
         pub mod client {
             include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.client.rs"));
         }
+    }
+}
+
+#[automock]
+#[tonic::async_trait]
+pub trait TvsClientInterface: Send + Sync {
+    async fn send_evidence(
+        &self,
+        evidence: Evidence,
+        signing_key: SigningKey,
+    ) -> Result<Vec<u8>, String>;
+
+    async fn fetch_orchestrator_metadata(
+        &self,
+    ) -> Result<FetchOrchestratorMetadataResponse, String>;
+}
+
+#[tonic::async_trait]
+impl TvsClientInterface for TvsGrpcClient {
+    async fn send_evidence(
+        &self,
+        evidence: Evidence,
+        signing_key: SigningKey,
+    ) -> Result<Vec<u8>, String> {
+        let Some(ref tvs_authentication_key) = self.tvs_authentication_key else {
+            return Err("tvs_authentication_key is not set".to_string());
+        };
+        let Some(ref tee_certificate) = self.tee_certificate else {
+            return Err("tee_certificate is not set".to_string());
+        };
+        self.send_evidence_internal(
+            evidence,
+            signing_key,
+            tvs_authentication_key.to_vec(),
+            tee_certificate.to_vec(),
+            self.tvs_id,
+        )
+        .await
+    }
+
+    async fn fetch_orchestrator_metadata(
+        &self,
+    ) -> Result<FetchOrchestratorMetadataResponse, String> {
+        TvsGrpcClient::fetch_orchestrator_metadata_internal(self)
+            .await
+            .map_err(|error| format!("couldn't find tee metadata: {:?}", error))
     }
 }
 
@@ -53,7 +100,7 @@ impl TvsGrpcClient {
         addr: tonic::transport::Uri,
         tvs_public_key: Vec<u8>,
         tvs_id: i64,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Box<dyn TvsClientInterface>, Box<dyn std::error::Error>> {
         let channel = if addr.scheme_str() == Some("vsock") {
             let vsock_addr = VsockAddr::new(
                 addr.host()
@@ -87,7 +134,7 @@ impl TvsGrpcClient {
         channel: tonic::transport::Channel,
         tvs_public_key: Vec<u8>,
         tvs_id: i64,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Box<dyn TvsClientInterface>, Box<dyn std::error::Error>> {
         let inner = launcher_service_client::LauncherServiceClient::new(channel);
         let mut tvs_grp_client = Self {
             inner,
@@ -98,15 +145,12 @@ impl TvsGrpcClient {
             private_key_wrapping_keys: Vec::new(),
         };
         tvs_grp_client.init().await?;
-        Ok(tvs_grp_client)
+        Ok(Box::new(tvs_grp_client))
     }
 
     // Get metadata from the launcher.
     async fn init(&mut self) -> Result<(), String> {
-        let metadata = self
-            .fetch_orchestrator_metadata()
-            .await
-            .map_err(|error| format!("couldn't find tee metadata: {:?}", error))?;
+        let metadata = TvsGrpcClient::fetch_orchestrator_metadata_internal(self).await?;
         self.tee_certificate = Some(metadata.tee_certificate);
         self.tvs_authentication_key = Some(metadata.tvs_authentication_key);
         if let Some(keys) = metadata.private_key_wrapping_keys {
@@ -117,7 +161,7 @@ impl TvsGrpcClient {
         Ok(())
     }
 
-    async fn fetch_orchestrator_metadata(
+    async fn fetch_orchestrator_metadata_internal(
         &self,
     ) -> Result<FetchOrchestratorMetadataResponse, String> {
         let response = self
@@ -127,27 +171,6 @@ impl TvsGrpcClient {
             .await
             .map_err(|error| format!("error from launcher server: {}", error))?;
         Ok(response.into_inner())
-    }
-
-    pub async fn send_evidence(
-        &self,
-        evidence: Evidence,
-        signing_key: SigningKey,
-    ) -> Result<Vec<u8>, String> {
-        let Some(ref tvs_authentication_key) = self.tvs_authentication_key else {
-            return Err("tvs_authentication_key is not set".to_string());
-        };
-        let Some(ref tee_certificate) = self.tee_certificate else {
-            return Err("tee_certificate is not set".to_string());
-        };
-        self.send_evidence_internal(
-            evidence,
-            signing_key,
-            tvs_authentication_key.to_vec(),
-            tee_certificate.to_vec(),
-            self.tvs_id,
-        )
-        .await
     }
 
     async fn send_evidence_internal(
@@ -589,7 +612,7 @@ mod tests {
                 0,
             )
             .await
-            .unwrap();
+            .expect("couldn't create tvs client");
             tvs_client.fetch_orchestrator_metadata().await
         })
         .await;

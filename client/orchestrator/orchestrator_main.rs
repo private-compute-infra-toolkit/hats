@@ -14,15 +14,13 @@
 
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use hats_server::proto::privacy_sandbox::tvs::{Secret, VerifyReportResponse};
 use oak_containers_orchestrator::ipc_server::create_services;
 use oak_containers_orchestrator::launcher_client::LauncherClient;
 use oak_proto_rust::oak::attestation::v1::{endorsements, Endorsements, OakContainersEndorsements};
-use prost::Message;
 use secret_sharing::SecretSplit;
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+use std::{fs, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
-
+use tvs_grpc_client::TvsClientInterface;
 #[derive(Parser, Debug)]
 struct Args {
     #[arg(long, default_value = "http://10.0.2.100:8080")]
@@ -49,47 +47,13 @@ struct Args {
     #[arg(long, default_value = "/hats/tvs_public_keys.txt")]
     tvs_public_keys_file: String,
 
-    // Determines type of secret shares for split secret recovery. Valid values are XOR & SHAMIR.
+    // Determines type of secret shares for split secret recovery. Valid values are XOR, SHAMIR, or NONE(For single TVS Cases).
     #[arg(long, default_value = "SHAMIR")]
     secret_share_type: String,
-}
 
-struct KeyShares<'a> {
-    public_key: String,
-    shares: Vec<&'a [u8]>,
-}
-
-pub fn recover_secrets(
-    response_vec: &Vec<VerifyReportResponse>,
-    secret_split: &dyn SecretSplit,
-) -> Result<Vec<u8>, anyhow::Error> {
-    let mut recovered_secrets: Vec<Secret> = Vec::new();
-    // this maps key_id to (public key, private key shares)
-    let mut share_map: HashMap<i64, KeyShares> = HashMap::new();
-    for response in response_vec {
-        for secret in &response.secrets {
-            let key_shares = share_map.entry(secret.key_id).or_insert(KeyShares {
-                public_key: (*secret.public_key).to_string(),
-                shares: vec![],
-            });
-            key_shares.shares.push(&secret.private_key);
-        }
-    }
-    for (key_id, key_shares) in share_map {
-        recovered_secrets.push(Secret {
-            key_id,
-            public_key: (*key_shares.public_key).to_string(),
-            private_key: secret_split
-                .recover(&key_shares.shares)
-                .map_err(|err| anyhow::anyhow!("Failed to recover the secret: {err:?}"))?,
-        });
-    }
-    let recovered_report = VerifyReportResponse {
-        secrets: recovered_secrets,
-    };
-    let mut encoded_report: Vec<u8> = Vec::new();
-    VerifyReportResponse::encode(&recovered_report, &mut encoded_report)?;
-    Ok(encoded_report)
+    // Time Hats Server will cache TVS Keys repsonse in seconds.
+    #[arg(long, default_value = "3600")]
+    hats_server_cache_time: u64,
 }
 
 #[tokio::main]
@@ -98,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
 
-    let mut tvs_grpc_clients: Vec<tvs_grpc_client::TvsGrpcClient> = Vec::new();
+    let mut tvs_grpc_clients: Vec<Box<dyn tvs_grpc_client::TvsClientInterface>> = Vec::new();
     let tvs_public_keys =
         fs::read_to_string(args.tvs_public_keys_file).expect("Unable to read file");
 
@@ -106,13 +70,13 @@ async fn main() -> anyhow::Result<()> {
     for key in tvs_public_keys.lines() {
         let tvs_id = &key[0..1].parse::<i64>()?;
         let pub_key = &key[2..];
-        let tvs: tvs_grpc_client::TvsGrpcClient = tvs_grpc_client::TvsGrpcClient::create(
+        let tvs: Box<dyn TvsClientInterface> = tvs_grpc_client::TvsGrpcClient::create(
             args.launcher_addr.parse()?,
             hex::decode(pub_key)?,
             *tvs_id,
         )
         .await
-        .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?;
+        .map_err(|error| anyhow!("couldn't init tvs client: {:?}", error))?;
         tvs_grpc_clients.push(tvs);
     }
 
@@ -160,46 +124,6 @@ async fn main() -> anyhow::Result<()> {
     if let Some(path) = args.ipc_socket_path.parent() {
         tokio::fs::create_dir_all(path).await?;
     }
-
-    let encoded_report: Vec<u8>;
-    if tvs_grpc_clients.len() > 1 {
-        let numshares = tvs_grpc_clients.len();
-        let secret_split: Box<dyn SecretSplit> = match args.secret_share_type.as_str() {
-            "XOR" => Box::new(
-                secret_sharing::xor_sharing::XorSharing::new(numshares)
-                    .map_err(|error| anyhow!("couldn't create xor sharing object: {:?}", error))?,
-            ),
-            "SHAMIR" => Box::new(
-                secret_sharing::shamir_sharing::ShamirSharing::new(
-                    numshares,
-                    // we set the threshold to be 1 less than number of shares
-                    numshares - 1,
-                    secret_sharing::shamir_sharing::get_prime(),
-                )
-                .map_err(|error| anyhow!("couldn't create shamir sharing object: {:?}", error))?,
-            ),
-            _ => {
-                return Err(anyhow!("Invalid secret share type"));
-            }
-        };
-        let mut response_vec: Vec<VerifyReportResponse> = Vec::new();
-        for tvs_grpc_client in tvs_grpc_clients {
-            response_vec.push(VerifyReportResponse::decode(
-                tvs_grpc_client
-                    .send_evidence(evidence.clone(), instance_keys.signing_key.clone())
-                    .await
-                    .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?
-                    .as_slice(),
-            )?);
-        }
-        encoded_report = recover_secrets(&response_vec, &*secret_split)?;
-    } else {
-        encoded_report = tvs_grpc_clients[0]
-            .send_evidence(evidence.clone(), instance_keys.signing_key.clone())
-            .await
-            .map_err(|error| anyhow!("couldn't get tvs client: {:?}", error))?
-    }
-
     let endorsements = Endorsements {
         r#type: Some(endorsements::Type::OakContainers(
             OakContainersEndorsements {
@@ -211,8 +135,9 @@ async fn main() -> anyhow::Result<()> {
         )),
         event_endorsements: None,
     };
+    let signing_key_clone = instance_keys.signing_key.clone();
     let (oak_orchestrator_server, oak_crypto_server) = create_services(
-        evidence,
+        evidence.clone(),
         endorsements,
         instance_keys,
         group_keys
@@ -220,6 +145,33 @@ async fn main() -> anyhow::Result<()> {
             .context("group keys were not provisioned")?,
         /*application_config=*/ vec![],
         launcher_client,
+    );
+    let numshares = tvs_grpc_clients.len();
+    //TODO b/404833792 Revise Args to Enum and Case for Single TVS
+    let secret_split: Option<Box<dyn SecretSplit>> = match args.secret_share_type.as_str() {
+        "XOR" => Some(Box::new(
+            secret_sharing::xor_sharing::XorSharing::new(numshares).map_err(|error| {
+                anyhow::anyhow!("couldn't create xor sharing object: {:?}", error)
+            })?,
+        )),
+        "SHAMIR" => Some(Box::new(
+            secret_sharing::shamir_sharing::ShamirSharing::new(
+                numshares,
+                numshares - 1,
+                secret_sharing::shamir_sharing::get_prime(),
+            )
+            .map_err(|error| {
+                anyhow::anyhow!("couldn't create shamir sharing object: {:?}", error)
+            })?,
+        )),
+        _ => None,
+    };
+    let hats_server = hats_server::HatsServer::new(
+        signing_key_clone,
+        tvs_grpc_clients,
+        evidence.clone(),
+        secret_split,
+        args.hats_server_cache_time,
     );
 
     // Start application and gRPC servers.
@@ -247,7 +199,7 @@ async fn main() -> anyhow::Result<()> {
             &args.ipc_socket_path,
             oak_orchestrator_server,
             oak_crypto_server,
-            &encoded_report,
+            hats_server,
             cancellation_token
         ),
     )?;
