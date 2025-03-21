@@ -33,12 +33,25 @@ CREATE SEQUENCE UserIdSequence OPTIONS (
 -- Table storing appraisal policies used to validate attestation report
 -- against. The table contains the following columns:
 -- * PolicyId: a string used to identify the appraisal policy.
--- * ApplicationDigest: sha256 of the application bundle. This is used to
---   fetch policies for a certain application.
+-- * AmdSevStage0Digest: sha384 digest of stage0.bin. This column is nullable.
+-- * KernelImageDigest: sha256 of the kernel image.
+-- * KernelSetupDataDigest: sha256 of the kernel setup data.
+-- * InitRamFsDigest: sha256 of the initramfs.
+-- * MemoryMapDigest: sha256 of the memory map.
+-- * AcpiTableDigest: sha256 of the ACPI tables.
+-- * SystemImageDigest: sha256 of the system image.
+-- * ApplicationDigest: sha256 of the container binary application bundle.
 -- * UpdateTimestamp: timestamp of the last update to the row.
 -- * Policy: binary representation of the appraisal policy proto.
 CREATE TABLE AppraisalPolicies (
   PolicyId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE PolicyIdSequence)),
+  AmdSevStage0Digest BYTES(MAX),
+  KernelImageDigest BYTES(MAX) NOT NULL,
+  KernelSetupDataDigest BYTES(MAX) NOT NULL,
+  InitRamFsDigest BYTES(MAX) NOT NULL,
+  MemoryMapDigest BYTES(MAX) NOT NULL,
+  AcpiTableDigest BYTES(MAX) NOT NULL,
+  SystemImageDigest BYTES(MAX) NOT NULL,
   ApplicationDigest BYTES(MAX) NOT NULL,
   Policy BYTES(MAX) NOT NULL,
   UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),

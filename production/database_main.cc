@@ -395,40 +395,168 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
   google::cloud::spanner::Client spanner_client(
       google::cloud::spanner::MakeConnection(database));
 
-  auto commit = spanner_client.Commit([&spanner_client, &appraisal_policies =
-                                                            appraisal_policies](
-                                          google::cloud::spanner::Transaction
-                                              transaction)
-                                          -> google::cloud::StatusOr<
-                                              google::cloud::spanner::
-                                                  Mutations> {
-    for (const privacy_sandbox::tvs::AppraisalPolicy& appraisal_policy :
-         appraisal_policies.policies()) {
-      std::string application_digest;
-      if (!absl::HexStringToBytes(
-              appraisal_policy.measurement().container_binary_sha256(),
-              &application_digest)) {
-        return google::cloud::v2_29::Status(
-            google::cloud::StatusCode::kInvalidArgument,
-            "Failed to parse application digest. The digest should be in "
-            "formatted as "
-            "hex string.");
-      }
-      // Insert the appraisal policy.
-      google::cloud::spanner::SqlStatement sql(
-          R"sql(INSERT INTO  AppraisalPolicies(UpdateTimestamp, ApplicationDigest, Policy)
-              VALUES (PENDING_COMMIT_TIMESTAMP(), @application_digest, @policy))sql",
-          {{"application_digest",
-            google::cloud::spanner::Value(
-                google::cloud::spanner::Bytes(application_digest))},
-           {"policy",
-            google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                appraisal_policy.SerializeAsString()))}});
-      HATS_ASSIGN_OR_RETURN(
-          auto _, spanner_client.ExecuteDml(transaction, std::move(sql)));
-    }
-    return google::cloud::spanner::Mutations{};
-  });
+  auto commit = spanner_client.Commit(
+      [&spanner_client, &appraisal_policies = appraisal_policies](
+          google::cloud::spanner::Transaction transaction)
+          -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
+        for (const privacy_sandbox::tvs::AppraisalPolicy& appraisal_policy :
+             appraisal_policies.policies()) {
+          google::cloud::spanner::Value amd_sev_stage0_digest_value;
+
+          if (appraisal_policy.measurement()
+                  .stage0_measurement()
+                  .has_amd_sev()) {  // Check if the field is set
+            std::string temp_digest;
+            if (absl::HexStringToBytes(appraisal_policy.measurement()
+                                           .stage0_measurement()
+                                           .amd_sev()
+                                           .sha384(),
+                                       &temp_digest)) {
+              amd_sev_stage0_digest_value = google::cloud::spanner::Value(
+                  google::cloud::spanner::Bytes(temp_digest));
+            } else {
+              return google::cloud::v2_29::Status(
+                  google::cloud::StatusCode::kInvalidArgument,
+                  "Failed to parse AMD SEV Stage 0 digest. The digest should "
+                  "be in formatted as hex string.");
+            }
+          } else {
+            amd_sev_stage0_digest_value = google::cloud::spanner::MakeNullValue<
+                google::cloud::spanner::Bytes>();
+          }
+
+          std::string kernel_image_digest;
+          if (!absl::HexStringToBytes(
+                  appraisal_policy.measurement().kernel_image_sha256(),
+                  &kernel_image_digest)) {
+            return google::cloud::v2_29::Status(
+                google::cloud::StatusCode::kInvalidArgument,
+                "Failed to parse kernel image digest. The digest should be in "
+                "formatted as "
+                "hex string.");
+          }
+
+          std::string kernel_setup_data_digest;
+          if (!absl::HexStringToBytes(
+                  appraisal_policy.measurement().kernel_setup_data_sha256(),
+                  &kernel_setup_data_digest)) {
+            return google::cloud::v2_29::Status(
+                google::cloud::StatusCode::kInvalidArgument,
+                "Failed to parse kernel setup data digest. The digest should "
+                "be in "
+                "formatted as "
+                "hex string.");
+          }
+
+          std::string init_ram_fs_digest;
+          if (!absl::HexStringToBytes(
+                  appraisal_policy.measurement().init_ram_fs_sha256(),
+                  &init_ram_fs_digest)) {
+            return google::cloud::v2_29::Status(
+                google::cloud::StatusCode::kInvalidArgument,
+                "Failed to parse init ram fs digest. The digest should be in "
+                "formatted as "
+                "hex string.");
+          }
+
+          std::string memory_map_digest;
+          if (!absl::HexStringToBytes(
+                  appraisal_policy.measurement().memory_map_sha256(),
+                  &memory_map_digest)) {
+            return google::cloud::v2_29::Status(
+                google::cloud::StatusCode::kInvalidArgument,
+                "Failed to parse memory map digest. The digest should be in "
+                "formatted as "
+                "hex string.");
+          }
+
+          std::string acpi_table_digest;
+          if (!absl::HexStringToBytes(
+                  appraisal_policy.measurement().acpi_table_sha256(),
+                  &acpi_table_digest)) {
+            return google::cloud::v2_29::Status(
+                google::cloud::StatusCode::kInvalidArgument,
+                "Failed to parse acpi table digest. The digest should be in "
+                "formatted as "
+                "hex string.");
+          }
+
+          std::string system_image_digest;
+          if (!absl::HexStringToBytes(
+                  appraisal_policy.measurement().system_image_sha256(),
+                  &system_image_digest)) {
+            return google::cloud::v2_29::Status(
+                google::cloud::StatusCode::kInvalidArgument,
+                "Failed to parse system image digest. The digest should be in "
+                "formatted as "
+                "hex string.");
+          }
+
+          std::string application_digest;
+          if (!absl::HexStringToBytes(
+                  appraisal_policy.measurement().container_binary_sha256(),
+                  &application_digest)) {
+            return google::cloud::v2_29::Status(
+                google::cloud::StatusCode::kInvalidArgument,
+                "Failed to parse application digest. The digest should be in "
+                "formatted as "
+                "hex string.");
+          }
+          // Insert the appraisal policy.
+          google::cloud::spanner::SqlStatement sql(
+              R"sql(INSERT INTO AppraisalPolicies(
+            UpdateTimestamp,
+            AmdSevStage0Digest,
+            KernelImageDigest,
+            KernelSetupDataDigest,
+            InitRamFsDigest,
+            MemoryMapDigest,
+            AcpiTableDigest,
+            SystemImageDigest,
+            ApplicationDigest,
+            Policy
+        ) VALUES (
+            PENDING_COMMIT_TIMESTAMP(),
+            @amd_sev_stage0_digest,
+            @kernel_image_digest,
+            @kernel_setup_data_digest,
+            @init_ram_fs_digest,
+            @memory_map_digest,
+            @acpi_table_digest,
+            @system_image_digest,
+            @application_digest,
+            @policy
+        ))sql",
+              {{"amd_sev_stage0_digest", amd_sev_stage0_digest_value},
+               {"kernel_image_digest",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(kernel_image_digest))},
+               {"kernel_setup_data_digest",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(kernel_setup_data_digest))},
+               {"init_ram_fs_digest",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(init_ram_fs_digest))},
+               {"memory_map_digest",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(memory_map_digest))},
+               {"acpi_table_digest",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(acpi_table_digest))},
+               {"system_image_digest",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(system_image_digest))},
+               {"application_digest",
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(application_digest))},
+               {"policy",
+                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                    appraisal_policy.SerializeAsString()))}});
+          HATS_ASSIGN_OR_RETURN(
+              auto _, spanner_client.ExecuteDml(transaction, std::move(sql)));
+        }
+        return google::cloud::spanner::Mutations{};
+      });
   HATS_RETURN_IF_ERROR(commit.status());
 
   return absl::OkStatus();
