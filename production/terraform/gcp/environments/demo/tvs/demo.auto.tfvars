@@ -16,13 +16,10 @@ environment    = "<environment name>"
 project_id     = "<project id>"
 primary_region = "us-central1"
 
-# Note: Multi region can be used but is roughly 4x the cost.
-# nam10 is North America - uscentral1 and uswest3:
-# https://cloud.google.com/spanner/docs/instance-configurations#configs-multi-region
-spanner_instance_config = "nam10"
-
-# Spanner's compute capacity. 1000 processing units = 1 node and must be set as a multiple of 100.
-spanner_processing_units = 100
+# Output from tvs_db
+tvs_spanner_database_name  = "<tvs_spanner_database_name>"
+tvs_spanner_instance_name  = "<tvs_spanner_instance_name>"
+tvs_key_encryption_ring_id = "<tvs_key_encryption_ring_id>"
 
 # The container image of Cloud Run service deployment for TVS.
 tvs_image = "<url_to_tvs_image>"

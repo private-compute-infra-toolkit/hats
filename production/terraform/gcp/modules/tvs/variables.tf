@@ -57,13 +57,18 @@ variable "cloudrun_timeout_seconds" {
   type        = number
 }
 
-variable "spanner_database_name" {
+variable "tvs_spanner_database_name" {
   description = "Name of the TvsDb Spanner database."
   type        = string
 }
 
-variable "spanner_instance_name" {
+variable "tvs_spanner_instance_name" {
   description = "Name of the TvsDb Spanner instance."
+  type        = string
+}
+
+variable "tvs_key_encryption_ring_id" {
+  description = "Name of the key encryption ring containing KEK used for database"
   type        = string
 }
 

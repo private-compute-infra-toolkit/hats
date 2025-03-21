@@ -27,11 +27,10 @@ module "tvs" {
   environment    = var.environment
   primary_region = var.primary_region
 
-  spanner_instance_config  = var.spanner_instance_config
-  spanner_processing_units = var.spanner_processing_units
-  tvs_db_retention_period  = var.tvs_db_retention_period
-
   # Cloud Run vars
+  tvs_spanner_database_name        = var.tvs_spanner_database_name
+  tvs_spanner_instance_name        = var.tvs_spanner_instance_name
+  tvs_key_encryption_ring_id       = var.tvs_key_encryption_ring_id
   cloudrun_timeout_seconds         = var.cloudrun_timeout_seconds
   tvs_cloudrun_memory_mb           = var.tvs_cloudrun_memory_mb
   tvs_cloudrun_min_instances       = var.tvs_cloudrun_min_instances

@@ -32,28 +32,6 @@ variable "primary_region" {
 }
 
 ################################################################################
-# Spanner Database Variables.
-################################################################################
-
-variable "spanner_instance_config" {
-  type        = string
-  description = "Multi region config value for the Spanner Instance. Example: 'nam10' for North America."
-}
-
-variable "spanner_processing_units" {
-  description = "Spanner's compute capacity. 1000 processing units = 1 node and must be set as a multiple of 100."
-  type        = number
-}
-
-# Similar to Point-in-time recovery for AWS DynamoDB
-# Must be between 1 hour and 7 days. Can be specified in days, hours, minutes, or seconds.
-# eg: 1d, 24h, 1440m, and 86400s are equivalent.
-variable "tvs_db_retention_period" {
-  description = "Duration to maintain table versioning for point-in-time recovery."
-  type        = string
-}
-
-################################################################################
 # Cloud Run Variables.
 ################################################################################
 
@@ -115,6 +93,21 @@ variable "allowed_operator_user_group" {
 variable "enable_dynamic_policy_fetching" {
   description = "Enable dynamic policy fetching for TVS."
   type        = bool
+}
+
+variable "tvs_spanner_database_name" {
+  description = "Name of the TvsDb Spanner database."
+  type        = string
+}
+
+variable "tvs_spanner_instance_name" {
+  description = "Name of the TvsDb Spanner instance."
+  type        = string
+}
+
+variable "tvs_key_encryption_ring_id" {
+  description = "Name of the key encryption ring containing KEK used for database"
+  type        = string
 }
 
 ################################################################################

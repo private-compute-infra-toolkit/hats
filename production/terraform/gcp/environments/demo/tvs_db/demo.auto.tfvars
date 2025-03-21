@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "tvs_cloudrun_url" {
-  description = "The cloud run URL."
-  value       = module.tvs.tvs_cloudrun_url
-}
+environment    = "<environment name>"
+project_id     = "<project id>"
+primary_region = "us-central1"
 
-output "tvs_loadbalancer_ip" {
-  value = module.tvs.tvs_loadbalancer_ip
-}
+# Note: Multi region can be used but is roughly 4x the cost.
+# nam10 is North America - uscentral1 and uswest3:
+# https://cloud.google.com/spanner/docs/instance-configurations#configs-multi-region
+spanner_instance_config = "nam10"
 
-output "tvs_base_url" {
-  value = var.enable_domain_management ? "${local.tvs_domain}" : "${module.tvs.tvs_cloudrun_url}:443"
-}
+# Spanner's compute capacity. 1000 processing units = 1 node and must be set as a multiple of 100.
+spanner_processing_units = 100

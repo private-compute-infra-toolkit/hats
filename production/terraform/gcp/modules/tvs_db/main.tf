@@ -17,6 +17,25 @@ locals {
   sql_statements = split(";", local.ddl)
 }
 
+# Cloud KMS encryption ring and key encryption key (KEK)
+resource "google_kms_key_ring" "key_encryption_ring" {
+  project  = var.project_id
+  name     = "${var.environment}_key_encryption_ring"
+  location = "us"
+}
+
+resource "google_kms_crypto_key" "key_encryption_key" {
+  name     = "${var.environment}_key_encryption_key"
+  key_ring = google_kms_key_ring.key_encryption_ring.id
+
+  # Setting KMS key rotation to yearly
+  rotation_period = "31536000s"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_spanner_instance" "tvs_db_instance" {
   project          = var.project_id
   name             = "${var.environment}-tvs-dbinstance"

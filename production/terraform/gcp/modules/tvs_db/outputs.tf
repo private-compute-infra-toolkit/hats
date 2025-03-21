@@ -21,3 +21,13 @@ output "tvs_db_name" {
   value       = google_spanner_database.tvs_db.name
   description = "Name of the Spanner database"
 }
+
+output "tvs_key_encryption_key_id" {
+  value = google_kms_crypto_key.key_encryption_key.id
+  description = "Name of the KEK used for database"
+}
+
+output "tvs_key_encryption_ring_id" {
+  value = google_kms_key_ring.key_encryption_ring.id
+  description = "Name of the key encryption ring containing KEK used for database"
+}

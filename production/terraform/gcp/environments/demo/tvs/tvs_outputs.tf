@@ -12,19 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "tvs_key_encryption_key_id" {
-  value = module.tvs.tvs_key_encryption_key_id
-}
-
-output "tvs_db_instance_name" {
-  value = module.tvs.tvs_db_instance_name
-}
-
-output "tvs_db_name" {
-  value       = module.tvs.tvs_db_name
-  description = "Name of the Spanner database"
-}
-
 output "tvs_cloudrun_url" {
   description = "The cloud run URL."
   value       = module.tvs.tvs_cloudrun_url
