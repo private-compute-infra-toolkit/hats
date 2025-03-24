@@ -74,7 +74,7 @@ args=(
   --bazelrc=google_internal/.bazelrc
   build
   # "${BAZEL_DIRECT_ARGS[@]}"
-  --config=kokoro
+  --config=ci
   --verbose_failures=true
   --dynamic_mode=off # Force static build, for binaries sent to bot
   --build_tag_filters="virtualization"

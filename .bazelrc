@@ -72,6 +72,17 @@ build:dwyu --noverbose_failures
 # this rule is to enable the rust analyzer in vs code
 build --@rules_rust//:rustc_output_diagnostics=true --output_groups=+rust_lib_rustc_output,+rust_metadata_rustc_output
 
+# Cleaner output for automated testing
+# no cursor, slower progress bar update
+build:ci --curses=no
+# Seconds between. noshow_progress for off
+build:ci --show_progress_rate_limit=10
+build:ci --show_result 100
+build:ci --show_timestamps
+# Fail immediately if the Bazel server lock cannot be acquired so that we can notice this in CI
+# and avoid attempting to parallelize steps that are actually serialized by Bazel.
+build:ci --block_for_lock=false
+
 ############################################################
 # Use `bazel test --config=debug` to enable these settings #
 ############################################################
