@@ -12,15 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "tvs_cloudrun_url" {
-  description = "The cloud run URL."
-  value       = module.tvs.tvs_cloudrun_url
+output "tvs_db_instance_name" {
+  value       = module.tvs_db.tvs_db_instance_name
+  description = "Name of the Spanner database instance"
 }
 
-output "tvs_loadbalancer_ip" {
-  value = module.tvs.tvs_loadbalancer_ip
+output "tvs_db_name" {
+  value       = module.tvs_db.tvs_db_name
+  description = "Name of the Spanner database"
 }
 
-output "tvs_base_url" {
-  value = var.enable_domain_management ? "${local.tvs_domain}" : "${module.tvs.tvs_cloudrun_url}:443"
+output "tvs_key_encryption_key_id" {
+  value = module.tvs_db.tvs_key_encryption_key_id
+  description = "Name of the KEK used for database"
+}
+
+output "tvs_key_encryption_ring_id" {
+  value =  module.tvs_db.tvs_key_encryption_ring_id
+  description = "Name of the key encryption ring containing KEK used for database"
 }

@@ -12,25 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Cloud KMS encryption ring and key encryption key (KEK)
-resource "google_kms_key_ring" "key_encryption_ring" {
-  project  = var.project_id
-  name     = "${var.environment}_key_encryption_ring"
-  location = "us"
-}
-
-resource "google_kms_crypto_key" "key_encryption_key" {
-  name     = "${var.environment}_key_encryption_key"
-  key_ring = google_kms_key_ring.key_encryption_ring.id
-
-  # Setting KMS key rotation to yearly
-  rotation_period = "31536000s"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
 resource "google_service_account" "tvs_service_account" {
   project = var.project_id
   # Service account id has a 30 character limit
@@ -41,15 +22,15 @@ resource "google_service_account" "tvs_service_account" {
 # IAM entry for service account to read/write the database
 resource "google_spanner_database_iam_member" "tvs_spannerdb_iam_policy" {
   project  = var.project_id
-  instance = var.spanner_instance_name
-  database = var.spanner_database_name
+  instance = var.tvs_spanner_instance_name
+  database = var.tvs_spanner_database_name
   role     = "roles/spanner.databaseUser"
   member   = "serviceAccount:${google_service_account.tvs_service_account.email}"
 }
 
 # Allow TVS service account to encrypt/decrypt
-resource "google_kms_key_ring_iam_member" "key_encryption_ring_iam" {
-  key_ring_id = google_kms_key_ring.key_encryption_ring.id
+resource "google_kms_key_ring_iam_member" "tvs_key_encryption_ring_iam" {
+  key_ring_id = var.tvs_key_encryption_ring_id
   role        = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member      = "serviceAccount:${google_service_account.tvs_service_account.email}"
 }
@@ -92,8 +73,8 @@ resource "google_cloud_run_v2_service" "tvs" {
     containers {
       image = var.tvs_image
       args = ["--project_id=${var.project_id}",
-        "--instance_id=${var.spanner_instance_name}",
-        "--database_id=${var.spanner_database_name}",
+        "--instance_id=${var.tvs_spanner_instance_name}",
+        "--database_id=${var.tvs_spanner_database_name}",
         "--enable_dynamic_policy_fetching=${var.enable_dynamic_policy_fetching}",
       "--stderrthreshold=0"]
 

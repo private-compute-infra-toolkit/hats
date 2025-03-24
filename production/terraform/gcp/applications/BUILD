@@ -20,6 +20,7 @@ pkg_filegroup(
     name = "tvs_applications_pkg",
     srcs = [
         "//production/terraform/gcp/applications/tvs",
+        "//production/terraform/gcp/applications/tvs_db",
     ],
     prefix = "applications",
 )

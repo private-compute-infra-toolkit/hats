@@ -26,8 +26,9 @@ module "tvs" {
   region      = var.primary_region
 
   # Cloud Run vars
-  spanner_database_name            = module.tvs_db.tvs_db_name
-  spanner_instance_name            = module.tvs_db.tvs_db_instance_name
+  tvs_spanner_database_name        = var.tvs_spanner_database_name
+  tvs_spanner_instance_name        = var.tvs_spanner_instance_name
+  tvs_key_encryption_ring_id       = var.tvs_key_encryption_ring_id
   cloudrun_timeout_seconds         = var.cloudrun_timeout_seconds
   tvs_cloudrun_memory_mb           = var.tvs_cloudrun_memory_mb
   tvs_cloudrun_min_instances       = var.tvs_cloudrun_min_instances
@@ -51,14 +52,4 @@ module "tvs" {
   service_domain_to_address_map = var.enable_domain_management ? {
     (local.tvs_domain) : module.tvs.tvs_loadbalancer_ip
   } : {}
-}
-
-module "tvs_db" {
-  source = "../../modules/tvs_db"
-
-  project_id               = var.project_id
-  environment              = var.environment
-  spanner_instance_config  = var.spanner_instance_config
-  spanner_processing_units = var.spanner_processing_units
-  tvs_db_retention_period  = var.tvs_db_retention_period
 }
