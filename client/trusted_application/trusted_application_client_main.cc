@@ -37,7 +37,12 @@ int main(int argc, char* argv[]) {
   }
   privacy_sandbox::client::TrustedApplicationClient app_client(
       absl::GetFlag(FLAGS_address), key, absl::GetFlag(FLAGS_key_id));
-  privacy_sandbox::client::DecryptedResponse response =
-      app_client.SendEcho().value();
-  std::cout << *response.mutable_response();
+  absl::StatusOr<privacy_sandbox::client::DecryptedResponse> response =
+      app_client.SendEcho();
+  if (!response.ok()) {
+    std::cerr << "Failed to send echo request to trusted application: "
+              << response.status() << std::endl;
+    return 1;
+  }
+  std::cout << response->response();
 }
