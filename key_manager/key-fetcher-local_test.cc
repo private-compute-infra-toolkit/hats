@@ -51,11 +51,11 @@ TEST(KeyFetcherLocal, Normal) {
                              StrEq("first"));
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecondaryPrivateKey(),
                              StrEq("second"));
-    HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecretsForUserId(/*user_id=*/1),
+    HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecretsForUserId(/*user_id=*/"1"),
                              UnorderedElementsAre(FieldsAre(
                                  500, "73656372657431-public", "secret1")));
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->UserIdForAuthenticationKey("ABCD"),
-                             Eq(1));
+                             Eq("1"));
   }
   {
     absl::SetFlag(&FLAGS_primary_private_key, "61");
@@ -67,11 +67,11 @@ TEST(KeyFetcherLocal, Normal) {
     std::unique_ptr<KeyFetcher> key_fetcher = KeyFetcher::Create();
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetPrimaryPrivateKey(), StrEq("a"));
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecondaryPrivateKey(), StrEq("b"));
-    HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecretsForUserId(/*user_id=*/1),
+    HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecretsForUserId(/*user_id=*/"1"),
                              UnorderedElementsAre(FieldsAre(
                                  501, "73656372657432-public", "secret2")));
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->UserIdForAuthenticationKey("ZDEFG"),
-                             Eq(1));
+                             Eq("1"));
   }
 }
 
@@ -89,9 +89,10 @@ TEST(KeyFetcherLocal, Error) {
         key_fetcher->GetSecondaryPrivateKey(),
         absl::StatusCode::kInvalidArgument,
         HasSubstr("Failed to parse the secondary private key"));
-    HATS_EXPECT_STATUS_MESSAGE(key_fetcher->GetSecretsForUserId(/*user_id=*/1),
-                               absl::StatusCode::kInvalidArgument,
-                               HasSubstr("Failed to parse the secret"));
+    HATS_EXPECT_STATUS_MESSAGE(
+        key_fetcher->GetSecretsForUserId(/*user_id=*/"1"),
+        absl::StatusCode::kInvalidArgument,
+        HasSubstr("Failed to parse the secret"));
     HATS_EXPECT_STATUS_MESSAGE(
         key_fetcher->UserIdForAuthenticationKey("ZDEFG"),
 
@@ -102,7 +103,7 @@ TEST(KeyFetcherLocal, Error) {
     absl::SetFlag(&FLAGS_user_authentication_public_key, "5a44454647");
     std::unique_ptr<KeyFetcher> key_fetcher = KeyFetcher::Create();
     HATS_EXPECT_STATUS_MESSAGE(
-        key_fetcher->GetSecretsForUserId(/*user_id=*/500),
+        key_fetcher->GetSecretsForUserId(/*user_id=*/"500"),
         absl::StatusCode::kNotFound,
         HasSubstr("Cannot find secret for the user"));
     HATS_EXPECT_STATUS_MESSAGE(key_fetcher->UserIdForAuthenticationKey("ABCD"),

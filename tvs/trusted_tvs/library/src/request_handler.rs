@@ -56,7 +56,7 @@ pub struct RequestHandler {
     // Authenticated user if any.
     #[allow(dead_code)]
     user: String,
-    user_id: Option<i64>,
+    user_id: Option<Vec<u8>>,
     terminated: bool,
 }
 
@@ -222,7 +222,7 @@ impl RequestHandler {
             verify_report_request.tee_certificate.as_slice(),
         )?;
 
-        let Some(user_id) = self.user_id else {
+        let Some(ref user_id) = self.user_id else {
             // This should not happen unless something went wrong internally
             // such as this method is called out of order or the logic that sets user id
             // was changed.
@@ -367,7 +367,7 @@ mod tests {
     const NOW_UTC_MILLIS: i64 = 1698829200000;
 
     struct TestKeyFetcher {
-        user_id: i64,
+        user_id: Vec<u8>,
         user_authentication_public_key: [u8; P256_X962_LENGTH],
         secret: Vec<u8>,
     }
@@ -384,16 +384,19 @@ mod tests {
         fn user_id_for_authentication_key(
             &self,
             user_authentication_public_key: &[u8],
-        ) -> anyhow::Result<i64> {
+        ) -> anyhow::Result<Vec<u8>> {
             if self.user_authentication_public_key != user_authentication_public_key {
                 anyhow::bail!("Unauthenticated, provided public key is not registered");
             }
-            Ok(self.user_id)
+            Ok(self.user_id.clone())
         }
 
-        fn get_secrets_for_user_id(&self, user_id: i64) -> anyhow::Result<Vec<u8>> {
+        fn get_secrets_for_user_id(&self, user_id: &[u8]) -> anyhow::Result<Vec<u8>> {
             if self.user_id != user_id {
-                anyhow::bail!("Failed to get secret for user ID: {user_id}");
+                let user_id_str = std::str::from_utf8(user_id).map_err(|_| {
+                    anyhow::anyhow!("Failed to get secret for user ID: {:?}", user_id)
+                })?;
+                anyhow::bail!("Failed to get secret for user ID: {user_id_str}");
             }
             Ok(self.secret.to_vec())
         }
@@ -409,11 +412,11 @@ mod tests {
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
-        let user_id = 1;
+        let user_id = b"1";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret1";
         let test_key_fetcher = TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         };
@@ -473,11 +476,11 @@ mod tests {
         )
         .unwrap();
 
-        let user_id = 2;
+        let user_id = b"2";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret2";
         let test_key_fetcher = TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         };
@@ -538,11 +541,11 @@ mod tests {
         )
         .unwrap();
 
-        let user_id = 3;
+        let user_id = b"3";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret3";
         let test_key_fetcher = TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         };
@@ -620,11 +623,11 @@ mod tests {
         )
         .unwrap();
 
-        let user_id = 4;
+        let user_id = b"4";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret4";
         let test_key_fetcher = TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         };
@@ -697,11 +700,11 @@ mod tests {
         )
         .unwrap();
 
-        let user_id = 5;
+        let user_id = b"5";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret5";
         let test_key_fetcher = TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         };
@@ -759,11 +762,11 @@ mod tests {
         )
         .unwrap();
 
-        let user_id = 6;
+        let user_id = b"6";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret6";
         let test_key_fetcher = TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         };
@@ -824,11 +827,11 @@ mod tests {
             .unwrap(),
         );
 
-        let user_id = 7;
+        let user_id = b"7";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret7";
         let test_key_fetcher = Arc::new(TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         });
@@ -938,11 +941,11 @@ mod tests {
             .unwrap(),
         );
 
-        let user_id = 8;
+        let user_id = b"8";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret8";
         let test_key_fetcher = Arc::new(TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         });
@@ -1018,11 +1021,11 @@ mod tests {
         )
         .unwrap();
 
-        let user_id = 9;
+        let user_id = b"9";
         let client_private_key = P256Scalar::generate();
         let secret = b"secret9";
         let test_key_fetcher = TestKeyFetcher {
-            user_id,
+            user_id: user_id.to_vec(),
             user_authentication_public_key: client_private_key.compute_public_key(),
             secret: secret.to_vec(),
         };

@@ -165,7 +165,7 @@ absl::StatusOr<std::string> KeyFetcherGcp::GetSecondaryPrivateKey() {
   return std::string(secret_data.GetStringView());
 }
 
-absl::StatusOr<int64_t> KeyFetcherGcp::UserIdForAuthenticationKey(
+absl::StatusOr<std::string> KeyFetcherGcp::UserIdForAuthenticationKey(
     absl::string_view public_key) {
   google::cloud::spanner::SqlStatement select(
       R"sql(
@@ -181,16 +181,22 @@ absl::StatusOr<int64_t> KeyFetcherGcp::UserIdForAuthenticationKey(
   for (auto& row :
        google::cloud::spanner::StreamOf<std::tuple<int64_t>>(rows)) {
     HATS_RETURN_IF_ERROR(row.status());
-    return std::get<0>(*row);
+    return std::to_string(std::get<0>(*row));
   }
   return absl::NotFoundError("Cannot find user");
 }
 
 absl::StatusOr<std::vector<Secret>> KeyFetcherGcp::GetSecretsForUserId(
-    int64_t user_id) {
+    absl::string_view user_id) {
+  int64_t user_id_int64;
+  if (!absl::SimpleAtoi(user_id, &user_id_int64)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Invalid user ID: '%s'. Failed to convert user ID to Integer.",
+        user_id));
+  }
   HATS_ASSIGN_OR_RETURN(
       std::vector<Keys> keys,
-      WrappedSecretsByUserIdFromSpanner(user_id, spanner_client_));
+      WrappedSecretsByUserIdFromSpanner(user_id_int64, spanner_client_));
 
   std::vector<Secret> secrets;
   // Use non-const to enable effective use of std::move().
@@ -207,10 +213,17 @@ absl::StatusOr<std::vector<Secret>> KeyFetcherGcp::GetSecretsForUserId(
   return secrets;
 }
 
-absl::StatusOr<bool> KeyFetcherGcp::MaybeAcquireLock(int64_t user_id) {
+absl::StatusOr<bool> KeyFetcherGcp::MaybeAcquireLock(
+    absl::string_view user_id) {
   bool lock_acquired = false;
+  int64_t user_id_int64;
+  if (!absl::SimpleAtoi(user_id, &user_id_int64)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Invalid user ID: '%s'. Failed to convert user ID to Integer.",
+        user_id));
+  }
   auto commit = spanner_client_.Commit(
-      [&spanner_client_ = spanner_client_, &user_id,
+      [&spanner_client_ = spanner_client_, &user_id_int64,
        &lock_acquired](google::cloud::spanner::Transaction transaction)
           -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
         google::cloud::spanner::SqlStatement select(
@@ -221,7 +234,7 @@ absl::StatusOr<bool> KeyFetcherGcp::MaybeAcquireLock(int64_t user_id) {
                   Users
               WHERE
                   Users.UserId = @user_id)sql",
-            {{"user_id", google::cloud::spanner::Value(user_id)}});
+            {{"user_id", google::cloud::spanner::Value(user_id_int64)}});
         auto query = spanner_client_.ExecuteQuery(std::move(transaction),
                                                   std::move(select));
 
@@ -239,7 +252,7 @@ absl::StatusOr<bool> KeyFetcherGcp::MaybeAcquireLock(int64_t user_id) {
                       Users.LockExpiryTime = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 20 MINUTE)
                   WHERE
                       Users.UserId = @user_id)sql",
-              {{"user_id", google::cloud::spanner::Value(user_id)}});
+              {{"user_id", google::cloud::spanner::Value(user_id_int64)}});
           HATS_ASSIGN_OR_RETURN(
               auto _, spanner_client_.ExecuteDml(transaction, update));
           lock_acquired = true;

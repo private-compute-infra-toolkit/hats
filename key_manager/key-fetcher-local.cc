@@ -80,7 +80,7 @@ class KeyFetcherLocal : public KeyFetcher {
     return secondary_private_key_bytes;
   }
 
-  absl::StatusOr<int64_t> UserIdForAuthenticationKey(
+  absl::StatusOr<std::string> UserIdForAuthenticationKey(
       absl::string_view public_key) override {
     std::string user_authentication_public_key_bytes;
     if (!absl::HexStringToBytes(user_authentication_public_key_,
@@ -93,14 +93,14 @@ class KeyFetcherLocal : public KeyFetcher {
     }
     if (public_key == user_authentication_public_key_bytes) {
       // Always return 0 because we only have one user.
-      return 1;
+      return "1";
     }
     return absl::UnauthenticatedError("unregistered or expired public key.");
   }
 
   absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
-      int64_t user_id) override {
-    if (user_id != 1) {
+      absl::string_view user_id) override {
+    if (user_id != "1") {
       return absl::NotFoundError("Cannot find secret for the user");
     }
     // Return the same secret since we have one user only in the local mode.
@@ -118,7 +118,7 @@ class KeyFetcherLocal : public KeyFetcher {
     }};
   }
 
-  absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) override {
+  absl::StatusOr<bool> MaybeAcquireLock(absl::string_view user_id) override {
     return false;
   }
 

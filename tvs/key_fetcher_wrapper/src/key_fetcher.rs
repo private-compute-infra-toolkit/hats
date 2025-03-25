@@ -24,11 +24,6 @@ use trusted_tvs_types::KeyProvider;
 /// FFI for methods in tvs/key_fetcher_wrapper/key-fetcher-wrapper.h.
 #[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
 pub mod ffi {
-    struct IntResult {
-        value: i64,
-        error: String,
-    }
-
     struct VecU8Result {
         value: Vec<u8>,
         error: String,
@@ -46,17 +41,17 @@ pub mod ffi {
         fn GetSecondaryPrivateKey(&self) -> VecU8Result;
 
         #[rust_name = "user_id_for_authentication_key"]
-        fn UserIdForAuthenticationKey(&self, public_key: &[u8]) -> IntResult;
+        fn UserIdForAuthenticationKey(&self, public_key: &[u8]) -> VecU8Result;
 
         #[rust_name = "get_secrets_for_user_id"]
-        fn GetSecretsForUserId(&self, user_id: i64) -> VecU8Result;
+        fn GetSecretsForUserId(&self, user_id: &[u8]) -> VecU8Result;
 
         // Used for unittests.
         #[rust_name = "create_test_key_fetcher_wrapper"]
         fn CreateTestKeyFetcherWrapper(
             primary_private_key: &[u8],
             secondary_private_key: &[u8],
-            user_id: i64,
+            user_id: &[u8],
             user_authentication_public_key: &[u8],
             key_id: i64,
             secret: &[u8],
@@ -105,7 +100,7 @@ impl KeyProvider for KeyFetcher {
         Some(Ok(secondary_private_key.value))
     }
 
-    fn user_id_for_authentication_key(&self, public_key: &[u8]) -> anyhow::Result<i64> {
+    fn user_id_for_authentication_key(&self, public_key: &[u8]) -> anyhow::Result<Vec<u8>> {
         let user_id = self
             .key_fetcher_wrapper
             .user_id_for_authentication_key(public_key);
@@ -118,11 +113,13 @@ impl KeyProvider for KeyFetcher {
         Ok(user_id.value)
     }
 
-    fn get_secrets_for_user_id(&self, user_id: i64) -> anyhow::Result<Vec<u8>> {
+    fn get_secrets_for_user_id(&self, user_id: &[u8]) -> anyhow::Result<Vec<u8>> {
         let secret = self.key_fetcher_wrapper.get_secrets_for_user_id(user_id);
         if !secret.error.is_empty() {
+            let user_id_str = std::str::from_utf8(user_id)
+                .map_err(|_| anyhow::anyhow!("Failed to get secret for user ID: {:?}", user_id))?;
             return Err(anyhow::anyhow!(
-                "Failed to get secret for user ID: {user_id}"
+                "Failed to get secret for user ID: {user_id_str}"
             ));
         }
         Ok(secret.value)

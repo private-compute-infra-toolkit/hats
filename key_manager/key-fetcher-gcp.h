@@ -42,13 +42,13 @@ class KeyFetcherGcp : public KeyFetcher {
 
   absl::StatusOr<std::string> GetSecondaryPrivateKey() override;
 
-  absl::StatusOr<int64_t> UserIdForAuthenticationKey(
+  absl::StatusOr<std::string> UserIdForAuthenticationKey(
       absl::string_view public_key) override;
 
   absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
-      int64_t user_id) override;
+      absl::string_view user_id) override;
 
-  absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) override;
+  absl::StatusOr<bool> MaybeAcquireLock(absl::string_view user_id) override;
 
  private:
   // For unit-tests only.

@@ -72,7 +72,7 @@ absl::StatusOr<CreateSessionResult> CreateSession(
       attest_report_request.init_session_request();
 
   // Fetch user id registered for the client public key.
-  HATS_ASSIGN_OR_RETURN(int64_t user_id,
+  HATS_ASSIGN_OR_RETURN(std::string user_id,
                         key_fetcher.UserIdForAuthenticationKey(
                             init_session_request.client_public_key()));
   // Fetch secrets for `user_id`.
@@ -96,7 +96,8 @@ absl::StatusOr<CreateSessionResult> CreateSession(
 
   // Pass the secret to the enclave.
   HATS_RETURN_IF_ERROR(client.RegisterOrUpdateUser(
-      user_id, StringToRustSlice(init_session_request.client_public_key()),
+      StringToRustSlice(user_id),
+      StringToRustSlice(init_session_request.client_public_key()),
       StringToRustSlice(serialized_response)));
 
   // Finally create a session.

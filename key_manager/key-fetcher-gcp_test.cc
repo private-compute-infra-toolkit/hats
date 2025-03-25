@@ -285,13 +285,13 @@ TEST(KeyFetcherGcp, UserIdForAuthenticationKey) {
 
   // The actual test.
   HATS_EXPECT_OK_AND_HOLDS(key_fetcher->UserIdForAuthenticationKey(kPublicKey),
-                           Eq(kUserId));
+                           Eq(std::to_string(kUserId)));
 }
 
 // This test generates a DEK, pass it to the test KMS to return it to the
 // KeyFetcher. Encrypt some data with the DEK and have mock spanner return it.
 // The key fetcher should be able to decrypt the encrypted data.
-TEST(KeyFetcherGcp, GetSecretForUserId) {
+TEST(KeyFetcherGcp, GetSecretsForUserId) {
   crypto::SecretData dek = crypto::RandomAeadKey();
   constexpr absl::string_view kResourceName = "test_kek_secret";
   constexpr absl::string_view kCiphertext = "test_dek_secret";
@@ -373,7 +373,7 @@ TEST(KeyFetcherGcp, GetSecretForUserId) {
 
   // The actual test.
   HATS_EXPECT_OK_AND_HOLDS(
-      key_fetcher->GetSecretsForUserId(kUserId),
+      key_fetcher->GetSecretsForUserId(std::to_string(kUserId)),
       UnorderedElementsAre(FieldsAre(3, "data3-public", "data3")));
 }
 
@@ -450,7 +450,7 @@ TEST(KeyFetcherGcp, KmsError) {
 
   // The actual test.
   HATS_EXPECT_STATUS_MESSAGE(
-      key_fetcher->GetSecretsForUserId(/*user_id*/ 1234),
+      key_fetcher->GetSecretsForUserId(/*user_id*/ std::to_string(1234)),
       absl::StatusCode::kInternal,
       HasSubstr("TestKeyManagementServiceConnection failed"));
 }
@@ -529,9 +529,10 @@ TEST(KeyFetcherGcp, DecryptionError) {
       KeyFetcherGcp::Create(std::move(test_client), std::move(spanner_client));
 
   // The actual test.
-  HATS_EXPECT_STATUS_MESSAGE(key_fetcher->GetSecretsForUserId(/*user_id*/ 1234),
-                             absl::StatusCode::kFailedPrecondition,
-                             HasSubstr("EVP_AEAD_CTX_open failed"));
+  HATS_EXPECT_STATUS_MESSAGE(
+      key_fetcher->GetSecretsForUserId(/*user_id*/ std::to_string(1234)),
+      absl::StatusCode::kFailedPrecondition,
+      HasSubstr("EVP_AEAD_CTX_open failed"));
 }
 
 }  // namespace

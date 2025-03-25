@@ -29,7 +29,7 @@ namespace privacy_sandbox::key_manager {
 // Store data for every user.
 struct TestUserData {
   // User ID.
-  int64_t user_id;
+  std::string user_id;
   // Public key used to authenticated `user_id`.
   std::string user_authentication_public_key;
   // Key ID
@@ -51,11 +51,11 @@ class TestKeyFetcher final : public KeyFetcher {
                  const std::vector<TestUserData>& user_data);
   absl::StatusOr<std::string> GetPrimaryPrivateKey() override;
   absl::StatusOr<std::string> GetSecondaryPrivateKey() override;
-  absl::StatusOr<int64_t> UserIdForAuthenticationKey(
+  absl::StatusOr<std::string> UserIdForAuthenticationKey(
       absl::string_view public_key) override;
   absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
-      int64_t user_id) override;
-  absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) override;
+      absl::string_view user_id) override;
+  absl::StatusOr<bool> MaybeAcquireLock(absl::string_view user_id) override;
 
  private:
   std::string primary_private_key_;

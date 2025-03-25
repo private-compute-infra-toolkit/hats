@@ -269,12 +269,11 @@ mod tests {
     fn verify_report_successful() {
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
-        let user_id = 1;
         let key_id = 11;
         let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
-            user_id,
+            /*user_id=*/ b"1",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
             key_id,
             /*user_secret=*/ b"test_secret1",
@@ -376,12 +375,11 @@ mod tests {
             ),
         }
 
-        let user_id = 1;
         let key_id = 11;
         let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
-            user_id,
+            /*user_id=*/ b"1",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
             key_id,
             /*user_secret=*/ b"test_secret1",
