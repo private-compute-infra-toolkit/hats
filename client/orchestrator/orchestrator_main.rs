@@ -38,9 +38,6 @@ struct Args {
     #[arg(long, default_value = "oakc")]
     runtime_user: String,
 
-    #[arg(long, default_value = "")]
-    tvs_public_key: String,
-
     // For local testing, pass in the path to a file containing the tvs keys in the following format:
     // tvs_id1:tvs_public_key1 (0:1234567890abcde)
     // tvs_id2:tvs_public_key2 (1:abcde1234567890)
