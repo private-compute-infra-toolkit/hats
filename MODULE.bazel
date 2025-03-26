@@ -19,7 +19,7 @@
 # For more details, please check https://github.com/bazelbuild/bazel/issues/18958
 ###############################################################################
 bazel_dep(name = "rules_rust", version = "0.49.3")
-bazel_dep(name = "protobuf", version = "26.0.bcr.1", repo_name = "com_google_protobuf")
+bazel_dep(name = "protobuf", version = "27.0", repo_name = "com_google_protobuf")
 bazel_dep(name = "grpc", version = "1.63.1", repo_name = "com_github_grpc_grpc")
 bazel_dep(name = "rules_proto", version = "6.0.2", repo_name = "rules_proto")
 bazel_dep(name = "googletest", version = "1.14.0.bcr.1", repo_name = "com_google_googletest")
