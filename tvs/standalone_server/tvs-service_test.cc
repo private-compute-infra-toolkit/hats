@@ -138,7 +138,7 @@ TEST(TvsService, Successful) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -146,7 +146,7 @@ TEST(TvsService, Successful) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
-              .key_id = 111,
+              .key_id = "111",
               .secret = "secret-1-2",
               .public_key = "public-1-2",
           },
@@ -154,7 +154,7 @@ TEST(TvsService, Successful) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
-              .key_id = 12,
+              .key_id = "12",
               .secret = "secret-1-3",
               .public_key = "public-1-3",
           },
@@ -162,7 +162,7 @@ TEST(TvsService, Successful) {
               .user_id = "2",
               .user_authentication_public_key =
                   client_authentication_key2.public_key,
-              .key_id = 100,
+              .key_id = "100",
               .secret = "secret-2-1",
               .public_key = "public-2-1",
           },
@@ -170,20 +170,20 @@ TEST(TvsService, Successful) {
               .user_id = "3",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
-              .key_id = 101,
+              .key_id = "101",
               .secret = "secret-3-1",
               .public_key = "public-3-1",
           },
           {
               .user_id = "4",
               .user_authentication_public_key = "00",
-              .key_id = 103,
+              .key_id = "103",
               .secret = "secret-4-1",
               .public_key = "public-4-1",
           },
           {
               .user_id = "5",
-              .key_id = 104,
+              .key_id = "104",
               .secret = "secret-5-1",
               .public_key = "public-5-1",
           },
@@ -224,17 +224,17 @@ TEST(TvsService, Successful) {
         EqualsProto(
             R"pb(
               secrets {
-                key_id: 11
+                key_id: "11"
                 public_key: "public-1-1"
                 private_key: "secret-1-1"
               }
               secrets {
-                key_id: 111
+                key_id: "111"
                 public_key: "public-1-2"
                 private_key: "secret-1-2"
               }
               secrets {
-                key_id: 12
+                key_id: "12"
                 public_key: "public-1-3"
                 private_key: "secret-1-3"
               })pb"));
@@ -255,7 +255,7 @@ TEST(TvsService, Successful) {
         EqualsProto(
             R"pb(
               secrets {
-                key_id: 100
+                key_id: "100"
                 public_key: "public-2-1"
                 private_key: "secret-2-1"
               })pb"));
@@ -278,7 +278,7 @@ TEST(TvsService, UseSecondaryTvsKey) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -286,7 +286,7 @@ TEST(TvsService, UseSecondaryTvsKey) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 111,
+              .key_id = "111",
               .secret = "secret-1-2",
               .public_key = "public-1-2",
           },
@@ -294,7 +294,7 @@ TEST(TvsService, UseSecondaryTvsKey) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 12,
+              .key_id = "12",
               .secret = "secret-1-3",
               .public_key = "public-1-3",
           },
@@ -302,7 +302,7 @@ TEST(TvsService, UseSecondaryTvsKey) {
               .user_id = "2",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 12,
+              .key_id = "12",
               .secret = "secret-2-1",
               .public_key = "public-2-1",
           },
@@ -342,17 +342,17 @@ TEST(TvsService, UseSecondaryTvsKey) {
       EqualsProto(
           R"pb(
             secrets {
-              key_id: 11
+              key_id: "11"
               public_key: "public-1-1"
               private_key: "secret-1-1"
             }
             secrets {
-              key_id: 111
+              key_id: "111"
               public_key: "public-1-2"
               private_key: "secret-1-2"
             }
             secrets {
-              key_id: 12
+              key_id: "12"
               public_key: "public-1-3"
               private_key: "secret-1-3"
             })pb"));
@@ -371,7 +371,7 @@ TEST(TvsService, BadReportError) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -427,7 +427,7 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -468,7 +468,7 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
       EqualsProto(
           R"pb(
             secrets {
-              key_id: 11
+              key_id: "11"
               public_key: "public-1-1"
               private_key: "secret-1-1"
             })pb"));
@@ -493,7 +493,7 @@ TEST(TvsService, MalformedMessageError) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -560,7 +560,7 @@ TEST(TvsService, AuthenticationError) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -634,7 +634,7 @@ TEST(TvsService, InsecurePoliciesError) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -680,7 +680,7 @@ TEST(TvsService, DynamicPolicyFetching) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -688,7 +688,7 @@ TEST(TvsService, DynamicPolicyFetching) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
-              .key_id = 111,
+              .key_id = "111",
               .secret = "secret-1-2",
               .public_key = "public-1-2",
           },
@@ -696,7 +696,7 @@ TEST(TvsService, DynamicPolicyFetching) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
-              .key_id = 12,
+              .key_id = "12",
               .secret = "secret-1-3",
               .public_key = "public-1-3",
           },
@@ -704,7 +704,7 @@ TEST(TvsService, DynamicPolicyFetching) {
               .user_id = "2",
               .user_authentication_public_key =
                   client_authentication_key2.public_key,
-              .key_id = 100,
+              .key_id = "100",
               .secret = "secret-2-1",
               .public_key = "public-2-1",
           },
@@ -798,17 +798,17 @@ TEST(TvsService, DynamicPolicyFetching) {
       EqualsProto(
           R"pb(
             secrets {
-              key_id: 11
+              key_id: "11"
               public_key: "public-1-1"
               private_key: "secret-1-1"
             }
             secrets {
-              key_id: 111
+              key_id: "111"
               public_key: "public-1-2"
               private_key: "secret-1-2"
             }
             secrets {
-              key_id: 12
+              key_id: "12"
               public_key: "public-1-3"
               private_key: "secret-1-3"
             })pb"));

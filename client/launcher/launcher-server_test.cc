@@ -346,7 +346,7 @@ TEST(LauncherServer, Successful) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },
@@ -392,7 +392,7 @@ TEST(LauncherServer, Successful) {
           launcher_server->InProcessChannel(grpc::ChannelArguments())),
       UnorderedElementsAre(EqualsProto(R"pb(
         secrets {
-          key_id: 11
+          key_id: "11"
           public_key: "public-1-1"
           private_key: "secret-1-1"
         })pb")));
@@ -418,7 +418,7 @@ TEST(LauncherServer, SplitSuccessful) {
                       .user_id = "1",
                       .user_authentication_public_key =
                           client_authentication_key.public_key,
-                      .key_id = 11,
+                      .key_id = "11",
                       .secret = "secret-1",
                       .public_key = "public-1",
                   },
@@ -442,7 +442,7 @@ TEST(LauncherServer, SplitSuccessful) {
                       .user_id = "1",
                       .user_authentication_public_key =
                           client_authentication_key.public_key,
-                      .key_id = 12,
+                      .key_id = "12",
                       .secret = "secret-2",
                       .public_key = "public-2",
                   },
@@ -466,7 +466,7 @@ TEST(LauncherServer, SplitSuccessful) {
                       .user_id = "1",
                       .user_authentication_public_key =
                           client_authentication_key.public_key,
-                      .key_id = 13,
+                      .key_id = "13",
                       .secret = "secret-3",
                       .public_key = "public-3",
                   },
@@ -521,19 +521,19 @@ TEST(LauncherServer, SplitSuccessful) {
           launcher_server->InProcessChannel(grpc::ChannelArguments())),
       UnorderedElementsAre(EqualsProto(R"pb(
                              secrets {
-                               key_id: 11
+                               key_id: "11"
                                public_key: "public-1"
                                private_key: "secret-1"
                              })pb"),
                            EqualsProto(R"pb(
                              secrets {
-                               key_id: 12
+                               key_id: "12"
                                public_key: "public-2"
                                private_key: "secret-2"
                              })pb"),
                            EqualsProto(R"pb(
                              secrets {
-                               key_id: 13
+                               key_id: "13"
                                public_key: "public-3"
                                private_key: "secret-3"
                              })pb")));
@@ -552,7 +552,7 @@ TEST(LauncherServer, BadReportError) {
               .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
-              .key_id = 11,
+              .key_id = "11",
               .secret = "secret-1-1",
               .public_key = "public-1-1",
           },

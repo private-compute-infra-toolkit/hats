@@ -27,7 +27,7 @@ ABSL_FLAG(std::string, primary_private_key, "",
           "Primary private key for KK-Noise handshake protocol.");
 ABSL_FLAG(std::string, secondary_private_key, "",
           "Secondary private key for KK-Noise handshake protocol.");
-ABSL_FLAG(int64_t, user_key_id, 64,
+ABSL_FLAG(std::string, user_key_id, "64",
           "ID for the secret, which is a full or partial private HPKEY key.");
 ABSL_FLAG(std::string, user_public_key, "some public key",
           "Public part of the secret.");
@@ -44,7 +44,8 @@ class KeyFetcherLocal : public KeyFetcher {
   KeyFetcherLocal() = delete;
 
   KeyFetcherLocal(absl::string_view primary_private_key,
-                  absl::string_view secondary_private_key, int64_t user_key_id,
+                  absl::string_view secondary_private_key,
+                  absl::string_view user_key_id,
                   absl::string_view user_public_key,
                   absl::string_view user_secret,
                   absl::string_view user_authentication_public_key)
@@ -125,7 +126,7 @@ class KeyFetcherLocal : public KeyFetcher {
  private:
   const std::string primary_private_key_;
   const std::string secondary_private_key_;
-  int64_t user_key_id_;
+  const std::string user_key_id_;
   const std::string user_public_key_;
   const std::string user_secret_;
   const std::string user_authentication_public_key_;

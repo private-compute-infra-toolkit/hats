@@ -374,7 +374,7 @@ TEST(KeyFetcherGcp, GetSecretsForUserId) {
   // The actual test.
   HATS_EXPECT_OK_AND_HOLDS(
       key_fetcher->GetSecretsForUserId(std::to_string(kUserId)),
-      UnorderedElementsAre(FieldsAre(3, "data3-public", "data3")));
+      UnorderedElementsAre(FieldsAre("3", "data3-public", "data3")));
 }
 
 TEST(KeyFetcherGcp, KmsError) {

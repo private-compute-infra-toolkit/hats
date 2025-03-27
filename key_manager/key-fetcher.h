@@ -25,7 +25,7 @@
 namespace privacy_sandbox::key_manager {
 
 struct Secret {
-  int64_t key_id;
+  std::string key_id;
   std::string public_key;
   std::string private_key;
 };

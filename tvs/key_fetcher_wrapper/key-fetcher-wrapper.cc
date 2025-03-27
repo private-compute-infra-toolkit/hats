@@ -107,7 +107,7 @@ VecU8Result KeyFetcherWrapper::GetSecretsForUserId(
     // Use non-const to enable effective use of std::move().
     for (key_manager::Secret& secret : *secrets) {
       Secret& tvs_secret = *response.add_secrets();
-      tvs_secret.set_key_id(secret.key_id);
+      *tvs_secret.mutable_key_id() = std::move(secret.key_id);
       *tvs_secret.mutable_public_key() = std::move(secret.public_key);
       *tvs_secret.mutable_private_key() = std::move(secret.private_key);
     }
@@ -125,8 +125,8 @@ std::unique_ptr<KeyFetcherWrapper> CreateTestKeyFetcherWrapper(
     rust::Slice<const uint8_t> primary_private_key,
     rust::Slice<const uint8_t> secondary_private_key,
     rust::Slice<const uint8_t> user_id,
-    rust::Slice<const uint8_t> user_authentication_public_key, int64_t key_id,
-    rust::Slice<const uint8_t> user_secret,
+    rust::Slice<const uint8_t> user_authentication_public_key,
+    rust::Slice<const uint8_t> key_id, rust::Slice<const uint8_t> user_secret,
     rust::Slice<const uint8_t> public_key) {
   return std::make_unique<KeyFetcherWrapper>(
       std::make_unique<key_manager::TestKeyFetcher>(
@@ -136,7 +136,7 @@ std::unique_ptr<KeyFetcherWrapper> CreateTestKeyFetcherWrapper(
               .user_id = std::string(RustSliceToStringView(user_id)),
               .user_authentication_public_key = std::string(
                   RustSliceToStringView(user_authentication_public_key)),
-              .key_id = key_id,
+              .key_id = std::string(RustSliceToStringView(key_id)),
               .secret = std::string(RustSliceToStringView(user_secret)),
               .public_key = std::string(RustSliceToStringView(public_key)),
           }}));

@@ -424,7 +424,7 @@ mod tests {
                             /*user_id=*/ b"1",
                             /*user_authentication_public_key=*/
                             &tvs_authentication_key.compute_public_key(),
-                            /*key_id=*/ 64,
+                            /*key_id=*/ b"64",
                             /*user_secret=*/ b"test_secret1",
                             /*public_key=*/ b"test_public_key1",
                         ),
@@ -483,7 +483,7 @@ mod tests {
             response,
             VerifyReportResponse {
                 secrets: vec![Secret {
-                    key_id: 64,
+                    key_id: "64".into(),
                     public_key: "test_public_key1".into(),
                     private_key: "test_secret1".into(),
                 }],
@@ -505,7 +505,7 @@ mod tests {
                             /*user_id=*/ b"1",
                             /*user_authentication_public_key=*/
                             &P256Scalar::generate().compute_public_key(),
-                            /*key_id=*/ 64,
+                            /*key_id=*/ b"64",
                             /*user_secret=*/ b"test_secret1",
                             /*public_key=*/ b"test_public_key1",
                         ),
@@ -577,7 +577,7 @@ mod tests {
                             /*secondary_private_key,*/ &[],
                             /*user_id=*/ b"1",
                             /*user_authentication_public_key=*/ &[],
-                            /*key_id=*/ 64,
+                            /*key_id=*/ b"64",
                             /*user_secret=*/ b"test_secret1",
                             /*public_key=*/ b"test_public_key1",
                         ),

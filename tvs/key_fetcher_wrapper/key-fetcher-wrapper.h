@@ -58,8 +58,9 @@ std::unique_ptr<KeyFetcherWrapper> CreateTestKeyFetcherWrapper(
     rust::Slice<const uint8_t> primary_private_key,
     rust::Slice<const uint8_t> secondary_private_key,
     rust::Slice<const uint8_t> user_id,
-    rust::Slice<const uint8_t> user_authentication_public_key, int64_t key_id,
-    rust::Slice<const uint8_t> secret, rust::Slice<const uint8_t> public_key);
+    rust::Slice<const uint8_t> user_authentication_public_key,
+    rust::Slice<const uint8_t> key_id, rust::Slice<const uint8_t> secret,
+    rust::Slice<const uint8_t> public_key);
 
 }  // namespace privacy_sandbox::tvs::trusted
 

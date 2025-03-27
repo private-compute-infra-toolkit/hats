@@ -47,7 +47,7 @@
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/standalone_server/tvs-service.h"
 
-const int kUserId = 64;
+const char kUserId[] = "64";
 const char kAppKey[] =
     "0e4fb4a3b7a7eeb42306db3cbc6108a2424bf8ef510101059b2edef36fe1687f";
 const char kLauncherConfig[] = "launcher_config.txtpb";

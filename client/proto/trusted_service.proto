@@ -17,7 +17,7 @@ syntax = "proto3";
 package privacy_sandbox.client;
 
 message EncryptedRequest {
-  int64 key_id = 1;
+  string key_id = 1;
   bytes encrypted_message = 2;
 }
 

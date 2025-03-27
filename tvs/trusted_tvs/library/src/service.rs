@@ -286,13 +286,13 @@ mod tests {
     fn verify_report_successful() {
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
-        let key_id = 11;
+        let key_id = "11";
         let key_fetcher = create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"1",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            key_id,
+            key_id.as_bytes(),
             /*user_secret=*/ b"test_secret1",
             /*public_key=*/ b"test_public_key1",
         );
@@ -348,7 +348,7 @@ mod tests {
             response,
             VerifyReportResponse {
                 secrets: vec![Secret {
-                    key_id,
+                    key_id: key_id.to_string(),
                     private_key: b"test_secret1".to_vec(),
                     public_key: "test_public_key1".to_string(),
                 }],
@@ -360,13 +360,13 @@ mod tests {
     fn verify_report_successful_with_secondary_key() {
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
-        let key_id = 12;
+        let key_id = "12";
         let key_fetcher = create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &P256Scalar::generate().bytes(),
             /*secondary_private_key,*/ &tvs_private_key.bytes(),
             /*user_id=*/ b"2",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            key_id,
+            key_id.as_bytes(),
             /*user_secret=*/ b"test_secret2",
             /*public_key=*/ b"test_public_key2",
         );
@@ -421,7 +421,7 @@ mod tests {
             response,
             VerifyReportResponse {
                 secrets: vec![Secret {
-                    key_id,
+                    key_id: key_id.to_string(),
                     private_key: b"test_secret2".to_vec(),
                     public_key: "test_public_key2".to_string(),
                 }],
@@ -439,7 +439,7 @@ mod tests {
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"3",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            /*key_id=*/ 13,
+            /*key_id=*/ b"13",
             /*user_secret=*/ b"test_secret3",
             /*public_key=*/ b"test_public_key3",
         );
@@ -481,7 +481,7 @@ mod tests {
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"3",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            /*key_id=*/ 13,
+            /*key_id=*/ b"13",
             /*user_secret=*/ b"test_secret3",
             /*public_key=*/ b"test_public_key3",
         );
@@ -522,7 +522,7 @@ mod tests {
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"3",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            /*key_id=*/ 13,
+            /*key_id=*/ b"13",
             /*user_secret=*/ b"test_secret3",
             /*public_key=*/ b"test_public_key3",
         );
@@ -565,7 +565,7 @@ mod tests {
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"4",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            /*key_id=*/ 14,
+            /*key_id=*/ b"14",
             /*user_secret=*/ b"test_secret3",
             /*public_key=*/ b"test_public_key3",
         );
@@ -606,7 +606,7 @@ mod tests {
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"4",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            /*key_id=*/ 14,
+            /*key_id=*/ b"14",
             /*user_secret=*/ b"test_secret3",
             /*public_key=*/ b"test_public_key3",
         );
@@ -646,7 +646,7 @@ mod tests {
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"4",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            /*key_id=*/ 14,
+            /*key_id=*/ b"14",
             /*user_secret=*/ b"test_secret3",
             /*public_key=*/ b"test_public_key3",
         );
@@ -684,7 +684,7 @@ mod tests {
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
         let user_id = "5";
-        let key_id = 15;
+        let key_id = b"15";
         let key_fetcher = create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
@@ -747,7 +747,7 @@ mod tests {
                 /*secondary_private_key,*/ &[],
                 /*user_id=*/ b"6",
                 /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-                /*key_id=*/ 16,
+                /*key_id=*/ b"16",
                 /*user_secret=*/ b"test_secret6",
                 /*public_key=*/ b"test_public_key6",
             ),
@@ -770,7 +770,7 @@ mod tests {
                 /*secondary_private_key,*/ &[],
                 /*user_id=*/ b"6",
                 /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-                /*key_id=*/ 16,
+                /*key_id=*/ b"16",
                 /*user_secret=*/ b"test_secret6",
                 /*public_key=*/ b"test_public_key6",
             ),
@@ -793,7 +793,7 @@ mod tests {
                 /*secondary_private_key,*/ &[1, 2],
                 /*user_id=*/ b"6",
                 /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-                /*key_id=*/ 16,
+                /*key_id=*/ b"16",
                 /*user_secret=*/ b"test_secret6",
                 /*public_key=*/ b"test_public_key6",
             ),
@@ -816,7 +816,7 @@ mod tests {
                 /*secondary_private_key,*/ &[],
                 /*user_id=*/ b"6",
                 /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-                /*key_id=*/ 16,
+                /*key_id=*/ b"16",
                 /*user_secret=*/ b"test_secret6",
                 /*public_key=*/ b"test_public_key6",
             ),
@@ -838,7 +838,7 @@ mod tests {
                 /*secondary_private_key,*/ &[],
                 /*user_id=*/ b"6",
                 /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-                /*key_id=*/ 16,
+                /*key_id=*/ b"16",
                 /*user_secret=*/ b"test_secret6",
                 /*public_key=*/ b"test_public_key6",
             ),

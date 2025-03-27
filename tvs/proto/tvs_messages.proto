@@ -54,7 +54,7 @@ message InitSessionResponse {
 }
 
 message Secret {
-  int64 key_id = 1;
+  string key_id = 1;
   string public_key = 2;
   bytes private_key = 3;
 };

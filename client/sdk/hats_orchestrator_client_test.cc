@@ -45,7 +45,7 @@ class TestHatsOrchestratorService final : public HatsOrchestrator::Service {
                           "Invalid argument");
     }
     Key& key = *response->add_keys();
-    key.set_key_id(100);
+    key.set_key_id("100");
     key.set_public_key("test-public-key");
     key.set_private_key("test-private-key");
     return grpc::Status::OK;
@@ -64,7 +64,7 @@ TEST(HatsOrchestratorClient, Success) {
   HATS_EXPECT_OK_AND_HOLDS(hats_orchestrator_client.GetKeys(),
                            UnorderedElementsAre(EqualsProto(
                                R"pb(
-                                 key_id: 100
+                                 key_id: "100"
                                  public_key: "test-public-key"
                                  private_key: "test-private-key"
                                )pb")));
