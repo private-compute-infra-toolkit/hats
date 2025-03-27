@@ -421,7 +421,7 @@ mod tests {
                         create_test_key_fetcher_wrapper(
                             /*primary_private_key=*/ &tvs_private_key.bytes(),
                             /*secondary_private_key,*/ &[],
-                            /*user_id=*/ 1,
+                            /*user_id=*/ b"1",
                             /*user_authentication_public_key=*/
                             &tvs_authentication_key.compute_public_key(),
                             /*key_id=*/ 64,
@@ -502,7 +502,7 @@ mod tests {
                         create_test_key_fetcher_wrapper(
                             /*primary_private_key=*/ &tvs_private_key.bytes(),
                             /*secondary_private_key,*/ &[],
-                            /*user_id=*/ 1,
+                            /*user_id=*/ b"1",
                             /*user_authentication_public_key=*/
                             &P256Scalar::generate().compute_public_key(),
                             /*key_id=*/ 64,
@@ -575,7 +575,7 @@ mod tests {
                         create_test_key_fetcher_wrapper(
                             /*primary_private_key=*/ &tvs_private_key.bytes(),
                             /*secondary_private_key,*/ &[],
-                            /*user_id=*/ 1,
+                            /*user_id=*/ b"1",
                             /*user_authentication_public_key=*/ &[],
                             /*key_id=*/ 64,
                             /*user_secret=*/ b"test_secret1",

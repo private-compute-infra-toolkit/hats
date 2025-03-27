@@ -111,7 +111,7 @@ TEST(TrustedApplication, SuccessfulEcho) {
   std::vector<privacy_sandbox::key_manager::TestUserData> user_data;
   privacy_sandbox::key_manager::TestUserData test_user =
       privacy_sandbox::key_manager::TestUserData{
-          .user_id = 1,
+          .user_id = "1",
           .user_authentication_public_key =
               client_authentication_key.public_key,
           .key_id = kUserId,

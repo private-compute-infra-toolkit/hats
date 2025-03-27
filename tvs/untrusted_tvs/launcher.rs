@@ -69,7 +69,7 @@ mod ffi {
         #[cxx_name = "RegisterOrUpdateUser"]
         fn register_or_update_user(
             self: &mut EnclaveClient,
-            id: i64,
+            id: &[u8],
             authentication_key: &[u8],
             secret: &[u8],
         ) -> Result<()>;
@@ -198,14 +198,14 @@ impl<'a> EnclaveClient<'a> {
 
     pub fn register_or_update_user(
         &mut self,
-        id: i64,
+        id: &[u8],
         authentication_key: &[u8],
         secret: &[u8],
     ) -> anyhow::Result<()> {
         self.runtime
             .block_on(self.inner_client.register_or_update_user(
                 &RegisterOrUpdateUserRequest {
-                    id,
+                    id: id.to_vec(),
                     authentication_key: authentication_key.to_vec(),
                     secret: secret.to_vec(),
                 },

@@ -343,7 +343,7 @@ TEST(LauncherServer, Successful) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 11,
@@ -415,7 +415,7 @@ TEST(LauncherServer, SplitSuccessful) {
               /*secondary_private_key=*/"",
               std::vector<key_manager::TestUserData>{
                   {
-                      .user_id = 1,
+                      .user_id = "1",
                       .user_authentication_public_key =
                           client_authentication_key.public_key,
                       .key_id = 11,
@@ -439,7 +439,7 @@ TEST(LauncherServer, SplitSuccessful) {
               /*secondary_private_key=*/"",
               std::vector<key_manager::TestUserData>{
                   {
-                      .user_id = 1,
+                      .user_id = "1",
                       .user_authentication_public_key =
                           client_authentication_key.public_key,
                       .key_id = 12,
@@ -463,7 +463,7 @@ TEST(LauncherServer, SplitSuccessful) {
               /*secondary_private_key=*/"",
               std::vector<key_manager::TestUserData>{
                   {
-                      .user_id = 1,
+                      .user_id = "1",
                       .user_authentication_public_key =
                           client_authentication_key.public_key,
                       .key_id = 13,
@@ -549,7 +549,7 @@ TEST(LauncherServer, BadReportError) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 11,

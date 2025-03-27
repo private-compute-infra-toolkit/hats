@@ -24,7 +24,6 @@ namespace privacy_sandbox::tvs::trusted {
 
 // Forward declaration for the shared types. We cannot include the header
 // generated from rust as we are redefining KeyFetcherWrapper in there.
-struct IntResult;
 struct VecU8Result;
 
 // Wrapper class around `key_manager::KeyFetcher` methods to make it usable to
@@ -44,12 +43,12 @@ class KeyFetcherWrapper {
 
   VecU8Result GetSecondaryPrivateKey() const;
 
-  IntResult UserIdForAuthenticationKey(
+  VecU8Result UserIdForAuthenticationKey(
       rust::Slice<const uint8_t> public_key) const;
 
-  VecU8Result GetSecretsForUserId(int64_t user_id) const;
+  VecU8Result GetSecretsForUserId(rust::Slice<const uint8_t> user_id) const;
 
-  bool MaybeAcquireLock(int64_t user_id);
+  bool MaybeAcquireLock(rust::Slice<const uint8_t> user_id);
 
  private:
   std::unique_ptr<key_manager::KeyFetcher> key_fetcher_;
@@ -57,7 +56,8 @@ class KeyFetcherWrapper {
 
 std::unique_ptr<KeyFetcherWrapper> CreateTestKeyFetcherWrapper(
     rust::Slice<const uint8_t> primary_private_key,
-    rust::Slice<const uint8_t> secondary_private_key, int64_t user_id,
+    rust::Slice<const uint8_t> secondary_private_key,
+    rust::Slice<const uint8_t> user_id,
     rust::Slice<const uint8_t> user_authentication_public_key, int64_t key_id,
     rust::Slice<const uint8_t> secret, rust::Slice<const uint8_t> public_key);
 

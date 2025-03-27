@@ -135,7 +135,7 @@ TEST(TvsService, Successful) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
               .key_id = 11,
@@ -143,7 +143,7 @@ TEST(TvsService, Successful) {
               .public_key = "public-1-1",
           },
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
               .key_id = 111,
@@ -151,7 +151,7 @@ TEST(TvsService, Successful) {
               .public_key = "public-1-2",
           },
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
               .key_id = 12,
@@ -159,7 +159,7 @@ TEST(TvsService, Successful) {
               .public_key = "public-1-3",
           },
           {
-              .user_id = 2,
+              .user_id = "2",
               .user_authentication_public_key =
                   client_authentication_key2.public_key,
               .key_id = 100,
@@ -167,7 +167,7 @@ TEST(TvsService, Successful) {
               .public_key = "public-2-1",
           },
           {
-              .user_id = 3,
+              .user_id = "3",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
               .key_id = 101,
@@ -175,14 +175,14 @@ TEST(TvsService, Successful) {
               .public_key = "public-3-1",
           },
           {
-              .user_id = 4,
+              .user_id = "4",
               .user_authentication_public_key = "00",
               .key_id = 103,
               .secret = "secret-4-1",
               .public_key = "public-4-1",
           },
           {
-              .user_id = 5,
+              .user_id = "5",
               .key_id = 104,
               .secret = "secret-5-1",
               .public_key = "public-5-1",
@@ -275,7 +275,7 @@ TEST(TvsService, UseSecondaryTvsKey) {
       tvs_secondary_key.private_key.GetStringView(),
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 11,
@@ -283,7 +283,7 @@ TEST(TvsService, UseSecondaryTvsKey) {
               .public_key = "public-1-1",
           },
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 111,
@@ -291,7 +291,7 @@ TEST(TvsService, UseSecondaryTvsKey) {
               .public_key = "public-1-2",
           },
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 12,
@@ -299,7 +299,7 @@ TEST(TvsService, UseSecondaryTvsKey) {
               .public_key = "public-1-3",
           },
           {
-              .user_id = 2,
+              .user_id = "2",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 12,
@@ -368,7 +368,7 @@ TEST(TvsService, BadReportError) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 11,
@@ -424,7 +424,7 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 11,
@@ -490,7 +490,7 @@ TEST(TvsService, MalformedMessageError) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 11,
@@ -557,7 +557,7 @@ TEST(TvsService, AuthenticationError) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
               .key_id = 11,
@@ -631,7 +631,7 @@ TEST(TvsService, InsecurePoliciesError) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key.public_key,
               .key_id = 11,
@@ -677,7 +677,7 @@ TEST(TvsService, DynamicPolicyFetching) {
       /*secondary_private_key=*/"",
       std::vector<key_manager::TestUserData>{
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
               .key_id = 11,
@@ -685,7 +685,7 @@ TEST(TvsService, DynamicPolicyFetching) {
               .public_key = "public-1-1",
           },
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
               .key_id = 111,
@@ -693,7 +693,7 @@ TEST(TvsService, DynamicPolicyFetching) {
               .public_key = "public-1-2",
           },
           {
-              .user_id = 1,
+              .user_id = "1",
               .user_authentication_public_key =
                   client_authentication_key1.public_key,
               .key_id = 12,
@@ -701,7 +701,7 @@ TEST(TvsService, DynamicPolicyFetching) {
               .public_key = "public-1-3",
           },
           {
-              .user_id = 2,
+              .user_id = "2",
               .user_authentication_public_key =
                   client_authentication_key2.public_key,
               .key_id = 100,

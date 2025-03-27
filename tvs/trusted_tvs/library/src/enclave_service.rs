@@ -200,14 +200,14 @@ fn get_identity_key() -> [u8; P256_SCALAR_LENGTH] {
 
 #[derive(Clone, Default)]
 struct KeyFetcherService {
-    user_ids_by_key: BTreeMap<Vec<u8>, i64>,
-    user_secrets_by_id: BTreeMap<i64, Vec<u8>>,
+    user_ids_by_key: BTreeMap<Vec<u8>, Vec<u8>>,
+    user_secrets_by_id: BTreeMap<Vec<u8>, Vec<u8>>,
 }
 
 impl KeyFetcherService {
     pub(crate) fn register_or_update_user(&mut self, request: RegisterOrUpdateUserRequest) {
         self.user_ids_by_key
-            .insert(request.authentication_key, request.id);
+            .insert(request.authentication_key, request.id.clone());
         self.user_secrets_by_id.insert(request.id, request.secret);
     }
 }
@@ -221,15 +221,15 @@ impl KeyProvider for KeyFetcherService {
         None
     }
 
-    fn user_id_for_authentication_key(&self, public_key: &[u8]) -> anyhow::Result<i64> {
+    fn user_id_for_authentication_key(&self, public_key: &[u8]) -> anyhow::Result<Vec<u8>> {
         let Some(id) = self.user_ids_by_key.get(public_key) else {
             anyhow::bail!("user public key is not registered");
         };
-        Ok(*id)
+        Ok(id.to_vec())
     }
 
-    fn get_secrets_for_user_id(&self, user_id: i64) -> anyhow::Result<Vec<u8>> {
-        let Some(secret) = self.user_secrets_by_id.get(&user_id) else {
+    fn get_secrets_for_user_id(&self, user_id: &[u8]) -> anyhow::Result<Vec<u8>> {
+        let Some(secret) = self.user_secrets_by_id.get(user_id) else {
             anyhow::bail!("no secret found for the user");
         };
         Ok(secret.to_vec())
@@ -321,7 +321,7 @@ mod tests {
         // Register a user.
         service
             .register_or_update_user(RegisterOrUpdateUserRequest {
-                id: 1,
+                id: b"1".to_vec(),
                 authentication_key: client_private_key.compute_public_key().to_vec(),
                 secret: b"secret".to_vec(),
             })
@@ -396,7 +396,7 @@ mod tests {
         // Register a user.
         service
             .register_or_update_user(RegisterOrUpdateUserRequest {
-                id: 1,
+                id: b"1".to_vec(),
                 authentication_key: client_private_key.compute_public_key().to_vec(),
                 secret: b"secret".to_vec(),
             })

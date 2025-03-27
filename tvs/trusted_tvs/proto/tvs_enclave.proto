@@ -58,7 +58,7 @@ message LoadAppraisalPoliciesRequest {
 }
 
 message RegisterOrUpdateUserRequest {
-  int64 id = 1;
+  bytes id = 1;
   bytes authentication_key = 2;
   bytes secret = 3;
 }

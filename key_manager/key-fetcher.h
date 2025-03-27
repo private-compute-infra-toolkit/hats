@@ -39,14 +39,14 @@ class KeyFetcher {
   // The secondary private key used for the noise protocol.
   virtual absl::StatusOr<std::string> GetSecondaryPrivateKey() = 0;
   // Find the user id owning the authentication key.
-  virtual absl::StatusOr<int64_t> UserIdForAuthenticationKey(
+  virtual absl::StatusOr<std::string> UserIdForAuthenticationKey(
       absl::string_view public_key) = 0;
   // Find secrets for `user_id`.
   virtual absl::StatusOr<std::vector<Secret>> GetSecretsForUserId(
-      int64_t user_id) = 0;
+      absl::string_view user_id) = 0;
   // Returns true iff the lock was successfully acquired and it's OK to proceed
   // with key generation.
-  virtual absl::StatusOr<bool> MaybeAcquireLock(int64_t user_id) = 0;
+  virtual absl::StatusOr<bool> MaybeAcquireLock(absl::string_view user_id) = 0;
 };
 
 }  // namespace privacy_sandbox::key_manager

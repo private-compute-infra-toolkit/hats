@@ -24,7 +24,7 @@ pub trait KeyProvider: Sync + Send {
     fn user_id_for_authentication_key(
         &self,
         user_authentication_public_key: &[u8],
-    ) -> anyhow::Result<i64>;
+    ) -> anyhow::Result<Vec<u8>>;
     /// Secret for `user_id`, to be returned if the user passes attestation verification.
-    fn get_secrets_for_user_id(&self, user_id: i64) -> anyhow::Result<Vec<u8>>;
+    fn get_secrets_for_user_id(&self, user_id: &[u8]) -> anyhow::Result<Vec<u8>>;
 }

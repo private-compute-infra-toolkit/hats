@@ -74,9 +74,9 @@ VecU8Result KeyFetcherWrapper::GetSecondaryPrivateKey() const {
   };
 }
 
-IntResult KeyFetcherWrapper::UserIdForAuthenticationKey(
+VecU8Result KeyFetcherWrapper::UserIdForAuthenticationKey(
     rust::Slice<const uint8_t> public_key) const {
-  absl::StatusOr<int64_t> user_id =
+  absl::StatusOr<std::string> user_id =
       key_fetcher_->UserIdForAuthenticationKey(std::string(
           reinterpret_cast<const char*>(public_key.data()), public_key.size()));
   if (!user_id.ok()) {
@@ -84,14 +84,18 @@ IntResult KeyFetcherWrapper::UserIdForAuthenticationKey(
         .error = absl::StrCat("Failed to lookup user: ", user_id.status()),
     };
   }
+  rust::Vec<uint8_t> v;
+  std::move(user_id->begin(), user_id->end(), std::back_inserter(v));
   return {
-      .value = *std::move(user_id),
+      .value = std::move(v),
   };
 }
 
-VecU8Result KeyFetcherWrapper::GetSecretsForUserId(int64_t user_id) const {
+VecU8Result KeyFetcherWrapper::GetSecretsForUserId(
+    rust::Slice<const uint8_t> user_id) const {
   absl::StatusOr<std::vector<key_manager::Secret>> secrets =
-      key_fetcher_->GetSecretsForUserId(user_id);
+      key_fetcher_->GetSecretsForUserId(std::string(
+          reinterpret_cast<const char*>(user_id.data()), user_id.size()));
   if (!secrets.ok()) {
     return {
         .error = absl::StrCat("Failed to get secret: ", secrets.status()),
@@ -119,7 +123,8 @@ VecU8Result KeyFetcherWrapper::GetSecretsForUserId(int64_t user_id) const {
 
 std::unique_ptr<KeyFetcherWrapper> CreateTestKeyFetcherWrapper(
     rust::Slice<const uint8_t> primary_private_key,
-    rust::Slice<const uint8_t> secondary_private_key, int64_t user_id,
+    rust::Slice<const uint8_t> secondary_private_key,
+    rust::Slice<const uint8_t> user_id,
     rust::Slice<const uint8_t> user_authentication_public_key, int64_t key_id,
     rust::Slice<const uint8_t> user_secret,
     rust::Slice<const uint8_t> public_key) {
@@ -128,7 +133,7 @@ std::unique_ptr<KeyFetcherWrapper> CreateTestKeyFetcherWrapper(
           RustSliceToStringView(primary_private_key),
           RustSliceToStringView(secondary_private_key),
           std::vector<key_manager::TestUserData>{{
-              .user_id = user_id,
+              .user_id = std::string(RustSliceToStringView(user_id)),
               .user_authentication_public_key = std::string(
                   RustSliceToStringView(user_authentication_public_key)),
               .key_id = key_id,

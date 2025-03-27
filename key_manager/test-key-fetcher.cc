@@ -37,7 +37,7 @@ absl::StatusOr<std::string> TestKeyFetcher::GetSecondaryPrivateKey() {
   return secondary_private_key_;
 }
 
-absl::StatusOr<int64_t> TestKeyFetcher::UserIdForAuthenticationKey(
+absl::StatusOr<std::string> TestKeyFetcher::UserIdForAuthenticationKey(
     absl::string_view user_authentication_public_key) {
   for (const TestUserData& test_user_data : user_data_) {
     if (test_user_data.user_authentication_public_key ==
@@ -50,7 +50,7 @@ absl::StatusOr<int64_t> TestKeyFetcher::UserIdForAuthenticationKey(
 }
 
 absl::StatusOr<std::vector<Secret>> TestKeyFetcher::GetSecretsForUserId(
-    int64_t user_id) {
+    absl::string_view user_id) {
   std::vector<Secret> result;
   for (const TestUserData& test_user_data : user_data_) {
     if (test_user_data.user_id == user_id && !test_user_data.secret.empty()) {
@@ -67,7 +67,8 @@ absl::StatusOr<std::vector<Secret>> TestKeyFetcher::GetSecretsForUserId(
   return result;
 }
 
-absl::StatusOr<bool> TestKeyFetcher::MaybeAcquireLock(int64_t user_id) {
+absl::StatusOr<bool> TestKeyFetcher::MaybeAcquireLock(
+    absl::string_view user_id) {
   return absl::UnimplementedError("unimplemented");
 }
 
