@@ -21,7 +21,7 @@ PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
 readonly PREBUILT_DIR
 cd "$SCRIPTS_DIR"
 mkdir -p "$PREBUILT_DIR"
-git submodule update --init --recursive
+git submodule update --init --recursive ../../submodules/oak
 
 # shellcheck disable=1091
 source ./build-lib.sh
