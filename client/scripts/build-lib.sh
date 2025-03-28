@@ -15,11 +15,22 @@
 
 set -e
 
+# Use oak scripts/docker_run if env var USE_OAK_DOCKER set
+# Needs oak scripts/docker_pull first to get the image
+# Similar to standard nix develop, only call from within oak (e.g. submodule)
+function nix_develop() {
+  if [[ "$USE_OAK_DOCKER" == 1 ]]; then
+    ./scripts/docker_run nix develop "$@"
+  else
+    nix develop "$@"
+  fi
+}
+
 function build_oak_containers_kernel() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS KERNEL..."
   pushd ../../submodules/oak/
-  nix develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_kernel && \
+  nix_develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_kernel && \
     rsync artifacts/oak_containers_kernel "$BUILD_DIR//bzImage"
   popd
 }
@@ -28,7 +39,7 @@ function build_oak_containers_images() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS IMAGES..."
   pushd ../../submodules/oak/oak_containers_system_image
-  nix develop --extra-experimental-features 'nix-command flakes' --command ./build-old.sh && \
+  nix_develop --extra-experimental-features 'nix-command flakes' --command ./build-old.sh && \
     rsync target/output.img "$BUILD_DIR" && \
     rsync target/image-old.tar "$BUILD_DIR" && \
     xz --force "$BUILD_DIR/image-old.tar"
@@ -39,7 +50,7 @@ function build_oak_containers_launcher() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS LAUNCHER..."
   pushd ../../submodules/oak
-  nix develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_launcher && \
+  nix_develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_launcher && \
     rsync ./target/x86_64-unknown-linux-gnu/release/oak_containers_launcher "$BUILD_DIR"
   popd
 }
@@ -48,7 +59,7 @@ function build_oak_containers_stage0() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS STAGE0..."
   pushd ../../submodules/oak
-  nix develop --extra-experimental-features 'nix-command flakes' --command just stage0_bin && \
+  nix_develop --extra-experimental-features 'nix-command flakes' --command just stage0_bin && \
     rsync ./artifacts/stage0_bin "$BUILD_DIR"
   popd
 }
@@ -57,7 +68,7 @@ function build_oak_containers_stage1() {
   local BUILD_DIR="$1"
   printf "\nBUILDING OAK CONTAINERS STAGE1..."
   pushd ../../submodules/oak
-  nix develop --extra-experimental-features 'nix-command flakes' --command just stage1_cpio && \
+  nix_develop --extra-experimental-features 'nix-command flakes' --command just stage1_cpio && \
     rsync ./artifacts/stage1.cpio "$BUILD_DIR"
   popd
 }
@@ -69,7 +80,7 @@ function build_oak_hello_world_container_bundle_tar() {
   # just command to build the container tries to copy a file to
   # a folder it doesn't have permission to do so and it fails at that
   # step; so here we copy after we call `just`.
-  nix develop --extra-experimental-features 'nix-command flakes' --command  bazel build --compilation_mode opt //oak_containers/examples/hello_world/trusted_app:bundle.tar && \
+  nix_develop --extra-experimental-features 'nix-command flakes' --command  bazel build --compilation_mode opt //oak_containers/examples/hello_world/trusted_app:bundle.tar && \
     rsync ./bazel-bin/oak_containers/examples/hello_world/trusted_app/bundle.tar "$BUILD_DIR/oak_container_example_oci_filesystem_bundle.tar"
 
   popd
@@ -92,7 +103,7 @@ function build_trusted_application_client() {
 function build_snphost() {
   local BUILD_DIR="$1"
   pushd ../../submodules/oak
-  nix develop --extra-experimental-features 'nix-command flakes' --command cargo install --root "$BUILD_DIR" snphost && \
+  nix_develop --extra-experimental-features 'nix-command flakes' --command cargo install --root "$BUILD_DIR" snphost && \
     mv "$BUILD_DIR"/bin/snphost "$BUILD_DIR" && \
     rmdir "$BUILD_DIR/bin"
   popd
@@ -129,8 +140,17 @@ EOF
     popd
   else
     pushd ../../submodules/oak
-    nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
-      cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
+    if [[ "$USE_OAK_DOCKER" == 1 ]]; then
+      # bazel-bin in docker_run is local, so copy in same run
+      # Also oak docker script doesn't see hats, so artifact as middle
+      ./scripts/docker_run /bin/bash -c "nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
+        cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd artifacts/oak_containers_syslogd"
+      rsync artifacts/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
+    else
+      nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
+        cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
+    fi
+
     popd
   fi
 }
