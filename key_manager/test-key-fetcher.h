@@ -33,7 +33,7 @@ struct TestUserData {
   // Public key used to authenticated `user_id`.
   std::string user_authentication_public_key;
   // Key ID
-  int64_t key_id;
+  std::string key_id;
   // Secret for `user_id`.
   std::string secret;
   // Public part of the secret. If secret is a private key, then this is the

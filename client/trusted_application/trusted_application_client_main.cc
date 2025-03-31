@@ -26,7 +26,7 @@ ABSL_FLAG(std::string, app_key,
           "AES-256 application key for encrypting the payload");
 ABSL_FLAG(std::string, address, "localhost:8000",
           "address used for making grpc calls to this service");
-ABSL_FLAG(int, key_id, 1, "key_id to retrieve from orchestrator");
+ABSL_FLAG(std::string, key_id, "1", "key_id to retrieve from orchestrator");
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);

@@ -119,7 +119,7 @@ impl HatsOrchestrator for HatsServer {
 
         for secret in &response.secrets {
             keys_temp.push(Key {
-                key_id: secret.key_id,
+                key_id: secret.key_id.clone(),
                 public_key: secret.public_key.clone(),
                 private_key: secret.private_key.clone(),
             });
@@ -149,10 +149,10 @@ pub fn recover_secrets(
 ) -> Result<Vec<u8>, anyhow::Error> {
     let mut recovered_secrets: Vec<Secret> = Vec::new();
     // this maps key_id to (public key, private key shares)
-    let mut share_map: HashMap<i64, KeyShares> = HashMap::new();
+    let mut share_map: HashMap<String, KeyShares> = HashMap::new();
     for response in response_vec {
         for secret in &response.secrets {
-            let key_shares = share_map.entry(secret.key_id).or_insert(KeyShares {
+            let key_shares = share_map.entry(secret.key_id.clone()).or_insert(KeyShares {
                 public_key: (*secret.public_key).to_string(),
                 shares: vec![],
             });
@@ -161,7 +161,7 @@ pub fn recover_secrets(
     }
     for (key_id, key_shares) in share_map {
         recovered_secrets.push(Secret {
-            key_id,
+            key_id: key_id.clone(),
             public_key: (*key_shares.public_key).to_string(),
             private_key: match secret_split {
                 Some(secret_split) => secret_split
@@ -266,7 +266,7 @@ mod tests {
             .returning(move |_, _| {
                 let response = VerifyReportResponse {
                     secrets: vec![Secret {
-                        key_id: 501,
+                        key_id: "501".to_string(),
                         public_key: "test-public-key1".to_string(),
                         private_key: private_key_clone.clone(),
                     }],
@@ -335,7 +335,7 @@ mod tests {
             result1,
             GetKeysResponse {
                 keys: vec![Key {
-                    key_id: 501,
+                    key_id: "501".to_string(),
                     public_key: "test-public-key1".to_string(),
                     private_key,
                 },],
@@ -396,7 +396,7 @@ mod tests {
             .returning(move |_, _| {
                 let response = VerifyReportResponse {
                     secrets: vec![Secret {
-                        key_id: 501,
+                        key_id: "501".to_string(),
                         public_key: "test-public-key1".to_string(),
                         private_key: share1_bytes_clone.clone(),
                     }],
@@ -415,7 +415,7 @@ mod tests {
             .returning(move |_, _| {
                 let response = VerifyReportResponse {
                     secrets: vec![Secret {
-                        key_id: 501,
+                        key_id: "501".to_string(),
                         public_key: "test-public-key1".to_string(),
                         private_key: share2_bytes_clone.clone(),
                     }],
@@ -434,7 +434,7 @@ mod tests {
             .returning(move |_, _| {
                 let response = VerifyReportResponse {
                     secrets: vec![Secret {
-                        key_id: 501,
+                        key_id: "501".to_string(),
                         public_key: "test-public-key1".to_string(),
                         private_key: share3_bytes_clone.clone(),
                     }],
@@ -501,7 +501,7 @@ mod tests {
             result1,
             GetKeysResponse {
                 keys: vec![Key {
-                    key_id: 501,
+                    key_id: "501".to_string(),
                     public_key: "test-public-key1".to_string(),
                     private_key: private_key.clone(),
                 },],
@@ -554,7 +554,7 @@ mod tests {
             .returning(move |_, _| {
                 let response = VerifyReportResponse {
                     secrets: vec![Secret {
-                        key_id: 501,
+                        key_id: "501".to_string(),
                         public_key: "test-public-key1".to_string(),
                         private_key: share1_bytes_clone.clone(),
                     }],
@@ -573,7 +573,7 @@ mod tests {
             .returning(move |_, _| {
                 let response = VerifyReportResponse {
                     secrets: vec![Secret {
-                        key_id: 501,
+                        key_id: "501".to_string(),
                         public_key: "test-public-key1".to_string(),
                         private_key: share2_bytes_clone.clone(),
                     }],
@@ -592,7 +592,7 @@ mod tests {
             .returning(move |_, _| {
                 let response = VerifyReportResponse {
                     secrets: vec![Secret {
-                        key_id: 501,
+                        key_id: "501".to_string(),
                         public_key: "test-public-key1".to_string(),
                         private_key: share3_bytes_clone.clone(),
                     }],
@@ -659,7 +659,7 @@ mod tests {
             result1,
             GetKeysResponse {
                 keys: vec![Key {
-                    key_id: 501,
+                    key_id: "501".to_string(),
                     public_key: "test-public-key1".to_string(),
                     private_key: private_key.clone(),
                 },],

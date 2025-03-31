@@ -87,7 +87,7 @@ absl::StatusOr<CreateSessionResult> CreateSession(
     // Use non-const to enable effective use of std::move().
     for (key_manager::Secret& secret : secrets) {
       Secret& tvs_secret = *response.add_secrets();
-      tvs_secret.set_key_id(secret.key_id);
+      *tvs_secret.mutable_key_id() = std::move(secret.key_id);
       *tvs_secret.mutable_public_key() = std::move(secret.public_key);
       *tvs_secret.mutable_private_key() = std::move(secret.private_key);
     }

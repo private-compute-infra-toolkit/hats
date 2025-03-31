@@ -16,6 +16,7 @@
 #define TRUSTED_APPLICATION_CLIENT_H_
 
 #include <memory>
+#include <string>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -32,9 +33,11 @@ constexpr absl::string_view kTestMessage =
 // encrypted requests and receive decrypted responses.
 class TrustedApplicationClient final {
  public:
-  TrustedApplicationClient(absl::string_view private_key, int8_t key_id);
+  TrustedApplicationClient(absl::string_view private_key,
+                           absl::string_view key_id);
   TrustedApplicationClient(absl::string_view address,
-                           absl::string_view private_key, int8_t key_id);
+                           absl::string_view private_key,
+                           absl::string_view key_id);
 
   absl::StatusOr<DecryptedResponse> SendEcho() const;
   absl::StatusOr<DecryptedResponse> SendEcho(
@@ -43,7 +46,7 @@ class TrustedApplicationClient final {
  private:
   std::unique_ptr<TrustedService::Stub> trusted_service_stub_;
   crypto::SecretData private_key_;
-  int8_t key_id_;
+  std::string key_id_;
 };
 
 }  // namespace privacy_sandbox::client

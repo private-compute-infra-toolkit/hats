@@ -269,13 +269,13 @@ mod tests {
     fn verify_report_successful() {
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
-        let key_id = 11;
+        let key_id = "11";
         let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"1",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            key_id,
+            key_id.as_bytes(),
             /*user_secret=*/ b"test_secret1",
             /*public_key=*/ b"test_public_key1",
         ));
@@ -320,7 +320,7 @@ mod tests {
             response,
             VerifyReportResponse {
                 secrets: vec![Secret {
-                    key_id,
+                    key_id: key_id.to_string(),
                     private_key: b"test_secret1".to_vec(),
                     public_key: "test_public_key1".to_string(),
                 }],
@@ -375,13 +375,13 @@ mod tests {
             ),
         }
 
-        let key_id = 11;
+        let key_id = "11";
         let key_fetcher = KeyFetcher::new(create_test_key_fetcher_wrapper(
             /*primary_private_key=*/ &tvs_private_key.bytes(),
             /*secondary_private_key,*/ &[],
             /*user_id=*/ b"1",
             /*user_authentication_public_key=*/ &client_private_key.compute_public_key(),
-            key_id,
+            key_id.as_bytes(),
             /*user_secret=*/ b"test_secret1",
             /*public_key=*/ b"test_public_key1",
         ));

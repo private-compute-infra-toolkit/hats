@@ -205,7 +205,7 @@ absl::StatusOr<std::vector<Secret>> KeyFetcherGcp::GetSecretsForUserId(
         crypto::SecretData secret_data,
         UnwrapSecret(crypto::kSecretAd, gcp_kms_client_, key));
     secrets.push_back({
-        .key_id = key.key_id,
+        .key_id = std::to_string(key.key_id),
         .public_key = std::move(key.public_key),
         .private_key = std::string(secret_data.GetStringView()),
     });

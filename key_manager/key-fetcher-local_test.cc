@@ -24,7 +24,7 @@
 
 ABSL_DECLARE_FLAG(std::string, primary_private_key);
 ABSL_DECLARE_FLAG(std::string, secondary_private_key);
-ABSL_DECLARE_FLAG(int64_t, user_key_id);
+ABSL_DECLARE_FLAG(std::string, user_key_id);
 ABSL_DECLARE_FLAG(std::string, user_public_key);
 ABSL_DECLARE_FLAG(std::string, user_secret);
 ABSL_DECLARE_FLAG(std::string, user_authentication_public_key);
@@ -42,7 +42,7 @@ TEST(KeyFetcherLocal, Normal) {
   {
     absl::SetFlag(&FLAGS_primary_private_key, "6669727374");
     absl::SetFlag(&FLAGS_secondary_private_key, "7365636f6e64");
-    absl::SetFlag(&FLAGS_user_key_id, 500);
+    absl::SetFlag(&FLAGS_user_key_id, "500");
     absl::SetFlag(&FLAGS_user_public_key, "73656372657431-public");
     absl::SetFlag(&FLAGS_user_secret, "73656372657431");
     absl::SetFlag(&FLAGS_user_authentication_public_key, "41424344");
@@ -53,14 +53,14 @@ TEST(KeyFetcherLocal, Normal) {
                              StrEq("second"));
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecretsForUserId(/*user_id=*/"1"),
                              UnorderedElementsAre(FieldsAre(
-                                 500, "73656372657431-public", "secret1")));
+                                 "500", "73656372657431-public", "secret1")));
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->UserIdForAuthenticationKey("ABCD"),
                              Eq("1"));
   }
   {
     absl::SetFlag(&FLAGS_primary_private_key, "61");
     absl::SetFlag(&FLAGS_secondary_private_key, "62");
-    absl::SetFlag(&FLAGS_user_key_id, 501);
+    absl::SetFlag(&FLAGS_user_key_id, "501");
     absl::SetFlag(&FLAGS_user_public_key, "73656372657432-public");
     absl::SetFlag(&FLAGS_user_secret, "73656372657432");
     absl::SetFlag(&FLAGS_user_authentication_public_key, "5a44454647");
@@ -69,7 +69,7 @@ TEST(KeyFetcherLocal, Normal) {
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecondaryPrivateKey(), StrEq("b"));
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->GetSecretsForUserId(/*user_id=*/"1"),
                              UnorderedElementsAre(FieldsAre(
-                                 501, "73656372657432-public", "secret2")));
+                                 "501", "73656372657432-public", "secret2")));
     HATS_EXPECT_OK_AND_HOLDS(key_fetcher->UserIdForAuthenticationKey("ZDEFG"),
                              Eq("1"));
   }

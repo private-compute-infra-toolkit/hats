@@ -53,7 +53,7 @@ pub mod ffi {
             secondary_private_key: &[u8],
             user_id: &[u8],
             user_authentication_public_key: &[u8],
-            key_id: i64,
+            key_id: &[u8],
             secret: &[u8],
             public_key: &[u8],
         ) -> UniquePtr<KeyFetcherWrapper>;

@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
       absl::GetFlag(FLAGS_tvs_public_keys);
   // Here we are storing the public key, and associated key shares, indexed by
   // key_id
-  std::unordered_map<int64_t, KeyShares> keys;
+  std::unordered_map<std::string, KeyShares> keys;
   for (size_t i = 0; i < tvs_addresses.size(); i++) {
     HATS_ASSIGN_OR_RETURN(
         std::shared_ptr<grpc::Channel> channel,
