@@ -6,8 +6,8 @@ by HATs CVMs.
 The system image is a tarball of a Linux OS filesystem.
 
 The image is built on top of Oak's system image, which builds on top of a
-stripped down version of Nix OS. HATs system image override some files in Oak's
-system image and add one more file.
+stripped down version of Debian OS. HATs system image override some files in
+Oak's system image and add one more file.
 
 In particular the following files are added/overridden to the system image.
 
