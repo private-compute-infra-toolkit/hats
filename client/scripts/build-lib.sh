@@ -157,8 +157,9 @@ EOF
 
 function build_hats_containers_images() {
   local BUILD_DIR="$1"
-  bazel build -c opt //client/system_image:hats_system_image --//:syslogd_source=binary
-  cp -f ../../bazel-bin/client/system_image/hats_system_image.tar "$BUILD_DIR"
+  local SUFFIX="$2"
+  bazel build -c opt "//client/system_image:hats_system_image_$SUFFIX" --//:syslogd_source=binary
+  cp -f "../../bazel-bin/client/system_image/hats_system_image_$SUFFIX.tar" "$BUILD_DIR/hats_system_image.tar"
   xz --force "$BUILD_DIR/hats_system_image.tar"
 }
 

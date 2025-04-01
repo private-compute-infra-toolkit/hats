@@ -36,7 +36,7 @@ build_oak_containers_stage0 "$PREBUILT_DIR"
 build_oak_containers_stage1 "$PREBUILT_DIR"
 build_oak_containers_kernel "$PREBUILT_DIR"
 build_oak_containers_syslogd "$PREBUILT_DIR"
-build_hats_containers_images "$PREBUILT_DIR"
+build_hats_containers_images "$PREBUILT_DIR" "test_single"
 build_oak_hello_world_container_bundle_tar "$PREBUILT_DIR"
 
 # bundle everything nicely

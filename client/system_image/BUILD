@@ -18,22 +18,7 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-pkg_tar(
-    name = "tvs_public_keys",
-    srcs = ["tvs_public_keys.txt"],
-    package_dir = "/hats/",
-)
-
-# Change oak-orchestrator.service to load hats orchestrator
-# and bake the TVS public key in the file.
-pkg_tar(
-    name = "services",
-    srcs = [
-        "oak-orchestrator.service",
-        "oak-syslogd.service",
-    ],
-    package_dir = "/etc/systemd/system/",
-)
+exports_files(["oak-syslogd.service"])
 
 # Override the enp0s1 interface settings as we are setting
 # the networking through kernel NFS flags.
@@ -63,7 +48,7 @@ pkg_tar(
 )
 
 pkg_tar(
-    name = "hats_system_image",
+    name = "hats_system_image_test_single",
     # Order matters here as we intend to overwrite certain files in Oak's system
     # image. Oak system image should come first.
     # buildifier: leave-alone
@@ -71,7 +56,35 @@ pkg_tar(
         "@oak_containers_system_image_base//file:base-image.tar.xz",
         ":admin_bin",
         ":interface",
-        ":services",
-        ":tvs_public_keys",
+        "//client/system_image/test_single:services",
+        "//client/system_image/test_single:tvs_public_keys",
+    ],
+)
+
+pkg_tar(
+    name = "hats_system_image_test_xor_2",
+    # Order matters here as we intend to overwrite certain files in Oak's system
+    # image. Oak system image should come first.
+    # buildifier: leave-alone
+    deps = [
+        "@oak_containers_system_image_base//file:base-image.tar.xz",
+        ":admin_bin",
+        ":interface",
+        "//client/system_image/test_xor_2:services",
+        "//client/system_image/test_xor_2:tvs_public_keys",
+    ],
+)
+
+pkg_tar(
+    name = "hats_system_image_test_shamir_3",
+    # Order matters here as we intend to overwrite certain files in Oak's system
+    # image. Oak system image should come first.
+    # buildifier: leave-alone
+    deps = [
+        "@oak_containers_system_image_base//file:base-image.tar.xz",
+        ":admin_bin",
+        ":interface",
+        "//client/system_image/test_shamir_3:services",
+        "//client/system_image/test_shamir_3:tvs_public_keys",
     ],
 )
