@@ -25,6 +25,13 @@ config_setting(
     },
 )
 
+config_setting(
+    name = "gcp_coordinator",
+    define_values = {
+        "platform": "gcp_coordinator",
+    },
+)
+
 # Where to find oak_containers_syslogd.
 string_flag(
     name = "syslogd_source",

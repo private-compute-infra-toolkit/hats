@@ -32,49 +32,13 @@
 #include "google/cloud/spanner/sql_statement.h"
 #include "google/cloud/spanner/transaction.h"
 #include "key_manager/gcp-kms-client.h"
+#include "key_manager/key-fetcher-gcp-common-utils.h"
 #include "key_manager/key-fetcher.h"
 #include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::key_manager {
 
 namespace {
-
-constexpr absl::string_view kAssociatedData = "HATS_SECRET";
-
-struct Keys {
-  std::string kek;
-  std::string dek;
-  int64_t key_id;
-  std::string public_key;
-  std::string private_key;
-};
-
-absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
-    absl::string_view key_name, google::cloud::spanner::Client& client) {
-  google::cloud::spanner::SqlStatement select(
-      R"sql(
-      SELECT
-          ResourceName, Dek, PrivateKey
-      FROM
-          TVSPrivateKeys, DataEncryptionKeys, KeyEncryptionKeys
-      WHERE
-          KeyEncryptionKeys.KekId = DataEncryptionKeys.KekId
-          AND TVSPrivateKeys.DekId = DataEncryptionKeys.DekId
-          AND TVSPrivateKeys.KeyId = @key_name)sql",
-      {{"key_name", google::cloud::spanner::Value(std::string(key_name))}});
-  using RowType = std::tuple<std::string, google::cloud::spanner::Bytes,
-                             google::cloud::spanner::Bytes>;
-  auto rows = client.ExecuteQuery(std::move(select));
-  for (auto& row : google::cloud::spanner::StreamOf<RowType>(rows)) {
-    HATS_RETURN_IF_ERROR(row.status());
-    return Keys{
-        .kek = std::get<0>(*row),
-        .dek = std::get<1>(*row).get<std::string>(),
-        .private_key = std::get<2>(*row).get<std::string>(),
-    };
-  }
-  return absl::NotFoundError(absl::StrCat("Cannot find '", key_name, "'"));
-}
 
 // Maximum number of secrets to return to the user.
 constexpr int64_t kMaxSecrets = 2;
@@ -115,17 +79,6 @@ absl::StatusOr<std::vector<Keys>> WrappedSecretsByUserIdFromSpanner(
     return absl::NotFoundError("Cannot find secret for the user.");
   }
   return keys;
-}
-
-absl::StatusOr<crypto::SecretData> UnwrapSecret(
-    absl::string_view associated_data,
-    privacy_sandbox::key_manager::GcpKmsClient& gcp_kms_client,
-    const Keys& keys) {
-  HATS_ASSIGN_OR_RETURN(
-      std::string unwrapped_dek,
-      gcp_kms_client.DecryptData(keys.kek, keys.dek, kAssociatedData));
-  return crypto::Decrypt(crypto::SecretData(unwrapped_dek),
-                         crypto::SecretData(keys.private_key), associated_data);
 }
 
 }  // namespace
