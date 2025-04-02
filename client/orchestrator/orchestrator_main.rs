@@ -163,13 +163,15 @@ async fn main() -> anyhow::Result<()> {
         )),
         _ => None,
     };
-    let hats_server = hats_server::HatsServer::new(
-        signing_key_clone,
+    let tvs_secret_manager = tvs_secret_manager::TvsSecretManager::create(
         tvs_grpc_clients,
-        evidence.clone(),
+        &evidence.clone(),
+        signing_key_clone,
         secret_split,
         args.hats_server_cache_time,
-    );
+    )
+    .await?;
+    let hats_server = hats_server::HatsServer::new(tvs_secret_manager);
 
     // Start application and gRPC servers.
     let user = nix::unistd::User::from_name(&args.runtime_user)
@@ -201,4 +203,69 @@ async fn main() -> anyhow::Result<()> {
         ),
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hats_server::proto::privacy_sandbox::server_common::hats_orchestrator_server::HatsOrchestrator;
+    use hats_server::proto::privacy_sandbox::tvs::Secret;
+    use hats_server::proto::privacy_sandbox::tvs::VerifyReportResponse;
+    use hats_server::HatsServer;
+    use mockall::predicate::*;
+    use oak_containers_attestation::generate_instance_keys;
+    use prost::Message;
+    use tvs_grpc_client::MockTvsClientInterface;
+
+    #[tokio::test]
+    async fn test_hats_server_with_mocked_tvs_client() {
+        // Create a mock TVS client
+        let mut mock_tvs_client = MockTvsClientInterface::new();
+        let private_key = vec![1, 2, 3];
+        mock_tvs_client
+            .expect_send_evidence()
+            .with(always(), always())
+            .returning(move |_, _| {
+                let response = VerifyReportResponse {
+                    secrets: vec![Secret {
+                        key_id: "501".to_string(),
+                        public_key: "test-public-key1".to_string(),
+                        private_key: private_key.clone(),
+                    }],
+                };
+                let mut encoded = Vec::new();
+                VerifyReportResponse::encode(&response, &mut encoded).unwrap();
+                Ok(encoded)
+            });
+        let mock_tvs_client_box = Box::new(mock_tvs_client) as Box<dyn TvsClientInterface>;
+        let tvs_grpc_clients: Vec<Box<dyn tvs_grpc_client::TvsClientInterface>> =
+            vec![mock_tvs_client_box];
+
+        // Generate instance keys
+        let (instance_keys, _) = generate_instance_keys();
+
+        // Create a TvsSecretManager
+        let secret_split: Option<Box<dyn SecretSplit>> = None;
+        let tvs_secret_manager = tvs_secret_manager::TvsSecretManager::create(
+            tvs_grpc_clients,
+            &oak_proto_rust::oak::attestation::v1::Evidence::default(),
+            instance_keys.signing_key.clone(),
+            secret_split,
+            3600,
+        )
+        .await
+        .unwrap();
+
+        // Create a HatsServer
+        let hats_server = HatsServer::new(tvs_secret_manager);
+
+        // Test get_keys
+        let request = tonic::Request::new(());
+        let response = hats_server.get_keys(request).await.unwrap();
+        let keys = response.into_inner().keys;
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].key_id, "501".to_string());
+        assert_eq!(keys[0].public_key, "test-public-key1");
+        assert_eq!(keys[0].private_key, vec![1, 2, 3]);
+    }
 }
