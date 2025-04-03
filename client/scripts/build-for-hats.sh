@@ -21,7 +21,7 @@ PREBUILT_DIR="$(readlink -f "$SCRIPTS_DIR/../prebuilt")"
 readonly PREBUILT_DIR
 cd "$SCRIPTS_DIR"
 mkdir -p "$PREBUILT_DIR"
-git submodule update --init --recursive ../../submodules/oak
+git submodule update --init --recursive ../../submodules/oak ../../builders
 
 # shellcheck disable=1091
 source ./build-lib.sh
@@ -47,6 +47,6 @@ build_launch_bundle \
   "$PREBUILT_DIR/stage1.cpio" \
   "$PREBUILT_DIR/bzImage" \
   "$PREBUILT_DIR/hats_system_image.tar.xz" \
-  "$PREBUILT_DIR/oak_container_example_oci_filesystem_bundle.tar" \
+  "$PREBUILT_DIR/oak_container_example_oci_file/system_bundle.tar" \
   "../../tvs/appraisal_policies/kernel-cmd-line-only1.txtpb" \
   "./launcher_configs/launcher_config_port_forwarding.txtpb"
