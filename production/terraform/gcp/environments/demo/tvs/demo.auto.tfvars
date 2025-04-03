@@ -21,5 +21,9 @@ tvs_spanner_database_name  = "<tvs_spanner_database_name>"
 tvs_spanner_instance_name  = "<tvs_spanner_instance_name>"
 tvs_key_encryption_ring_id = "<tvs_key_encryption_ring_id>"
 
+coordinator_project_id = "<coordinator_project_id>"
+coordinator_spanner_database_name  = "<coordinator_spanner_database_name>"
+coordinator_spanner_instance_name  = "<coordinator_spanner_instance_name>"
+
 # The container image of Cloud Run service deployment for TVS.
 tvs_image = "<url_to_tvs_image>"
