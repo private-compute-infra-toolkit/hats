@@ -58,22 +58,12 @@ popd
 # TODO(b/395680242): Resolve RBE on GCP_UBUNTU_DOCKER.
 # RBE doesn't auth correctly, but also still runs without it.
 
-#shellcheck disable=SC1091
-# source "${KOKORO_HATS_DIR}/google_internal/lib_build.sh"
-# lib_build::set_rbe_flags
-# Given as space delimited string, which is for builders lib
-# This converts them to array, so bash parses them as multiple arguments
-# IFS=" " read -r -a BAZEL_DIRECT_ARGS <<< "$BAZEL_DIRECT_ARGS"
-
 ###### Build in bazel
 
 pushd "${KOKORO_HATS_DIR}"
 
 args=(
-  # "${BAZEL_STARTUP_ARGS_ABSL}"
-  --bazelrc=google_internal/.bazelrc
   build
-  # "${BAZEL_DIRECT_ARGS[@]}"
   --config=ci
   --verbose_failures=true
   --dynamic_mode=off # Force static build, for binaries sent to bot

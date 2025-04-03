@@ -47,21 +47,15 @@ chmod 755 "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}"
 export PATH="${BAZEL_TMP_DIR}:${PATH}"
 
 # Apply patches
-cd "${KOKORO_HATS_DIR}"
+pushd "${KOKORO_HATS_DIR}"
 source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
 patches::apply_python
+popd
 
-cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
+pushd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 
-#shellcheck disable=SC1091
-source "${KOKORO_HATS_DIR}/google_internal/lib_build.sh"
-
-lib_build::configure_gcloud_access
-lib_build::set_rbe_flags
-
-# Given as space delimited string, which is for builders lib
-# This converts them to array, so bash parses them as multiple arguments
-IFS=" " read -r -a BAZEL_DIRECT_ARGS <<< "$BAZEL_DIRECT_ARGS"
+# TODO(b/395680242): Resolve RBE on GCP_UBUNTU_DOCKER.
+# RBE doesn't auth correctly, but also still runs without it.
 
 # Skip builds/tests that fail on Kokoro
 # nopresubmit: general tests that Kokoro can't run
@@ -70,9 +64,7 @@ IFS=" " read -r -a BAZEL_DIRECT_ARGS <<< "$BAZEL_DIRECT_ARGS"
 tag_filters="-nopresubmit,-virtualization"
 
 args=(
-  "${BAZEL_STARTUP_ARGS_ABSL}"
   test
-  "${BAZEL_DIRECT_ARGS[@]}"
   --config=ci
   --verbose_failures=true
   --experimental_convenience_symlinks=ignore
@@ -81,4 +73,6 @@ args=(
   --
   //...
 )
-./bazel_wrapper.py "${args[@]}"
+./google_internal/kokoro/bazel_wrapper.py "${args[@]}"
+
+popd
