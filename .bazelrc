@@ -76,7 +76,7 @@ build --@rules_rust//:rustc_output_diagnostics=true --output_groups=+rust_lib_ru
 # no cursor, slower progress bar update
 build:ci --curses=no
 # Seconds between. noshow_progress for off
-build:ci --show_progress_rate_limit=10
+build:ci --show_progress_rate_limit=300
 build:ci --show_result 100
 build:ci --show_timestamps
 # Fail immediately if the Bazel server lock cannot be acquired so that we can notice this in CI
