@@ -22,5 +22,5 @@ repository root (all paths are relative to the repository root).
 1. Run the test:
 
     ```shell
-    $ bazel run //client/trusted_application:trusted_application_test
+    $ bazel run //client/trusted_application/integration_test:trusted_application_test
     ```

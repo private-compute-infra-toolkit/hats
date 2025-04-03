@@ -25,7 +25,7 @@
 #include "absl/strings/str_cat.h"
 #include "client/proto/orchestrator.pb.h"
 #include "client/sdk/hats_orchestrator_client.h"
-#include "client/trusted_application/trusted_application.h"
+#include "client/trusted_application/enclave_app/trusted_application.h"
 #include "grpcpp/security/server_credentials.h"
 #include "grpcpp/server.h"
 #include "grpcpp/server_builder.h"

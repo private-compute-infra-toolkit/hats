@@ -19,7 +19,7 @@
 #include "absl/flags/parse.h"
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/strings/escaping.h"
-#include "client/trusted_application/trusted_application_client.h"
+#include "client/trusted_application/client/trusted_application_client.h"
 
 ABSL_FLAG(std::string, app_key,
           "67ff77cf4cf44dde9591555ac55402176d5a161880fede6badbf9e2202c2363d",

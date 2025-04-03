@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "client/trusted_application/trusted_application.h"
+#include "client/trusted_application/enclave_app/trusted_application.h"
 
 #include <string>
 

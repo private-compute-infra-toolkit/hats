@@ -32,7 +32,7 @@
 #include "client/launcher/launcher.h"
 #include "client/proto/launcher_config.pb.h"
 #include "client/proto/trusted_service.pb.h"
-#include "client/trusted_application/trusted_application_client.h"
+#include "client/trusted_application/client/trusted_application_client.h"
 #include "crypto/test-ec-key.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/server.h"

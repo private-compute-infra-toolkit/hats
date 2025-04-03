@@ -89,8 +89,8 @@ function build_oak_hello_world_container_bundle_tar() {
 function build_test_application_container_bundle_tar() {
   local BUILD_DIR="$1"
   printf "\nBUILDING TEST APPLICATION CONTAINER BUNDLE TAR..."
-  bazel build -c opt //client/trusted_application:bundle
-  cp -f ../../bazel-bin/client/trusted_application/bundle.tar "$BUILD_DIR"
+  bazel build -c opt //client/trusted_application/enclave_app:bundle
+  cp -f ../../bazel-bin/client/trusted_application/enclave_app/bundle.tar "$BUILD_DIR"
 }
 
 function build_trusted_application_client() {

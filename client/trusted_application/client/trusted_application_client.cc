@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "client/trusted_application/trusted_application_client.h"
+#include "client/trusted_application/client/trusted_application_client.h"
 
 #include <memory>
 #include <string>

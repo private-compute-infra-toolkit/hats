@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef HATS_CLIENT_TRUSTED_APPLICATION_ENCLAVE_APP_TRUSTED_APPLICATION_H_
+#define HATS_CLIENT_TRUSTED_APPLICATION_ENCLAVE_APP_TRUSTED_APPLICATION_H_
+
 #include <vector>
 
 #include "client/proto/orchestrator.pb.h"
@@ -33,3 +36,5 @@ class TrustedApplication : public TrustedService::Service {
   std::vector<server_common::Key> keys_;
 };
 }  // namespace privacy_sandbox::client
+
+#endif  // HATS_CLIENT_TRUSTED_APPLICATION_ENCLAVE_APP_TRUSTED_APPLICATION_H_
