@@ -224,7 +224,8 @@ TEST(TrustedApplication, SuccessfulEcho) {
     std::this_thread::sleep_for(std::chrono::seconds(5));
     counter--;
   }
-  ASSERT_EQ(launcher->CheckStatus(), true);
+  ASSERT_TRUE(launcher->CheckStatus());
+  ASSERT_TRUE(launcher->IsAppReady());
 
   privacy_sandbox::client::TrustedApplicationClient app_client =
       privacy_sandbox::client::TrustedApplicationClient(
