@@ -153,12 +153,72 @@ cc_test(
 )
 
 cc_library(
+    name = "key-fetcher-gcp-common-utils",
+    srcs = ["key-fetcher-gcp-common-utils.cc"],
+    hdrs = [
+        "key-fetcher-gcp-common-utils.h",
+    ],
+    deps = [
+        "//crypto:aead-crypter",
+        "//crypto:secret-data",
+        "//key_manager:gcp-kms-client",
+        "//status_macro:status_macros",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@google_cloud_cpp//:spanner",
+    ],
+)
+
+cc_library(
+    name = "key-fetcher-gcp-coordinator",
+    srcs = ["key-fetcher-gcp-coordinator.cc"],
+    hdrs = [
+        "key-fetcher-gcp-coordinator.h",
+    ],
+    deps = [
+        ":key-fetcher-gcp-common-utils",
+        ":key-fetcher-interface",
+        "//crypto:aead-crypter",
+        "//crypto:secret-data",
+        "//crypto/secret_sharing:bridge",
+        "//gcp_common:flags",
+        "//key_manager:gcp-kms-client",
+        "//status_macro:status_macros",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@google_cloud_cpp//:kms",
+        "@google_cloud_cpp//:spanner",
+    ],
+)
+
+cc_test(
+    name = "key-fetcher-gcp-coordinator_test",
+    size = "small",
+    srcs = [":key-fetcher-gcp-coordinator_test.cc"],
+    deps = [
+        ":key-fetcher-gcp-coordinator",
+        "//crypto:aead-crypter",
+        "//crypto:secret-data",
+        "//status_macro:status_test_macros",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@google_cloud_cpp//:kms",
+        "@google_cloud_cpp//:spanner",
+        "@google_cloud_cpp//:spanner_mocks",
+    ],
+)
+
+cc_library(
     name = "key-fetcher-gcp",
     srcs = ["key-fetcher-gcp.cc"],
     hdrs = [
         "key-fetcher-gcp.h",
     ],
     deps = [
+        ":key-fetcher-gcp-common-utils",
         ":key-fetcher-interface",
         "//crypto:aead-crypter",
         "//crypto:secret-data",

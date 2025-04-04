@@ -29,7 +29,7 @@ pub(crate) struct Share {
 
 impl XorSharing {
     pub fn new(numshares: usize) -> Result<Self, Error> {
-        if numshares < 2 {
+        if numshares < 1 {
             return Err(Error::MustSplitTrust);
         }
         Ok(Self { numshares })
@@ -115,7 +115,7 @@ mod test {
 
     #[test]
     fn test_xor_split_1() {
-        assert_eq!(XorSharing::new(1).unwrap_err(), Error::MustSplitTrust);
+        assert_eq!(XorSharing::new(0).unwrap_err(), Error::MustSplitTrust);
     }
 
     #[test]

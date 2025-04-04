@@ -57,6 +57,10 @@ cc_binary(
             "//key_manager:key-fetcher-gcp",
             "//tvs/appraisal_policies:policy-fetcher-gcp",
         ],
+        "//:gcp_coordinator": [
+            "//key_manager:key-fetcher-gcp-coordinator",
+            "//tvs/appraisal_policies:policy-fetcher-gcp",
+        ],
         "//conditions:default": [
             "//key_manager:key-fetcher-local",
             "//tvs/appraisal_policies:policy-fetcher-local",
