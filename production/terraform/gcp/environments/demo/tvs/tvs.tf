@@ -31,6 +31,9 @@ module "tvs" {
   tvs_spanner_database_name        = var.tvs_spanner_database_name
   tvs_spanner_instance_name        = var.tvs_spanner_instance_name
   tvs_key_encryption_ring_id       = var.tvs_key_encryption_ring_id
+  coordinator_project_id = var.coordinator_project_id
+  coordinator_spanner_database_name = var.coordinator_spanner_database_name
+  coordinator_spanner_instance_name = var.coordinator_spanner_instance_name
   cloudrun_timeout_seconds         = var.cloudrun_timeout_seconds
   tvs_cloudrun_memory_mb           = var.tvs_cloudrun_memory_mb
   tvs_cloudrun_min_instances       = var.tvs_cloudrun_min_instances

@@ -67,6 +67,21 @@ variable "tvs_spanner_instance_name" {
   type        = string
 }
 
+variable "coordinator_spanner_database_name" {
+  description = "Name of the Coordinator Spanner database."
+  type        = string
+}
+
+variable "coordinator_spanner_instance_name" {
+  description = "Name of the Coordinator Spanner instance."
+  type        = string
+}
+
+variable "coordinator_project_id" {
+  type        = string
+  description = "The GCP project ID of the coordinator Spanner instance."
+}
+
 variable "tvs_key_encryption_ring_id" {
   description = "Name of the key encryption ring containing KEK used for database"
   type        = string

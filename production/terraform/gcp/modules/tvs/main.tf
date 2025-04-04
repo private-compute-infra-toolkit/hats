@@ -75,6 +75,9 @@ resource "google_cloud_run_v2_service" "tvs" {
       args = ["--project_id=${var.project_id}",
         "--instance_id=${var.tvs_spanner_instance_name}",
         "--database_id=${var.tvs_spanner_database_name}",
+        "--coordinator_project_id=${var.coordinator_project_id}",
+        "--coordinator_instance_id=${var.coordinator_spanner_instance_name}",
+        "--coordinator_database_id=${var.coordinator_spanner_database_name}",
         "--enable_dynamic_policy_fetching=${var.enable_dynamic_policy_fetching}",
       "--stderrthreshold=0"]
 
