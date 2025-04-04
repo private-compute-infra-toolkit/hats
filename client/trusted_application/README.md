@@ -16,7 +16,7 @@ repository root (all paths are relative to the repository root).
 1. Compile the binaries:
 
     ```shell
-    $ ./client/trusted_application/build-for-test.sh
+    $ ./client/trusted_application/build-for-test-insecure.sh
     ```
 
 1. Run the test:

@@ -233,6 +233,10 @@ function build_test_bundles() {
   # the underlying binaries are of a different version.
   tar --mode a=r,u+w,a+X --mtime='@0' --sort=name --owner=root:0 --group=root:0 -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
   mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
+
+  cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.txtpb"
+  cp "$APPRISAL_POLICY" "$BUILD_DIR/appraisal_policy.txtpb"
+
   # Clean up the extra stuff in the folder.
   rm -rf ../prebuilt
   rm -rf "$TAR_DIR"
