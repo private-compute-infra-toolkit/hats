@@ -119,7 +119,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       ninja-build \
                       openssh-client \
                       pkgconf \
-		      python-is-python3 \
+                      python-is-python3 \
                       python3 \
                       python3-numpy \
                       python3-opencv \
@@ -142,12 +142,12 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       xorriso \
                       zlib1g-dev \
                       zstd \
-		      build-essential \
-		      acpica-tools \
-		      nasm \
-		      libssl-dev \
-		      debhelper \
-		      rsync && \
+                      build-essential \
+                      acpica-tools \
+                      nasm \
+                      libssl-dev \
+                      debhelper \
+                      rsync && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y && \
     sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
