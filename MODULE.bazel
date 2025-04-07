@@ -24,6 +24,11 @@ bazel_dep(name = "grpc", version = "1.63.1", repo_name = "com_github_grpc_grpc")
 bazel_dep(name = "rules_proto", version = "6.0.2", repo_name = "rules_proto")
 bazel_dep(name = "googletest", version = "1.14.0.bcr.1", repo_name = "com_google_googletest")
 bazel_dep(name = "abseil-cpp", version = "20240116.2", repo_name = "com_google_absl")
+
+# TODO(b/409090030): Use updated libarchive that uses bcr2 (mirrored so less
+# flakey) over bcr1 or earlier (sourceware, which is flakey)
+bazel_dep(name = "bzip2", version = "1.0.8.bcr.2")
+
 git_override(
     module_name = "abseil-cpp",
     commit = "d9f501ef8482b3e6a41e3b544fde4569ad909c0b",
