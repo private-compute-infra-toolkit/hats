@@ -52,10 +52,9 @@ source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
 patches::apply_python
 popd
 
-pushd "${KOKORO_HATS_DIR}/google_internal/kokoro"
+pushd "${KOKORO_HATS_DIR}"
 
-# TODO(b/395680242): Resolve RBE on GCP_UBUNTU_DOCKER.
-# RBE doesn't auth correctly, but also still runs without it.
+##### First bazel test all on Kokoro
 
 # Skip builds/tests that fail on Kokoro
 # nopresubmit: general tests that Kokoro can't run
