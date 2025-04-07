@@ -147,7 +147,7 @@ fi
 # Number that should be consistent for multiple runs of a PR
 if [[ -z "${SWARMING_TASK_PREFIX}" ]]; then
   #shellcheck disable=SC2154
-  export SWARMING_TASK_PREFIX="Kokoro_PR_${KOKORO_GERRIT_CHANGE_NUMBER_hats}"
+  export SWARMING_TASK_PREFIX="Kokoro_PR_${KOKORO_GERRIT_CHANGE_NUMBER}"
 fi
 
 ###### Trigger (Upload and run)
