@@ -55,7 +55,8 @@ popd
 
 pushd "${KOKORO_HATS_DIR}"
 
-##### First bazel test all on Kokoro
+################ Test on Kokoro
+echo "Testing on Kokoro"
 
 # Skip builds/tests that fail on Kokoro
 # nopresubmit: general tests that Kokoro can't run
@@ -67,7 +68,7 @@ args=(
   test
   --config=ci
   --verbose_failures=true
-  --experimental_convenience_symlinks=ignore
+  --dynamic_mode=off # Static build now as pre-build for swarming
   --build_tag_filters="${tag_filters}"
   --test_tag_filters="${tag_filters}"
   --
@@ -75,13 +76,15 @@ args=(
 )
 ./google_internal/kokoro/bazel_wrapper.py "${args[@]}"
 
+################ Test on Swarming
 ##### Build for swarming
+echo "Building for swarming"
 
 # TODO(b/395680242): Resolve RBE on GCP_UBUNTU_DOCKER.
 # RBE doesn't auth correctly, but also still runs without it.
 
 args=(
-  test
+  build
   --config=ci
   --verbose_failures=true
   --dynamic_mode=off # Force static build, for binaries sent to bot
