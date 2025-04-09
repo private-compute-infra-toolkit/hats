@@ -22,11 +22,11 @@ message Key {
   string key_id = 1;
   string public_key = 2;
   bytes private_key = 3;
-};
+}
 
 message GetKeysResponse {
   repeated Key keys = 1;
-};
+}
 
 service HatsOrchestrator {
   // Provide HPKE keys obtained from TVS(s).
