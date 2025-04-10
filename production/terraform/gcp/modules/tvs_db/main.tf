@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-locals {
-  ddl = join("", [for line in split("\n", file("${path.module}/files/tvs_database_schema.ddl")) : replace(line, "/^--(.*)$/", "")])
-  sql_statements = split(";", local.ddl)
-}
-
 # Cloud KMS encryption ring and key encryption key (KEK)
 resource "google_kms_key_ring" "key_encryption_ring" {
   project  = var.project_id
@@ -50,9 +45,5 @@ resource "google_spanner_database" "tvs_db" {
   name                     = "${var.environment}-tvsdb"
   version_retention_period = var.tvs_db_retention_period
 
-  # Do NOT modify existing DDL files. Terraform would recreate the database, causing data loss.
-  # Instead, create a file containing the new DDL statements and append it to this list or update the existing schema append-only.
-  ddl = concat(local.sql_statements, [])
-
-  deletion_protection = false
+  deletion_protection = true
 }

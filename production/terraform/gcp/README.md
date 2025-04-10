@@ -37,9 +37,13 @@ terraform init
 terraform apply -auto-approve
 ```
 5. Store output to be used for following steps
-6. Populate Spanner with required data
+6. Populate Spanner with required data:
+- [SQL Schema using Liquibase](../../gcp/README.md)
+- [Appraisal policies and TVS keys](../../README.md)
 
 ## Deploy tvs
+Before deploying [build the TVS image and push to Artifact Registry](../../gcp/README.md).
+
 1. Update file `main.tf`:
     - terraform configurations
         - uncomment the `backend "gcs"` block and populate:

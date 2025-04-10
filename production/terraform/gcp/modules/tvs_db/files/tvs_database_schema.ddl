@@ -1,1 +1,0 @@
-../../../../../tvs_database_schema.ddl

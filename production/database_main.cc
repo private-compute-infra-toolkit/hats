@@ -151,7 +151,8 @@ absl::StatusOr<std::vector<std::string>> GetDatabaseSchema() {
   std::vector<std::string> result;
   // Strip comments and separate each SQL statement.
   while (std::getline(ss, line)) {
-    if (!absl::StartsWith(line, "--")) {
+    if (!absl::StartsWith(line, "--") && !absl::StartsWith(line, "START") &&
+        !absl::StartsWith(line, "RUN")) {
       current_item += line;
       if (absl::EndsWith(line, ";")) {
         current_item.pop_back();

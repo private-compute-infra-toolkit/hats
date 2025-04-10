@@ -20,7 +20,6 @@ pkg_filegroup(
     srcs = [
         "//production/terraform/gcp/modules/tvs",
         "//production/terraform/gcp/modules/tvs_db",
-        "//production/terraform/gcp/modules/tvs_db/files",
     ],
     prefix = "modules",
 )

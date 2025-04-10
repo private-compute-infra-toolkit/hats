@@ -14,6 +14,8 @@
 
 -- A schema for a database used to store TVS secrets and appraisal policies.
 
+START BATCH DDL;
+
 CREATE SEQUENCE DekIdSequence OPTIONS (
   sequence_kind = 'bit_reversed_positive'
 );
@@ -155,3 +157,5 @@ CREATE TABLE Users (
 ) PRIMARY KEY(UserId);
 
 CREATE UNIQUE INDEX UserNameIndex ON Users(Name);
+
+RUN BATCH;
