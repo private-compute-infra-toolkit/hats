@@ -47,3 +47,33 @@ resource "google_spanner_database" "tvs_db" {
 
   deletion_protection = true
 }
+
+resource "google_service_account" "tvs_service_account" {
+  project = var.project_id
+  # Service account id has a 30 character limit
+  account_id   = "${var.environment}-tvsuser"
+  display_name = "TVS Service Account"
+}
+
+# IAM entry for service account to read/write the database
+resource "google_spanner_database_iam_member" "tvs_spannerdb_iam_policy" {
+  project  = var.project_id
+  instance = google_spanner_instance.tvs_db_instance.name
+  database = google_spanner_database.tvs_db.name
+  role     = "roles/spanner.databaseReader"
+  member   = "serviceAccount:${google_service_account.tvs_service_account.email}"
+}
+
+# Allow TVS service account to encrypt/decrypt
+resource "google_kms_key_ring_iam_member" "tvs_key_encryption_ring_iam" {
+  key_ring_id = google_kms_key_ring.key_encryption_ring.id
+  role        = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member      = "serviceAccount:${google_service_account.tvs_service_account.email}"
+}
+
+# Allow TVS service account to encrypt/decrypt
+resource "google_project_iam_member" "tvs_metrics_writer_iam" {
+  project     = var.project_id
+  role        = "roles/monitoring.metricWriter"
+  member      = "serviceAccount:${google_service_account.tvs_service_account.email}"
+}

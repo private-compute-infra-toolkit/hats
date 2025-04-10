@@ -82,9 +82,9 @@ variable "coordinator_project_id" {
   description = "The GCP project ID of the coordinator Spanner instance."
 }
 
-variable "tvs_key_encryption_ring_id" {
-  description = "Name of the key encryption ring containing KEK used for database"
-  type        = string
+variable "tvs_service_account" {
+  type = string
+  description = "Name of the TVS service account email"
 }
 
 variable "enable_dynamic_policy_fetching" {

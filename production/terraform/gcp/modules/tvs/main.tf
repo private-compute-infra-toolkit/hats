@@ -12,29 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_service_account" "tvs_service_account" {
-  project = var.project_id
-  # Service account id has a 30 character limit
-  account_id   = "${var.environment}-tvsuser"
-  display_name = "TVS Service Account"
-}
-
-# IAM entry for service account to read/write the database
-resource "google_spanner_database_iam_member" "tvs_spannerdb_iam_policy" {
-  project  = var.project_id
-  instance = var.tvs_spanner_instance_name
-  database = var.tvs_spanner_database_name
-  role     = "roles/spanner.databaseUser"
-  member   = "serviceAccount:${google_service_account.tvs_service_account.email}"
-}
-
-# Allow TVS service account to encrypt/decrypt
-resource "google_kms_key_ring_iam_member" "tvs_key_encryption_ring_iam" {
-  key_ring_id = var.tvs_key_encryption_ring_id
-  role        = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member      = "serviceAccount:${google_service_account.tvs_service_account.email}"
-}
-
 # IAM entry to invoke allow unauthenticated
 resource "google_cloud_run_service_iam_binding" "allow_unauthenticated_iam_policy" {
   count = var.allow_unauthenticated ? 1 : 0
@@ -108,7 +85,7 @@ resource "google_cloud_run_v2_service" "tvs" {
       force_new_revision_timestamp = var.cloud_run_revision_force_replace ? formatdate("YYYY-MM-DD_hh_mm_ss", timestamp()) : null,
     }
 
-    service_account = google_service_account.tvs_service_account.email
+    service_account = var.tvs_service_account
   }
 
   custom_audiences = var.tvs_custom_audiences

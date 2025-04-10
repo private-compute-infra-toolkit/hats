@@ -28,7 +28,7 @@ module "tvs" {
   # Cloud Run vars
   tvs_spanner_database_name        = var.tvs_spanner_database_name
   tvs_spanner_instance_name        = var.tvs_spanner_instance_name
-  tvs_key_encryption_ring_id       = var.tvs_key_encryption_ring_id
+  tvs_service_account        = var.tvs_service_account
   coordinator_project_id = var.coordinator_project_id
   coordinator_spanner_database_name = var.coordinator_spanner_database_name
   coordinator_spanner_instance_name = var.coordinator_spanner_instance_name
