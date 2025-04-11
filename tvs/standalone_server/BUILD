@@ -37,14 +37,17 @@ cc_binary(
         "//:gcp": [
             "//key_manager:key-fetcher-gcp",
             "//tvs/appraisal_policies:policy-fetcher-gcp",
+            "//tvs/telemetry:otel-gcp",
         ],
         "//:gcp_coordinator": [
             "//key_manager:key-fetcher-gcp-coordinator",
             "//tvs/appraisal_policies:policy-fetcher-gcp",
+            "//tvs/telemetry:otel-gcp",
         ],
         "//conditions:default": [
             "//key_manager:key-fetcher-local",
             "//tvs/appraisal_policies:policy-fetcher-local",
+            "//tvs/telemetry:otel-noop",
         ],
     }),
 )
