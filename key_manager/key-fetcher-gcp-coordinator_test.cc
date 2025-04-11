@@ -44,7 +44,7 @@ using ::testing::UnorderedElementsAre;
 // name and ciphertext, the encryption key is returned; otherwise and error is
 // returned.
 class TestKeyManagementServiceConnection
-    : public google::cloud::kms_v1::v2_29::KeyManagementServiceConnection {
+    : public google::cloud::kms_v1::v2_36::KeyManagementServiceConnection {
  public:
   TestKeyManagementServiceConnection(absl::string_view expected_resource_name,
                                      absl::string_view expected_ciphertext,
@@ -53,7 +53,7 @@ class TestKeyManagementServiceConnection
         expected_ciphertext_(expected_ciphertext),
         dek_(dek) {}
 
-  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::DecryptResponse>
+  google::cloud::v2_36::StatusOr<google::cloud::kms::v1::DecryptResponse>
   Decrypt(const google::cloud::kms::v1::DecryptRequest& request) override {
     google::cloud::kms::v1::DecryptResponse response;
     if (request.name() == expected_resource_name_ &&
@@ -81,7 +81,7 @@ TEST(KeyFetcherGcpCoordinator, GetPrimaryPrivateKey) {
   constexpr absl::string_view kCiphertext = "test_dek_primary";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, dek);
-  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_36::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -161,7 +161,7 @@ TEST(KeyFetcherGcpCoordinator, GetSecondaryPrimaryKey) {
   constexpr absl::string_view kCiphertext = "test_dek_secondary";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, dek);
-  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_36::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -238,7 +238,7 @@ TEST(KeyFetcherGcpCoordinator, UserIdForAuthenticationKeyV1) {
   crypto::SecretData dek(5);
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       /*expected_resource_name=*/"", /*expected_ciphertext=*/"", dek);
-  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_36::KeyManagementServiceClient test_client(
       test_connection);
 
   auto mock_connection =
@@ -259,7 +259,7 @@ TEST(KeyFetcherGcpCoordinator, UserIdForAuthenticationKeyV2) {
   crypto::SecretData dek(5);
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       /*expected_resource_name=*/"", /*expected_ciphertext=*/"", dek);
-  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_36::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -321,7 +321,7 @@ TEST(KeyFetcherGcpCoordinator, GetSecretsForUserIdV1) {
   constexpr absl::string_view kCiphertext = "Hello World!";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, data);
-  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_36::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -407,7 +407,7 @@ TEST(KeyFetcherGcpCoordinator, KmsError) {
   constexpr absl::string_view kCiphertext = "Hello World!";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, data);
-  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_36::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -490,7 +490,7 @@ TEST(KeyFetcherGcpCoordinator, DecodeError) {
   constexpr absl::string_view kCiphertext = "Hello World!";
   auto test_connection = std::make_shared<TestKeyManagementServiceConnection>(
       kResourceName, kCiphertext, data);
-  google::cloud::kms_v1::v2_29::KeyManagementServiceClient test_client(
+  google::cloud::kms_v1::v2_36::KeyManagementServiceClient test_client(
       test_connection);
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();

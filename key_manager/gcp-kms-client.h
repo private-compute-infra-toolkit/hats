@@ -25,7 +25,7 @@ namespace privacy_sandbox::key_manager {
 class GcpKmsClient : public KmsClient {
  public:
   explicit GcpKmsClient(
-      google::cloud::kms_v1::v2_29::KeyManagementServiceClient client);
+      google::cloud::kms_v1::v2_36::KeyManagementServiceClient client);
   GcpKmsClient() = delete;
 
   absl::StatusOr<PublicKey> GetPublicKey(absl::string_view key_id) override;
@@ -39,7 +39,7 @@ class GcpKmsClient : public KmsClient {
       absl::string_view associated_data) override;
 
  private:
-  google::cloud::kms_v1::v2_29::KeyManagementServiceClient client_;
+  google::cloud::kms_v1::v2_36::KeyManagementServiceClient client_;
 };
 
 }  // namespace privacy_sandbox::key_manager

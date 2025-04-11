@@ -143,7 +143,7 @@ absl::StatusOr<std::vector<Secret>> WrappedSecretsByUserIdFromSpanner(
 }  // namespace
 
 KeyFetcherGcpCoordinator::KeyFetcherGcpCoordinator(
-    google::cloud::kms_v1::v2_29::KeyManagementServiceClient gcp_kms_client,
+    google::cloud::kms_v1::v2_36::KeyManagementServiceClient gcp_kms_client,
     google::cloud::spanner::Client tvs_spanner_client,
     google::cloud::spanner::Client coordinator_spanner_client,
     int64_t max_age_seconds, int64_t coordinator_version)
@@ -237,7 +237,7 @@ absl::StatusOr<bool> KeyFetcherGcpCoordinator::MaybeAcquireLock(
 }
 
 std::unique_ptr<KeyFetcher> KeyFetcherGcpCoordinator::Create(
-    google::cloud::kms_v1::v2_29::KeyManagementServiceClient gcp_kms_client,
+    google::cloud::kms_v1::v2_36::KeyManagementServiceClient gcp_kms_client,
     google::cloud::spanner::Client tvs_spanner_client,
     google::cloud::spanner::Client coordinator_spanner_client,
     int64_t max_age_seconds, int64_t coordinator_version) {

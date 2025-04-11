@@ -33,7 +33,7 @@ class KeyFetcherGcpCoordinator : public KeyFetcher {
   KeyFetcherGcpCoordinator() = delete;
   // For unit-tests only.
   static std::unique_ptr<KeyFetcher> Create(
-      google::cloud::kms_v1::v2_29::KeyManagementServiceClient client,
+      google::cloud::kms_v1::v2_36::KeyManagementServiceClient client,
       google::cloud::spanner::Client tvs_spanner_client,
       google::cloud::spanner::Client coordinator_spanner_client,
       int64_t max_age_seconds, int64_t coordinator_version);
@@ -61,7 +61,7 @@ class KeyFetcherGcpCoordinator : public KeyFetcher {
  private:
   // For unit-tests only.
   KeyFetcherGcpCoordinator(
-      google::cloud::kms_v1::v2_29::KeyManagementServiceClient client,
+      google::cloud::kms_v1::v2_36::KeyManagementServiceClient client,
       google::cloud::spanner::Client tvs_spanner_client,
       google::cloud::spanner::Client coordinator_spanner_client,
       int64_t max_age_seconds, int64_t coordinator_version);

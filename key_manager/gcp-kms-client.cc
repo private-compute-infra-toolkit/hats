@@ -49,7 +49,7 @@ absl::StatusOr<CryptoKey> GcpKmsClient::CreateAsymmetricKey(
       google::cloud::kms::v1::
           CryptoKeyVersion_CryptoKeyVersionAlgorithm_EC_SIGN_P256_SHA256);
   *request.mutable_crypto_key() = std::move(gcp_key);
-  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::CryptoKey> result =
+  google::cloud::v2_36::StatusOr<google::cloud::kms::v1::CryptoKey> result =
       client_.CreateCryptoKey(request);
   HATS_RETURN_IF_ERROR(result.status());
   CryptoKey custom_key;
@@ -65,7 +65,7 @@ absl::StatusOr<std::string> GcpKmsClient::EncryptData(
   request.set_plaintext(plaintext);
   request.set_additional_authenticated_data(associated_data);
 
-  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::EncryptResponse>
+  google::cloud::v2_36::StatusOr<google::cloud::kms::v1::EncryptResponse>
       result = client_.Encrypt(request);
   HATS_RETURN_IF_ERROR(result.status());
 
@@ -80,7 +80,7 @@ absl::StatusOr<std::string> GcpKmsClient::DecryptData(
   request.set_ciphertext(ciphertext);
   request.set_additional_authenticated_data(associated_data);
 
-  google::cloud::v2_29::StatusOr<google::cloud::kms::v1::DecryptResponse>
+  google::cloud::v2_36::StatusOr<google::cloud::kms::v1::DecryptResponse>
       result = client_.Decrypt(request);
   HATS_RETURN_IF_ERROR(result.status());
 
@@ -88,7 +88,7 @@ absl::StatusOr<std::string> GcpKmsClient::DecryptData(
 }
 
 GcpKmsClient::GcpKmsClient(
-    google::cloud::kms_v1::v2_29::KeyManagementServiceClient client)
+    google::cloud::kms_v1::v2_36::KeyManagementServiceClient client)
     : client_(std::move(client)) {}
 
 }  // namespace privacy_sandbox::key_manager

@@ -266,7 +266,7 @@ constexpr bool HasPotentialConditionalOperator(const char* lhs, int index) {
 namespace grpc {
 class Status;
 }
-// v2_29 is inline namespace
+// v2_36 is inline namespace
 namespace google::cloud {
 class Status;
 }
@@ -283,7 +283,7 @@ class StatusAdaptorForMacros {
   StatusAdaptorForMacros(const grpc::Status& grpc_status, SourceLocation loc)
       : builder_(ToAbslStatus(grpc_status), loc) {}
 
-  StatusAdaptorForMacros(const google::cloud::v2_29::Status& cloud_status,
+  StatusAdaptorForMacros(const google::cloud::v2_36::Status& cloud_status,
                          SourceLocation loc)
       : builder_(::privacy_sandbox::gcp_common::GcpToAbslStatus(cloud_status),
                  loc) {}

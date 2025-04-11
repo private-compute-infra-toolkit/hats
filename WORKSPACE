@@ -246,9 +246,9 @@ enclave_crate_repositories()
 
 http_archive(
     name = "google_cloud_cpp",
-    sha256 = "758e1eca8186b962516c0659b34ce1768ba1c9769cfd998c5bbffb084ad901ff",
-    strip_prefix = "google-cloud-cpp-2.29.0",
-    url = "https://github.com/googleapis/google-cloud-cpp/archive/v2.29.0.tar.gz",
+    sha256 = "9a6e182fd658ba114512cf21bd9f274a315830638f62f0b831113df9e674bea0",
+    strip_prefix = "google-cloud-cpp-2.36.0",
+    url = "https://github.com/googleapis/google-cloud-cpp/archive/v2.36.0.tar.gz",
 )
 
 load("@google_cloud_cpp//bazel:google_cloud_cpp_deps.bzl", "google_cloud_cpp_deps")
