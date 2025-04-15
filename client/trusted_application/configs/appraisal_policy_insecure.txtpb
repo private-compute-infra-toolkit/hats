@@ -59,7 +59,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 4, RAM: 8000000 KB"
+  description: "Policy for Trusted Application running in an insecure VM. Cores: 4, RAM: 8000000 KB, ACPI XSDT (FACP, APIC)"
   measurement {
     stage0_measurement {
       insecure {}
@@ -78,6 +78,27 @@ policies {
     signer: "hats"
   }
 }
+policies {
+  description: "Policy for Trusted Application running in an insecure VM. Cores: 4, RAM: 8000000 KB, ACPI XSDT (APIC, FACP)"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+    acpi_table_sha256: "045c206a3de695f98ca709e456d9df46c4e33e32673e9036563c8901ba704fcb"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "24ecad95c3743792ee7f0904d63b7dca60231e93cf5ab255708da9c68ab741f351397abe884d9d7ad8b9e93413fa8b34273781f934c8464a84fdca24e6bdd355"
+    signer: "hats"
+  }
+}
+
 policies {
   description: "Policy for Trusted Application running in an insecure VM. Cores: 1, RAM: 4000000 KB"
   measurement {
