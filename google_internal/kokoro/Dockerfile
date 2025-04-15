@@ -16,21 +16,35 @@
 ARG image_digest=sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782
 FROM ubuntu:latest@${image_digest}
 
-RUN apt-get update && apt-get install --no-install-recommends --yes python3 \
-       curl ca-certificates git gnupg2 patch pre-commit shellcheck nix
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends --yes \
+                      ca-certificates \
+                      curl \
+                      git \
+                      gnupg2 \
+                      nix \
+                      patch \
+                      pre-commit \
+                      python3 \
+                      shellcheck && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y
 
 RUN echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf
 
 # Make nix use the default profile for the current user.
 ENV PATH=/nix/var/nix/profiles/default/bin/:$PATH
 
-# Required to install bazel.
-RUN echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" \
-	 | tee /etc/apt/sources.list.d/bazel.list
+# Install bazel
+RUN curl -fsSL https://bazel.build/bazel-release.pub.gpg \
+    | gpg --dearmor >bazel-archive-keyring.gpg
+RUN mv bazel-archive-keyring.gpg /usr/share/keyrings
+RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8" \
+    | tee /etc/apt/sources.list.d/bazel.list
 
-RUN curl https://bazel.build/bazel-release.pub.gpg \
-	| apt-key add - && apt-get update
-
-RUN apt-get install -y bazel-7.4.1
+RUN apt-get update && apt-get install -y bazel-7.4.1
 
 RUN ln -s /usr/bin/bazel-7.4.1 /usr/bin/bazel
