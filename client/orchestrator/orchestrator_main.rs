@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use anyhow::{anyhow, Context};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use oak_containers_orchestrator::ipc_server::create_services;
 use oak_containers_orchestrator::launcher_client::LauncherClient;
 use oak_proto_rust::oak::attestation::v1::{endorsements, Endorsements, OakContainersEndorsements};
@@ -21,7 +21,16 @@ use secret_sharing::SecretSplit;
 use std::{fs, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 use tvs_grpc_client::TvsClientInterface;
-#[derive(Parser, Debug)]
+
+#[derive(Default, Clone, ValueEnum)]
+enum SecretShareType {
+    #[default]
+    NoSplit,
+    Shamir,
+    Xor,
+}
+
+#[derive(Parser)]
 struct Args {
     #[arg(long, default_value = "http://10.0.2.100:8080")]
     launcher_addr: String,
@@ -45,8 +54,8 @@ struct Args {
     tvs_public_keys_file: String,
 
     // Determines type of secret shares for split secret recovery. Valid values are XOR, SHAMIR, or NONE(For single TVS Cases).
-    #[arg(long, default_value = "SHAMIR")]
-    secret_share_type: String,
+    #[arg(long, required = false, value_enum, default_value_t = SecretShareType::default())]
+    secret_share_type: SecretShareType,
 
     // Time Hats Server will cache TVS Keys repsonse in seconds.
     #[arg(long, default_value = "3600")]
@@ -143,26 +152,31 @@ async fn main() -> anyhow::Result<()> {
         /*application_config=*/ vec![],
         launcher_client,
     );
-    let numshares = tvs_grpc_clients.len();
-    //TODO b/404833792 Revise Args to Enum and Case for Single TVS
-    let secret_split: Option<Box<dyn SecretSplit>> = match args.secret_share_type.as_str() {
-        "XOR" => Some(Box::new(
-            secret_sharing::xor_sharing::XorSharing::new(numshares).map_err(|error| {
-                anyhow::anyhow!("couldn't create xor sharing object: {:?}", error)
-            })?,
-        )),
-        "SHAMIR" => Some(Box::new(
+    let num_tvs_clients = tvs_grpc_clients.len();
+    let secret_split: Option<Box<dyn SecretSplit>> = match args.secret_share_type {
+        SecretShareType::Shamir => Some(Box::new(
             secret_sharing::shamir_sharing::ShamirSharing::new(
-                numshares,
-                numshares - 1,
+                num_tvs_clients,
+                num_tvs_clients - 1,
                 secret_sharing::shamir_sharing::get_prime(),
             )
             .map_err(|error| {
                 anyhow::anyhow!("couldn't create shamir sharing object: {:?}", error)
             })?,
         )),
-        _ => None,
+        SecretShareType::Xor => Some(Box::new(
+            secret_sharing::xor_sharing::XorSharing::new(num_tvs_clients).map_err(|error| {
+                anyhow::anyhow!("couldn't create xor sharing object: {:?}", error)
+            })?,
+        )),
+        SecretShareType::NoSplit => {
+            if num_tvs_clients != 1 {
+                anyhow::bail!("expected one TVS endpoint, got {num_tvs_clients}");
+            }
+            None
+        }
     };
+
     let tvs_secret_manager = tvs_secret_manager::TvsSecretManager::create(
         tvs_grpc_clients,
         &evidence.clone(),

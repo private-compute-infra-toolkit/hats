@@ -8,7 +8,7 @@ SuccessAction=none
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/orchestrator_main --container-dir ${RUNTIME_DIRECTORY}/oak_container --ipc-socket-path ${RUNTIME_DIRECTORY}/oak_utils/orchestrator_ipc --launcher-addr=${LAUNCHER_ADDR} --secret-share-type=SHAMIR
+ExecStart=/usr/bin/orchestrator_main --container-dir ${RUNTIME_DIRECTORY}/oak_container --ipc-socket-path ${RUNTIME_DIRECTORY}/oak_utils/orchestrator_ipc --launcher-addr=${LAUNCHER_ADDR} --secret-share-type=shamir
 ExecStopPost=/usr/bin/journalctl --sync --flush
 ProtectSystem=strict
 RuntimeDirectory=oak_containers_orchestrator
