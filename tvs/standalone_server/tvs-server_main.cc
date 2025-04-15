@@ -33,6 +33,7 @@
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/standalone_server/tvs-service.h"
+#include "tvs/telemetry/otel.h"
 
 ABSL_FLAG(int, port, -1, "Port TVS server listens to.");
 ABSL_FLAG(bool, enable_policy_signature, false,
@@ -103,6 +104,11 @@ int main(int argc, char* argv[]) {
   if (absl::GetFlag(FLAGS_accept_insecure_policies)) {
     LOG(WARNING) << "The server is accepting insecure policies. This should be "
                     "enabled for testing only.";
+  }
+
+  if (!privacy_sandbox::tvs::InitializeTelemetry().ok()) {
+    LOG(ERROR) << "Failed to initialize telemetry";
+    return 1;
   }
 
   HATS_ASSIGN_OR_RETURN(
