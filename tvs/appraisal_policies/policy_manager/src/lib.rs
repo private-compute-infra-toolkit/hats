@@ -168,6 +168,7 @@ mod debug {
         text_reference_value, BinaryReferenceValue, Evidence, KernelLayerReferenceValues,
         RootLayerReferenceValues,
     };
+    use regex::Regex;
 
     pub(crate) fn suggest_appraisal_policy(evidence: &Evidence) -> anyhow::Result<()> {
         let extracted_evidence =
@@ -210,7 +211,17 @@ mod debug {
             else {
                 anyhow::bail!("Evidence does not have kernel command line text.")
             };
-            kernel_cmd_line.value.join("")
+            if let Ok(re) = Regex::new(r"--launcher-addr=vsock://2:([0-9])+[^0-9]*") {
+                format!(
+                    "^{}$",
+                    re.replace(
+                        &kernel_cmd_line.value.join(""),
+                        "--launcher-addr=vsock://2:.*"
+                    )
+                )
+            } else {
+                kernel_cmd_line.value.join("")
+            }
         };
 
         log::debug!(
