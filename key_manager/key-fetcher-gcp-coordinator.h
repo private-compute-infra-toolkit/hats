@@ -25,6 +25,7 @@
 #include "google/cloud/spanner/client.h"
 #include "key_manager/gcp-kms-client.h"
 #include "key_manager/key-fetcher.h"
+#include "tvs/telemetry/otel-counter.h"
 
 namespace privacy_sandbox::key_manager {
 
@@ -71,6 +72,7 @@ class KeyFetcherGcpCoordinator : public KeyFetcher {
   google::cloud::spanner::Client coordinator_spanner_client_;
   int64_t max_age_seconds_;
   int64_t coordinator_version_;
+  privacy_sandbox::tvs::OtelCounter origin_for_authentication_key_counter_;
 };
 
 }  // namespace privacy_sandbox::key_manager

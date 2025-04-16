@@ -185,6 +185,7 @@ cc_library(
         "//gcp_common:flags",
         "//key_manager:gcp-kms-client",
         "//status_macro:status_macros",
+        "//tvs/telemetry:otel-counter",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
