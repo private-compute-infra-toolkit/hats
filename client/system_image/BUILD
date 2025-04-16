@@ -36,7 +36,7 @@ pkg_tar(
         "@oak//oak_containers/agent:bin/oak_containers_agent",
     ] + select({
         # Use syslogd from the `prebuilt` directory. This requires the user
-        # to run ./client/build-for-hats.sh.
+        # to run ./client/trusted_application/build-for-test.sh or similar
         "//:syslogd_from_binary": ["//client/prebuilt:oak_containers_syslogd"],
         # Build syslogd only if the user specifically enabled it
         # oak_containers_syslogd requires libsystemd.so during the

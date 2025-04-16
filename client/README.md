@@ -73,7 +73,7 @@ In order to use HATs CVM you need:
         ```
 
 1.  Build CVM binaries: Oak's stage0, kernel, stage1, and HATs system image. You
-    can use `./client/scripts/build-for-hats.sh` to build the binaries. The
+    can use `./client/trusted_application/build_for_test.sh` to build the binaries. The
     script copies the built binaries to `./client/prebuilt`.
 
     NOTE: the binaries can be built from your workstation. They do not need to
@@ -85,7 +85,7 @@ In order to use HATs CVM you need:
     $ bazel build -c opt //tvs/standalone_server:tvs-server_main
     ```
 
-    Or you can use `./client/scripts/build-for-hats.sh` that build TVS server
+    Or you can use `./client/trusted_application/build_for_test.sh` that builds the TVS server
     and copies it to `./client/prebuilt`. In this case use
     `./client/prebuilt/tvs-server_main` over `bazel-bin/client/tvs-server_main`.
 
@@ -160,7 +160,7 @@ network configuration.
 1.Build CVM binaries: Oak's stage0, kernel, stage1, and HATs system image.
 
 ```shell
-   $ ./client/scripts/build-for-hats.sh
+   $ ./client/trusted_application/build_for_test.sh
 ```
 
 The script copies the binaries to `client/prebuilt`. Copy the directory to the

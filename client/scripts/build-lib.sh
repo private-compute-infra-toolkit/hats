@@ -73,19 +73,6 @@ function build_oak_containers_stage1() {
   popd
 }
 
-function build_oak_hello_world_container_bundle_tar() {
-  local BUILD_DIR="$1"
-  printf "\nBUILDING OAK HELLO WORLD CONTAINER BUNDLE TAR..."
-  pushd ../../submodules/oak
-  # just command to build the container tries to copy a file to
-  # a folder it doesn't have permission to do so and it fails at that
-  # step; so here we copy after we call `just`.
-  nix_develop --extra-experimental-features 'nix-command flakes' --command  bazel build --compilation_mode opt //oak_containers/examples/hello_world/trusted_app:bundle.tar && \
-    rsync ./bazel-bin/oak_containers/examples/hello_world/trusted_app/bundle.tar "$BUILD_DIR/oak_container_example_oci_filesystem_bundle.tar"
-
-  popd
-}
-
 function build_test_application_container_bundle_tar() {
   local BUILD_DIR="$1"
   printf "\nBUILDING TEST APPLICATION CONTAINER BUNDLE TAR..."
@@ -173,41 +160,6 @@ function build_test_keygen() {
   local BUILD_DIR="$1"
   bazel build -c opt //key_manager:key-gen
   cp -f ../../bazel-bin/key_manager/key-gen "$BUILD_DIR"
-}
-
-# A tar file contains all launch required data.
-# A textproto file contains all launch parameters.
-# Secrets are in parameters only.
-function build_launch_bundle() {
-  echo "Building Launcher Bundle"
-  local BUILD_DIR="$1"
-  local STAGE0="$2"
-  local INITRD="$3"
-  local KERNEL="$4"
-  local SYSTEM="$5"
-  local RUNTIME="$6"
-  local APPRISAL_POLICY="$7"
-  local LAUNCHER_CONFIG="$8"
-  local TAR_DIR="$BUILD_DIR/tar"
-  mkdir -p "$TAR_DIR"
-  mv -f "$STAGE0" "$TAR_DIR/stage0_bin"
-  mv -f "$INITRD" "$TAR_DIR/initrd.cpio.xz"
-  mv -f "$KERNEL" "$TAR_DIR/kernel_bin"
-  mv -f "$SYSTEM" "$TAR_DIR/system.tar.xz"
-  # We force the reproducibility of the system bundle to prevent confusion that
-  # the underlying binaries are of a different version.
-  tar --mode a=rx,u+w --mtime='@0' --sort=name --owner=root:0 --group=root:0 -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
-  mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
-  cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.txtpb"
-  cp "$APPRISAL_POLICY" "$BUILD_DIR/appraisal_policy.txtpb"
-  # Init script to generate fake test keys.
-  cp "../scripts/keygen-local-init.sh" "$BUILD_DIR/"
-  cp "../scripts/launcher-up.sh" "$BUILD_DIR/"
-  cp "../scripts/tvs-up.sh" "$BUILD_DIR/"
-  # Clean up the extra stuff in the folder.
-  rm -rf "$TAR_DIR"
-  rm -f "$BUILD_DIR/oak_containers_syslogd"
-  rm "$BUILD_DIR/BUILD"
 }
 
 # A tar file contains all launch required data.
