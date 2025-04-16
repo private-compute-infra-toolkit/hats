@@ -11,16 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-load("@rules_pkg//:mappings.bzl", "pkg_filegroup")
+
+load("@rules_pkg//:mappings.bzl", "pkg_files")
 
 package(default_visibility = ["//visibility:public"])
 
-pkg_filegroup(
-    name = "tvs_modules_pkg",
-    srcs = [
-        "//production/terraform/gcp/modules/tvs",
-        "//production/terraform/gcp/modules/tvs/files",
-        "//production/terraform/gcp/modules/tvs_db",
-    ],
-    prefix = "modules",
+pkg_files(
+    name = "files",
+    srcs = glob(
+        ["*"],
+        exclude = ["BUILD"],
+    ),
+    prefix = "tvs/files",
 )

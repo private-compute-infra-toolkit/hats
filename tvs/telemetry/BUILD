@@ -19,20 +19,18 @@ package(
 )
 
 cc_library(
-    name = "otel-gcp",
-    srcs = ["otel-gcp.cc"],
+    name = "otel-local",
+    srcs = ["otel-local.cc"],
     hdrs =
         [
             "otel.h",
         ],
     deps =
         [
-            "//gcp_common:flags",
             "@com_github_grpc_grpc//:grpc++",
             "@com_github_grpc_grpc//:grpcpp_otel_plugin",
             "@com_google_absl//absl/status",
-            "@google_cloud_cpp//:monitoring",
-            "@google_cloud_cpp//:opentelemetry",
+            "@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_metric_exporter",
             "@io_opentelemetry_cpp//sdk/src/metrics",
         ],
 )

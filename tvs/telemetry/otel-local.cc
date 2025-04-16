@@ -21,9 +21,9 @@
 
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
-#include "gcp_common/flags.h"
-#include "google/cloud/monitoring/v3/metric_connection.h"
-#include "google/cloud/opentelemetry/monitoring_exporter.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter_factory.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter_options.h"
+#include "opentelemetry/metrics/provider.h"
 #include "opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader.h"
 #include "opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader_factory.h"
 #include "opentelemetry/sdk/metrics/meter_provider.h"
@@ -65,10 +65,10 @@ absl::Status InitializeTelemetry() {
   auto meter_provider =
       std::make_shared<opentelemetry::sdk::metrics::MeterProvider>();
 
-  auto connection = google::cloud::monitoring_v3::MakeMetricServiceConnection();
-  auto exporter = google::cloud::otel::MakeMonitoringExporter(
-      google::cloud::Project(absl::GetFlag(FLAGS_project_id)),
-      std::move(connection));
+  // Default otlp exporter. Exports metrics to localhost:4317.
+  auto exporter =
+      opentelemetry::exporter::otlp::OtlpGrpcMetricExporterFactory::Create(
+          opentelemetry::exporter::otlp::OtlpGrpcMetricExporterOptions());
   auto reader =
       opentelemetry::sdk::metrics::PeriodicExportingMetricReaderFactory::Create(
           std::move(exporter),
@@ -79,8 +79,12 @@ absl::Status InitializeTelemetry() {
   AddLatencyView("grpc.server.call.duration", "s", *meter_provider);
   AddLatencyView("grpc.client.attempt.duration", "s", *meter_provider);
   meter_provider->AddMetricReader(std::move(reader));
+
+  // Set the MeterProvider as the global provider for all OTEL metrics
+  opentelemetry::metrics::Provider::SetMeterProvider(meter_provider);
+
   return grpc::OpenTelemetryPluginBuilder()
-      .SetMeterProvider(std::move(meter_provider))
+      .SetMeterProvider(meter_provider)
       .BuildAndRegisterGlobal();
 }
 }  // namespace privacy_sandbox::tvs
