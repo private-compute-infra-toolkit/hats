@@ -251,10 +251,10 @@ cc_library(
     srcs = ["logs-service.cc"],
     hdrs = ["logs-service.h"],
     deps = [
+        "@com_github_opentelemetry_proto//:logs_proto_cc",
+        "@com_github_opentelemetry_proto//:logs_service_grpc_cc",
+        "@com_github_opentelemetry_proto//:logs_service_proto_cc",
         "@com_google_absl//absl/log",
-        "@opentelemetry-proto//:logs_proto_cc",
-        "@opentelemetry-proto//:logs_service_grpc_cc",
-        "@opentelemetry-proto//:logs_service_proto_cc",
     ],
 )
 
@@ -266,12 +266,12 @@ cc_test(
         ":logs-service",
         "//status_macro:status_test_macros",
         "@com_github_grpc_grpc//:grpc++",
+        "@com_github_opentelemetry_proto//:logs_service_grpc_cc",
+        "@com_github_opentelemetry_proto//:logs_service_proto_cc",
         "@com_google_absl//absl/base:log_severity",
         "@com_google_absl//absl/log:scoped_mock_log",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf",
-        "@opentelemetry-proto//:logs_service_grpc_cc",
-        "@opentelemetry-proto//:logs_service_proto_cc",
     ],
 )

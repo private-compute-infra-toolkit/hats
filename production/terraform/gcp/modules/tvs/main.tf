@@ -37,6 +37,32 @@ resource "google_cloud_run_service_iam_member" "private_key_service" {
   member = "group:${var.allowed_operator_user_group}"
 }
 
+resource "google_secret_manager_secret" "otel_parameter" {
+  project     = var.project_id
+  secret_id = format("%s-%s", var.environment, "otel-config")
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "otel_parameter_value" {
+  secret      = google_secret_manager_secret.otel_parameter.id
+  secret_data = file("${path.module}/files/config.yaml")
+}
+
+resource "google_project_iam_member" "tvs_secret_accessor_iam" {
+  project     = var.project_id
+  role        = "roles/secretmanager.secretAccessor"
+  member      = "serviceAccount:${var.tvs_service_account}"
+}
+
+resource "google_secret_manager_secret_iam_member" "member" {
+  project     = var.project_id
+  secret_id = google_secret_manager_secret.otel_parameter.secret_id
+  role = "roles/secretmanager.secretAccessor"
+  member      = "serviceAccount:${var.tvs_service_account}"
+}
+
 # Cloud Run Service
 resource "google_cloud_run_v2_service" "tvs" {
   project  = var.project_id
@@ -68,6 +94,36 @@ resource "google_cloud_run_v2_service" "tvs" {
       ports {
         name           = "h2c"
         container_port = 8080
+      }
+
+      env {
+        name = "OTEL_EXPORTER_OTLP_ENDPOINT"
+        value = "http://localhost:4317"
+      }
+    }
+    containers {
+      name = "collector"
+      image = "us-docker.pkg.dev/cloud-ops-agents-artifacts/google-cloud-opentelemetry-collector/otelcol-google:0.122.1"
+      args = ["--config=/etc/otelcol-google/config.yaml"]
+      startup_probe {
+        http_get {
+          path = "/"
+          port = 13133
+        }
+      }
+      volume_mounts {
+        name = "config"
+        mount_path = "/etc/otelcol-google/"
+      }
+    }
+    volumes {
+      name = "config"
+      secret {
+        secret = google_secret_manager_secret.otel_parameter.secret_id
+        items {
+          path = "config.yaml"
+          version = "latest"
+        }
       }
     }
 
