@@ -89,6 +89,7 @@ grpc::Status TvsService::VerifyReport(
     // Note: Status macros currently don't support setting the status code, and
     // the test checks the code type.
     if (!result.ok()) {
+      LOG(WARNING) << "Invalid or malformed command. " << result.status();
       return grpc::Status(
           grpc::StatusCode::INVALID_ARGUMENT,
           absl::StrCat("Invalid or malformed command. ", result.status()));
