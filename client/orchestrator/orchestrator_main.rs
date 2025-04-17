@@ -222,9 +222,8 @@ async fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hats_server::proto::privacy_sandbox::server_common::hats_orchestrator_server::HatsOrchestrator;
-    use hats_server::proto::privacy_sandbox::tvs::Secret;
-    use hats_server::proto::privacy_sandbox::tvs::VerifyReportResponse;
+    use client_proto::privacy_sandbox::server_common::hats_orchestrator_server::HatsOrchestrator;
+    use client_proto::privacy_sandbox::tvs::{Secret, VerifyReportResponse};
     use hats_server::HatsServer;
     use mockall::predicate::*;
     use oak_containers_attestation::generate_instance_keys;

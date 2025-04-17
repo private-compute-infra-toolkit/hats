@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::proto::privacy_sandbox::server_common::hats_orchestrator_server::{
-    HatsOrchestrator, HatsOrchestratorServer,
-};
-use crate::proto::privacy_sandbox::server_common::{GetKeysResponse, Key};
-use crate::proto::privacy_sandbox::tvs::VerifyReportResponse;
 use anyhow::Context;
+use client_proto::privacy_sandbox::server_common::{
+    hats_orchestrator_server::{HatsOrchestrator, HatsOrchestratorServer},
+    GetKeysResponse, Key,
+};
 use oak_containers_orchestrator::ipc_server::{CryptoService, ServiceImplementation};
 use oak_grpc::oak::containers::orchestrator_server::OrchestratorServer;
 use oak_grpc::oak::containers::v1::orchestrator_crypto_server::OrchestratorCryptoServer;
@@ -29,20 +28,7 @@ use tokio::{fs::set_permissions, net::UnixListener};
 use tokio_stream::wrappers::UnixListenerStream;
 use tokio_util::sync::CancellationToken;
 use tonic::{transport::Server, Request, Response};
-
-pub mod proto {
-    pub mod privacy_sandbox {
-        pub mod tvs {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
-        }
-        pub mod server_common {
-            include!(concat!(
-                env!("OUT_DIR"),
-                "/privacy_sandbox.server_common.rs"
-            ));
-        }
-    }
-}
+use tvs_proto::privacy_sandbox::tvs::VerifyReportResponse;
 
 impl HatsServer {
     pub fn new(tvs_secret_manager: Box<dyn tvs_secret_manager::TvsSecretManagerInterface>) -> Self {
@@ -112,8 +98,8 @@ pub async fn create_services(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::privacy_sandbox::tvs::Secret;
     use anyhow::anyhow;
+    use tvs_proto::privacy_sandbox::tvs::Secret;
     use tvs_secret_manager::MockTvsSecretManagerInterface;
 
     #[tokio::test]

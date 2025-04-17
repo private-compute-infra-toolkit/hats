@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(
@@ -45,21 +44,10 @@ rust_binary(
 rust_test(
     name = "orchestrator_main_test",
     size = "small",
-    srcs = ["orchestrator_main.rs"],
+    crate = ":orchestrator_main",
     deps = [
-        ":hats-server",
-        ":tvs-grpc-client",
-        ":tvs-secret-manager",
-        "//crypto/secret_sharing:secret-sharing-noffi",
-        "@hats_crate_index//:hex",
-        "@oak//oak_containers/attestation:oak_containers_attestation",
-        "@oak//oak_containers/orchestrator:oak_containers_orchestrator",
-        "@oak//oak_proto_rust",
-        "@oak_crates_index//:anyhow",
-        "@oak_crates_index//:clap",
+        "//client/proto_rust:client-proto",
         "@oak_crates_index//:mockall",
-        "@oak_crates_index//:nix",
-        "@oak_crates_index//:p256",
         "@oak_crates_index//:prost",
         "@oak_crates_index//:prost-types",
         "@oak_crates_index//:tokio",
@@ -72,8 +60,9 @@ rust_library(
     name = "tvs-grpc-client",
     srcs = ["tvs-grpc-client.rs"],
     deps = [
-        ":build",
+        "//client/proto_rust:client-proto",
         "//tvs/client:trusted-client-noffi",
+        "//tvs/proto_rust:tvs-proto",
         "@hats_crate_index//:hex",
         "@oak//oak_containers/orchestrator:oak_containers_orchestrator",
         "@oak//oak_proto_rust",
@@ -96,87 +85,14 @@ rust_library(
 rust_test(
     name = "tvs-grpc-client_test",
     size = "small",
-    srcs = ["tvs-grpc-client.rs"],
     compile_data = ["//tvs/test_data:tvs_test_data"],
+    crate = ":tvs-grpc-client",
     deps = [
-        ":build-for-test",
-        "//tvs/appraisal_policies/policy_manager:policy-manager",
-        "//tvs/client:trusted-client-noffi",
         "//tvs/key_fetcher_wrapper:key-fetcher",
-        "//tvs/proto_rust:tvs-proto",
         "//tvs/trusted_tvs/library:trusted-tvs",
         "@enclave//crypto",
-        "@enclave//handshake",
-        "@oak//oak_containers/orchestrator:oak_containers_orchestrator",
-        "@oak//oak_proto_rust",
-        "@oak_crates_index//:anyhow",
-        "@oak_crates_index//:async-stream",
-        "@oak_crates_index//:clap",
         "@oak_crates_index//:futures",
-        "@oak_crates_index//:hex",
-        "@oak_crates_index//:mockall",
-        "@oak_crates_index//:nix",
-        "@oak_crates_index//:p256",
-        "@oak_crates_index//:prost",
-        "@oak_crates_index//:prost-types",
-        "@oak_crates_index//:tokio",
         "@oak_crates_index//:tokio-stream",
-        "@oak_crates_index//:tokio-util",
-        "@oak_crates_index//:tokio-vsock",
-        "@oak_crates_index//:tonic",
-        "@oak_crates_index//:tower",
-    ],
-)
-
-cargo_build_script(
-    name = "build",
-    srcs = [
-        "build.rs",
-    ],
-    build_script_env = {
-        "DESCRIPTOR_PROTO_PATH": "$(location @com_google_protobuf//:descriptor_proto_srcs)",
-        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
-    },
-    data = [
-        "//client/proto:launcher.proto",
-        "//client/proto:orchestrator_proto",
-        "//tvs/proto:tvs_messages_proto",
-        "@com_google_protobuf//:descriptor_proto_srcs",
-        "@com_google_protobuf//:protoc",
-        "@com_google_protobuf//:well_known_type_protos",
-        "@oak//proto:digest.proto",
-        "@oak//proto/attestation:eventlog.proto",
-        "@oak//proto/attestation:evidence.proto",
-    ],
-    deps = [
-        "@oak_crates_index//:tonic-build",
-    ],
-)
-
-cargo_build_script(
-    name = "build-for-test",
-    srcs = [
-        "build-for-test.rs",
-    ],
-    build_script_env = {
-        "DESCRIPTOR_PROTO_PATH": "$(location @com_google_protobuf//:descriptor_proto_srcs)",
-        "OAK_PROTO_INCLUDE": "$(location @oak//proto/attestation:evidence.proto)",
-        "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
-    },
-    data = [
-        "//client/proto:launcher.proto",
-        "//client/proto:orchestrator_proto",
-        "//tvs/proto:tvs_messages_proto",
-        "@com_google_protobuf//:descriptor_proto_srcs",
-        "@com_google_protobuf//:protoc",
-        "@com_google_protobuf//:well_known_type_protos",
-        "@oak//proto:digest.proto",
-        "@oak//proto/attestation:eventlog.proto",
-        "@oak//proto/attestation:evidence.proto",
-    ],
-    deps = [
-        "@oak_crates_index//:tonic-build",
     ],
 )
 
@@ -184,10 +100,11 @@ rust_library(
     name = "hats-server",
     srcs = ["hats-server.rs"],
     deps = [
-        ":build",
         ":tvs-grpc-client",
         ":tvs-secret-manager",
+        "//client/proto_rust:client-proto",
         "//crypto/secret_sharing:secret-sharing-noffi",
+        "//tvs/proto_rust:tvs-proto",
         "@hats_crate_index//:hex",
         "@oak//oak_containers/orchestrator:oak_containers_orchestrator",
         "@oak//oak_proto_rust",
@@ -205,35 +122,15 @@ rust_library(
 rust_test(
     name = "hats-server_test",
     size = "small",
-    srcs = ["hats-server.rs"],
-    deps = [
-        ":build-for-test",
-        ":hats-server",
-        ":tvs-grpc-client",
-        ":tvs-secret-manager",
-        "@hats_crate_index//:hex",
-        "@oak//oak_containers/orchestrator:oak_containers_orchestrator",
-        "@oak//oak_proto_rust",
-        "@oak//oak_proto_rust/grpc",
-        "@oak_crates_index//:anyhow",
-        "@oak_crates_index//:futures",
-        "@oak_crates_index//:mockall",
-        "@oak_crates_index//:prost",
-        "@oak_crates_index//:prost-types",
-        "@oak_crates_index//:tokio",
-        "@oak_crates_index//:tokio-stream",
-        "@oak_crates_index//:tokio-util",
-        "@oak_crates_index//:tonic",
-        "@oak_crates_index//:tower",
-    ],
+    crate = ":hats-server",
 )
 
 rust_library(
     name = "tvs-secret-manager",
     srcs = ["tvs-secret-manager.rs"],
     deps = [
-        ":build",
         ":tvs-grpc-client",
+        "//client/proto_rust:client-proto",
         "//crypto/secret_sharing:secret-sharing-noffi",
         "@hats_crate_index//:hex",
         "@oak//oak_containers/attestation:oak_containers_attestation",
@@ -257,30 +154,8 @@ rust_library(
 rust_test(
     name = "tvs-secret-manager_test",
     size = "small",
-    srcs = ["tvs-secret-manager.rs"],
+    crate = ":tvs-secret-manager",
     deps = [
-        ":build-for-test",
-        ":tvs-grpc-client",
-        ":tvs-secret-manager",
-        "//crypto/secret_sharing:secret-sharing-noffi",
         "@boringssl//rust/bssl-crypto",
-        "@hats_crate_index//:hex",
-        "@oak//oak_containers/attestation:oak_containers_attestation",
-        "@oak//oak_containers/orchestrator:oak_containers_orchestrator",
-        "@oak//oak_proto_rust",
-        "@oak//oak_proto_rust/grpc",
-        "@oak_crates_index//:anyhow",
-        "@oak_crates_index//:clap",
-        "@oak_crates_index//:futures",
-        "@oak_crates_index//:log",
-        "@oak_crates_index//:mockall",
-        "@oak_crates_index//:p256",
-        "@oak_crates_index//:prost",
-        "@oak_crates_index//:prost-types",
-        "@oak_crates_index//:tokio",
-        "@oak_crates_index//:tokio-stream",
-        "@oak_crates_index//:tokio-util",
-        "@oak_crates_index//:tonic",
-        "@oak_crates_index//:tower",
     ],
 )

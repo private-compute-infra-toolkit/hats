@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC.
+// Copyright 2025 Google LLC.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,12 +15,20 @@
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let oak_include_path =
-        &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
     let protobuf_include_path = &env::var("DESCRIPTOR_PROTO_PATH")
         .unwrap()
         .replace("google/protobuf/descriptor.proto", "");
 
+    tonic_build::configure()
+        .build_client(false)
+        .build_server(true)
+        .compile(
+            &["../proto/orchestrator.proto"],
+            &["../", protobuf_include_path],
+        )?;
+
+    let oak_include_path =
+        &env::var("OAK_PROTO_INCLUDE")?.replace("proto/attestation/evidence.proto", "");
     tonic_build::configure()
         .build_client(true)
         .build_server(true)
@@ -29,8 +37,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "::oak_proto_rust::oak::attestation::v1",
         )
         .compile(
-            &["../proto/launcher.proto", "../proto/orchestrator.proto"],
-            &["../", "../..", oak_include_path, protobuf_include_path],
+            &["../proto/launcher.proto", "../../tvs/proto/tvs_messages.proto"],
+            &["../", "../../", protobuf_include_path, oak_include_path],
         )?;
+
     Ok(())
 }
