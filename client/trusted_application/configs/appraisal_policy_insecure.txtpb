@@ -10,11 +10,11 @@ policies {
     memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
     acpi_table_sha256: "36eb161f7c53646a5c2c0e4857e34c132b9bf3244fc6e5c01ea6a8d049854cc3"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "fcd495a594b4ba3459ad17dd3b0186338b202db6e3a2b39538fdfab50318735d74cf39a58add217683899bce794cb139d9b9c0ac0fec755228c6ba0da34baff5"
+    signature: "acbeb6321cbd28fce43c76f3f0c6e30bc399b711b93a2579e1068f61bda4cad28a4e6e8fd0288bdf251efab8961389606b04fe6f9f481ef6db76a74595818f6b"
     signer: "hats"
   }
 }
@@ -30,11 +30,11 @@ policies {
     memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
     acpi_table_sha256: "60cdfd1741e06b1c121c70eea66644911edf08a2642c2cfecb41934410a81d00"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "5dfb2fd38bfb89a634b929df9c6e79cd388b1d216af9d1258d288471a4554c6035a73fb5eee57e0381c33273586db077bdbb3b04a29a38643346ac8df9608769"
+    signature: "ef1fd8767dbad12e5b31e60734ef83f7f0496c538f1c4990010e5f5fd138d436f6fc45090ffdb3fb10a1de2e45f77451c5191635d75f9cb0b346dfaedd357191"
     signer: "hats"
   }
 }
@@ -50,11 +50,11 @@ policies {
     memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
     acpi_table_sha256: "b21799405af0a932c1798fc8fe5bc14b7efd490b9eacbb5e062819694c4d6a43"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "56f656e4195ad6896f23278a950f9fc8d536a75510ab68330a81de370a3e68bee233f19f1499dd2971158a138068ac8f2e105032808007ea3dfce1738eefc35c"
+    signature: "54a684d555e1e4d99f934810f0b35dc77438b5a6755cdf5cf1e3fed6668ffe98ff0c880ade286a1d0f47923cf7a2598ef03a741b02f248e0360de8d7d0ebcff3"
     signer: "hats"
   }
 }
@@ -70,11 +70,11 @@ policies {
     memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
     acpi_table_sha256: "668b5b4db79f9939c741d62182b5962e19c150c1eb78fa824864feb299c0e8c7"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "91cc2e46b9f2c923ffb70c2c704c8b30b02585a95f5a727fb74b8f9139325beff442d6a68a63059179041c786327deb864804c4959766eb1fc46f2ac1803c8ae"
+    signature: "1f87cb87941ffb117e7db260b732c3735f23dae075be305083f4e173e22cdd33ac6907327e2d11db370dd0ecba9a1503d229dc6838a4e93ee6d81e238e3978f0"
     signer: "hats"
   }
 }
@@ -90,11 +90,11 @@ policies {
     memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
     acpi_table_sha256: "045c206a3de695f98ca709e456d9df46c4e33e32673e9036563c8901ba704fcb"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "24ecad95c3743792ee7f0904d63b7dca60231e93cf5ab255708da9c68ab741f351397abe884d9d7ad8b9e93413fa8b34273781f934c8464a84fdca24e6bdd355"
+    signature: "7c7f7e87a65bf96d319652303485f89d96846a911e65829bd27b75e3e903ef4119425340032761401e39afa1dbf66204aee440282d6ff544401a83a09fe81d57"
     signer: "hats"
   }
 }
@@ -111,11 +111,11 @@ policies {
     memory_map_sha256: "0426d345c21e3e7ecae3d7d73547242211c428ed937153cc13a42e804b235086"
     acpi_table_sha256: "36eb161f7c53646a5c2c0e4857e34c132b9bf3244fc6e5c01ea6a8d049854cc3"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "3e2849194bcd337ca0912bbcaa75bfd4087c41c45414f98b22c1ca6ab2e84cbcf9578aa96876e4ce0fa0680dbe50a91810b656d80efc3ba9a9f1477845a659f5"
+    signature: "9d5150b1f0d2c941c2de6a1358f19f3b061109a6623663bd968c54177e856de2c22b0e6fb84d400afad541a38dd9dd2eb3e634c175822108b3f4c8fe9b7a1dc5"
     signer: "hats"
   }
 }
@@ -131,11 +131,11 @@ policies {
     memory_map_sha256: "0426d345c21e3e7ecae3d7d73547242211c428ed937153cc13a42e804b235086"
     acpi_table_sha256: "60cdfd1741e06b1c121c70eea66644911edf08a2642c2cfecb41934410a81d00"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "32966191d194782d4c49b71b51a18f64f7a1b8d50044bdcf6f48b398be11424af5d8ad13cacdede8bde94fc278c19175bac042bf9d53dc88f187496f393b0456"
+    signature: "258f992dd241498fde572d2e20853be76ffe7550242fef39e29fcdbff34ad687912928d13c3f7ec39c43cac986c47385e581842de9b084e3af939d7704c909da"
     signer: "hats"
   }
 }
@@ -151,11 +151,11 @@ policies {
     memory_map_sha256: "0426d345c21e3e7ecae3d7d73547242211c428ed937153cc13a42e804b235086"
     acpi_table_sha256: "b21799405af0a932c1798fc8fe5bc14b7efd490b9eacbb5e062819694c4d6a43"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "118898aa21030796a526524a760decd982fb6f7f9a6ca5fb35888fe4975c35edbd849b0d2973facecd7b3b42ccda4430fce8507ef688c1a6d5aa3c117eeaf0d9"
+    signature: "42b89dccf75f70fda6b441c8af1001999aa8bd9445c805c1a5896a5c0d099540d0cd34c05996db0e9e4e729bafaea2b68ebcb44c0809d6959a68d0658422a7b3"
     signer: "hats"
   }
 }
@@ -171,11 +171,11 @@ policies {
     memory_map_sha256: "0426d345c21e3e7ecae3d7d73547242211c428ed937153cc13a42e804b235086"
     acpi_table_sha256: "668b5b4db79f9939c741d62182b5962e19c150c1eb78fa824864feb299c0e8c7"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7bb38fc565e444ae3697d7f58db294a474829e70061c6610273002c946480d85"
+    system_image_sha256: "ca0ed24ffa4f0a0dc15ab432b831ba95350b223f0cdd846631f6102d85cdb55a"
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "061cb411443aab997f1e1b299460a99769fac53d3f68907facc9e0c8a38a8697c790d007e5c89dc95c144e2d34ae9efbc1d6dd907ac8481c4689136dfcb6ef3c"
+    signature: "6c8f8f90a41970a9b84e46d425c470fe16e70368178f2b4d7d6941e33f1dfef2875d64e6bff0e6c203054e10bc4ad6ae217c65f5a0909a5eda8f4420dd4ac23c"
     signer: "hats"
   }
 }

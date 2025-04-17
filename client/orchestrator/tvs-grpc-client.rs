@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::proto::privacy_sandbox::client::launcher_service_client;
-use crate::proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse;
-use crate::proto::privacy_sandbox::client::ForwardingTvsMessage;
-use crate::proto::privacy_sandbox::tvs::OpaqueMessage;
 use anyhow::Context;
+use client_proto::privacy_sandbox::client::{
+    launcher_service_client, FetchOrchestratorMetadataResponse, ForwardingTvsMessage,
+};
+use client_proto::privacy_sandbox::tvs::OpaqueMessage;
 use mockall::automock;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
@@ -25,17 +25,6 @@ use tokio_vsock::{VsockAddr, VsockStream};
 use tonic::transport::Channel;
 use tonic::Request;
 use tower::service_fn;
-
-pub mod proto {
-    pub mod privacy_sandbox {
-        pub mod tvs {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
-        }
-        pub mod client {
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.client.rs"));
-        }
-    }
-}
 
 #[automock]
 #[tonic::async_trait]
@@ -282,10 +271,9 @@ impl TvsGrpcClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::privacy_sandbox::client::launcher_service_server;
-    use crate::proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse;
-    use crate::tests::launcher_service_server::LauncherService;
-    use crate::tests::launcher_service_server::LauncherServiceServer;
+    use client_proto::privacy_sandbox::client::launcher_service_server::{
+        LauncherService, LauncherServiceServer,
+    };
     use crypto::P256Scalar;
     use futures::FutureExt;
     use key_fetcher::ffi::create_test_key_fetcher_wrapper;
@@ -622,7 +610,7 @@ mod tests {
         let want = include_bytes!("../../tvs/test_data/vcek_genoa.crt").to_vec();
         assert_eq!(
             cert.unwrap().unwrap(),
-            proto::privacy_sandbox::client::FetchOrchestratorMetadataResponse {
+            FetchOrchestratorMetadataResponse {
                 tee_certificate: want,
                 tvs_authentication_key: vec![],
                 private_key_wrapping_keys: None,

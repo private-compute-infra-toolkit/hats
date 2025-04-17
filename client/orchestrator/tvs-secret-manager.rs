@@ -13,6 +13,8 @@
 // limitations under the License.
 
 use anyhow::anyhow;
+use client_proto::privacy_sandbox::tvs::Secret;
+use client_proto::privacy_sandbox::tvs::VerifyReportResponse;
 use mockall::automock;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
@@ -21,7 +23,6 @@ use secret_sharing::SecretSplit;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::{sync::RwLock, task::JoinHandle, time::Duration};
-use tvs_grpc_client::proto::privacy_sandbox::tvs::{Secret, VerifyReportResponse};
 use tvs_grpc_client::TvsClientInterface;
 
 pub struct TvsSecretManager {
@@ -234,7 +235,6 @@ mod tests {
     use super::*;
     use mockall::predicate::*;
     use oak_containers_attestation::generate_instance_keys;
-    use tvs_grpc_client::proto::privacy_sandbox::tvs::{Secret, VerifyReportResponse};
     use tvs_grpc_client::{MockTvsClientInterface, TvsClientInterface};
 
     fn get_valid_private_key() -> Vec<u8> {
