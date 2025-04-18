@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -44,5 +44,32 @@ cc_library(
         ],
     deps = [
         "@com_google_absl//absl/status",
+    ],
+)
+
+cc_library(
+    name = "otel-counter",
+    srcs = ["otel-counter.cc"],
+    hdrs =
+        [
+            "otel-counter.h",
+        ],
+    deps =
+        [
+            "@com_google_absl//absl/strings",
+            "@io_opentelemetry_cpp//sdk/src/metrics",
+        ],
+)
+
+cc_test(
+    name = "otel-counter_test",
+    size = "small",
+    srcs = [":otel-counter_test.cc"],
+    deps = [
+        ":otel-counter",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@io_opentelemetry_cpp//exporters/memory:in_memory_metric_exporter_factory",
+        "@io_opentelemetry_cpp//sdk/src/metrics",
     ],
 )

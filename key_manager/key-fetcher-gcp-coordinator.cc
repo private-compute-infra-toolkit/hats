@@ -14,6 +14,7 @@
 
 #include "key_manager/key-fetcher-gcp-coordinator.h"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -38,6 +39,7 @@
 #include "key_manager/key-fetcher-gcp-common-utils.h"
 #include "key_manager/key-fetcher.h"
 #include "status_macro/status_macros.h"
+#include "tvs/telemetry/otel-counter.h"
 
 struct CoordinatorVersion {
   explicit CoordinatorVersion(int v = 1) : version(v) {}
@@ -81,6 +83,13 @@ ABSL_FLAG(CoordinatorVersion, coordinator_version, CoordinatorVersion(1),
 namespace privacy_sandbox::key_manager {
 
 namespace {
+
+constexpr absl::string_view kAuthKeyCounterName =
+    "origin_for_authentication_key";
+constexpr absl::string_view kAuthKeyCounterHelp =
+    "Number of requests to UserIdForAuthenticationKey for an "
+    "authentication key.";
+constexpr absl::string_view kAuthKeyCounterUnit = "requests";
 
 // The keyUri returned from KeyVendingService contains prefix "gcp-kms://" or
 // "aws-kms://", and we need to remove it before sending for decryption.
@@ -152,7 +161,9 @@ KeyFetcherGcpCoordinator::KeyFetcherGcpCoordinator(
       tvs_spanner_client_(std::move(tvs_spanner_client)),
       coordinator_spanner_client_(std::move(coordinator_spanner_client)),
       max_age_seconds_(max_age_seconds),
-      coordinator_version_(coordinator_version) {}
+      coordinator_version_(coordinator_version),
+      origin_for_authentication_key_counter_(privacy_sandbox::tvs::OtelCounter(
+          kAuthKeyCounterName, kAuthKeyCounterHelp, kAuthKeyCounterUnit)) {}
 
 KeyFetcherGcpCoordinator::KeyFetcherGcpCoordinator(
     absl::string_view tvs_project_id, absl::string_view tvs_instance_id,
@@ -172,7 +183,9 @@ KeyFetcherGcpCoordinator::KeyFetcherGcpCoordinator(
               std::string(coordinator_instance_id),
               std::string(coordinator_database_id)))),
       max_age_seconds_(max_age_seconds),
-      coordinator_version_(coordinator_version) {}
+      coordinator_version_(coordinator_version),
+      origin_for_authentication_key_counter_(privacy_sandbox::tvs::OtelCounter(
+          kAuthKeyCounterName, kAuthKeyCounterHelp, kAuthKeyCounterUnit)) {}
 
 absl::StatusOr<std::string> KeyFetcherGcpCoordinator::GetPrimaryPrivateKey() {
   HATS_ASSIGN_OR_RETURN(
@@ -195,6 +208,11 @@ absl::StatusOr<std::string> KeyFetcherGcpCoordinator::GetSecondaryPrivateKey() {
 absl::StatusOr<std::string>
 KeyFetcherGcpCoordinator::UserIdForAuthenticationKey(
     absl::string_view public_key) {
+  // This metric has potentially high cardinality for a large number of unique
+  // origins, consider disabling/transforming the export of this metric to
+  // reduce cardinality in this case.
+  origin_for_authentication_key_counter_.Increment(
+      {{"authentication_key", absl::BytesToHexString(public_key)}});
   if (coordinator_version_ == 1) {
     // V1 coordinator does not support auth keys per user/origin. Allow all
     // users.
