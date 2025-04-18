@@ -26,16 +26,11 @@ succeeds.
 
 ### Bypassing Kokoro
 
-Currently, the vote has no impact on the ability to submit, so nothing is
-needed. This is due to slowness (RBE/docker will improve this) and volatility
-(not fully set up yet). Therefore, no bypass is needed, cl's can be submitted
-with a -1 Kokoro vote or if Kokoro is still running.
-
-In the future, once the vote has an impact, the plan is to have an override mdb
-group also able to set the vote. This will allow for submission when Kokoro
-breaks, or when a submit/fix needs to go through fast without waiting. This can
-also allow submitting w/ new submodules without needing to update permissions,
-but note this will break all future cl's too until Kokoro updates.
+The developer mdb group is allowed to manually vote with the Kokoro label. This
+will allow for submission when Kokoro breaks, or when a submit/fix needs to go
+through fast without waiting. This can also allow submitting w/ new submodules
+without needing to update permissions, but note this will break all future cl's
+too until Kokoro permissions update and propagate.
 
 ### Adding permissions / repositories
 
@@ -50,11 +45,10 @@ When e.g. adding a sub-module or other import that Kokoro needs permissions to.
     1.  Get team member LGTM
     1.  Once team LGTM, add `kokoro-reviews`. (Can enable auto-submit here)
     1.  Note it may take up to 30 min for this to propagate
-1.  Update job config to pull the repo
-    1.  Currently, this is in
-        [hats/hats/common.cfg](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/common.cfg)
-    1.  Because submodule cloning is disabled, add a separate entry to the
-        multi-scm.
+1.  (Optional): Update job config to pull the repo. This is only necessary if
+    you need a local copy separate from the submodule.
+    1.  Add a separate entry to the multi-scm. This can be either common, or the
+        specific job.
         1.  For Git-on-Borg it matches `git clone <url> <name>`, and for github
             it is `git clone https://github.com/<owner>/<repository> <name>`
         1.  Of note, `disable_triggering: true` so Kokoro doesn't watch them for
@@ -70,7 +64,7 @@ When e.g. adding a sub-module or other import that Kokoro needs permissions to.
 At a high level, Kokoro runs tests on every cl patch, voting -1/+1 depending on
 success. A +1 tag is required, which can be overwritten when needed. The logs
 can be checked in the Kokoro comment that adds the vote. (This may require "show
-all entries" to see the comment in Gerrit) Generally the logs of notes are via
+all entries" to see the comment in Gerrit). Generally the logs of runs are via
 the second link ("Logs at"), under "Targets -> Target Log".
 
 ### Triggers
@@ -78,14 +72,19 @@ the second link ("Logs at"), under "Targets -> Target Log".
 Kokoro monitors cl's in the Gerrit repository for changes. This happens every
 few minutes, generally.
 
-Commenting on the cl can also re-trigger Kokoro. * kokoro rebuild: rerun on the
-same revision as the last presubmit * kokoro rerun: run on the latest revision
-These are the same if Kokoro ran on the latest revision.
+Commenting on the cl can also re-trigger Kokoro. These are the same if Kokoro
+ran on the latest revision.
+
+*   kokoro rebuild: rebuild and run on the same revision as the last presubmit
+*   kokoro rerun: run on the latest revision
 
 It can be triggered manually through Fusion, via "Trigger Build". It requires
 flags for Git/Gerrit-on-Borg, which can be added via clicking "+
-Git/Gerrit-on-Borg". SCM is the repo, in this case `hats-test`. Change # is the
+Git/Gerrit-on-Borg". SCM is the repo, in this case `hats`. Change # is the
 gerrit cl number.
+
+There is also a continuous build. This runs nightly at midnight, and whenever
+head updates, but will not start a run if a run is currently going.
 
 ### Execution
 
@@ -93,6 +92,9 @@ Kokoro uses remote build execution and caching to performs the tests. This uses
 Kiwi's GCP instance "kiwi-air-force-remote-build" to do the execution and
 caching. In the future, having a more dedicated/fixed toolchain will improve
 caching.
+
+For remote testing (on SNP machines via swarming), there is currently no remote
+execution (b/395680242).
 
 ### Actions
 
@@ -107,6 +109,28 @@ It also replies to the CL with the result of the test, including a Fusion link.
 Fusion info can also be found under
 [prod:privacy-sandbox/hats/hats/presubmit](https://fusion2.corp.google.com/ci/kokoro/prod:privacy-sandbox%2Fhats%2Fhats%2Fpresubmit/)
 
+All fusion results across different Kokoro jobs can be found
+[here](https://fusion2.corp.google.com/ci;ids=1567276032). This includes both
+presubmit and continuous runs, along with runs across different repos.
+
+### Swarming
+
+Some tests require specialized hardware, so we use [swarming](go/swarming) to
+send tests to our own hardware. Due to requiring keystore for authentication,
+these tests run on a separate presubmit_ubuntu job. Currently this is not
+blocking, and is meant to be informative.
+
+At a high level:
+
+*   Files are built on Kokoro using bazel and build scripts.
+*   Relevant binaries and test files are sent via isolate to the swarming
+    server.
+*   A job is triggered for each test (and each device type).
+*   On our hardware, a bot connected to the swarming server detects the trigger,
+    downloads the files, executes them, and reports back.
+*   Kokoro collects the results back from the server and reports success or
+    failure.
+
 ## Documentation followed
 
 *   The original test version in hats-test was set up following the Kokoro
@@ -118,13 +142,17 @@ Fusion info can also be found under
 *   Bazel setup partially followed
     [go/kokoro-bazel-integration](go/kokoro-bazel-integration), but simplified
     for local execution
+*   Swarming based on swarming docs, [go/swarming](go/swarming).
 
 ## Files
 
 At a high level, this sets up a presubmit job
 `privacy-sandbox/hats/hats/presubmit`. The job runs on an instance called
 `hats-presubmit-l2`. Generally the jobs have the prefix `privacy-sandbox`, and
-it specifically created a presubmit job.
+it specifically created a presubmit job. There is also a similar job
+`presubmit_ubuntu`, which uses `GCP_DOCKER_UBUNTU` for keystore access, and is
+another presubmit job. There is a third `continuous` job which runs as
+continuous integration instead of presubmit.
 
 ### Google3 Config files
 
@@ -154,24 +182,29 @@ it specifically created a presubmit job.
     *   Under
         [google3/devtools/kokoro/config/prod/privacy-sandbox/hats](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats)
     *   For Hats team projects
-    *   [common.cfg](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/common.cfg)
-        Top level project common configuration
-    *   hats subdirectory
-    *   For `rpc://privacysandbox/hats` path specifically
-    *   [common.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/common.gcl)
-        Bottom level job common
-        *   Picks out branch for auto-triggering (main)
-        *   Points to label to use (Kokoro)
-        *   Path to config directory `hats/kokoro` in the repository
-        *   Individually picks which sub-modules for Kokoro to include.
-    *   [presubmit.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit.gcl)
-        *   Defines the job type, and the instance pool to use
-            (hats-presubmit-l2/default)
-        *   Should have the same file name as the executable in the config
-            directory
-        *   Full path sets job name: `privacy-sandbox/hats/hats/presubmit`
-    *   [presubmit_ubuntu.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit_ubuntu.gcl)
-        *   Needed for Keystore access, as Kokoro RBE instances does not support keystore.
+    *   [common.cfg](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/common.cfg):
+        Top level project common configuration, mostly meta info
+    *   hats subdirectory (similar for others)
+        *   For `rpc://privacysandbox/hats` path specifically
+        *   [common.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/common.gcl):
+            Bottom level job common, for the specific repo
+            *   Picks out branch for auto-triggering (main)
+            *   Points to label to use (Kokoro)
+            *   Path to config directory `hats/kokoro` in the repository
+        *   [presubmit.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit.gcl)
+            *   Defines the job type, and the instance pool to use
+                (hats-presubmit-l2/default)
+            *   Should have the same file name as the executable in the config
+                directory (in this case, `presubmit.cfg`)
+            *   Full path sets job name: `privacy-sandbox/hats/hats/presubmit`
+            *   Points at branch being monitored (e.g. `main`)
+            *   May also include additional repositories separately loaded
+        *   [presubmit_ubuntu.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/presubmit_ubuntu.gcl)
+            *   Needed for Keystore access, as Kokoro RBE instances does not
+                support keystore.
+        *   [continuous.gcl](http://google3/devtools/kokoro/config/prod/privacy-sandbox/hats/hats/continuous.gcl)
+            *   Sets up the continuous job and frequency
+            *   Skips label inheritance since labels don't apply
 
 ### Kokoro meta configuration
 
@@ -179,11 +212,11 @@ Kokoro needs permission to access the repo. This also creates the label.
 
 *   refs/meta/config branch of hats
     *   groups
-    *   Define kokoro-dedicated, kokoro-gob-readers
+        *   Define kokoro-dedicated, kokoro-gob-readers
     *   project.config
-    *   Define Kokoro label (values, condition, requirement)
-    *   kokoro-gob-readers to `refs/for/*` for review read access
-    *   kokoro-dedicated to `refs/heads/*`, for (non-meta) label access
+        *   Define Kokoro label (values, condition, requirement)
+        *   kokoro-gob-readers to `refs/for/*` for review read access
+        *   kokoro-dedicated to `refs/heads/*`, for (non-meta) label access
 *   [google3/configs/production/gerritcodereview/prod/privacysandbox/config.txtpb](http://google3/configs/production/gerritcodereview/prod/privacysandbox/config.txtpb)
     *   Following
         [go/kokoro-gob-scm#acl-via-config-file-in-piper](go/kokoro-gob-scm#acl-via-config-file-in-piper)
@@ -193,25 +226,31 @@ Kokoro needs permission to access the repo. This also creates the label.
 ### Repository files
 
 Files used by Kokoro that are executed on the local repository. These are all
-stored under the `kokoro` sub-directory
+stored under the `kokoro` sub-directory.
 
 *   presubmit.cfg
     *   Configuration for the presubmit job
     *   Points to the local build file to execute
     *   Includes gfile resources to pull in (such as bazel binary)
-    *   Includes docker image, using one of the defaults provided
+    *   Includes docker image, see below
+    *   Similiar for other cfg files
+*   presubmit_ubuntu.cfg / continuous.cfg
+    *   Similar structure to presubmit.cfg
+    *   For swarming presubmit / continuous job
+    *   Keystore information for use by swarming
 *   kokoro_build.sh
     *   Wrapper for setting up and building bazel
     *   Copies and sets up bazel binary, then calls it
     *   Patches build to grab "rpc" dependencies from submodules instead
     *   Patches workspace to use local path
     *   Manually applies patch via git
+    *   Similar for other sh files referenced by gcl files.
 *   bazel_wrapper.py
     *   Based on
         [google3/devtools/kokoro/scripts/bazel_wrapper.py](http://google3/devtools/kokoro/scripts/bazel_wrapper.py)
-    *   Provides an invocation ID, which has future uses.
+    *   Provides an invocation ID, which has future uses for monitoring/logging.
 
-## Other options, TODOs
+## Other options, Future Work
 
 ### Docker images
 
@@ -250,13 +289,17 @@ To update the image:
     $ docker push us-central1-docker.pkg.dev/ps-hats-playground/presubmit/presubmit
     ```
 
+1.  (Optional): Update image used by Kokoro jobs (e.g. `presubmit.cfg`) with the
+    hash provided in the prior command. The hash can also be found in the
+    artifact registry.
+
 ### Release builds
 
 Kokoro also supports e.g. the creation of release builds (and also continuous
 testing).
 
-### Additional presubmit checks
+### Additional / separate presubmit checks
 
-Currently `pre-commit run -a` is run at the start of the Kokoro job.
-This checks formatting, lint, buildifier, licenses, etc.
-This may make more sense as a separate label/job.
+Currently `pre-commit run -a` is run at the start of the standard presubmit job.
+This checks formatting, lint, buildifier, licenses, etc. This may make more
+sense as a separate label/job.
