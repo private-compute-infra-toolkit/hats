@@ -29,6 +29,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       patch \
                       pre-commit \
                       python3 \
+                      rsync \
                       shellcheck && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y
@@ -45,6 +46,7 @@ RUN mv bazel-archive-keyring.gpg /usr/share/keyrings
 RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8" \
     | tee /etc/apt/sources.list.d/bazel.list
 
-RUN apt-get update && apt-get install -y bazel-7.4.1
+RUN eatmydata apt-get update && \
+    eatmydata apt-get install -y bazel-7.4.1
 
 RUN ln -s /usr/bin/bazel-7.4.1 /usr/bin/bazel
