@@ -75,7 +75,7 @@ function lib_build::set_rbe_flags() {
     "--config=rbecache"
   )
 
-  # Cleaner as arrays, but needed this way for bazel-debian etc.
+  # Env vars can't be arrays, so use space-delimited string instead
   export BAZEL_DIRECT_ARGS="${_BAZEL_ARGS[*]} --google_default_credentials"
   declare -a DOCKER_RUN_ARGS
   # optionally set credentials (likely useful only if executing this outside kokoro)

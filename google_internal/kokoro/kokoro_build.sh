@@ -65,7 +65,7 @@ source "${KOKORO_HATS_DIR}/google_internal/lib_build.sh"
 lib_build::configure_gcloud_access
 lib_build::set_rbe_flags
 
-# Given as space delimited string, which is for builders lib
+# Env var given as space-delimited string, since it can't be an array
 # This converts them to array, so bash parses them as multiple arguments
 IFS=" " read -r -a BAZEL_DIRECT_ARGS <<< "$BAZEL_DIRECT_ARGS"
 
@@ -121,7 +121,7 @@ FAILURE=0
 OLD_RUNTIME_HASH="$(sort "${RUNTIME_HASH_FILE}")"
 OLD_IMAGE_HASHES="$(sort "${SYSTEM_IMAGE_HASH_FILE}")"
 # Update hashes
-./client/scripts/update-hashes.sh
+HATS_BAZEL_FLAGS="--config=ci" ./client/scripts/update-hashes.sh
 # Compare sorted, to see if changed
 # Still continue on new hashes, to see if policies also need updating.
 if [[ "${OLD_RUNTIME_HASH}" != "$(sort "${RUNTIME_HASH_FILE}")" ]]; then
@@ -133,7 +133,7 @@ if [[ "${OLD_IMAGE_HASHES}" != "$(sort "${SYSTEM_IMAGE_HASH_FILE}")" ]]; then
   FAILURE=1
 fi
 # Check policies
-./client/scripts/check-hashes.sh || FAILURE=1
+HATS_BAZEL_FLAGS="--config=ci" ./client/scripts/check-hashes.sh || FAILURE=1
 
 if [[ "${FAILURE}" -eq 1 ]]; then
   echo "Error: some hashes need updating. "\

@@ -13,7 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+###### Env vars used
+# USE_OAK_DOCKER: uses oak's docker_run to run nix develop
+#   This makes it easier to build oak in some environments
+# HATS_BAZEL_FLAGS: List of flags passed to bazel build on hats targets
+#   Space delimited, since env vars can't be arrays
+#   For example, logging and CI configuration
+
 set -e
+# set -x
+
+# Convert to array to be easier to pass in
+IFS=" " read -r -a HATS_BAZEL_FLAGS_ARR <<< "$HATS_BAZEL_FLAGS"
 
 # Use oak scripts/docker_run if env var USE_OAK_DOCKER set
 # Needs oak scripts/docker_pull first to get the image
@@ -109,14 +120,14 @@ function build_oak_containers_stage1() {
 function build_test_application_container_bundle_tar() {
   local BUILD_DIR="$1"
   printf "\nBUILDING TEST APPLICATION CONTAINER BUNDLE TAR...\n"
-  bazel build -c opt //client/trusted_application/enclave_app:bundle
+  bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt //client/trusted_application/enclave_app:bundle
   cp -f --preserve=timestamp ../../bazel-bin/client/trusted_application/enclave_app/bundle.tar "$BUILD_DIR"
 }
 
 function build_trusted_application_client() {
   local BUILD_DIR="$1"
   printf "\nBUILDING TRUSTED APPLICATION CLIENT...\n"
-  bazel build -c opt //client/trusted_application:trusted_application_client_main
+  bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt //client/trusted_application:trusted_application_client_main
   cp -f --preserve=timestamp ../../bazel-bin/client/trusted_application/trusted_application_client_main "$BUILD_DIR"
 }
 
@@ -132,7 +143,7 @@ function build_snphost() {
 function build_hats_launcher() {
   local BUILD_DIR="$1"
   echo "BUILDING LAUNCHER CC"
-  bazel build -c opt //client/launcher:launcher_main
+  bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt //client/launcher:launcher_main
   cp -f --preserve=timestamp ../../bazel-bin/client/launcher/launcher_main "$BUILD_DIR"
 }
 
@@ -179,20 +190,20 @@ EOF
 function build_all_hats_containers_images() {
   local BUILD_DIR="$1"
   printf "\nBUILDING HATS CONTAINERS IMAGES...\n"
-  bazel build -c opt "//client/system_image/..." --//:syslogd_source=binary
+  bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt "//client/system_image/..." --//:syslogd_source=binary
   cp -f --preserve=timestamp ../../bazel-bin/client/system_image/hats_system_image_*.tar "$BUILD_DIR"
   xz -T 1 --force "$BUILD_DIR"/hats_system_image_*.tar
 }
 
 function build_tvs() {
   local BUILD_DIR="$1"
-  bazel build -c opt //tvs/standalone_server:tvs-server_main
+  bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt //tvs/standalone_server:tvs-server_main
   cp -f --preserve=timestamp ../../bazel-bin/tvs/standalone_server/tvs-server_main "$BUILD_DIR"
 }
 
 function build_test_keygen() {
   local BUILD_DIR="$1"
-  bazel build -c opt //key_manager:key-gen
+  bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt //key_manager:key-gen
   cp -f --preserve=timestamp ../../bazel-bin/key_manager/key-gen "$BUILD_DIR"
 }
 
