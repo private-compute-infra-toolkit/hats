@@ -28,7 +28,7 @@ function nix_develop() {
 
 function build_oak_containers_kernel() {
   local BUILD_DIR="$1"
-  printf "\nBUILDING OAK CONTAINERS KERNEL..."
+  printf "\nBUILDING OAK CONTAINERS KERNEL...\n"
   pushd ../../submodules/oak/
   nix_develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_kernel && \
     rsync artifacts/oak_containers_kernel "$BUILD_DIR//bzImage"
@@ -37,18 +37,18 @@ function build_oak_containers_kernel() {
 
 function build_oak_containers_images() {
   local BUILD_DIR="$1"
-  printf "\nBUILDING OAK CONTAINERS IMAGES..."
+  printf "\nBUILDING OAK CONTAINERS IMAGES...\n"
   pushd ../../submodules/oak/oak_containers_system_image
   nix_develop --extra-experimental-features 'nix-command flakes' --command ./build-old.sh && \
     rsync target/output.img "$BUILD_DIR" && \
     rsync target/image-old.tar "$BUILD_DIR" && \
-    xz --force "$BUILD_DIR/image-old.tar"
+    xz -T 1 --force "$BUILD_DIR/image-old.tar"
   popd
 }
 
 function build_oak_containers_launcher() {
   local BUILD_DIR="$1"
-  printf "\nBUILDING OAK CONTAINERS LAUNCHER..."
+  printf "\nBUILDING OAK CONTAINERS LAUNCHER...\n"
   pushd ../../submodules/oak
   nix_develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_launcher && \
     rsync ./target/x86_64-unknown-linux-gnu/release/oak_containers_launcher "$BUILD_DIR"
@@ -57,7 +57,7 @@ function build_oak_containers_launcher() {
 
 function build_oak_containers_stage0() {
   local BUILD_DIR="$1"
-  printf "\nBUILDING OAK CONTAINERS STAGE0..."
+  printf "\nBUILDING OAK CONTAINERS STAGE0...\n"
   pushd ../../submodules/oak
   nix_develop --extra-experimental-features 'nix-command flakes' --command just stage0_bin && \
     rsync ./artifacts/stage0_bin "$BUILD_DIR"
@@ -66,7 +66,7 @@ function build_oak_containers_stage0() {
 
 function build_oak_containers_stage1() {
   local BUILD_DIR="$1"
-  printf "\nBUILDING OAK CONTAINERS STAGE1..."
+  printf "\nBUILDING OAK CONTAINERS STAGE1...\n"
   pushd ../../submodules/oak
   nix_develop --extra-experimental-features 'nix-command flakes' --command just stage1_cpio && \
     rsync ./artifacts/stage1.cpio "$BUILD_DIR"
@@ -75,16 +75,16 @@ function build_oak_containers_stage1() {
 
 function build_test_application_container_bundle_tar() {
   local BUILD_DIR="$1"
-  printf "\nBUILDING TEST APPLICATION CONTAINER BUNDLE TAR..."
+  printf "\nBUILDING TEST APPLICATION CONTAINER BUNDLE TAR...\n"
   bazel build -c opt //client/trusted_application/enclave_app:bundle
-  cp -f ../../bazel-bin/client/trusted_application/enclave_app/bundle.tar "$BUILD_DIR"
+  cp -f --preserve=timestamp ../../bazel-bin/client/trusted_application/enclave_app/bundle.tar "$BUILD_DIR"
 }
 
 function build_trusted_application_client() {
   local BUILD_DIR="$1"
-  printf "\nBUILDING TRUSTED APPLICATION CLIENT..."
+  printf "\nBUILDING TRUSTED APPLICATION CLIENT...\n"
   bazel build -c opt //client/trusted_application:trusted_application_client_main
-  cp -f ../../bazel-bin/client/trusted_application/trusted_application_client_main "$BUILD_DIR"
+  cp -f --preserve=timestamp ../../bazel-bin/client/trusted_application/trusted_application_client_main "$BUILD_DIR"
 }
 
 function build_snphost() {
@@ -100,7 +100,7 @@ function build_hats_launcher() {
   local BUILD_DIR="$1"
   echo "BUILDING LAUNCHER CC"
   bazel build -c opt //client/launcher:launcher_main
-  cp -f ../../bazel-bin/client/launcher/launcher_main "$BUILD_DIR"
+  cp -f --preserve=timestamp ../../bazel-bin/client/launcher/launcher_main "$BUILD_DIR"
 }
 
 function build_oak_containers_syslogd() {
@@ -110,7 +110,7 @@ exports_files([
   "oak_containers_syslogd",
 ])
 EOF
-  printf "\nBUILDING OAK CONTAINERS SYSLOGD"
+  printf "\nBUILDING OAK CONTAINERS SYSLOGD...\n"
   . /etc/os-release
   if [[ "$ID" == "centos" ]]
   then
@@ -135,7 +135,7 @@ EOF
       rsync artifacts/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
     else
       nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
-        cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
+        cp -f --preserve=timestamp bazel-bin/oak_containers/syslogd/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
     fi
 
     popd
@@ -145,28 +145,29 @@ EOF
 function build_hats_containers_images() {
   local BUILD_DIR="$1"
   local SUFFIX="$2"
+  printf "\nBUILDING HATS CONTAINERS IMAGES...\n"
   bazel build -c opt "//client/system_image:hats_system_image_$SUFFIX" --//:syslogd_source=binary
-  cp -f "../../bazel-bin/client/system_image/hats_system_image_$SUFFIX.tar" "$BUILD_DIR/hats_system_image.tar"
-  xz --force "$BUILD_DIR/hats_system_image.tar"
+  cp -f --preserve=timestamp "../../bazel-bin/client/system_image/hats_system_image_$SUFFIX.tar" "$BUILD_DIR/hats_system_image.tar"
+  xz -T 1 --force "$BUILD_DIR/hats_system_image.tar"
 }
 
 function build_tvs() {
   local BUILD_DIR="$1"
   bazel build -c opt //tvs/standalone_server:tvs-server_main
-  cp -f ../../bazel-bin/tvs/standalone_server/tvs-server_main "$BUILD_DIR"
+  cp -f --preserve=timestamp ../../bazel-bin/tvs/standalone_server/tvs-server_main "$BUILD_DIR"
 }
 
 function build_test_keygen() {
   local BUILD_DIR="$1"
   bazel build -c opt //key_manager:key-gen
-  cp -f ../../bazel-bin/key_manager/key-gen "$BUILD_DIR"
+  cp -f --preserve=timestamp ../../bazel-bin/key_manager/key-gen "$BUILD_DIR"
 }
 
 # A tar file contains all launch required data.
 # A textproto file contains all launch parameters.
 # Secrets are in parameters only.
 function build_test_bundles() {
-  echo "Building Launcher Bundle"
+  printf "\nBUILDING LAUNCHER BUNDLE...\n"
   local BUILD_DIR="$1"
   local STAGE0="$2"
   local INITRD="$3"
