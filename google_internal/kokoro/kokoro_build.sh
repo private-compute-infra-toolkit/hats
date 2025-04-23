@@ -27,6 +27,16 @@ set -e
 # export PS4='+\t $(basename ${BASH_SOURCE[0]}):${LINENO} ' # xtrace prompt
 # set -x
 
+### Stop pushd/popd from printing the stack
+pushd() {
+  builtin pushd "$@" > /dev/null
+}
+#shellcheck disable=2120
+popd() {
+  builtin popd "$@" > /dev/null
+}
+
+
 KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 
 # In Kokoro, git meta files are stripped off. pre-commit only runs in
@@ -34,8 +44,13 @@ KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 # might leave files in a format that pre-commit does not like.
 git config --global --add safe.directory "${KOKORO_HATS_DIR}"
 cd "${KOKORO_HATS_DIR}"
-# Run pre-commit hooks.
+
+
+###### Check 1: Pre-commit
+
 pre-commit run -a
+
+###### Check 2: Bazel test -nopresubmit
 
 # Apply patches
 cd "${KOKORO_HATS_DIR}"
@@ -73,3 +88,57 @@ args=(
   //...
 )
 ./bazel_wrapper.py "${args[@]}"
+
+###### Check 3: Binary hashes
+
+git config --global --add safe.directory "${KOKORO_HATS_DIR}/submodules/oak"
+git config --global --add safe.directory "${KOKORO_HATS_DIR}/.git/modules/oak"
+
+pushd "${KOKORO_HATS_DIR}"
+
+pushd client/scripts
+source ./build-lib.sh
+
+if check_oak_artifacts; then
+  echo "found up to date oak artifacts"
+else
+  echo "Oak artifacts are missing or out of date."
+  echo "Exiting to not build oak"
+  exit 1
+fi
+
+# Same directory used by check/update hashes
+PREBUILT_DIR="${KOKORO_HATS_DIR}/client/prebuilt"
+mkdir -p "$PREBUILT_DIR"
+copy_oak_artifacts "$PREBUILT_DIR"
+popd
+
+readonly RUNTIME_HASH_FILE="client/trusted_application/enclave_app/SHA256SUMS"
+readonly SYSTEM_IMAGE_HASH_FILE="client/system_image/SHA256SUMS"
+FAILURE=0
+
+# Save previous hashes
+OLD_RUNTIME_HASH="$(sort "${RUNTIME_HASH_FILE}")"
+OLD_IMAGE_HASHES="$(sort "${SYSTEM_IMAGE_HASH_FILE}")"
+# Update hashes
+./client/scripts/update-hashes.sh
+# Compare sorted, to see if changed
+# Still continue on new hashes, to see if policies also need updating.
+if [[ "${OLD_RUNTIME_HASH}" != "$(sort "${RUNTIME_HASH_FILE}")" ]]; then
+  echo "Error: Runtime hash changed. Use ./client/scripts/update_hashes.sh"
+  FAILURE=1
+fi
+if [[ "${OLD_IMAGE_HASHES}" != "$(sort "${SYSTEM_IMAGE_HASH_FILE}")" ]]; then
+  echo "Error: System image hashes changed. Use ./client/scripts/update_hashes.sh"
+  FAILURE=1
+fi
+# Check policies
+./client/scripts/check-hashes.sh || FAILURE=1
+
+if [[ "${FAILURE}" -eq 1 ]]; then
+  echo "Error: some hashes need updating. "\
+       "Use ./client/scripts/update_hashes.sh followed by ./client/scripts/check_hashes.sh"
+  exit 1
+fi
+
+popd
