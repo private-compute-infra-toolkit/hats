@@ -26,8 +26,37 @@ function nix_develop() {
   fi
 }
 
+# Checks if there are saved oak artifacts with the right hash
+# Call from subdir within client
+function check_oak_artifacts() {
+  [[ ! -f ../../google_internal/oak_artifacts ]] || return
+  SAVED_OAK_VERSION="$(cat ../../google_internal/oak_artifacts/OAK_GIT_VERSION)"
+  pushd ../../submodules/oak
+  OAK_VERSION="$(git rev-parse HEAD)"
+  popd
+  [[ "${OAK_VERSION}" == "${SAVED_OAK_VERSION}" ]]
+}
+
+# Copies oak artifacts to arg1. Call from subdir within client
+# Asserts directory exists and has up to date oak version
+function copy_oak_artifacts() {
+  local BUILD_DIR="$1"
+  if ! check_oak_artifacts; then
+    echo "Can't copy oak artifacts: Missing or out of date"
+    return 1
+  fi
+  echo "Copying oak artifacts"
+  pushd ../../google_internal/oak_artifacts/
+  rsync kernel_bin "$BUILD_DIR//bzImage"
+  rsync stage0_bin "$BUILD_DIR/stage0_bin"
+  rsync initrd.cpio.xz "$BUILD_DIR/stage1.cpio"
+  rsync oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
+  popd
+}
+
 function build_oak_containers_kernel() {
   local BUILD_DIR="$1"
+  if [[ -f "$BUILD_DIR//bzImage" ]]; then return; fi
   printf "\nBUILDING OAK CONTAINERS KERNEL...\n"
   pushd ../../submodules/oak/
   nix_develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_kernel && \
@@ -57,19 +86,21 @@ function build_oak_containers_launcher() {
 
 function build_oak_containers_stage0() {
   local BUILD_DIR="$1"
+  if [[ -f "$BUILD_DIR/stage0_bin" ]]; then return; fi
   printf "\nBUILDING OAK CONTAINERS STAGE0...\n"
   pushd ../../submodules/oak
   nix_develop --extra-experimental-features 'nix-command flakes' --command just stage0_bin && \
-    rsync ./artifacts/stage0_bin "$BUILD_DIR"
+    rsync ./artifacts/stage0_bin "$BUILD_DIR/stage0_bin"
   popd
 }
 
 function build_oak_containers_stage1() {
   local BUILD_DIR="$1"
+  if [[ -f "$BUILD_DIR/stage1.cpio" ]]; then return; fi
   printf "\nBUILDING OAK CONTAINERS STAGE1...\n"
   pushd ../../submodules/oak
   nix_develop --extra-experimental-features 'nix-command flakes' --command just stage1_cpio && \
-    rsync ./artifacts/stage1.cpio "$BUILD_DIR"
+    rsync ./artifacts/stage1.cpio "$BUILD_DIR/stage1.cpio"
   popd
 }
 
@@ -126,6 +157,7 @@ EOF
     cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd /hats_build/oak_containers_syslogd"
     popd
   else
+    if [[ -f "$BUILD_DIR/oak_containers_syslogd" ]]; then return; fi
     pushd ../../submodules/oak
     if [[ "$USE_OAK_DOCKER" == 1 ]]; then
       # bazel-bin in docker_run is local, so copy in same run
