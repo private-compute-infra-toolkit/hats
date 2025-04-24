@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -101,6 +106,48 @@ absl::StatusOr<LauncherConfig> LoadConfig(absl::string_view path) {
   return config;
 }
 
+// Holds an IP port and socket file descriptor.
+struct IPPort {
+  ~IPPort() { close(socket_fd); }
+  int port;
+  int socket_fd;
+};
+
+absl::StatusOr<IPPort> GetUnusedPort() {
+  int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (socket_fd < 0) {
+    return absl::UnknownError("Failed to open socket.");
+  }
+
+  int reuse = 1;
+  if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
+      0) {
+    close(socket_fd);
+    return absl::UnknownError("Failed to set socket option.");
+  }
+
+  struct sockaddr_in address;
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = INADDR_ANY;
+  // Assign zero to tell the OS to assign a port for us.
+  address.sin_port = 0;
+  if (bind(socket_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+    close(socket_fd);
+    return absl::UnknownError("Failed to bind socket.");
+  }
+
+  struct sockaddr_in actual_addr;
+  socklen_t addrlen = sizeof(actual_addr);
+  if (getsockname(socket_fd, (struct sockaddr*)&actual_addr, &addrlen) == -1) {
+    close(socket_fd);
+    return absl::UnknownError("Failed to get socket name.");
+  }
+  return IPPort{
+      .port = ntohs(actual_addr.sin_port),
+      .socket_fd = socket_fd,
+  };
+}
+
 TEST(TrustedApplication, SuccessfulEcho) {
   absl::InitializeLog();
   HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
@@ -163,17 +210,11 @@ TEST(TrustedApplication, SuccessfulEcho) {
   HATS_ASSERT_OK_AND_ASSIGN(client::LauncherConfig config,
                             LoadConfig(launcher_config_path));
 
-  client::NetworkConfig network_config = config.cvm_config().network_config();
-  int client_proxy_port;
-  if (network_config.has_inbound_only()) {
-    client_proxy_port =
-        network_config.inbound_only().host_enclave_app_proxy_port();
-  } else if (network_config.has_inbound_and_outbound()) {
-    client_proxy_port =
-        network_config.inbound_and_outbound().host_enclave_app_proxy_port();
-  } else {
-    FAIL() << "Launcher config has no host enclave app proxy port";
-  }
+  HATS_ASSERT_OK_AND_ASSIGN(IPPort ip_port, GetUnusedPort());
+  privacy_sandbox::client::NetworkConfig& network_config =
+      *config.mutable_cvm_config()->mutable_network_config();
+  network_config.mutable_inbound_only()->set_host_enclave_app_proxy_port(
+      ip_port.port);
 
   HATS_ASSERT_OK_AND_ASSIGN(std::string system_bundle,
                             GetRunfilePath("system_bundle.tar"));
@@ -221,7 +262,7 @@ TEST(TrustedApplication, SuccessfulEcho) {
   ASSERT_TRUE(launcher->IsAppReady());
 
   TrustedApplicationClient app_client = TrustedApplicationClient(
-      absl::StrCat("localhost:", std::to_string(client_proxy_port)), app_key,
+      absl::StrCat("localhost:", std::to_string(ip_port.port)), app_key,
       kUserId);
 
   HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response, app_client.SendEcho());
