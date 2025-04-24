@@ -134,7 +134,7 @@ TEST(TrustedApplication, SuccessfulEcho) {
                             tvs::PolicyFetcher::Create(appraisal_policy_path));
 
   HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
-                            policy_fetcher->GetLatestNPolicies(/*n=*/5));
+                            policy_fetcher->GetLatestNPolicies(/*n=*/100));
 
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<tvs::TvsService> tvs_service,
