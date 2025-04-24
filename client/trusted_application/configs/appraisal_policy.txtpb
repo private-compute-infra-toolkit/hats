@@ -21,7 +21,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "65833c0858ab20477a4dbd4d2e9b756e7c3d67eedaffbb3fb8cc38ec9d40eec3cdf4ca3f11908da3e162803c49e524fdd73d7ea61f019d8b3c7064bb6ca58e14"
+    signature: "863a21e237c9fbb3bfb7618c92658eecfdbdf20e99bc21f8e845992ddca2e8f343ad060ff31c40d9804020aeb6e00ba328f009527a369202e152a5511fd7a430"
     signer: "hats"
   }
 }
@@ -48,7 +48,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "eb4682c76123b81640ed973256c9643aa3169cc13a14fa0ca272ad49a54825b6e662c4ddb6f4ff817509a20e0e2301f38691de5a3c9934987f2a59759295c375"
+    signature: "037056b111753f96ce4617eb3c1b6bbb85ed0b5c4e79927c56b8bed17d3906ac4ce5fd7e7851ff8bc9711982b6a59bf6b3fba1b54bcbaf56083133c4adcf8641"
     signer: "hats"
   }
 }
@@ -75,7 +75,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "f1210ef9b27dbf9ed572437ae0174893979d47689829db7ea93b0d3172110f9cf269bcd9c330e52a5efe689de35c9a4c60ca4a593c4a4666853305985dc27e1a"
+    signature: "ad5120b8bb75b37d73ca72e72fd95fdc878c6eaa1485603e90f05fcf51addc02563a8cd5d99a0fff8664ed2bb783123312346715f7bdac0cd5e8b5ab5b24eb75"
     signer: "hats"
   }
 }
@@ -102,7 +102,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "d1eb3f0c29bea0cf59dc18c7f690574c83481d4db5e2a9053464483186b27f73088ba6bfeed18b376323c082c7542412ee216c71a5cd00b0699b05b3983594df"
+    signature: "46c6ed038e01a42be9bb052deb043dd597f2d935f130f74d03f56908d245504220e63eeb4db6c196a216cb875675aec73f630e87753ba8597268bbfb0c5260aa"
     signer: "hats"
   }
 }
@@ -129,7 +129,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "9f36e160af99807acec08503674506370314ea4909ac232b9752232ececcde6b74359a791a5caf183a8588df384cd4efc101b78353d93e4f043a26f3d43154f2"
+    signature: "de82bf2ad1169b802e5f2d6d2c2eb6e3a426a4590ded0a7744f404bf2ee56fc0f5b420623613bad91d7aeff7622c0a1e3c07d2ab846118c9a79d1063f54e136e"
     signer: "hats"
   }
 }
@@ -156,7 +156,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "63383777090fe494d095a740c48e562fcccbeccbbd04dc550f5c1a078a86b007afbc5dcfce7b9a0349002167da5f32e0f2fb7782c879f96196676016e10a389a"
+    signature: "363e9efde5b7e34a80cc80ed626fdd8c455e71d25ffad21d578daa97b0e729d76c3c0cec65e6c2f10bfac20f8897900c5740c666d22f7608acc5e564ee18d016"
     signer: "hats"
   }
 }
@@ -183,7 +183,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "d301deefa3ad59c747b2fb8496c07a73f517b296ab6651ed613cfd4735e1395d946998c65fd68e3d50af8090b7f0fe803bd6ff00c205b28f6100acbf15cb8917"
+    signature: "0af9732f557eb92ad1685bfd08a6ed257fad2f5c65da49cd134d69bea1bc6fb94254d6c39edc9c0658276dca463217171b2f3e591440afbb3e7e1b8a1a3748c3"
     signer: "hats"
   }
 }
@@ -210,7 +210,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "fee1b9d9e0a3b1b2cc1d523aa7f0c51ee35ba265da323ca6244b004e36e62c4998b13c1c21f18dd29439ccf6d4e4337fcdca9530e8165ed482dd6141762f5a36"
+    signature: "8e81abf5cc3201140ee12e69e41ed45ba0af1d265afa00298d2faae547beb380e2f0027f45a50a1937aa136955220de42748068c2851365169fdbb4e277b8c2f"
     signer: "hats"
   }
 }
@@ -237,7 +237,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "cf55dc56b2b4e0d372d82c145e88330c34dafc261a108bd9a860186afe52671fbac4767663e92cb7dd1c2ad327eb748f693576e50632e3401db61fedf9044333"
+    signature: "79409df7fa9cf134d0460fc241dd85ae0eb6d7944423e40ddb0067f5f9e925a86bf5146ce081829133b0bd64bf0237306c0ca980ac4eae08a468fd9a2ebe7fb8"
     signer: "hats"
   }
 }
@@ -264,7 +264,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "ff53fa48957187e38432144b85574556c4f6532fec0e7b98fccba633cbe00ba512aa30d0cff65f0c2d791d958c5fba5ceca84fa32a822818e26ad7c67836fd64"
+    signature: "e1bb23db77f8219a33bab9dcab435d2e34f48768f46f48757b31d5f3043051997ff6ae6ca7cdae08ea43956d05360ddae0ad51a590657b89b50b500a8851ad3c"
     signer: "hats"
   }
 }
@@ -291,7 +291,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "00ac3e7b3561c31954336ec91998de71c70d0754e656d58f05628312a730eaf26ceb30dfa128bdd7b69f46b5ac633dff0d6f56119b3937717202dfadf5ec983d"
+    signature: "a0fa955d2464cfd228a115ec90711a0053b31ed818bad23bd1af476bcc740a0129cd7deaff2111215f39dfb41c2e2988867ca22ef806976b67801ef64aee426e"
     signer: "hats"
   }
 }
@@ -318,7 +318,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "864f56e7f96d22772005bf5dba6e82e85dadfea2afa172b7f2a990b6f2c25517175dcc5a9cb89aea2fbdad7e1622892e0d10605a24123590ca3f9a68a3761ab5"
+    signature: "55644521280d0222d494be61e4aedf5cf2bd8801cf747769c3937456f8c8cae69c136501a4a4128dbdebaa13cc288f41e5f975fcb98e780ba05cb99fca6cd707"
     signer: "hats"
   }
 }
@@ -345,7 +345,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "ae8f7c377006e3b9e6aaf5c121a12270b3943d96ab583fafd6c9a56d795aa067c263eef49b42ee3a674f1d9670b35dbad269ce35db760a45a4d6776fc74299f9"
+    signature: "2b4366cc14cdb48e2347baeac5c88f15ff6a7597624273b036fd5b9841ac6d1c168d9e6480715ed1a56782f772ab89505fef2327b5e5a167ebb51a12984e7ba1"
     signer: "hats"
   }
 }
@@ -372,7 +372,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "db30337b86cc90472b4b9cb8e7a6342c2c208125823509f9d65bbc84d8a2d631e65be1540cda366931661e1255c921244f77b7fd0c67f7e15fb2de8cb309f4d5"
+    signature: "2fbbe4750c6599d6c74f0e5ab55b6d957a5aceaa2eca27d8a95dc60154779b1ca0cfcf4b1b1adac73780cc64c4b345684bf43046f6be0572452759de0b6da15d"
     signer: "hats"
   }
 }
@@ -399,7 +399,7 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "724bdd1e9fb1975afbd8695addc08de141c3eebd0bbb56ed4b06a01f039b2f1d61b50764142c41b7611de5db44d6c01216a30d2da37062c1f75a7185ab528463"
+    signature: "7fb58adcc04def2955fb486eae1f976e4ccedd00fbe9c8d3f1993830df591e279267e083c9519b8ca6a34f2e66784cd3d739e02962d8ec41253199ba4746bd15"
     signer: "hats"
   }
 }
@@ -426,7 +426,34 @@ policies {
     container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
   }
   signature {
-    signature: "f24be753842148d1a1996e4ded1ac645a144c6599c8d2ed1b8fb1eebba985ef54974c2360b8fd99db0b1dedcd3264baced8ff925730acbf66224e1247374eb30"
+    signature: "8435e35f83ab1ed0d5522daed0fe16ca1e5d4ca0b4accd8f5370ac327e3fdafb3e6448b50de9212cef6b77f79a085d4a4c6cff8aef69407eabce1aec4bc489ae"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB. Lower TCB for presubmit machine."
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "73711ed75cda7074ad1952cafa01f8a5016729b9e09e6c35363655c2530e51932d4e5fbc3d01a39650d7db85e9cc945e"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 21
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "24e8b913f8d5efa1d6cd191ec91842a616af475a18258812380ed2f6bc333dd7"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "a4ee89ff348c7220d6f8f6c8df5526611872ef7c5ec6c596232f3eb8aedc447c21f91ed8780168cc84e62dcc75f88cf8dc1bfa35f0208aa43aa69c1e3aa30047"
     signer: "hats"
   }
 }
