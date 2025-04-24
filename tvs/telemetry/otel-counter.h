@@ -20,7 +20,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "opentelemetry/metrics/provider.h"
+#include "opentelemetry/metrics/sync_instruments.h"
 
 namespace privacy_sandbox::tvs {
 

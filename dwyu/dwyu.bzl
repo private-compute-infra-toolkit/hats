@@ -19,6 +19,7 @@ load("@depend_on_what_you_use//:defs.bzl", "dwyu_aspect_factory")
 #   Includes that are hard to have deps (cpuid.h, sys/*)
 #   Includes it incorrectly says unused (grpcpp)
 #   policy-fetcher.h, key_fetcher.h: Comes from -local or -gcp
+#   opentelemetry: Has trouble parsing batch include from sdk/metrics
 ### Additional things w/o manual skip, that must be manually ignored
 # "@com_github_grpc_grpc//:grpc++", may incorrectly be said unused
 #   (or the reflect version)

@@ -21,27 +21,25 @@ package(
 cc_library(
     name = "otel-local",
     srcs = ["otel-local.cc"],
-    hdrs =
-        [
-            "otel.h",
-        ],
-    deps =
-        [
-            "@com_github_grpc_grpc//:grpc++",
-            "@com_github_grpc_grpc//:grpcpp_otel_plugin",
-            "@com_google_absl//absl/status",
-            "@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_metric_exporter",
-            "@io_opentelemetry_cpp//sdk/src/metrics",
-        ],
+    hdrs = [
+        "otel.h",
+    ],
+    deps = [
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_github_grpc_grpc//:grpcpp_otel_plugin",
+        "@com_google_absl//absl/status",
+        "@io_opentelemetry_cpp//api",
+        "@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_metric_exporter",
+        "@io_opentelemetry_cpp//sdk/src/metrics",
+    ],
 )
 
 cc_library(
     name = "otel-noop",
     srcs = ["otel-noop.cc"],
-    hdrs =
-        [
-            "otel.h",
-        ],
+    hdrs = [
+        "otel.h",
+    ],
     deps = [
         "@com_google_absl//absl/status",
     ],
@@ -50,15 +48,14 @@ cc_library(
 cc_library(
     name = "otel-counter",
     srcs = ["otel-counter.cc"],
-    hdrs =
-        [
-            "otel-counter.h",
-        ],
-    deps =
-        [
-            "@com_google_absl//absl/strings",
-            "@io_opentelemetry_cpp//sdk/src/metrics",
-        ],
+    hdrs = [
+        "otel-counter.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/strings",
+        "@io_opentelemetry_cpp//api",
+        "@io_opentelemetry_cpp//sdk/src/metrics",
+    ],
 )
 
 cc_test(
@@ -69,6 +66,8 @@ cc_test(
         ":otel-counter",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "@io_opentelemetry_cpp//api",
+        "@io_opentelemetry_cpp//exporters/memory:in_memory_metric_data",
         "@io_opentelemetry_cpp//exporters/memory:in_memory_metric_exporter_factory",
         "@io_opentelemetry_cpp//sdk/src/metrics",
     ],
