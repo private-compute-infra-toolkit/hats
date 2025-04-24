@@ -183,6 +183,11 @@ TEST(TrustedApplication, SuccessfulEcho) {
   HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
                             policy_fetcher->GetLatestNPolicies(/*n=*/100));
 
+  // Tell TVS to be more verbose.
+  if (setenv("RUST_LOG", "debug", /*overwrite=*/1) != 0) {
+    LOG(WARNING) << "Failed to set RUST_LOG=debug";
+  }
+
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<tvs::TvsService> tvs_service,
       tvs::TvsService::Create({
