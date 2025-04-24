@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//       https://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,22 +33,22 @@ namespace privacy_sandbox::cache {
 // entries are removed during lookup operations or when overwritten by Insert.
 //
 // Example:
-//    ExpiringCache<int, std::string> cache(absl::Seconds(5));
-//    cache.Insert(1, std::make_unique<std::string>("one"));
-//    cache.Insert(2, std::make_unique<std::string>("two"));
+//    ExpiringCache<int, std::string> cache(absl::Seconds(5));
+//    cache.Insert(1, std::make_unique<std::string>("one"));
+//    cache.Insert(2, std::make_unique<std::string>("two"));
 //
-//    std::shared_ptr<std::string> value = cache.Lookup(1);
-//    if (value != nullptr) {
-//      std::cout << *value << std::endl;
-//    }
+//    std::shared_ptr<std::string> value = cache.Lookup(1);
+//    if (value != nullptr) {
+//      std::cout << *value << std::endl;
+//    }
 //
-//    // Wait for the cache to expire
-//    absl::SleepFor(absl::Seconds(6));
+//    // Wait for the cache to expire
+//    absl::SleepFor(absl::Seconds(6));
 //
-//    std::shared_ptr<std::string> value = cache.Lookup(1);
-//    if (value == nullptr) {
-//      std::cout << "Expired" << std::endl;
-//    }
+//    std::shared_ptr<std::string> value = cache.Lookup(1);
+//    if (value == nullptr) {
+//      std::cout << "Expired" << std::endl;
+//    }
 template <typename Key, typename Value>
 class ExpiringCache final : public CacheInterface<Key, Value> {
  public:

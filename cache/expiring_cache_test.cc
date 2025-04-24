@@ -14,15 +14,12 @@
 
 #include "cache/expiring_cache.h"
 
-#include <chrono>
 #include <memory>
 #include <string>
-#include <thread>
 #include <utility>
 
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "absl/utility/utility.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
