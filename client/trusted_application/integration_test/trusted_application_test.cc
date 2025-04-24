@@ -47,6 +47,9 @@
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/standalone_server/tvs-service.h"
 
+namespace privacy_sandbox::client {
+namespace {
+
 const char kUserId[] = "64";
 const char kAppKey[] =
     "0e4fb4a3b7a7eeb42306db3cbc6108a2424bf8ef510101059b2edef36fe1687f";
@@ -80,8 +83,7 @@ absl::StatusOr<std::string> GetRunfilePath(absl::string_view filename) {
       absl::StrCat("_main/client/trusted_application/test_data/", filename));
 }
 
-absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
-    absl::string_view path) {
+absl::StatusOr<LauncherConfig> LoadConfig(absl::string_view path) {
   std::ifstream file(path.data());
   if (!file.is_open()) {
     return absl::InvalidArgumentError(
@@ -90,7 +92,7 @@ absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
   std::string raw_config((std::istreambuf_iterator<char>(file)),
                          (std::istreambuf_iterator<char>()));
   file.close();
-  privacy_sandbox::client::LauncherConfig config;
+  LauncherConfig config;
   if (!google::protobuf::TextFormat::ParseFromString(raw_config, &config)) {
     return absl::InvalidArgumentError(
         absl::StrCat("invalid textproto message at path '", path, "'"));
@@ -101,48 +103,42 @@ absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
 
 TEST(TrustedApplication, SuccessfulEcho) {
   absl::InitializeLog();
-  HATS_ASSERT_OK_AND_ASSIGN(
-      privacy_sandbox::crypto::TestEcKey client_authentication_key,
-      privacy_sandbox::crypto::GenerateEcKeyForTest());
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
 
   std::string app_key;
   EXPECT_EQ(absl::HexStringToBytes(kAppKey, &app_key), true);
 
-  std::vector<privacy_sandbox::key_manager::TestUserData> user_data;
-  privacy_sandbox::key_manager::TestUserData test_user =
-      privacy_sandbox::key_manager::TestUserData{
-          .user_id = "1",
-          .user_authentication_public_key =
-              client_authentication_key.public_key,
-          .key_id = kUserId,
-          .secret = app_key,
-          .public_key = "1-public-key",
-      };
+  std::vector<key_manager::TestUserData> user_data;
+  key_manager::TestUserData test_user = key_manager::TestUserData{
+      .user_id = "1",
+      .user_authentication_public_key = client_authentication_key.public_key,
+      .key_id = kUserId,
+      .secret = app_key,
+      .public_key = "1-public-key",
+  };
   user_data.push_back(test_user);
 
   std::string tvsPrimaryKeyBytes;
   EXPECT_EQ(absl::HexStringToBytes(kTvsPrimaryKey, &tvsPrimaryKeyBytes), true);
 
   // Startup TVS
-  auto key_fetcher =
-      std::make_unique<privacy_sandbox::key_manager::TestKeyFetcher>(
-          tvsPrimaryKeyBytes, "", user_data);
+  auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+      tvsPrimaryKeyBytes, "", user_data);
   int tvs_listening_port = 7778;
 
   HATS_ASSERT_OK_AND_ASSIGN(std::string appraisal_policy_path,
                             GetRunfilePath(kAppraisalPolicy));
 
-  HATS_ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
-      privacy_sandbox::tvs::PolicyFetcher::Create(appraisal_policy_path));
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<tvs::PolicyFetcher> policy_fetcher,
+                            tvs::PolicyFetcher::Create(appraisal_policy_path));
+
+  HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
+                            policy_fetcher->GetLatestNPolicies(/*n=*/5));
 
   HATS_ASSERT_OK_AND_ASSIGN(
-      privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
-      policy_fetcher->GetLatestNPolicies(/*n=*/5));
-
-  HATS_ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<privacy_sandbox::tvs::TvsService> tvs_service,
-      privacy_sandbox::tvs::TvsService::Create({
+      std::unique_ptr<tvs::TvsService> tvs_service,
+      tvs::TvsService::Create({
           .key_fetcher = std::move(key_fetcher),
           .appraisal_policies = std::move(appraisal_policies),
           .enable_policy_signature = false,
@@ -164,11 +160,10 @@ TEST(TrustedApplication, SuccessfulEcho) {
   HATS_ASSERT_OK_AND_ASSIGN(std::string launcher_config_path,
                             GetRunfilePath(kLauncherConfig));
 
-  HATS_ASSERT_OK_AND_ASSIGN(privacy_sandbox::client::LauncherConfig config,
+  HATS_ASSERT_OK_AND_ASSIGN(client::LauncherConfig config,
                             LoadConfig(launcher_config_path));
 
-  privacy_sandbox::client::NetworkConfig network_config =
-      config.cvm_config().network_config();
+  client::NetworkConfig network_config = config.cvm_config().network_config();
   int client_proxy_port;
   if (network_config.has_inbound_only()) {
     client_proxy_port =
@@ -191,24 +186,22 @@ TEST(TrustedApplication, SuccessfulEcho) {
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
   HATS_ASSERT_OK_AND_ASSIGN(
       std::shared_ptr<grpc::Channel> tvs_channel,
-      privacy_sandbox::tvs::CreateGrpcChannel(
-          privacy_sandbox::tvs::CreateGrpcChannelOptions{
-              .use_tls = false,
-              .target = absl::StrCat("localhost:",
-                                     std::to_string(tvs_listening_port)),
-              .access_token = "",
-          }));
+      tvs::CreateGrpcChannel(tvs::CreateGrpcChannelOptions{
+          .use_tls = false,
+          .target =
+              absl::StrCat("localhost:", std::to_string(tvs_listening_port)),
+          .access_token = "",
+      }));
 
   channel_map[0] = std::move(tvs_channel);
 
   HATS_ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<privacy_sandbox::client::HatsLauncher> launcher,
-      privacy_sandbox::client::HatsLauncher::Create({
+      std::unique_ptr<client::HatsLauncher> launcher,
+      client::HatsLauncher::Create({
           .config = std::move(config),
           .tvs_authentication_key_bytes = std::string(
               client_authentication_key.private_key.GetStringView()),
-          .private_key_wrapping_keys =
-              privacy_sandbox::client::PrivateKeyWrappingKeys(),
+          .private_key_wrapping_keys = client::PrivateKeyWrappingKeys(),
           .tvs_channels = std::move(channel_map),
           .vmm_log_to_std = true,
       }));
@@ -227,20 +220,20 @@ TEST(TrustedApplication, SuccessfulEcho) {
   ASSERT_TRUE(launcher->CheckStatus());
   ASSERT_TRUE(launcher->IsAppReady());
 
-  privacy_sandbox::client::TrustedApplicationClient app_client =
-      privacy_sandbox::client::TrustedApplicationClient(
-          absl::StrCat("localhost:", std::to_string(client_proxy_port)),
-          app_key, kUserId);
+  TrustedApplicationClient app_client = TrustedApplicationClient(
+      absl::StrCat("localhost:", std::to_string(client_proxy_port)), app_key,
+      kUserId);
 
-  HATS_ASSERT_OK_AND_ASSIGN(privacy_sandbox::client::DecryptedResponse response,
-                            app_client.SendEcho());
+  HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response, app_client.SendEcho());
 
-  EXPECT_EQ(privacy_sandbox::client::kTestMessage,
-            *response.mutable_response());
+  EXPECT_EQ(kTestMessage, *response.mutable_response());
   std::cout << *response.mutable_response();
   launcher->Shutdown();
   tvs_server->Shutdown();
 }
+
+}  // namespace
+}  // namespace privacy_sandbox::client
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
