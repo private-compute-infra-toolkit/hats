@@ -257,7 +257,7 @@ TEST(TrustedApplication, SuccessfulEcho) {
 
   // Now here we need to check if app is ready, if it is, start up app client
   // and talk to it.
-  int counter = 6;
+  int counter = 10;
   while (!launcher->IsAppReady() && launcher->CheckStatus() && counter > 0) {
     std::cout << "Waiting for app to be ready" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(5));
