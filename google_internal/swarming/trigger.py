@@ -47,7 +47,7 @@ def main():
     'devices': ['sev-snp'],  # TODO, not used currently.
     'task_prefix': prefix,
     'priority': "100",
-    'timeout': "300",
+    'timeout': "600",
     'expiration': "600",
     'swarming_server': "https://chrome-swarming.appspot.com",
     'cas-instance': "chrome-swarming",
