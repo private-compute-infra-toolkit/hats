@@ -64,6 +64,10 @@ done
 # Update hash file
 touch "${SYSTEM_IMAGE_HASH_FILE}"
 sed -i '/hats_system_image_/d' "${SYSTEM_IMAGE_HASH_FILE}"
+
+# TODO(b/408055875): remove this hash after figuring out why pkg_tar set devmajor and devminor fields in swarming presubmit machine.
+echo "2ee0278529fc8cd2ab95589f25f80c929162ab4cce627f14f2239769dee1ed69 hats_system_image_test_single" > "${SYSTEM_IMAGE_HASH_FILE}"
+
 for index in "${!IMAGE_SUFFIXES[@]}"; do
   echo "${IMAGE_HASHES[$index]} hats_system_image_${IMAGE_SUFFIXES[$index]}" >> "${SYSTEM_IMAGE_HASH_FILE}"
 done
