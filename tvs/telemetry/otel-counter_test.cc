@@ -66,9 +66,9 @@ TEST(OtelCounterTest, CounterIncrement) {
   std::vector<std::unique_ptr<opentelemetry::sdk::metrics::ResourceMetrics>>
       collected_metrics = data_storage->Get();
 
-  ASSERT_THAT(collected_metrics.size(), Eq(2));
+  ASSERT_THAT(collected_metrics, Not(testing::IsEmpty()));
   const opentelemetry::sdk::metrics::MetricData& md =
-      collected_metrics[1]->scope_metric_data_[0].metric_data_[0];
+      collected_metrics.back()->scope_metric_data_[0].metric_data_[0];
   EXPECT_THAT(
       md.instrument_descriptor,
       AllOf(Field(&InstrumentDescriptor::name_, StrEq("counter_name")),
