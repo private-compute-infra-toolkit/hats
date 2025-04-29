@@ -457,3 +457,31 @@ policies {
     signer: "hats"
   }
 }
+# TODO(b/408055875): remove this policy after figuring out why pkg_tar set devmajor and devminor fields.
+policies {
+  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB. Lower TCB and different system image for presubmit machine."
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "73711ed75cda7074ad1952cafa01f8a5016729b9e09e6c35363655c2530e51932d4e5fbc3d01a39650d7db85e9cc945e"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 21
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "2ee0278529fc8cd2ab95589f25f80c929162ab4cce627f14f2239769dee1ed69"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "dd5f59b225e0b6935bbf4b3a10b6bd0c4c1497a1d9d9aef005eb7a0f76248c752b81800b7842ca779dad96aaba4acdec880780b1f4ef57416666fdb16ad1bb43"
+    signer: "hats"
+  }
+}

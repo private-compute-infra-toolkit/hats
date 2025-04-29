@@ -55,6 +55,40 @@ source "patches/apply_patches.sh"
 patches::apply_python
 popd
 
+# Copy Oak's Artifacts to `client/prebuilt` directory.
+# It's necessary to copy `oak_containers_syslogd` before
+# building the system image. As the build rule expects
+# `oak_containers_syslogd` to be in `client/prebuilt`.
+pushd "${KOKORO_HATS_DIR}"
+source "client/scripts/build-lib.sh"
+readonly PREBUILT_DIR="${KOKORO_HATS_DIR}/client/prebuilt"
+# functions in `client/scripts/build-lib.sh assumes the caller to be in
+# `client/script`.
+pushd "client/scripts"
+mkdir -p "$PREBUILT_DIR"
+copy_oak_artifacts "$PREBUILT_DIR"
+
+
+# Build the system image, and the trusted application bundle so that
+# we can bundle them with oak artifacts before building the
+# trusted_application_test.
+build_hats_containers_images "$PREBUILT_DIR" "test_single"
+build_test_application_container_bundle_tar "$PREBUILT_DIR"
+popd
+popd
+
+# Bundle the trusted_application_test.
+TEST_DATA_DIR="$KOKORO_HATS_DIR/client/trusted_application/test_data"
+build_test_bundles \
+  "$TEST_DATA_DIR" \
+  "$PREBUILT_DIR/stage0_bin" \
+  "$PREBUILT_DIR/stage1.cpio" \
+  "$PREBUILT_DIR/bzImage" \
+  "$PREBUILT_DIR/hats_system_image.tar.xz" \
+  "$PREBUILT_DIR/bundle.tar" \
+  "$KOKORO_HATS_DIR/client/trusted_application/configs/appraisal_policy.txtpb" \
+  "$KOKORO_HATS_DIR/client/trusted_application/configs/launcher_config.txtpb"
+
 # TODO(b/395680242): Resolve RBE on GCP_UBUNTU_DOCKER.
 # RBE doesn't auth correctly, but also still runs without it.
 
@@ -69,6 +103,7 @@ args=(
   --dynamic_mode=off # Force static build, for binaries sent to bot
   --build_tag_filters="virtualization"
   --test_tag_filters="virtualization"
+  --compilation_mode=opt
   --
   //...
 )
@@ -82,11 +117,13 @@ pushd "${KOKORO_HATS_DIR}"
 
 readonly TESTS_LIST=(
   "client/launcher/launcher_test"
+  "client/trusted_application/integration_test/trusted_application_test"
 )
 
 # Path within test_name.runfiles to copy over
 declare -rA RUNFILE_PATHS=(
   ["client/launcher/launcher_test"]="_main/client/test_data/launcher"
+  ["client/trusted_application/integration_test/trusted_application_test"]="_main/client/trusted_application/test_data"
 )
 
 readonly SWARMING_TEST_DIR=${KOKORO_ARTIFACTS_DIR}/swarming_test
@@ -159,8 +196,7 @@ pushd "${SWARMING_TEST_DIR}"
 
 for TEST_DIR in tests/*; do
   TEST_BINARY=$(basename -- "${TEST_DIR}")
-  readonly TEST_BINARY
-  readonly FULL_BINARY_PATH="${TEST_DIR}/${TEST_BINARY}"
+  FULL_BINARY_PATH="${TEST_DIR}/${TEST_BINARY}"
 
   set +e
   "${HATS_SWARMING_DIR}/trigger.py" --prefix "${SWARMING_TASK_PREFIX}" "${TEST_DIR}" "${FULL_BINARY_PATH}"
