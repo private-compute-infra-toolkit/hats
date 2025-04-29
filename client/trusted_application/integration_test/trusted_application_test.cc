@@ -38,6 +38,8 @@
 #include "client/proto/launcher_config.pb.h"
 #include "client/proto/trusted_service.pb.h"
 #include "client/trusted_application/client/trusted_application_client.h"
+#include "crypto/aead-crypter.h"
+#include "crypto/secret-data.h"
 #include "crypto/test-ec-key.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/server.h"
@@ -107,13 +109,25 @@ absl::StatusOr<LauncherConfig> LoadConfig(absl::string_view path) {
 }
 
 // Holds an IP port and socket file descriptor.
-struct IPPort {
-  ~IPPort() { close(socket_fd); }
-  int port;
-  int socket_fd;
+class IPPort {
+ public:
+  explicit IPPort(int port, int socket_fd)
+      : port_(port), socket_fd_(socket_fd) {}
+  IPPort(const IPPort& arg) = delete;
+  IPPort(IPPort&& arg) = delete;
+  IPPort& operator=(const IPPort& arg) = delete;
+  IPPort& operator=(IPPort&& arg) = delete;
+
+  ~IPPort() { close(socket_fd_); }
+
+  int port() const { return port_; }
+
+ private:
+  int port_;
+  int socket_fd_;
 };
 
-absl::StatusOr<IPPort> GetUnusedPort() {
+absl::StatusOr<std::unique_ptr<IPPort>> GetUnusedPort() {
   int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (socket_fd < 0) {
     return absl::UnknownError("Failed to open socket.");
@@ -142,140 +156,174 @@ absl::StatusOr<IPPort> GetUnusedPort() {
     close(socket_fd);
     return absl::UnknownError("Failed to get socket name.");
   }
-  return IPPort{
-      .port = ntohs(actual_addr.sin_port),
-      .socket_fd = socket_fd,
-  };
+  return std::make_unique<IPPort>(ntohs(actual_addr.sin_port), socket_fd);
 }
 
-TEST(TrustedApplication, SuccessfulEcho) {
-  absl::InitializeLog();
-  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
-                            crypto::GenerateEcKeyForTest());
+struct TestTvs {
+  std::unique_ptr<IPPort> ip_port;
+  std::unique_ptr<tvs::TvsService> tvs_service;
+  std::unique_ptr<grpc::Server> tvs_server;
+};
 
-  std::string app_key;
-  EXPECT_EQ(absl::HexStringToBytes(kAppKey, &app_key), true);
-
-  std::vector<key_manager::TestUserData> user_data;
-  key_manager::TestUserData test_user = key_manager::TestUserData{
-      .user_id = "1",
-      .user_authentication_public_key = client_authentication_key.public_key,
-      .key_id = kUserId,
-      .secret = app_key,
-      .public_key = "1-public-key",
-  };
-  user_data.push_back(test_user);
-
+absl::StatusOr<TestTvs> CreateAndStartTestTvs(
+    const std::vector<key_manager::TestUserData>& test_user_data) {
   std::string tvsPrimaryKeyBytes;
-  EXPECT_EQ(absl::HexStringToBytes(kTvsPrimaryKey, &tvsPrimaryKeyBytes), true);
+  if (!absl::HexStringToBytes(kTvsPrimaryKey, &tvsPrimaryKeyBytes)) {
+    return absl::FailedPreconditionError(
+        "Failed to convert TVS Primary Key to Hex");
+  }
+
+  HATS_ASSIGN_OR_RETURN(std::string appraisal_policy_path,
+                        GetRunfilePath(kAppraisalPolicy));
+  HATS_ASSIGN_OR_RETURN(std::unique_ptr<tvs::PolicyFetcher> policy_fetcher,
+                        tvs::PolicyFetcher::Create(appraisal_policy_path));
+
+  HATS_ASSIGN_OR_RETURN(tvs::AppraisalPolicies appraisal_policies,
+                        policy_fetcher->GetLatestNPolicies(/*n=*/100));
 
   // Startup TVS
   auto key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
-      tvsPrimaryKeyBytes, "", user_data);
-  int tvs_listening_port = 7778;
+      tvsPrimaryKeyBytes, /*secondary_private_key=*/"", test_user_data);
 
-  HATS_ASSERT_OK_AND_ASSIGN(std::string appraisal_policy_path,
-                            GetRunfilePath(kAppraisalPolicy));
-
-  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<tvs::PolicyFetcher> policy_fetcher,
-                            tvs::PolicyFetcher::Create(appraisal_policy_path));
-
-  HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
-                            policy_fetcher->GetLatestNPolicies(/*n=*/100));
-
-  // Tell TVS to be more verbose.
-  if (setenv("RUST_LOG", "debug", /*overwrite=*/1) != 0) {
-    LOG(WARNING) << "Failed to set RUST_LOG=debug";
-  }
-
-  HATS_ASSERT_OK_AND_ASSIGN(
+  HATS_ASSIGN_OR_RETURN(
       std::unique_ptr<tvs::TvsService> tvs_service,
       tvs::TvsService::Create({
-          .key_fetcher = std::move(key_fetcher),
+          .key_fetcher = std::make_unique<key_manager::TestKeyFetcher>(
+              tvsPrimaryKeyBytes, /*secondary_private_key=*/"", test_user_data),
           .appraisal_policies = std::move(appraisal_policies),
           .enable_policy_signature = false,
           .accept_insecure_policies = true,
       }));
 
-  LOG(INFO) << "Starting TVS server on port " << tvs_listening_port;
+  HATS_ASSIGN_OR_RETURN(std::unique_ptr<IPPort> tvs_port, GetUnusedPort());
 
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder()
-          .AddListeningPort(absl::StrCat("0.0.0.0:", tvs_listening_port),
+          .AddListeningPort(absl::StrCat("0.0.0.0:", tvs_port->port()),
                             grpc::InsecureServerCredentials())
           .RegisterService(tvs_service.get())
           .BuildAndStart();
 
-  // Startup Launcher
-  LOG(INFO) << "read configuration";
+  return TestTvs{
+      .ip_port = std::move(tvs_port),
+      .tvs_service = std::move(tvs_service),
+      .tvs_server = std::move(tvs_server),
+  };
+}
 
-  HATS_ASSERT_OK_AND_ASSIGN(std::string launcher_config_path,
-                            GetRunfilePath(kLauncherConfig));
+struct TestLauncher {
+  std::unique_ptr<IPPort> ip_port;
+  std::unique_ptr<client::HatsLauncher> launcher;
+};
 
-  HATS_ASSERT_OK_AND_ASSIGN(client::LauncherConfig config,
-                            LoadConfig(launcher_config_path));
+absl::StatusOr<TestLauncher> CreateAndStartTestLauncher(
+    int tvs_port, absl::string_view client_authentication_private_key) {
+  HATS_ASSIGN_OR_RETURN(std::string launcher_config_path,
+                        GetRunfilePath(kLauncherConfig));
 
-  HATS_ASSERT_OK_AND_ASSIGN(IPPort ip_port, GetUnusedPort());
+  HATS_ASSIGN_OR_RETURN(client::LauncherConfig config,
+                        LoadConfig(launcher_config_path));
+
+  HATS_ASSIGN_OR_RETURN(std::unique_ptr<IPPort> enclave_proxy_ip_port,
+                        GetUnusedPort());
   privacy_sandbox::client::NetworkConfig& network_config =
       *config.mutable_cvm_config()->mutable_network_config();
   network_config.mutable_inbound_only()->set_host_enclave_app_proxy_port(
-      ip_port.port);
+      enclave_proxy_ip_port->port());
 
-  HATS_ASSERT_OK_AND_ASSIGN(std::string system_bundle,
-                            GetRunfilePath("system_bundle.tar"));
+  HATS_ASSIGN_OR_RETURN(std::string system_bundle,
+                        GetRunfilePath("system_bundle.tar"));
 
   config.mutable_cvm_config()->set_hats_system_bundle(system_bundle);
 
-  HATS_ASSERT_OK_AND_ASSIGN(std::string runtime_bundle,
-                            GetRunfilePath("runtime_bundle.tar"));
+  HATS_ASSIGN_OR_RETURN(std::string runtime_bundle,
+                        GetRunfilePath("runtime_bundle.tar"));
   config.mutable_cvm_config()->set_runc_runtime_bundle(runtime_bundle);
+
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  HATS_ASSERT_OK_AND_ASSIGN(
-      std::shared_ptr<grpc::Channel> tvs_channel,
-      tvs::CreateGrpcChannel(tvs::CreateGrpcChannelOptions{
-          .use_tls = false,
-          .target =
-              absl::StrCat("localhost:", std::to_string(tvs_listening_port)),
-          .access_token = "",
-      }));
+  HATS_ASSIGN_OR_RETURN(std::shared_ptr<grpc::Channel> tvs_channel,
+                        tvs::CreateGrpcChannel(tvs::CreateGrpcChannelOptions{
+                            .use_tls = false,
+                            .target = absl::StrCat("localhost:", tvs_port),
+                        }));
 
   channel_map[0] = std::move(tvs_channel);
 
-  HATS_ASSERT_OK_AND_ASSIGN(
+  HATS_ASSIGN_OR_RETURN(
       std::unique_ptr<client::HatsLauncher> launcher,
       client::HatsLauncher::Create({
           .config = std::move(config),
-          .tvs_authentication_key_bytes = std::string(
-              client_authentication_key.private_key.GetStringView()),
+          .tvs_authentication_key_bytes =
+              std::string(client_authentication_private_key),
           .private_key_wrapping_keys = client::PrivateKeyWrappingKeys(),
           .tvs_channels = std::move(channel_map),
           .vmm_log_to_std = true,
       }));
 
   // Generate the log file randomly.
-  HATS_ASSERT_OK(launcher->Start());
+  HATS_RETURN_IF_ERROR(launcher->Start());
 
+  return TestLauncher{
+      .ip_port = std::move(enclave_proxy_ip_port),
+      .launcher = std::move(launcher),
+  };
+}
+
+absl::Status WaitForApp(const HatsLauncher& launcher) {
   // Now here we need to check if app is ready, if it is, start up app client
   // and talk to it.
   int counter = 10;
-  while (!launcher->IsAppReady() && launcher->CheckStatus() && counter > 0) {
+  while (!launcher.IsAppReady() && launcher.CheckStatus() && counter > 0) {
     std::cout << "Waiting for app to be ready" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(5));
     counter--;
   }
-  ASSERT_TRUE(launcher->CheckStatus());
-  ASSERT_TRUE(launcher->IsAppReady());
 
-  TrustedApplicationClient app_client = TrustedApplicationClient(
-      absl::StrCat("localhost:", std::to_string(ip_port.port)), app_key,
-      kUserId);
+  if (!launcher.CheckStatus()) {
+    return absl::FailedPreconditionError("Launcher failed to start.");
+  }
+  if (!launcher.IsAppReady()) {
+    return absl::FailedPreconditionError("App is not ready.");
+  }
+
+  return absl::OkStatus();
+}
+
+TEST(TrustedApplication, EchoSingleTvs) {
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
+  crypto::SecretData app_key = crypto::RandomAeadKey();
+
+  HATS_ASSERT_OK_AND_ASSIGN(TestTvs test_tvs,
+                            CreateAndStartTestTvs({key_manager::TestUserData{
+                                .user_id = "1",
+                                .user_authentication_public_key =
+                                    client_authentication_key.public_key,
+                                .key_id = kUserId,
+                                .secret = std::string(app_key.GetStringView()),
+                                .public_key = "1-public-key",
+                            }}));
+  LOG(INFO) << "TVS server is listening on port " << test_tvs.ip_port->port();
+
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestLauncher test_launcher,
+      CreateAndStartTestLauncher(
+          test_tvs.ip_port->port(),
+          client_authentication_key.private_key.GetStringView()));
+
+  HATS_ASSERT_OK(WaitForApp(*test_launcher.launcher));
+
+  TrustedApplicationClient app_client(
+      absl::StrCat("localhost:", test_launcher.ip_port->port()),
+      app_key.GetStringView(), kUserId);
 
   HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response, app_client.SendEcho());
 
-  EXPECT_EQ(kTestMessage, *response.mutable_response());
+  EXPECT_EQ(*response.mutable_response(), kTestMessage);
   std::cout << *response.mutable_response();
-  launcher->Shutdown();
-  tvs_server->Shutdown();
+
+  test_launcher.launcher->Shutdown();
+  test_tvs.tvs_server->Shutdown();
 }
 
 }  // namespace
@@ -283,5 +331,9 @@ TEST(TrustedApplication, SuccessfulEcho) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  // Tell TVS to be more verbose.
+  if (setenv("RUST_LOG", "debug", /*overwrite=*/1) != 0) {
+    LOG(WARNING) << "Failed to set RUST_LOG=debug";
+  }
   return RUN_ALL_TESTS();
 }

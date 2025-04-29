@@ -35,6 +35,8 @@ cc_binary(
         "//client/proto:launcher_config_cc_proto",
         "//client/proto:trusted_service_cc_proto",
         "//client/trusted_application/client:trusted_application_client",
+        "//crypto:aead-crypter",
+        "//crypto:secret-data",
         "//crypto:test-ec-key",
         "//key_manager:test-key-fetcher",
         "//status_macro:status_macros",
