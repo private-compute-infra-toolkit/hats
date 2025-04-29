@@ -34,12 +34,14 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "client/launcher/launcher.h"
 #include "client/proto/launcher_config.pb.h"
 #include "client/proto/trusted_service.pb.h"
 #include "client/trusted_application/client/trusted_application_client.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
+#include "crypto/secret_sharing/src/interface.rs.h"
 #include "crypto/test-ec-key.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/server.h"
@@ -57,15 +59,17 @@
 namespace privacy_sandbox::client {
 namespace {
 
-const char kUserId[] = "64";
-const char kAppKey[] =
-    "0e4fb4a3b7a7eeb42306db3cbc6108a2424bf8ef510101059b2edef36fe1687f";
-const char kLauncherConfig[] = "launcher_config.txtpb";
-const char kAppraisalPolicy[] = "appraisal_policy.txtpb";
-// TODO: Generate key here when we no longer bake the keys into the system
-// image.
-const char kTvsPrimaryKey[] =
+using ::testing::SizeIs;
+
+constexpr absl::string_view kUserId = "64";
+constexpr absl::string_view kLauncherConfig = "launcher_config.txtpb";
+constexpr absl::string_view kAppraisalPolicy = "appraisal_policy.txtpb";
+constexpr absl::string_view kFirstTvsPrimaryKey =
     "0000000000000000000000000000000000000000000000000000000000000001";
+constexpr absl::string_view kSecondTvsPrimaryKey =
+    "0000000000000000000000000000000000000000000000000000000000000002";
+constexpr absl::string_view kThirdTvsPrimaryKey =
+    "0000000000000000000000000000000000000000000000000000000000000003";
 
 absl::StatusOr<std::string> GetSelfPath() {
   char buf[PATH_MAX + 1];
@@ -166,9 +170,10 @@ struct TestTvs {
 };
 
 absl::StatusOr<TestTvs> CreateAndStartTestTvs(
+    absl::string_view tvs_primary_private_key,
     const std::vector<key_manager::TestUserData>& test_user_data) {
   std::string tvsPrimaryKeyBytes;
-  if (!absl::HexStringToBytes(kTvsPrimaryKey, &tvsPrimaryKeyBytes)) {
+  if (!absl::HexStringToBytes(tvs_primary_private_key, &tvsPrimaryKeyBytes)) {
     return absl::FailedPreconditionError(
         "Failed to convert TVS Primary Key to Hex");
   }
@@ -217,7 +222,8 @@ struct TestLauncher {
 };
 
 absl::StatusOr<TestLauncher> CreateAndStartTestLauncher(
-    int tvs_port, absl::string_view client_authentication_private_key) {
+    const std::vector<int>& tvs_ports, absl::string_view system_bundle_name,
+    absl::string_view client_authentication_private_key) {
   HATS_ASSIGN_OR_RETURN(std::string launcher_config_path,
                         GetRunfilePath(kLauncherConfig));
 
@@ -232,7 +238,7 @@ absl::StatusOr<TestLauncher> CreateAndStartTestLauncher(
       enclave_proxy_ip_port->port());
 
   HATS_ASSIGN_OR_RETURN(std::string system_bundle,
-                        GetRunfilePath("system_bundle.tar"));
+                        GetRunfilePath(system_bundle_name));
 
   config.mutable_cvm_config()->set_hats_system_bundle(system_bundle);
 
@@ -241,14 +247,16 @@ absl::StatusOr<TestLauncher> CreateAndStartTestLauncher(
   config.mutable_cvm_config()->set_runc_runtime_bundle(runtime_bundle);
 
   std::unordered_map<int64_t, std::shared_ptr<grpc::Channel>> channel_map;
-  HATS_ASSIGN_OR_RETURN(std::shared_ptr<grpc::Channel> tvs_channel,
-                        tvs::CreateGrpcChannel(tvs::CreateGrpcChannelOptions{
-                            .use_tls = false,
-                            .target = absl::StrCat("localhost:", tvs_port),
-                        }));
 
-  channel_map[0] = std::move(tvs_channel);
-
+  for (size_t i = 0; i < tvs_ports.size(); ++i) {
+    HATS_ASSIGN_OR_RETURN(
+        std::shared_ptr<grpc::Channel> tvs_channel,
+        tvs::CreateGrpcChannel(tvs::CreateGrpcChannelOptions{
+            .use_tls = false,
+            .target = absl::StrCat("localhost:", tvs_ports[i]),
+        }));
+    channel_map[i] = std::move(tvs_channel);
+  }
   HATS_ASSIGN_OR_RETURN(
       std::unique_ptr<client::HatsLauncher> launcher,
       client::HatsLauncher::Create({
@@ -294,21 +302,25 @@ TEST(TrustedApplication, EchoSingleTvs) {
                             crypto::GenerateEcKeyForTest());
   crypto::SecretData app_key = crypto::RandomAeadKey();
 
-  HATS_ASSERT_OK_AND_ASSIGN(TestTvs test_tvs,
-                            CreateAndStartTestTvs({key_manager::TestUserData{
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestTvs test_tvs,
+      CreateAndStartTestTvs(kFirstTvsPrimaryKey,
+                            /*test_user_data=*/{key_manager::TestUserData{
                                 .user_id = "1",
                                 .user_authentication_public_key =
                                     client_authentication_key.public_key,
-                                .key_id = kUserId,
+                                .key_id = std::string(kUserId),
                                 .secret = std::string(app_key.GetStringView()),
                                 .public_key = "1-public-key",
                             }}));
-  LOG(INFO) << "TVS server is listening on port " << test_tvs.ip_port->port();
+  LOG(INFO) << "TVS server is listening on port: " << test_tvs.ip_port->port();
 
+  constexpr absl::string_view kSystemBundleName =
+      "system_bundle_test_single.tar";
   HATS_ASSERT_OK_AND_ASSIGN(
       TestLauncher test_launcher,
       CreateAndStartTestLauncher(
-          test_tvs.ip_port->port(),
+          /*tvs_ports=*/{test_tvs.ip_port->port()}, kSystemBundleName,
           client_authentication_key.private_key.GetStringView()));
 
   HATS_ASSERT_OK(WaitForApp(*test_launcher.launcher));
@@ -324,6 +336,148 @@ TEST(TrustedApplication, EchoSingleTvs) {
 
   test_launcher.launcher->Shutdown();
   test_tvs.tvs_server->Shutdown();
+}
+
+TEST(TrustedApplication, EchoXor2Tvs) {
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
+  crypto::SecretData app_key = crypto::RandomAeadKey();
+
+  HATS_ASSERT_OK_AND_ASSIGN(
+      rust::Vec<rust::String> shares,
+      privacy_sandbox::crypto::XorSplitSecret(
+          rust::Slice<const std::uint8_t>(app_key.GetData(), app_key.GetSize()),
+          /*numshares=*/2));
+
+  ASSERT_THAT(shares, SizeIs(2));
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestTvs test_tvs1,
+      CreateAndStartTestTvs(kFirstTvsPrimaryKey,
+                            /*test_user_data=*/{key_manager::TestUserData{
+                                .user_id = "1",
+                                .user_authentication_public_key =
+                                    client_authentication_key.public_key,
+                                .key_id = std::string(kUserId),
+                                .secret = static_cast<std::string>(shares[0]),
+                                .public_key = "1-public-key",
+                            }}));
+
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestTvs test_tvs2,
+      CreateAndStartTestTvs(kSecondTvsPrimaryKey,
+                            /*test_user_data=*/{key_manager::TestUserData{
+                                .user_id = "1",
+                                .user_authentication_public_key =
+                                    client_authentication_key.public_key,
+                                .key_id = std::string(kUserId),
+                                .secret = static_cast<std::string>(shares[1]),
+                                .public_key = "1-public-key",
+                            }}));
+
+  LOG(INFO) << "TVS servers are listening on ports: "
+            << test_tvs1.ip_port->port() << ", " << test_tvs2.ip_port->port();
+
+  constexpr absl::string_view kSystemBundleName =
+      "system_bundle_test_xor_2.tar";
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestLauncher test_launcher,
+      CreateAndStartTestLauncher(
+          /*tvs_ports=*/{test_tvs1.ip_port->port(), test_tvs2.ip_port->port()},
+          kSystemBundleName,
+          client_authentication_key.private_key.GetStringView()));
+
+  HATS_ASSERT_OK(WaitForApp(*test_launcher.launcher));
+
+  TrustedApplicationClient app_client(
+      absl::StrCat("localhost:", test_launcher.ip_port->port()),
+      app_key.GetStringView(), kUserId);
+
+  HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response, app_client.SendEcho());
+
+  EXPECT_EQ(*response.mutable_response(), kTestMessage);
+  std::cout << *response.mutable_response();
+
+  test_launcher.launcher->Shutdown();
+  test_tvs1.tvs_server->Shutdown();
+  test_tvs2.tvs_server->Shutdown();
+}
+
+TEST(TrustedApplication, EchoShmir2Of3Tvs) {
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
+                            crypto::GenerateEcKeyForTest());
+  crypto::SecretData app_key = crypto::RandomAeadKey();
+
+  HATS_ASSERT_OK_AND_ASSIGN(
+      rust::Vec<rust::String> shares,
+      privacy_sandbox::crypto::ShamirSplitSecret(
+          rust::Slice<const std::uint8_t>(app_key.GetData(), app_key.GetSize()),
+          /*numshares=*/3, /*threshold=*/2));
+
+  ASSERT_THAT(shares, SizeIs(3));
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestTvs test_tvs1,
+      CreateAndStartTestTvs(kFirstTvsPrimaryKey,
+                            /*test_user_data=*/{key_manager::TestUserData{
+                                .user_id = "1",
+                                .user_authentication_public_key =
+                                    client_authentication_key.public_key,
+                                .key_id = std::string(kUserId),
+                                .secret = static_cast<std::string>(shares[0]),
+                                .public_key = "1-public-key",
+                            }}));
+
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestTvs test_tvs2,
+      CreateAndStartTestTvs(kSecondTvsPrimaryKey,
+                            /*test_user_data=*/{key_manager::TestUserData{
+                                .user_id = "1",
+                                .user_authentication_public_key =
+                                    client_authentication_key.public_key,
+                                .key_id = std::string(kUserId),
+                                .secret = static_cast<std::string>(shares[1]),
+                                .public_key = "1-public-key",
+                            }}));
+
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestTvs test_tvs3,
+      CreateAndStartTestTvs(kThirdTvsPrimaryKey,
+                            /*test_user_data=*/{key_manager::TestUserData{
+                                .user_id = "1",
+                                .user_authentication_public_key =
+                                    client_authentication_key.public_key,
+                                .key_id = std::string(kUserId),
+                                .secret = static_cast<std::string>(shares[2]),
+                                .public_key = "1-public-key",
+                            }}));
+  LOG(INFO) << "TVS servers are listening on ports: "
+            << test_tvs1.ip_port->port() << ", " << test_tvs2.ip_port->port()
+            << ", " << test_tvs3.ip_port->port();
+
+  constexpr absl::string_view kSystemBundleName =
+      "system_bundle_test_shamir_2_of_3.tar";
+  HATS_ASSERT_OK_AND_ASSIGN(
+      TestLauncher test_launcher,
+      CreateAndStartTestLauncher(
+          /*tvs_ports=*/{test_tvs1.ip_port->port(), test_tvs2.ip_port->port(),
+                         test_tvs3.ip_port->port()},
+          kSystemBundleName,
+          client_authentication_key.private_key.GetStringView()));
+
+  HATS_ASSERT_OK(WaitForApp(*test_launcher.launcher));
+
+  TrustedApplicationClient app_client(
+      absl::StrCat("localhost:", test_launcher.ip_port->port()),
+      app_key.GetStringView(), kUserId);
+
+  HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response, app_client.SendEcho());
+
+  EXPECT_EQ(*response.mutable_response(), kTestMessage);
+  std::cout << *response.mutable_response();
+
+  test_launcher.launcher->Shutdown();
+  test_tvs1.tvs_server->Shutdown();
+  test_tvs2.tvs_server->Shutdown();
+  test_tvs3.tvs_server->Shutdown();
 }
 
 }  // namespace

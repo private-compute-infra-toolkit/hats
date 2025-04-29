@@ -48,15 +48,16 @@ echo "${RUNTIME_HASH} container_binary" >> "${RUNTIME_HASH_FILE}"
 # Oak syslogd and a BUILD file are needed. This will use artifact if it exists.
 build_oak_containers_syslogd "${PREBUILT_DIR}"
 
-# Get suffixes of images from the BUILD file
-mapfile -t IMAGE_SUFFIXES < <(grep 'name = "hats_system_image_' < "${CLIENT_DIR}/system_image/BUILD" | cut -d '"' -f 2 | cut -c19-)
+build_all_hats_containers_images "$PREBUILT_DIR"
+
+# Get suffixes of images from $PREBUILT_DIR.
+mapfile -t IMAGE_SUFFIXES < <(find "${PREBUILT_DIR}" -name "hats_system_image_*" | sed -rn 's/.*hats_system_image_(.*).tar.xz/\1/p')
 
 # Compute hashes
 IMAGE_HASHES=()
 for SUFFIX in "${IMAGE_SUFFIXES[@]}"; do
   echo "computing system image for ${SUFFIX}"
-  build_hats_containers_images "$PREBUILT_DIR" "${SUFFIX}"
-  HASH=$(sha256sum "${PREBUILT_DIR}/hats_system_image.tar.xz" | cut -d " " -f 1)
+  HASH=$(sha256sum "${PREBUILT_DIR}/hats_system_image_$SUFFIX.tar.xz" | cut -d " " -f 1)
   echo "System hash for ${SUFFIX}: ${HASH}"
   IMAGE_HASHES+=("${HASH}")
 done
@@ -65,9 +66,13 @@ done
 touch "${SYSTEM_IMAGE_HASH_FILE}"
 sed -i '/hats_system_image_/d' "${SYSTEM_IMAGE_HASH_FILE}"
 
-# TODO(b/408055875): remove this hash after figuring out why pkg_tar set devmajor and devminor fields in swarming presubmit machine.
-echo "2ee0278529fc8cd2ab95589f25f80c929162ab4cce627f14f2239769dee1ed69 hats_system_image_test_single" > "${SYSTEM_IMAGE_HASH_FILE}"
-
 for index in "${!IMAGE_SUFFIXES[@]}"; do
   echo "${IMAGE_HASHES[$index]} hats_system_image_${IMAGE_SUFFIXES[$index]}" >> "${SYSTEM_IMAGE_HASH_FILE}"
 done
+
+# TODO(b/408055875): remove the following three hash after figuring out why pkg_tar set devmajor and devminor fields in swarming presubmit machine.
+cat <<EOF >> "${SYSTEM_IMAGE_HASH_FILE}"
+2ee0278529fc8cd2ab95589f25f80c929162ab4cce627f14f2239769dee1ed69 hats_system_image_test_single_presubmit
+98ee0ebae9d6834c312188bc8b49cc196f755ff303ffdd716bed76c3630afad7 hats_system_image_test_xor_2_presubmit
+6904838d9c6a0bdac49a3355dad2d80df8553a0274c4e14aa5206ed2ed49503a hats_system_image_test_shamir_2_of_3_presubmit
+EOF

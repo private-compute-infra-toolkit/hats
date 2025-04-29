@@ -176,13 +176,12 @@ EOF
   fi
 }
 
-function build_hats_containers_images() {
+function build_all_hats_containers_images() {
   local BUILD_DIR="$1"
-  local SUFFIX="$2"
   printf "\nBUILDING HATS CONTAINERS IMAGES...\n"
-  bazel build -c opt "//client/system_image:hats_system_image_$SUFFIX" --//:syslogd_source=binary
-  cp -f --preserve=timestamp "../../bazel-bin/client/system_image/hats_system_image_$SUFFIX.tar" "$BUILD_DIR/hats_system_image.tar"
-  xz -T 1 --force "$BUILD_DIR/hats_system_image.tar"
+  bazel build -c opt "//client/system_image/..." --//:syslogd_source=binary
+  cp -f --preserve=timestamp ../../bazel-bin/client/system_image/hats_system_image_*.tar "$BUILD_DIR"
+  xz -T 1 --force "$BUILD_DIR"/hats_system_image_*.tar
 }
 
 function build_tvs() {
@@ -206,26 +205,32 @@ function build_test_bundles() {
   local STAGE0="$2"
   local INITRD="$3"
   local KERNEL="$4"
-  local SYSTEM="$5"
+  local SYSTEM_IMAGES_DIR="$5"
   local RUNTIME="$6"
   local APPRISAL_POLICY="$7"
   local LAUNCHER_CONFIG="$8"
   local TAR_DIR="$BUILD_DIR/tar"
-  mkdir -p "$TAR_DIR"
-  mv -f "$STAGE0" "$TAR_DIR/stage0_bin"
-  mv -f "$INITRD" "$TAR_DIR/initrd.cpio.xz"
-  mv -f "$KERNEL" "$TAR_DIR/kernel_bin"
-  mv -f "$SYSTEM" "$TAR_DIR/system.tar.xz"
-  # We force the reproducibility of the system bundle to prevent confusion that
-  # the underlying binaries are of a different version.
-  tar --mode a=r,u+w,a+X --mtime='@0' --sort=name --owner=root:0 --group=root:0 -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle.tar" .
-  mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
 
+  for SYSTEM_IMAGE in "$SYSTEM_IMAGES_DIR"/hats_system_image_*; do
+    local SUFFIX
+    SUFFIX=$(echo "$SYSTEM_IMAGE" | sed -rn 's/.*hats_system_image(_.*).tar.xz/\1/p')
+    mkdir -p "$TAR_DIR"
+    cp -f "$STAGE0" "$TAR_DIR/stage0_bin"
+    cp -f "$INITRD" "$TAR_DIR/initrd.cpio.xz"
+    cp -f "$KERNEL" "$TAR_DIR/kernel_bin"
+    mv -f "$SYSTEM_IMAGE" "$TAR_DIR/system.tar.xz"
+    # We force the reproducibility of the system bundle to prevent confusion that
+    # the underlying binaries are of a different version.
+    tar --mode a=r,u+w,a+X --mtime='@0' --sort=name --owner=root:0 --group=root:0 -C "$TAR_DIR" -cf "$BUILD_DIR/system_bundle$SUFFIX.tar" .
+    rm -rf "$TAR_DIR"
+  done
+
+  mv -f "$RUNTIME" "$BUILD_DIR/runtime_bundle.tar"
   cp "$LAUNCHER_CONFIG" "$BUILD_DIR/launcher_config.txtpb"
   cp "$APPRISAL_POLICY" "$BUILD_DIR/appraisal_policy.txtpb"
 
   # Clean up the extra stuff in the folder.
   rm -rf ../prebuilt
-  rm -rf "$TAR_DIR"
+
   rm -f "$BUILD_DIR/oak_containers_syslogd"
 }
