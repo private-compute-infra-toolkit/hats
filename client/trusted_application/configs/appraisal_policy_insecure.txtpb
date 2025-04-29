@@ -1,5 +1,5 @@
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 1, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 1, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       insecure {}
@@ -19,7 +19,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 2, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 2, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       insecure {}
@@ -39,7 +39,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 3, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 3, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       insecure {}
@@ -59,7 +59,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 4, RAM: 8000000 KB, ACPI XSDT (FACP, APIC)"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 4, RAM: 8000000 KB, ACPI XSDT (FACP, APIC)"
   measurement {
     stage0_measurement {
       insecure {}
@@ -79,7 +79,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 4, RAM: 8000000 KB, ACPI XSDT (APIC, FACP)"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 4, RAM: 8000000 KB, ACPI XSDT (APIC, FACP)"
   measurement {
     stage0_measurement {
       insecure {}
@@ -100,7 +100,7 @@ policies {
 }
 
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 1, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 1, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       insecure {}
@@ -120,7 +120,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 2, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 2, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       insecure {}
@@ -140,7 +140,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 3, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 3, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       insecure {}
@@ -160,7 +160,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an insecure VM. Cores: 4, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an insecure VM. Cores: 4, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       insecure {}
@@ -176,6 +176,46 @@ policies {
   }
   signature {
     signature: "c09295511c9169b9642eff4cb2ba11421b7a927c498519050de86d5f16d1287fa173fb03ea51ec1989ccd35d73d701b6fe5951400600f5dfa364d187f61b0116"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for Trusted Application in xor 2 split mode running in an insecure VM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+    acpi_table_sha256: "045c206a3de695f98ca709e456d9df46c4e33e32673e9036563c8901ba704fcb"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "c3bd94a2ac5a73ae572fd6b5fe67bee9b741b5f200fe3ae36be1e949a5560dde"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "6fe46e007538b6f35877d1863721d0fc9369cb5ed0359498088933b8da0b17f5172ac5ed158fc456830fdaad4e33b1cdcf95e7af17f4991f0a7f3344145377c0"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for Trusted Application in Shamir 3 to 2 split mode running in an insecure VM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+    acpi_table_sha256: "045c206a3de695f98ca709e456d9df46c4e33e32673e9036563c8901ba704fcb"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "e3d3297f7b2c7fbb1f4149cecf298dd0b13a58e9902e2543db9147ca1b9916eb"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "a8974c30da351d2819145d053d8895f2ba78fd7a22f95227e20c6a5671fd85778b4729c2a93a3c4f3958aa4af2d70904d8d4fce08eb15596fd2537168c61311b"
     signer: "hats"
   }
 }

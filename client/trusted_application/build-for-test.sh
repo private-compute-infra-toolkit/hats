@@ -32,7 +32,7 @@ build_oak_containers_stage0 "$PREBUILT_DIR"
 build_oak_containers_stage1 "$PREBUILT_DIR"
 build_oak_containers_kernel "$PREBUILT_DIR"
 build_oak_containers_syslogd "$PREBUILT_DIR"
-build_hats_containers_images "$PREBUILT_DIR" "test_single"
+build_all_hats_containers_images "$PREBUILT_DIR"
 build_test_application_container_bundle_tar "$PREBUILT_DIR"
 
 
@@ -42,7 +42,7 @@ build_test_bundles \
   "$PREBUILT_DIR/stage0_bin" \
   "$PREBUILT_DIR/stage1.cpio" \
   "$PREBUILT_DIR/bzImage" \
-  "$PREBUILT_DIR/hats_system_image.tar.xz" \
+  "$PREBUILT_DIR" \
   "$PREBUILT_DIR/bundle.tar" \
   "configs/appraisal_policy.txtpb" \
   "configs/launcher_config.txtpb"

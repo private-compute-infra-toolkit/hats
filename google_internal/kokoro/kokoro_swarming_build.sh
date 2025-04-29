@@ -72,7 +72,7 @@ copy_oak_artifacts "$PREBUILT_DIR"
 # Build the system image, and the trusted application bundle so that
 # we can bundle them with oak artifacts before building the
 # trusted_application_test.
-build_hats_containers_images "$PREBUILT_DIR" "test_single"
+build_all_hats_containers_images "$PREBUILT_DIR"
 build_test_application_container_bundle_tar "$PREBUILT_DIR"
 popd
 popd
@@ -84,7 +84,7 @@ build_test_bundles \
   "$PREBUILT_DIR/stage0_bin" \
   "$PREBUILT_DIR/stage1.cpio" \
   "$PREBUILT_DIR/bzImage" \
-  "$PREBUILT_DIR/hats_system_image.tar.xz" \
+  "$PREBUILT_DIR" \
   "$PREBUILT_DIR/bundle.tar" \
   "$KOKORO_HATS_DIR/client/trusted_application/configs/appraisal_policy.txtpb" \
   "$KOKORO_HATS_DIR/client/trusted_application/configs/launcher_config.txtpb"

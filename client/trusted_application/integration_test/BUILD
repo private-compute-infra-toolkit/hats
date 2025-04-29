@@ -38,6 +38,7 @@ cc_binary(
         "//crypto:aead-crypter",
         "//crypto:secret-data",
         "//crypto:test-ec-key",
+        "//crypto/secret_sharing:bridge",
         "//key_manager:test-key-fetcher",
         "//status_macro:status_macros",
         "//status_macro:status_test_macros",

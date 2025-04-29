@@ -1,5 +1,5 @@
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 1, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 1, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -26,7 +26,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 2, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 2, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -53,7 +53,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 3, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 3, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -80,7 +80,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -107,7 +107,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 1, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 1, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -134,7 +134,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 2, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 2, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -161,7 +161,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 3, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 3, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -188,7 +188,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 4, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 4, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -215,7 +215,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 1, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 1, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -242,7 +242,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1). Cores: 2, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1). Cores: 2, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -269,7 +269,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP  (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 3, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP  (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 3, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -296,7 +296,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -323,7 +323,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 1, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 1, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -350,7 +350,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1)  CVM. Cores: 2, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1)  CVM. Cores: 2, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -377,7 +377,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 3, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 3, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -404,7 +404,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 4000000 KB"
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 4000000 KB"
   measurement {
     stage0_measurement {
       amd_sev {
@@ -431,7 +431,7 @@ policies {
   }
 }
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB. Lower TCB for presubmit machine."
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB. Lower TCB for presubmit machine."
   measurement {
     stage0_measurement {
       amd_sev {
@@ -457,9 +457,64 @@ policies {
     signer: "hats"
   }
 }
-# TODO(b/408055875): remove this policy after figuring out why pkg_tar set devmajor and devminor fields.
 policies {
-  description: "Policy for Trusted Application running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB. Lower TCB and different system image for presubmit machine."
+  description: "Policy for Trusted Application in xor 2 split mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "73711ed75cda7074ad1952cafa01f8a5016729b9e09e6c35363655c2530e51932d4e5fbc3d01a39650d7db85e9cc945e"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "c3bd94a2ac5a73ae572fd6b5fe67bee9b741b5f200fe3ae36be1e949a5560dde"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "0fded838488e23df2dc834b53ebe573bef094ff3cc9970af98e0031ff5629d59fb3dc16c10178bf90c6ed8b2b4fd0ba2c4bc7918d2269aadb99d45e9dd46b372"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for Trusted Application in Shamir 3 to 2 split mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "73711ed75cda7074ad1952cafa01f8a5016729b9e09e6c35363655c2530e51932d4e5fbc3d01a39650d7db85e9cc945e"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "e3d3297f7b2c7fbb1f4149cecf298dd0b13a58e9902e2543db9147ca1b9916eb"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "699fbb70ab7cd483944a5d7096f6896bf06b958b3ae9bea9f11f5f01276cf6003032d0c93d48312a5c9c3d09d1dabea035f387600b4804bd4669355f46ac1ab1"
+    signer: "hats"
+  }
+}
+# TODO(b/408055875): remove the following three policies after figuring out why
+# pkg_tar set devmajor and devminor fields.
+policies {
+  description: "Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB. Lower TCB and different system image for presubmit machine."
   measurement {
     stage0_measurement {
       amd_sev {
@@ -482,6 +537,60 @@ policies {
   }
   signature {
     signature: "dd5f59b225e0b6935bbf4b3a10b6bd0c4c1497a1d9d9aef005eb7a0f76248c752b81800b7842ca779dad96aaba4acdec880780b1f4ef57416666fdb16ad1bb43"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for Trusted Application in xor 2 split mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB. Lower TCB and different system image for presubmit machine."
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "73711ed75cda7074ad1952cafa01f8a5016729b9e09e6c35363655c2530e51932d4e5fbc3d01a39650d7db85e9cc945e"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 21
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "98ee0ebae9d6834c312188bc8b49cc196f755ff303ffdd716bed76c3630afad7"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "99b282c252f642e441e91cc8366892587bc0550be046518bfbfd93e9b39676fde73cf8218fc2c62a909478906b27fa5cc8839cce95a60bcb33ba2237fa6ce009"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Policy for Trusted Application in Shamir 3 to 2 split mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB. Lower TCB and different system image for presubmit machine."
+  measurement {
+    stage0_measurement {
+      amd_sev {
+        sha384: "73711ed75cda7074ad1952cafa01f8a5016729b9e09e6c35363655c2530e51932d4e5fbc3d01a39650d7db85e9cc945e"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 21
+          microcode: 213
+        }
+      }
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "9745b0f42d03054bb49033b766177e571f51f511c1368611d2ee268a704c641b"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
+    acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6904838d9c6a0bdac49a3355dad2d80df8553a0274c4e14aa5206ed2ed49503a"
+    container_binary_sha256: "747095f48ae49730def7c6a21e5b23d1f66aab4b8e19190694eeb87f9a648a36"
+  }
+  signature {
+    signature: "00b9d814adde57537f24e97cf11b458dc087d722dc1b3544639b04696df3296f3567311398679e493411152b4819c6397e27c8127c38d44696799437936d2712"
     signer: "hats"
   }
 }

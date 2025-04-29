@@ -76,7 +76,7 @@ pkg_tar(
 )
 
 pkg_tar(
-    name = "hats_system_image_test_shamir_3",
+    name = "hats_system_image_test_shamir_2_of_3",
     # Order matters here as we intend to overwrite certain files in Oak's system
     # image. Oak system image should come first.
     # buildifier: leave-alone
@@ -84,7 +84,7 @@ pkg_tar(
         "@oak_containers_system_image_base//file:base-image.tar.xz",
         ":admin_bin",
         ":interface",
-        "//client/system_image/test_shamir_3:services",
-        "//client/system_image/test_shamir_3:tvs_public_keys",
+        "//client/system_image/test_shamir_2_of_3:services",
+        "//client/system_image/test_shamir_2_of_3:tvs_public_keys",
     ],
 )
