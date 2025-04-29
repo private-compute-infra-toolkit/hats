@@ -39,6 +39,12 @@ popd() {
 readonly KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 readonly HATS_SWARMING_DIR="${KOKORO_HATS_DIR}/google_internal/swarming"
 
+# TODO(b/414601104): remove after using an image with newer python version.
+add-apt-repository ppa:deadsnakes/ppa
+apt-get update
+apt-get install python3.12 -y
+cp /usr/bin/python3.12 /usr/bin/python3
+
 # Install latest bazel, since ubuntu2004 image used has 6.5.0
 readonly BAZEL_VERSION=bazel-7.4.1-linux-x86_64
 readonly BAZEL_TMP_DIR=/tmpfs/tmp/bazel-release
