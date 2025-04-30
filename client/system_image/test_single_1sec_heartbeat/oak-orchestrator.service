@@ -1,0 +1,19 @@
+# Patched version of https://github.com/project-oak/oak/blob/fdf380dfcc5a812befa3179f9cecea440a72b7b7/oak_containers/system_image/files/etc/systemd/system/oak-orchestrator.service
+[Unit]
+Description=Oak Containers Orchestrator
+After=network-online.target
+Wants=network-online.target
+FailureAction=none
+SuccessAction=none
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/orchestrator_main --container-dir ${RUNTIME_DIRECTORY}/oak_container --ipc-socket-path ${RUNTIME_DIRECTORY}/oak_utils/orchestrator_ipc --launcher-addr=${LAUNCHER_ADDR} --secret-share-type=no-split --tvs-heartbeat-frequency=1
+ExecStopPost=/usr/bin/journalctl --sync --flush
+ProtectSystem=strict
+RuntimeDirectory=oak_containers_orchestrator
+ReadWritePaths=/oak
+PassEnvironment=LAUNCHER_ADDR
+
+[Install]
+WantedBy=multi-user.target

@@ -219,3 +219,23 @@ policies {
     signer: "hats"
   }
 }
+policies {
+  description: "Policy for Trusted Application in single TVS mode with 1 second heart-beat frequency running in an insecure VM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      insecure {}
+    }
+    kernel_image_sha256: "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84"
+    kernel_setup_data_sha256: "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c"
+    init_ram_fs_sha256: "7cd4896bdd958f67a6a85cc1cc780761ac9615bc25ae4436aad1d4e9d2332c1a"
+    memory_map_sha256: "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb"
+    acpi_table_sha256: "045c206a3de695f98ca709e456d9df46c4e33e32673e9036563c8901ba704fcb"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "37d7f1ae5cfe21806b860a51aed7c17b01ce1e95b56cd4e37753f4c348a68600"
+    container_binary_sha256: "89159b768886a0c23d6c32b4af1fbe25d733a164e0943d3157a6cbcd8f453ba9"
+  }
+  signature {
+    signature: "5e50b2befa2be370feb6ead15f83e756df70e4d35e478478aeb8be838791043508a53927858c3db9f70911c0df6250be1757be9fa0433e687637f2bca4d0a54c"
+    signer: "hats"
+  }
+}

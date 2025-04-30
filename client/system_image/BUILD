@@ -88,3 +88,17 @@ pkg_tar(
         "//client/system_image/test_shamir_2_of_3:tvs_public_keys",
     ],
 )
+
+pkg_tar(
+    name = "hats_system_image_test_single_1sec_heartbeat",
+    # Order matters here as we intend to overwrite certain files in Oak's system
+    # image. Oak system image should come first.
+    # buildifier: leave-alone
+    deps = [
+        "@oak_containers_system_image_base//file:base-image.tar.xz",
+        ":admin_bin",
+        ":interface",
+        "//client/system_image/test_single_1sec_heartbeat:services",
+        "//client/system_image/test_single_1sec_heartbeat:tvs_public_keys",
+    ],
+)
