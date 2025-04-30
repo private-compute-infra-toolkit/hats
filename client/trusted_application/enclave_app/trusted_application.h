@@ -15,25 +15,23 @@
 #ifndef HATS_CLIENT_TRUSTED_APPLICATION_ENCLAVE_APP_TRUSTED_APPLICATION_H_
 #define HATS_CLIENT_TRUSTED_APPLICATION_ENCLAVE_APP_TRUSTED_APPLICATION_H_
 
-#include <vector>
-
-#include "client/proto/orchestrator.pb.h"
 #include "client/proto/trusted_service.grpc.pb.h"
 #include "client/proto/trusted_service.pb.h"
+#include "client/sdk/hats_orchestrator_client.h"
 
 namespace privacy_sandbox::client {
 
-class TrustedApplication : public TrustedService::Service {
+class TrustedApplication final : public TrustedService::Service {
  public:
-  explicit TrustedApplication(std::vector<server_common::Key> keys)
-      : keys_(keys) {}
+  TrustedApplication() = default;
 
   grpc::Status Echo(grpc::ServerContext* context,
                     const EncryptedRequest* request,
                     DecryptedResponse* response) override;
 
  private:
-  std::vector<server_common::Key> keys_;
+  privacy_sandbox::server_common::HatsOrchestratorClient
+      hats_orchestrator_client_;
 };
 }  // namespace privacy_sandbox::client
 

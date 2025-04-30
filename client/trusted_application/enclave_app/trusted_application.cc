@@ -15,25 +15,29 @@
 #include "client/trusted_application/enclave_app/trusted_application.h"
 
 #include <string>
+#include <vector>
 
 #include "client/proto/orchestrator.pb.h"
 #include "client/proto/trusted_service.pb.h"
+#include "client/sdk/hats_orchestrator_client.h"
 #include "crypto/aead-crypter.h"
 #include "crypto/secret-data.h"
 #include "status_macro/status_macros.h"
 #include "status_macro/status_util.h"
-
-using privacy_sandbox::crypto::SecretData;
-using privacy_sandbox::server_common::Key;
 
 namespace privacy_sandbox::client {
 
 grpc::Status TrustedApplication::Echo(grpc::ServerContext* context,
                                       const EncryptedRequest* request,
                                       DecryptedResponse* response) {
-  Key key_to_use;
+  HATS_ASSIGN_OR_RETURN(
+      std::vector<server_common::Key> keys, hats_orchestrator_client_.GetKeys(),
+      _.PrependWith("Failed to fetch keys from the orchestrator: ")
+          .With(status_macro::FromAbslStatus));
+
+  server_common::Key key_to_use;
   bool key_found = false;
-  for (const Key& key : keys_) {
+  for (const server_common::Key& key : keys) {
     if (key.key_id() == request->key_id()) {
       key_to_use = key;
       key_found = true;
@@ -47,15 +51,16 @@ grpc::Status TrustedApplication::Echo(grpc::ServerContext* context,
         absl::StrCat("Decryption key not found, key id: ", request->key_id()));
   }
 
-  SecretData decryption_key = SecretData(key_to_use.private_key());
+  crypto::SecretData decryption_key =
+      crypto::SecretData(key_to_use.private_key());
 
-  SecretData encrypted_data = SecretData(request->encrypted_message());
-  HATS_ASSIGN_OR_RETURN(
-      SecretData decrypted,
-      privacy_sandbox::crypto::Decrypt(decryption_key, encrypted_data,
-                                       privacy_sandbox::crypto::kSecretAd),
-      _.PrependWith("Failed to decrypt message: ")
-          .With(status_macro::FromAbslStatus));
+  crypto::SecretData encrypted_data =
+      crypto::SecretData(request->encrypted_message());
+  HATS_ASSIGN_OR_RETURN(crypto::SecretData decrypted,
+                        crypto::Decrypt(decryption_key, encrypted_data,
+                                        privacy_sandbox::crypto::kSecretAd),
+                        _.PrependWith("Failed to decrypt message: ")
+                            .With(status_macro::FromAbslStatus));
 
   *response->mutable_response() = decrypted.GetStringView();
 

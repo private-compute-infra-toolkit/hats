@@ -26,7 +26,6 @@ cc_binary(
     srcs = ["main.cc"],
     deps = [
         ":trusted_application",
-        "//client/proto:orchestrator_cc_proto",
         "//client/sdk:hats_orchestrator_client",
         "//status_macro:status_macros",
         "@com_google_absl//absl/flags:flag",
@@ -45,6 +44,7 @@ cc_library(
         "//client/proto:orchestrator_cc_proto",
         "//client/proto:trusted_service_cc_grpc",
         "//client/proto:trusted_service_cc_proto",
+        "//client/sdk:hats_orchestrator_client",
         "//crypto:aead-crypter",
         "//crypto:secret-data",
         "//status_macro:status_macros",

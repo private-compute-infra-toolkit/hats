@@ -23,8 +23,6 @@
 #include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/initialize.h"
 #include "absl/strings/str_cat.h"
-#include "client/proto/orchestrator.pb.h"
-#include "client/sdk/hats_orchestrator_client.h"
 #include "client/trusted_application/enclave_app/trusted_application.h"
 #include "grpcpp/security/server_credentials.h"
 #include "grpcpp/server.h"
@@ -39,14 +37,7 @@ int main(int argc, char* argv[]) {
   absl::InitializeLog();
 
   std::string port_to_use = absl::GetFlag(FLAGS_port);
-  privacy_sandbox::server_common::HatsOrchestratorClient client =
-      privacy_sandbox::server_common::HatsOrchestratorClient();
-
-  HATS_ASSIGN_OR_RETURN(
-      std::vector<privacy_sandbox::server_common::Key> keys, client.GetKeys(),
-      _.PrependWith("Could not get keys: ").LogErrorAndExit());
-
-  privacy_sandbox::client::TrustedApplication service(std::move(keys));
+  privacy_sandbox::client::TrustedApplication service;
 
   grpc::ServerBuilder builder;
   builder.AddListeningPort(absl::StrCat("[::]:", port_to_use),
@@ -54,6 +45,7 @@ int main(int argc, char* argv[]) {
   builder.RegisterService(&service);
   std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
 
+  privacy_sandbox::server_common::HatsOrchestratorClient client;
   HATS_RETURN_IF_ERROR(client.NotifyAppReady())
       .PrependWith("Failed to notify launcher that app is ready: ")
       .LogErrorAndExit();
