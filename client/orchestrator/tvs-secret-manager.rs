@@ -48,7 +48,7 @@ impl TvsSecretManager {
         evidence: &Evidence,
         signing_key: SigningKey,
         secret_split: Option<Box<dyn SecretSplit>>,
-        expiry_seconds: u64,
+        tvs_heartbeat_frequency_seconds: u64,
     ) -> Result<Box<dyn TvsSecretManagerInterface>, anyhow::Error> {
         let encoded_report = get_encoded_report(
             &grpc_clients,
@@ -68,7 +68,7 @@ impl TvsSecretManager {
             evidence.clone(),
             signing_key,
             secret_split,
-            expiry_seconds,
+            tvs_heartbeat_frequency_seconds,
         );
 
         Ok(Box::new(Self {
@@ -83,11 +83,12 @@ impl TvsSecretManager {
         evidence: Evidence,
         signing_key: SigningKey,
         secret_split: Option<Box<dyn SecretSplit>>,
-        expiry_seconds: u64,
+        tvs_heartbeat_frequency_seconds: u64,
     ) -> JoinHandle<()> {
         let cache = self.clone();
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(expiry_seconds));
+            let mut interval =
+                tokio::time::interval(Duration::from_secs(tvs_heartbeat_frequency_seconds));
             loop {
                 interval.tick().await;
                 if let Err(err) = cache
@@ -268,13 +269,13 @@ mod tests {
             });
         let mock_tvs_client_box = Box::new(mock_tvs_client) as Box<dyn TvsClientInterface>;
         let secret_split: Option<Box<dyn SecretSplit>> = None;
-        let expiry_seconds: u64 = 3600;
+        let tvs_heartbeat_frequency_seconds: u64 = 3600;
         let manager = TvsSecretManager::create(
             vec![mock_tvs_client_box],
             &Evidence::default(),
             signing_key,
             secret_split,
-            expiry_seconds,
+            tvs_heartbeat_frequency_seconds,
         )
         .await
         .unwrap();
@@ -384,7 +385,7 @@ mod tests {
 
         let private_key_clone = private_key.clone();
 
-        let expiry_seconds: u64 = 3600;
+        let tvs_heartbeat_frequency_seconds: u64 = 3600;
         let manager = TvsSecretManager::create(
             vec![
                 mock_tvs_client_box1,
@@ -394,7 +395,7 @@ mod tests {
             &Evidence::default(),
             signing_key,
             secret_split,
-            expiry_seconds,
+            tvs_heartbeat_frequency_seconds,
         )
         .await
         .unwrap();
@@ -499,7 +500,7 @@ mod tests {
 
         let private_key_clone = private_key.clone();
 
-        let expiry_seconds: u64 = 3600;
+        let tvs_heartbeat_frequency_seconds: u64 = 3600;
         let manager = TvsSecretManager::create(
             vec![
                 mock_tvs_client_box1,
@@ -509,7 +510,7 @@ mod tests {
             &Evidence::default(),
             signing_key,
             secret_split,
-            expiry_seconds,
+            tvs_heartbeat_frequency_seconds,
         )
         .await
         .unwrap();
@@ -545,13 +546,13 @@ mod tests {
             });
         let mock_tvs_client_box = Box::new(mock_tvs_client) as Box<dyn TvsClientInterface>;
         let secret_split: Option<Box<dyn SecretSplit>> = None;
-        let expiry_seconds: u64 = 1;
+        let tvs_heartbeat_frequency_seconds: u64 = 1;
         let manager = TvsSecretManager::create(
             vec![mock_tvs_client_box],
             &Evidence::default(),
             signing_key,
             secret_split,
-            expiry_seconds,
+            tvs_heartbeat_frequency_seconds,
         )
         .await
         .unwrap();
@@ -596,13 +597,13 @@ mod tests {
             });
         let mock_tvs_client_box = Box::new(mock_tvs_client) as Box<dyn TvsClientInterface>;
         let secret_split: Option<Box<dyn SecretSplit>> = None;
-        let expiry_seconds: u64 = 1;
+        let tvs_heartbeat_frequency_seconds: u64 = 1;
         let manager = TvsSecretManager::create(
             vec![mock_tvs_client_box],
             &Evidence::default(),
             signing_key,
             secret_split,
-            expiry_seconds,
+            tvs_heartbeat_frequency_seconds,
         )
         .await
         .unwrap();
@@ -755,7 +756,7 @@ mod tests {
             });
         let mock_tvs_client_box3 = Box::new(mock_tvs_client3) as Box<dyn TvsClientInterface>;
 
-        let expiry_seconds: u64 = 1;
+        let tvs_heartbeat_frequency_seconds: u64 = 1;
         let manager = TvsSecretManager::create(
             vec![
                 mock_tvs_client_box1,
@@ -765,7 +766,7 @@ mod tests {
             &Evidence::default(),
             signing_key,
             secret_split,
-            expiry_seconds,
+            tvs_heartbeat_frequency_seconds,
         )
         .await
         .unwrap();
@@ -914,7 +915,7 @@ mod tests {
             });
         let mock_tvs_client_box3 = Box::new(mock_tvs_client3) as Box<dyn TvsClientInterface>;
 
-        let expiry_seconds: u64 = 1;
+        let tvs_heartbeat_frequency_seconds: u64 = 1;
         let manager = TvsSecretManager::create(
             vec![
                 mock_tvs_client_box1,
@@ -924,7 +925,7 @@ mod tests {
             &Evidence::default(),
             signing_key,
             secret_split,
-            expiry_seconds,
+            tvs_heartbeat_frequency_seconds,
         )
         .await
         .unwrap();

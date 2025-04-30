@@ -57,9 +57,9 @@ struct Args {
     #[arg(long, required = false, value_enum, default_value_t = SecretShareType::default())]
     secret_share_type: SecretShareType,
 
-    // Time Hats Server will cache TVS Keys repsonse in seconds.
+    // How often to send heart-beats to TVS in seconds.
     #[arg(long, default_value = "3600")]
-    hats_server_cache_time: u64,
+    tvs_heartbeat_frequency: u64,
 }
 
 #[tokio::main]
@@ -182,7 +182,7 @@ async fn main() -> anyhow::Result<()> {
         &evidence.clone(),
         signing_key_clone,
         secret_split,
-        args.hats_server_cache_time,
+        args.tvs_heartbeat_frequency,
     )
     .await?;
     let hats_server = hats_server::HatsServer::new(tvs_secret_manager);
