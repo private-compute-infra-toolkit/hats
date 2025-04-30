@@ -69,10 +69,3 @@ sed -i '/hats_system_image_/d' "${SYSTEM_IMAGE_HASH_FILE}"
 for index in "${!IMAGE_SUFFIXES[@]}"; do
   echo "${IMAGE_HASHES[$index]} hats_system_image_${IMAGE_SUFFIXES[$index]}" >> "${SYSTEM_IMAGE_HASH_FILE}"
 done
-
-# TODO(b/408055875): remove the following three hash after figuring out why pkg_tar set devmajor and devminor fields in swarming presubmit machine.
-cat <<EOF >> "${SYSTEM_IMAGE_HASH_FILE}"
-2ee0278529fc8cd2ab95589f25f80c929162ab4cce627f14f2239769dee1ed69 hats_system_image_test_single_presubmit
-98ee0ebae9d6834c312188bc8b49cc196f755ff303ffdd716bed76c3630afad7 hats_system_image_test_xor_2_presubmit
-6904838d9c6a0bdac49a3355dad2d80df8553a0274c4e14aa5206ed2ed49503a hats_system_image_test_shamir_2_of_3_presubmit
-EOF
