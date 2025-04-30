@@ -15,14 +15,6 @@
 workspace(name = "hats")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
-load("//builders/bazel:deps.bzl", "python_deps")
-
-python_deps()
-
-load("@rules_python//python:repositories.bzl", "py_repositories")
-
-py_repositories()
-
 load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
 
 rules_rust_dependencies()

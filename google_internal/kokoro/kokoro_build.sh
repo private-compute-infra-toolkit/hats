@@ -36,7 +36,6 @@ popd() {
   builtin popd "$@" > /dev/null
 }
 
-
 KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 
 # In Kokoro, git meta files are stripped off. pre-commit only runs in
@@ -51,11 +50,6 @@ cd "${KOKORO_HATS_DIR}"
 pre-commit run -a
 
 ###### Check 2: Bazel test -nopresubmit
-
-# Apply patches
-cd "${KOKORO_HATS_DIR}"
-source "${KOKORO_HATS_DIR}/patches/apply_patches.sh"
-patches::apply_python
 
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 
