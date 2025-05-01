@@ -16,28 +16,46 @@ use clap::Parser;
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
+use tar::Archive;
+use tempfile::TempDir;
 
 #[derive(Parser)]
 struct Args {
     #[arg(long, required = true)]
-    kernel_file_path: String,
+    system_bundle_path: String,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+
+    let system_bundle = unpack_system_bundle(&args.system_bundle_path)?;
     let (kernel_image_sha256, kernel_setup_data_sha256) =
-        kernel_measurements(&args.kernel_file_path)?;
+        kernel_measurements(&system_bundle.path().join("kernel_bin"))?;
+    let init_ram_fs_sha256 = sha256_for_file(&system_bundle.path().join("initrd.cpio.xz"))?;
+    let system_image_sha256 = sha256_for_file(&system_bundle.path().join("system.tar.xz"))?;
 
     println!("kernel_image_sha256: {}", hex::encode(kernel_image_sha256));
     println!(
         "kernel_set_data_sha256: {}",
         hex::encode(kernel_setup_data_sha256)
     );
+    println!("init_ram_fs_sha256: {}", hex::encode(init_ram_fs_sha256));
+    println!("system_image_sha256: {}", hex::encode(system_image_sha256));
 
     Ok(())
 }
 
-fn kernel_measurements(file_name: &str) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
+fn unpack_system_bundle(file_name: &str) -> anyhow::Result<TempDir> {
+    let file = File::open(file_name)?;
+    let mut archive = Archive::new(file);
+    let tmp_dir = TempDir::new()?;
+    archive.unpack(&tmp_dir)?;
+
+    Ok(tmp_dir)
+}
+
+fn kernel_measurements(file_name: &PathBuf) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
     let mut file = File::open(file_name)?;
 
     let mut contents = Vec::new();
@@ -66,4 +84,12 @@ fn kernel_measurements(file_name: &str) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
         Sha256::digest(&contents[setup_section_size..]).to_vec(),
         Sha256::digest(&contents[..setup_section_size]).to_vec(),
     ))
+}
+
+fn sha256_for_file(file_name: &PathBuf) -> anyhow::Result<Vec<u8>> {
+    let mut file = File::open(file_name)?;
+    let mut contents = Vec::new();
+    file.read_to_end(&mut contents)?;
+
+    Ok(Sha256::digest(&contents[..]).to_vec())
 }

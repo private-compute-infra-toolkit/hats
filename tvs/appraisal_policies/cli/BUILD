@@ -26,5 +26,7 @@ rust_binary(
         "@oak_crates_index//:clap",
         "@oak_crates_index//:hex",
         "@oak_crates_index//:sha2",
+        "@oak_crates_index//:tar",
+        "@oak_crates_index//:tempfile",
     ],
 )
