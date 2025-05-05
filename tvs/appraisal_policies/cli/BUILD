@@ -24,9 +24,12 @@ rust_binary(
     deps = [
         "@oak_crates_index//:anyhow",
         "@oak_crates_index//:clap",
+        "@oak_crates_index//:env_logger",
         "@oak_crates_index//:hex",
+        "@oak_crates_index//:log",
         "@oak_crates_index//:sha2",
         "@oak_crates_index//:tar",
         "@oak_crates_index//:tempfile",
+        "@oak_crates_index//:zerocopy",
     ],
 )
