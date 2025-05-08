@@ -84,7 +84,7 @@ function build_oak_containers_images() {
   nix_develop --extra-experimental-features 'nix-command flakes' --command ./build-old.sh && \
     rsync target/output.img "$BUILD_DIR" && \
     rsync target/image-old.tar "$BUILD_DIR" && \
-    xz -T 1 --force "$BUILD_DIR/image-old.tar"
+    xz -T 1 -v --force "$BUILD_DIR/image-old.tar"
   popd
 }
 
@@ -192,7 +192,7 @@ function build_all_hats_containers_images() {
   printf "\nBUILDING HATS CONTAINERS IMAGES...\n"
   bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt "//client/system_image/..." --//:syslogd_source=binary
   cp -f --preserve=timestamp ../../bazel-bin/client/system_image/hats_system_image_*.tar "$BUILD_DIR"
-  xz -T 1 --force "$BUILD_DIR"/hats_system_image_*.tar
+  xz -T 1 -v --force "$BUILD_DIR"/hats_system_image_*.tar
 }
 
 function build_tvs() {
