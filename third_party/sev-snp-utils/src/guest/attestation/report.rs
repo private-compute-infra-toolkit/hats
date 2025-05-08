@@ -1,0 +1,532 @@
+use std::io::Read;
+use std::fs::File;
+use std::io::{Seek, SeekFrom};
+use std::path::Path;
+
+use byteorder::{LittleEndian, ReadBytesExt};
+use openssl::ecdsa::EcdsaSig;
+use openssl::error::ErrorStack;
+use sha2::{Digest, Sha256, Sha384};
+use sha2::digest::Output;
+
+use crate::common::binary::{fmt_bin_vec_to_decimal, fmt_bin_vec_to_hex, read_exact_to_bin_vec};
+use crate::common::cert::ecdsa_sig;
+use crate::error;
+use crate::error::Result as Result;
+use crate::guest::identity::{FamilyId, ImageId, LaunchDigest};
+
+const REPORT_LAST_POSITION: u64 = 960; // End of signature.
+
+const POLICY_DEBUG_SHIFT: u64 = 19;
+const POLICY_MIGRATE_MA_SHIFT: u64 = 18;
+const POLICY_SMT_SHIFT: u64 = 16;
+const POLICY_ABI_MAJOR_SHIFT: u64 = 8;
+const POLICY_ABI_MINOR_SHIFT: u64 = 0;
+
+const POLICY_DEBUG_MASK: u64 = 1 << (POLICY_DEBUG_SHIFT);
+const POLICY_MIGRATE_MA_MASK: u64 = 1 << (POLICY_MIGRATE_MA_SHIFT);
+const POLICY_SMT_MASK: u64 = 1 << (POLICY_SMT_SHIFT);
+const POLICY_ABI_MAJOR_MASK: u64 = 0xFF << (POLICY_ABI_MAJOR_SHIFT);
+const POLICY_ABI_MINOR_MASK: u64 = 0xFF << (POLICY_ABI_MINOR_SHIFT);
+
+const SIG_ALGO_ECDSA_P384_SHA384: u32 = 0x1;
+
+const PLATFORM_INFO_SMT_EN_SHIFT: u64 = 0;
+const PLATFORM_INFO_SMT_EN_MASK: u64 = 1 << (PLATFORM_INFO_SMT_EN_SHIFT);
+
+const AUTHOR_KEY_EN_SHIFT: u64 = 0;
+const AUTHOR_KEY_EN_MASK: u64 = 1 << (AUTHOR_KEY_EN_SHIFT);
+
+/*
+reference: https://github.com/AMDESE/sev-guest/blob/main/include/attestation.h
+
+union tcb_version {
+	struct {
+		uint8_t boot_loader;
+		uint8_t tee;
+		uint8_t reserved[4];
+		uint8_t snp;
+		uint8_t microcode;
+	};
+	uint64_t raw;
+};
+
+struct signature {
+	uint8_t r[72];
+	uint8_t s[72];
+	uint8_t reserved[512-144];
+};
+
+struct attestation_report {
+	uint32_t          version;			/* 0x000 */
+	uint32_t          guest_svn;			/* 0x004 */
+	uint64_t          policy;			/* 0x008 */
+	uint8_t           family_id[16];		/* 0x010 */
+	uint8_t           image_id[16];			/* 0x020 */
+	uint32_t          vmpl;				/* 0x030 */
+	uint32_t          signature_algo;		/* 0x034 */
+	union tcb_version platform_version;		/* 0x038 */
+	uint64_t          platform_info;		/* 0x040 */
+	uint32_t          flags;			/* 0x048 */
+	uint32_t          reserved0;			/* 0x04C */
+	uint8_t           report_data[64];		/* 0x050 */
+	uint8_t           measurement[48];		/* 0x090 */
+	uint8_t           host_data[32];		/* 0x0C0 */
+	uint8_t           id_key_digest[48];		/* 0x0E0 */
+	uint8_t           author_key_digest[48];	/* 0x110 */
+	uint8_t           report_id[32];		/* 0x140 */
+	uint8_t           report_id_ma[32];		/* 0x160 */
+	union tcb_version reported_tcb;			/* 0x180 */
+	uint8_t           reserved1[24];		/* 0x188 */
+	uint8_t           chip_id[64];			/* 0x1A0 */
+	uint8_t           reserved2[192];		/* 0x1E0 */
+	struct signature  signature;			/* 0x2A0 */
+};
+ */
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct TcbVersion {
+    pub boot_loader: u8,
+    pub tee: u8,
+    reserved: Vec<u8>,
+    pub snp: u8,
+    pub microcode: u8,
+    raw: Vec<u8>,
+}
+
+#[allow(dead_code)]
+impl TcbVersion {
+    fn from_reader(mut rdr: impl Read) -> Result<Self> {
+        let boot_loader = rdr.read_u8()
+            .map_err(error::map_io_err)?;
+        let tee = rdr.read_u8()
+            .map_err(error::map_io_err)?;
+        let reserved = read_exact_to_bin_vec(&mut rdr, 4)?;
+        let snp = rdr.read_u8()
+            .map_err(error::map_io_err)?;
+        let microcode = rdr.read_u8()
+            .map_err(error::map_io_err)?;
+        let raw = vec![
+            boot_loader, tee,
+            reserved[0], reserved[1], reserved[2], reserved[3],
+            snp, microcode,
+        ];
+
+        Ok(TcbVersion {
+            boot_loader,
+            tee,
+            reserved,
+            snp,
+            microcode,
+            raw,
+        })
+    }
+
+    pub fn raw_decimal(&self) -> String {
+        fmt_bin_vec_to_decimal(self.raw.as_ref())
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct BuildVersion {
+    pub build: u8,
+    pub minor: u8,
+    pub major: u8,
+    reserved: u8,
+}
+
+#[allow(dead_code)]
+impl BuildVersion {
+    fn from_reader(mut rdr: impl Read) -> Result<Self> {
+        let build = rdr.read_u8()
+            .map_err(error::map_io_err)?;
+        let minor = rdr.read_u8()
+            .map_err(error::map_io_err)?;
+        let major = rdr.read_u8()
+            .map_err(error::map_io_err)?;
+        let reserved = rdr.read_u8()
+            .map_err(error::map_io_err)?;
+
+        Ok(BuildVersion {
+            build,
+            minor,
+            major,
+            reserved,
+        })
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct Signature {
+    pub r: Vec<u8>,
+    pub s: Vec<u8>,
+    reserved: Vec<u8>,
+}
+
+#[allow(dead_code)]
+impl Signature {
+    fn from_reader(mut rdr: impl Read) -> Result<Self> {
+        let r = read_exact_to_bin_vec(&mut rdr, 72)?;
+        let s = read_exact_to_bin_vec(&mut rdr, 72)?;
+        let reserved = read_exact_to_bin_vec(&mut rdr, 144)?;
+
+        Ok(Signature {
+            r,
+            s,
+            reserved,
+        })
+    }
+
+    pub fn r_hex(&self) -> String {
+        fmt_bin_vec_to_hex(self.r.as_ref())
+    }
+
+    pub fn s_hex(&self) -> String {
+        fmt_bin_vec_to_hex(self.s.as_ref())
+    }
+
+    pub fn to_ecdsa_sig(&self) -> core::result::Result<EcdsaSig, ErrorStack> {
+        ecdsa_sig(self.r.as_ref(), self.s.as_ref())
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct AttestationReport {
+    pub body: Vec<u8>,
+    pub version: u32,
+    pub guest_svn: u32,
+    pub policy: u64,
+    pub family_id: FamilyId,
+    pub image_id: ImageId,
+    pub vmpl: u32,
+    pub signature_algo: u32,
+    pub platform_version: TcbVersion,
+    pub platform_info: u64,
+    pub flags: u32,
+    reserved0: u32,
+    pub report_data: Vec<u8>,
+    pub measurement: LaunchDigest,
+    pub host_data: Vec<u8>,
+    pub id_key_digest: Vec<u8>,
+    pub author_key_digest: Vec<u8>,
+    pub report_id: Vec<u8>,
+    pub report_id_ma: Vec<u8>,
+    pub reported_tcb: TcbVersion,
+    reserved1: Vec<u8>,
+    pub chip_id: Vec<u8>,
+    pub committed_tcb: TcbVersion,
+    pub current_build: BuildVersion,
+    pub committed_build: BuildVersion,
+    pub launch_tcb: TcbVersion,
+    reserved2: Vec<u8>,
+    pub signature: Signature,
+}
+
+#[allow(dead_code)]
+impl AttestationReport {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file = File::open(&path)
+            .map_err(|e| error::io(e, None))?;
+        let file_len = file.metadata()
+            .map_err(|e| error::io(e, None))?
+            .len();
+
+        if file_len < REPORT_LAST_POSITION {
+            return Err(error::io(
+                format!("report file is too short ({} vs {} min bytes))",
+                        file_len, REPORT_LAST_POSITION),
+                None
+            ));
+        }
+
+        Self::from_reader(file)
+    }
+
+    pub fn from_reader(mut rdr: impl Read + Seek) -> Result<Self> {
+        // Take note of reader position.
+        let reader_initial_pos = rdr.stream_position()
+            .map_err(error::map_io_err)?;
+
+        // Start parsing.
+        let version = rdr.read_u32::<LittleEndian>()
+            .map_err(error::map_io_err)?;
+        let guest_svn = rdr.read_u32::<LittleEndian>()
+            .map_err(error::map_io_err)?;
+        let policy = rdr.read_u64::<LittleEndian>()
+            .map_err(error::map_io_err)?;
+        let family_id = FamilyId::from_reader(&mut rdr)?;
+        let image_id = ImageId::from_reader(&mut rdr)?;
+        let vmpl = rdr.read_u32::<LittleEndian>()
+            .map_err(error::map_io_err)?;
+        let signature_algo = rdr.read_u32::<LittleEndian>()
+            .map_err(error::map_io_err)?;
+        let platform_version = TcbVersion::from_reader(&mut rdr)?;
+        let platform_info = rdr.read_u64::<LittleEndian>()
+            .map_err(error::map_io_err)?;
+        let flags = rdr.read_u32::<LittleEndian>()
+            .map_err(error::map_io_err)?;
+        let reserved0 = rdr.read_u32::<LittleEndian>()
+            .map_err(error::map_io_err)?;
+        let report_data = read_exact_to_bin_vec(&mut rdr, 64)?;
+        let measurement = LaunchDigest::from_reader(&mut rdr)?;
+        let host_data = read_exact_to_bin_vec(&mut rdr, 32)?;
+        let id_key_digest = read_exact_to_bin_vec(&mut rdr, 48)?;
+        let author_key_digest = read_exact_to_bin_vec(&mut rdr, 48)?;
+        let report_id = read_exact_to_bin_vec(&mut rdr, 32)?;
+        let report_id_ma = read_exact_to_bin_vec(&mut rdr, 32)?;
+        let reported_tcb = TcbVersion::from_reader(&mut rdr)?;
+        let reserved1 = read_exact_to_bin_vec(&mut rdr, 24)?;
+        let chip_id = read_exact_to_bin_vec(&mut rdr, 64)?;
+        let committed_tcb = TcbVersion::from_reader(&mut rdr)?;
+        let current_build = BuildVersion::from_reader(&mut rdr)?;
+        let committed_build = BuildVersion::from_reader(&mut rdr)?;
+        let launch_tcb = TcbVersion::from_reader(&mut rdr)?;
+        let reserved2 = read_exact_to_bin_vec(&mut rdr, 168)?;
+
+        let signature_pos = rdr.stream_position()
+            .map_err(error::map_io_err)?;
+        let signature = Signature::from_reader(&mut rdr)?;
+
+        // Rewind to initial reader position and read body (without signature)
+        let body_byte_len = signature_pos - reader_initial_pos;
+        let mut body = vec![0;body_byte_len as usize];
+
+        rdr.seek(SeekFrom::Start(reader_initial_pos))
+            .map_err(error::map_io_err)?;
+        rdr.read(&mut body)
+            .map_err(error::map_io_err)?;
+
+        Ok(AttestationReport {
+            body,
+            version,
+            guest_svn,
+            policy,
+            family_id,
+            image_id,
+            vmpl,
+            signature_algo,
+            platform_version,
+            platform_info,
+            flags,
+            reserved0,
+            report_data,
+            measurement,
+            host_data,
+            id_key_digest,
+            author_key_digest,
+            report_id,
+            report_id_ma,
+            reported_tcb,
+            reserved1,
+            chip_id,
+            committed_tcb,
+            current_build,
+            committed_build,
+            launch_tcb,
+            reserved2,
+            signature,
+        })
+    }
+
+    pub fn sha256(&self) -> Output<Sha256> {
+        let mut hasher = Sha256::new();
+        hasher.update(self.body.as_slice());
+        hasher.finalize()
+    }
+
+    pub fn sha256_hex(&self) -> String {
+        fmt_bin_vec_to_hex(&self.sha256().to_vec())
+    }
+
+    pub fn sha384(&self) -> Output<Sha384> {
+        let mut hasher = Sha384::new();
+        hasher.update(self.body.as_slice());
+        hasher.finalize()
+    }
+
+    pub fn sha384_hex(&self) -> String {
+        fmt_bin_vec_to_hex(&self.sha384().to_vec())
+    }
+
+    pub fn policy_debug_allowed(&self) -> bool {
+        self.policy & POLICY_DEBUG_MASK > 0
+    }
+
+    pub fn policy_ma_allowed(&self) -> bool {
+        self.policy & POLICY_MIGRATE_MA_MASK > 0
+    }
+
+    pub fn policy_smt_allowed(&self) -> bool {
+        self.policy & POLICY_SMT_MASK > 0
+    }
+
+    pub fn policy_min_abi_major(&self) -> u64 {
+        (self.policy & POLICY_ABI_MAJOR_MASK) >> POLICY_ABI_MAJOR_SHIFT
+    }
+
+    pub fn policy_min_abi_minor(&self) -> u64 {
+        (self.policy & POLICY_ABI_MINOR_MASK) >> POLICY_ABI_MINOR_SHIFT
+    }
+
+    pub fn signature_algo_is_ecdsa_p384_sha384(&self) -> bool {
+        self.signature_algo == SIG_ALGO_ECDSA_P384_SHA384
+    }
+
+    pub fn platform_smt_enabled(&self) -> bool {
+        self.platform_info & PLATFORM_INFO_SMT_EN_MASK > 0
+    }
+
+    pub fn platform_author_key_enabled(&self) -> bool {
+        self.platform_info & AUTHOR_KEY_EN_MASK > 0
+    }
+
+    pub fn report_data_hex(&self) -> String {
+        fmt_bin_vec_to_hex(self.report_data.as_ref())
+    }
+
+    pub fn report_id_hex(&self) -> String {
+        fmt_bin_vec_to_hex(self.report_id.as_ref())
+    }
+
+    pub fn chip_id_hex(&self) -> String {
+        fmt_bin_vec_to_hex(self.chip_id.as_ref())
+    }
+
+    pub fn id_key_digest_hex(&self) -> String {
+        fmt_bin_vec_to_hex(self.id_key_digest.as_ref())
+    }
+
+    pub fn id_key_digest_present(&self) -> bool {
+        self.id_key_digest.len() > 0 && self.id_key_digest != vec![0; 48]
+    }
+
+    pub fn author_key_digest_present(&self) -> bool {
+        self.author_key_digest.len() > 0 && self.author_key_digest != vec![0; 48]
+    }
+
+    pub fn author_key_digest_hex(&self) -> String {
+        fmt_bin_vec_to_hex(self.author_key_digest.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::guest::attestation::report::AttestationReport;
+
+    const TEST_REPORT_BIN: &str = "resources/test/guest_report.bin";
+    const TEST_REPORT_CORRUPT_BIN: &str = "resources/test/guest_report_corrupt.bin";
+
+    #[test]
+    fn attestation_report_file_test() {
+        let mut test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        test_file.push(TEST_REPORT_BIN);
+
+        let report = AttestationReport::from_file(&test_file).unwrap();
+
+        assert_eq!(report.body.len(), 672);
+        assert_eq!(report.sha256_hex(), "365daa8187cc7678f057574561b00a60520bc315b957c2079675095603a1861a");
+        assert_eq!(report.sha384_hex(), "8ac02cb042d3909a0e67ecc8a89a4869d6838f0c243a5e4d417757d6c06d10ae15d84d2b728fe80a355792f671afd6b4");
+        assert_eq!(report.version, 2);
+        assert_eq!(report.guest_svn, 0);
+        assert_eq!(report.policy, 0x30000);
+        assert_eq!(report.policy_debug_allowed(), false);
+        assert_eq!(report.policy_ma_allowed(), false);
+        assert_eq!(report.policy_smt_allowed(), true);
+        assert_eq!(report.policy_min_abi_major(), 0);
+        assert_eq!(report.policy_min_abi_minor(), 0);
+        assert_eq!(report.family_id.hex(), "00000000000000000000000000000000");
+        assert_eq!(report.image_id.hex(), "00000000000000000000000000000000");
+        assert_eq!(report.vmpl, 0);
+        assert_eq!(report.signature_algo, 1);
+        assert_eq!(report.signature_algo_is_ecdsa_p384_sha384(), true);
+
+        assert_eq!(report.platform_version.boot_loader, 2);
+        assert_eq!(report.platform_version.tee, 0);
+        assert_eq!(report.platform_version.reserved, vec![0; 4]);
+        assert_eq!(report.platform_version.snp, 6);
+        assert_eq!(report.platform_version.microcode, 115);
+        assert_eq!(report.platform_version.raw_decimal(), "02000000000006115");
+
+        assert_eq!(report.platform_info, 0x1);
+        assert_eq!(report.platform_smt_enabled(), true);
+        assert_eq!(report.platform_author_key_enabled(), true);
+        assert_eq!(report.flags, 0);
+        assert_eq!(report.reserved0, 0);
+        assert_eq!(report.report_data_hex(),
+                   "e1c112ff908febc3b98b1693a6cd3564eaf8e5e6ca629d084d9f0eba99247cacdd72e369ff8941397c2807409ff66be64be908da17ad7b8a49a2a26c0e8086aa");
+        assert_eq!(report.measurement.hex(),
+                   "7659528961bc689a43f5be14ed063fe1c26058e5a4f0bbbfd3944aa15032404c5afb731f7826c9a007f2ad63c813b04c");
+        assert_eq!(report.host_data, vec![0; 32]);
+        assert_eq!(report.id_key_digest, vec![0; 48]);
+        assert_eq!(report.id_key_digest_hex(),
+                   "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(report.id_key_digest_present(), false);
+        assert_eq!(report.author_key_digest, vec![0; 48]);
+        assert_eq!(report.author_key_digest_hex(),
+                   "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(report.author_key_digest_present(), false);
+        assert_eq!(report.report_id_hex(),
+                   "d1c1273910e39b8286661767afa497dd02465cc8e0a7082c04cf576169407e6e");
+        assert_eq!(report.report_id_ma, vec![255; 32]);
+
+        assert_eq!(report.reported_tcb.boot_loader, 2);
+        assert_eq!(report.reported_tcb.tee, 0);
+        assert_eq!(report.reported_tcb.reserved, vec![0; 4]);
+        assert_eq!(report.reported_tcb.snp, 5);
+        assert_eq!(report.reported_tcb.microcode, 115);
+        assert_eq!(report.reported_tcb.raw_decimal(), "02000000000005115");
+
+        assert_eq!(report.reserved1, vec![0; 24]);
+        assert_eq!(report.chip_id_hex(),
+                   "9e1235cce6f3e507b66a9d3f2199a325cd0be17c6c50fd55c284ceff993dbf6c7e32fa16a76521bf6b78cc9ca482e572bde70e8c9f1bdfcb8267dea8e11ff77e");
+
+        assert_eq!(report.committed_tcb.boot_loader, 2);
+        assert_eq!(report.committed_tcb.tee, 0);
+        assert_eq!(report.committed_tcb.reserved, vec![0; 4]);
+        assert_eq!(report.committed_tcb.snp, 5);
+        assert_eq!(report.committed_tcb.microcode, 115);
+        assert_eq!(report.committed_tcb.raw_decimal(), "02000000000005115");
+
+        assert_eq!(report.current_build.build, 3);
+        assert_eq!(report.current_build.minor, 51);
+        assert_eq!(report.current_build.major, 1);
+        assert_eq!(report.current_build.reserved, 0);
+
+        assert_eq!(report.committed_build.build, 6);
+        assert_eq!(report.committed_build.minor, 49);
+        assert_eq!(report.committed_build.major, 1);
+        assert_eq!(report.committed_build.reserved, 0);
+
+        assert_eq!(report.launch_tcb.boot_loader, 2);
+        assert_eq!(report.launch_tcb.tee, 0);
+        assert_eq!(report.launch_tcb.reserved, vec![0; 4]);
+        assert_eq!(report.launch_tcb.snp, 5);
+        assert_eq!(report.launch_tcb.microcode, 115);
+        assert_eq!(report.launch_tcb.raw_decimal(), "02000000000005115");
+
+        assert_eq!(report.reserved2, vec![0; 168]);
+
+        assert_eq!(report.signature.r_hex(),
+                   "ad822d4e2c64aede8fecc4057f0754c1316a64d5c6e9aabcdf0d20889fb42a3bce443b561e820febd19519bb3e091b8d000000000000000000000000000000000000000000000000");
+        assert_eq!(report.signature.s_hex(),
+                   "02cdeb225f047c25b8a2330bdcab6df7d4f1e773f6474787578e5ed753186b1747888d72b26c6aefa40e6357dca3cb92000000000000000000000000000000000000000000000000");
+        assert_eq!(report.signature.reserved, vec![0; 144]);
+    }
+
+    #[test]
+    fn attestation_report_file_corrupted_test() {
+        let mut test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        test_file.push(TEST_REPORT_CORRUPT_BIN);
+
+        let res = AttestationReport::from_file(&test_file);
+
+        assert_eq!(res.is_err(), true);
+        assert_eq!(res.err().unwrap().to_string(), "io error: report file is too short (793 vs 960 min bytes))");
+    }
+}
