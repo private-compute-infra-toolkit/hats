@@ -47,10 +47,10 @@ ln -fs "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}" "${BAZEL_TMP_DIR}/bazel"
 chmod 755 "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}"
 export PATH="${BAZEL_TMP_DIR}:${PATH}"
 
-pushd "${KOKORO_HATS_DIR}"
-
 ################ Test on Kokoro
-echo "Testing on Kokoro"
+echo "###### Stage 1: Testing on Kokoro"
+
+pushd "${KOKORO_HATS_DIR}"
 
 # Skip builds/tests that fail on Kokoro
 # nopresubmit: general tests that Kokoro can't run
@@ -70,12 +70,55 @@ args=(
 )
 ./google_internal/kokoro/bazel_wrapper.py "${args[@]}"
 
+popd
+
+# TODO(b/410633945): Check hashes (with oak built) in continuous, before swarming.
+
 ################ Test on Swarming
+echo "###### Stage 2: Testing on Swarming"
 ##### Build for swarming
-echo "Building for swarming"
+
+# TODO(b/371300767): Actually build oak for continuous
+
+# Copy Oak's Artifacts to `client/prebuilt` directory.
+# It's necessary to copy `oak_containers_syslogd` before
+# building the system image. As the build rule expects
+# `oak_containers_syslogd` to be in `client/prebuilt`.
+pushd "${KOKORO_HATS_DIR}"
+source "client/scripts/build-lib.sh"
+readonly PREBUILT_DIR="${KOKORO_HATS_DIR}/client/prebuilt"
+# functions in `client/scripts/build-lib.sh assumes the caller to be in
+# `client/script`.
+pushd "client/scripts"
+mkdir -p "$PREBUILT_DIR"
+copy_oak_artifacts "$PREBUILT_DIR"
+
+# Build the system image, and the trusted application bundle so that
+# we can bundle them with oak artifacts before building the
+# trusted_application_test.
+build_all_hats_containers_images "$PREBUILT_DIR"
+build_test_application_container_bundle_tar "$PREBUILT_DIR"
+popd
+popd
+
+# Bundle the trusted_application_test.
+TEST_DATA_DIR="$KOKORO_HATS_DIR/client/trusted_application/test_data"
+build_test_bundles \
+  "$TEST_DATA_DIR" \
+  "$PREBUILT_DIR/stage0_bin" \
+  "$PREBUILT_DIR/stage1.cpio" \
+  "$PREBUILT_DIR/bzImage" \
+  "$PREBUILT_DIR" \
+  "$PREBUILT_DIR/bundle.tar" \
+  "$KOKORO_HATS_DIR/client/trusted_application/configs/appraisal_policy.txtpb" \
+  "$KOKORO_HATS_DIR/client/trusted_application/configs/launcher_config.txtpb"
 
 # TODO(b/395680242): Resolve RBE on GCP_UBUNTU_DOCKER.
 # RBE doesn't auth correctly, but also still runs without it.
+
+###### Build in bazel
+
+pushd "${KOKORO_HATS_DIR}"
 
 args=(
   build
@@ -84,6 +127,7 @@ args=(
   --dynamic_mode=off # Force static build, for binaries sent to bot
   --build_tag_filters="virtualization"
   --test_tag_filters="virtualization"
+  --compilation_mode=opt
   --
   //...
 )
@@ -91,20 +135,20 @@ args=(
 
 popd
 
-# TODO(b/371300767): Also build supporting files via script
 
 ##### Copy binaries to directory
 
 pushd "${KOKORO_HATS_DIR}"
 
-# TODO(b/371300767): Trusted application tests
 readonly TESTS_LIST=(
   "client/launcher/launcher_test"
+  "client/trusted_application/integration_test/trusted_application_test"
 )
 
 # Path within test_name.runfiles to copy over
 declare -rA RUNFILE_PATHS=(
   ["client/launcher/launcher_test"]="_main/client/test_data/launcher"
+  ["client/trusted_application/integration_test/trusted_application_test"]="_main/client/trusted_application/test_data"
 )
 
 readonly SWARMING_TEST_DIR=${KOKORO_ARTIFACTS_DIR}/swarming_test
