@@ -307,7 +307,8 @@ impl OVMF {
                 let offset_from_end: i32 = i32::from_le_bytes(offset_from_end);
                 let start = self.data.len() - (offset_from_end as usize);
 
-                let header = OvmfSevMetadataHeader::try_from_bytes(self.data.as_slice(), start)?;
+                let data_clone = self.data[start..start + std::mem::size_of::<OvmfSevMetadataHeader>()].to_vec();
+                let header = OvmfSevMetadataHeader::try_from_bytes(&data_clone, /*offset=*/0)?;
                 header.verify()?;
 
                 let items = &self.data[start + std::mem::size_of::<OvmfSevMetadataHeader>()
@@ -316,7 +317,8 @@ impl OVMF {
                 for i in 0..header.num_items() {
                     let offset = (i as usize) * std::mem::size_of::<OvmfSevMetadataSectionDesc>();
 
-                    let item = OvmfSevMetadataSectionDesc::try_from_bytes(items, offset)?;
+                    let items_clone = items[offset..offset + std::mem::size_of::<OvmfSevMetadataSectionDesc>()].to_vec();
+                    let item = OvmfSevMetadataSectionDesc::try_from_bytes(&items_clone, /*offset=*/0)?;
 
                     self.metadata_items.push(item.to_owned());
                 }
