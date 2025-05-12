@@ -9,7 +9,7 @@ pub struct Error {
     inner: Box<Inner>,
 }
 
-pub(crate) type BoxError = Box<dyn StdError + Send + Sync>;
+pub type BoxError = Box<dyn StdError + Send + Sync>;
 
 struct Inner {
     kind: Kind,
@@ -112,38 +112,38 @@ pub enum Kind {
 
 // constructors
 
-pub(crate) fn conversion<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
+pub fn conversion<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
     Error::new(Kind::Conversion, msg, Some(e))
 }
 
-pub(crate) fn validation<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
+pub fn validation<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
     Error::new(Kind::Validation, msg, Some(e))
 }
 
-pub(crate) fn fetch<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
+pub fn fetch<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
     Error::new(Kind::Fetch, msg, Some(e))
 }
 
-pub(crate) fn io<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
+pub fn io<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
     Error::new(Kind::Io, msg, Some(e))
 }
 
-pub(crate) fn map_io_err<E: Into<BoxError>>(e: E) -> Error {
+pub fn map_io_err<E: Into<BoxError>>(e: E) -> Error {
     io(e, None)
 }
 
-pub(crate) fn cert(msg: Option<String>) -> Error {
+pub fn cert(msg: Option<String>) -> Error {
     Error::new_msg(Kind::Cert, msg)
 }
 
-pub(crate) fn map_conversion_err<E: Into<BoxError>>(e: E) -> Error {
+pub fn map_conversion_err<E: Into<BoxError>>(e: E) -> Error {
     conversion(e, None)
 }
 
-pub(crate) fn openssl<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
+pub fn openssl<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
     Error::new(Kind::OpenSSL, msg, Some(e))
 }
 
-pub(crate) fn lock_timeout<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
+pub fn lock_timeout<E: Into<BoxError>>(e: E, msg: Option<String>) -> Error {
     Error::new(Kind::LockTimeout, msg, Some(e))
 }

@@ -2,5 +2,5 @@
 pub enum SevMode {
     Sev,
     SevEs,
-    SevSnp
+    SevSnp,
 }

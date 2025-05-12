@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::error::{conversion, Result};
+use error::{conversion, Result};
 
 pub fn guid_le_to_slice(guid: &str) -> Result<[u8; 16]> {
     let guid = Uuid::try_from(guid)

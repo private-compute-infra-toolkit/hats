@@ -1,4 +1,4 @@
-use crate::error::conversion;
+use error::conversion;
 use std::fmt;
 use std::str::FromStr;
 
@@ -23,7 +23,7 @@ pub enum CpuType {
 }
 
 impl TryFrom<u8> for CpuType {
-    type Error = crate::error::Error;
+    type Error = error::Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -99,7 +99,7 @@ impl fmt::Display for CpuType {
 }
 
 impl FromStr for CpuType {
-    type Err = crate::error::Error;
+    type Err = error::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {

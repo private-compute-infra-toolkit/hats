@@ -4,7 +4,7 @@ use std::path::Path;
 use sha2::{Digest, Sha384, Sha256};
 use sha2::digest::Output;
 
-use crate::error::{io, Result};
+use error::{io, Result};
 
 pub fn sha384(data: impl AsRef<[u8]>) -> Output<Sha384> {
     let mut hasher = Sha384::new();

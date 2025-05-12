@@ -4,14 +4,14 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 
-use crate::error::{validation, Result};
-use crate::guest::identity::LaunchDigest;
-use crate::guest::measure::gctx::GCTX;
-use crate::guest::measure::ovmf::{SectionType, OVMF};
-use crate::guest::measure::sev_hashes::SevHashes;
-use crate::guest::measure::types::SevMode;
-use crate::guest::measure::vcpu_types::CpuType;
-use crate::guest::measure::vmsa::VMSA;
+use crate::gctx::GCTX;
+use crate::ovmf::{SectionType, OVMF};
+use crate::sev_hashes::SevHashes;
+use crate::types::SevMode;
+use crate::vcpu_types::CpuType;
+use crate::vmsa::VMSA;
+use error::{validation, Result};
+use identity::LaunchDigest;
 
 use self::ovmf::OvmfSevMetadataSectionDesc;
 

@@ -1,8 +1,8 @@
 use bytemuck::{bytes_of, Pod, Zeroable};
 use libc::{c_uchar, c_uint, c_ulonglong, c_ushort};
 
-use crate::guest::measure::types::SevMode;
-use crate::guest::measure::vcpu_types::CpuType;
+use crate::types::SevMode;
+use crate::vcpu_types::CpuType;
 
 const BSP_EIP: c_ulonglong = 0xfffffff0;
 

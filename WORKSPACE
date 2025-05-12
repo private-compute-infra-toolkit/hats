@@ -346,3 +346,42 @@ local_repository(
     name = "cxx.rs",
     path = "third_party/cxx.rs",
 )
+
+# sev-snp-utils repository and crates repository.
+
+local_repository(
+    name = "sev-snp-utils",
+    path = "third_party/sev-snp-utils",
+)
+
+crates_repository(
+    name = "sev_snp_utils_crate_index",
+    cargo_lockfile = "//:Cargo.sev_snp_util-bazel.lock",
+    lockfile = "//:cargo-sev_snp_util-bazel-lock.json",
+    packages = {
+        "base64": crate.spec(version = "0.20.0-alpha.1"),
+        "bytemuck": crate.spec(version = "1.12.3"),
+        "hex": crate.spec(version = "0.4.3"),
+        "libc": crate.spec(version = "0.2.134"),
+        "moka": crate.spec(
+            default_features = False,
+            features = ["future"],
+            version = "0.12.10",
+        ),
+        "once_cell": crate.spec(version = "1.17.0"),
+        "sha2": crate.spec(version = "0.10.6"),
+        "uuid": crate.spec(
+            default_features = False,
+            features = [
+                "v4",
+                "fast-rng",
+                "macro-diagnostics",
+            ],
+            version = "1.2.2",
+        ),
+    },
+)
+
+load("@sev_snp_utils_crate_index//:defs.bzl", sev_snp_utils_crate_repositories = "crate_repositories")
+
+sev_snp_utils_crate_repositories()

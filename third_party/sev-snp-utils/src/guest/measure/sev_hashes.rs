@@ -1,13 +1,13 @@
-use std::path::Path;
-use std::str::FromStr;
 use bytemuck::{bytes_of, Pod, Zeroable};
+use common::guid::guid_le_to_slice;
+use common::hash::{sha256, sha256_file};
 use libc::{c_uchar, c_ushort};
 use sha2::digest::consts::U32;
 use sha2::digest::typenum::Unsigned;
-use crate::common::guid::guid_le_to_slice;
-use crate::common::hash::{sha256, sha256_file};
+use std::path::Path;
+use std::str::FromStr;
 
-use crate::error::{conversion, Result, validation};
+use error::{conversion, validation, Result};
 
 const SEV_HASH_TABLE_HEADER_GUID: &'static str = "9438d606-4f22-4cc9-b479-a793d411fd21";
 const SEV_KERNEL_ENTRY_GUID: &'static str = "4de79437-abd2-427f-b835-d5b172d2045b";
@@ -23,12 +23,10 @@ pub struct Sha256Hash([c_uchar; U32::USIZE]);
 pub struct GuidLe([c_uchar; 16]);
 
 impl FromStr for GuidLe {
-    type Err = crate::error::Error;
+    type Err = error::Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        Ok(Self(
-            guid_le_to_slice(s)?
-        ))
+        Ok(Self(guid_le_to_slice(s)?))
     }
 }
 
@@ -42,23 +40,17 @@ pub struct SevHashTableEntry {
 
 impl SevHashTableEntry {
     fn new(guid: &str, hash: Sha256Hash) -> Result<Self> {
-        Ok(
-            Self {
-                guid: GuidLe::from_str(guid)?,
-                length: std::mem::size_of::<SevHashTableEntry>() as c_ushort,
-                hash
-            }
-        )
+        Ok(Self {
+            guid: GuidLe::from_str(guid)?,
+            length: std::mem::size_of::<SevHashTableEntry>() as c_ushort,
+            hash,
+        })
     }
 }
 
-unsafe impl Zeroable for SevHashTableEntry {
+unsafe impl Zeroable for SevHashTableEntry {}
 
-}
-
-unsafe impl Pod for SevHashTableEntry {
-
-}
+unsafe impl Pod for SevHashTableEntry {}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -71,36 +63,32 @@ pub struct SevHashTable {
 }
 
 impl SevHashTable {
-    fn new(guid: &str,
-           cmdline: SevHashTableEntry,
-           initrd: SevHashTableEntry,
-           kernel: SevHashTableEntry) -> Result<Self> {
-        Ok(
-            Self {
-                guid: GuidLe::from_str(guid)?,
-                length: std::mem::size_of::<SevHashTable>() as c_ushort,
-                cmdline,
-                initrd,
-                kernel,
-            }
-        )
+    fn new(
+        guid: &str,
+        cmdline: SevHashTableEntry,
+        initrd: SevHashTableEntry,
+        kernel: SevHashTableEntry,
+    ) -> Result<Self> {
+        Ok(Self {
+            guid: GuidLe::from_str(guid)?,
+            length: std::mem::size_of::<SevHashTable>() as c_ushort,
+            cmdline,
+            initrd,
+            kernel,
+        })
     }
 }
 
-unsafe impl Zeroable for SevHashTable {
+unsafe impl Zeroable for SevHashTable {}
 
-}
-
-unsafe impl Pod for SevHashTable {
-
-}
+unsafe impl Pod for SevHashTable {}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct PaddedSevHashTable {
     ht: SevHashTable,
-    padding: [c_uchar; ((std::mem::size_of::<SevHashTable>() + 15) & !15) -
-        std::mem::size_of::<SevHashTable>()],
+    padding: [c_uchar;
+        ((std::mem::size_of::<SevHashTable>() + 15) & !15) - std::mem::size_of::<SevHashTable>()],
 }
 
 impl PaddedSevHashTable {
@@ -111,13 +99,9 @@ impl PaddedSevHashTable {
     }
 }
 
-unsafe impl Zeroable for PaddedSevHashTable {
+unsafe impl Zeroable for PaddedSevHashTable {}
 
-}
-
-unsafe impl Pod for PaddedSevHashTable {
-
-}
+unsafe impl Pod for PaddedSevHashTable {}
 
 pub struct SevHashes {
     kernel_hash: [u8; U32::USIZE],
@@ -126,9 +110,11 @@ pub struct SevHashes {
 }
 
 impl SevHashes {
-    pub fn new(kernel_path: &Path,
-               initrd_path: Option<&Path>,
-               append: Option<&str>) -> Result<Self> {
+    pub fn new(
+        kernel_path: &Path,
+        initrd_path: Option<&Path>,
+        append: Option<&str>,
+    ) -> Result<Self> {
         let kernel_hash = sha256_file(kernel_path)?;
 
         let initrd_hash = if let Some(initrd_path) = initrd_path {
@@ -145,36 +131,41 @@ impl SevHashes {
             sha256(b"\x00")
         };
 
-        Ok(
-            Self {
-                kernel_hash: kernel_hash.to_vec().try_into()
-                    .map_err(|_e| conversion("kernel_hash was too big", None))?,
-                initrd_hash: initrd_hash.to_vec().try_into()
-                    .map_err(|_e| conversion("initrd_hash was too big", None))?,
-                cmdline_hash: cmdline_hash.to_vec().try_into()
-                    .map_err(|_e| conversion("cmdline_hash was too big", None))?,
-            }
-        )
+        Ok(Self {
+            kernel_hash: kernel_hash
+                .to_vec()
+                .try_into()
+                .map_err(|_e| conversion("kernel_hash was too big", None))?,
+            initrd_hash: initrd_hash
+                .to_vec()
+                .try_into()
+                .map_err(|_e| conversion("initrd_hash was too big", None))?,
+            cmdline_hash: cmdline_hash
+                .to_vec()
+                .try_into()
+                .map_err(|_e| conversion("cmdline_hash was too big", None))?,
+        })
     }
 
     /// Generate the SEV hashes area - this must be *identical* to the way QEMU
     /// generates this info in order for the measurement to match.
     pub fn construct_table(&self) -> Result<Vec<u8>> {
-        let padded = PaddedSevHashTable::new(
-            SevHashTable::new(
-                SEV_HASH_TABLE_HEADER_GUID,
-                SevHashTableEntry::new(SEV_CMDLINE_ENTRY_GUID, Sha256Hash(self.cmdline_hash))?,
-                SevHashTableEntry::new(SEV_INITRD_ENTRY_GUID, Sha256Hash(self.initrd_hash))?,
-                SevHashTableEntry::new(SEV_KERNEL_ENTRY_GUID, Sha256Hash(self.kernel_hash))?,
-            )?
-        );
+        let padded = PaddedSevHashTable::new(SevHashTable::new(
+            SEV_HASH_TABLE_HEADER_GUID,
+            SevHashTableEntry::new(SEV_CMDLINE_ENTRY_GUID, Sha256Hash(self.cmdline_hash))?,
+            SevHashTableEntry::new(SEV_INITRD_ENTRY_GUID, Sha256Hash(self.initrd_hash))?,
+            SevHashTableEntry::new(SEV_KERNEL_ENTRY_GUID, Sha256Hash(self.kernel_hash))?,
+        )?);
 
         Ok(bytes_of(&padded).to_vec())
     }
 
     pub fn construct_page(&self, offset: usize) -> Result<Vec<u8>> {
         if offset >= 4096 {
-            return Err(validation(format!("invalid offset ({} >= 4096)", offset), None));
+            return Err(validation(
+                format!("invalid offset ({} >= 4096)", offset),
+                None,
+            ));
         }
         let hashes_table = self.construct_table()?;
         let mut page: Vec<u8> = Vec::new();
@@ -182,7 +173,10 @@ impl SevHashes {
         page.extend_from_slice(&hashes_table[..]);
         page.resize(4096, 0);
         if page.len() != 4096 {
-            return Err(validation(format!("invalid page size ({} != 4096)", page.len()), None));
+            return Err(validation(
+                format!("invalid page size ({} != 4096)", page.len()),
+                None,
+            ));
         }
 
         Ok(page)
@@ -191,10 +185,10 @@ impl SevHashes {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::PathBuf;
     use crate::common::binary::{fmt_bin_vec_to_hex, fmt_slice_vec_to_hex};
     use crate::guest::measure::sev_hashes::SevHashes;
+    use std::fs;
+    use std::path::PathBuf;
 
     const RESOURCES_TEST_DIR: &str = "resources/test/measure";
 
@@ -204,37 +198,40 @@ mod tests {
         let append_path = get_test_path("vmlinuz.cmdline");
         let initrd_path = get_test_path("initrd.img");
 
-        let append = fs::read_to_string(append_path)
-            .expect("failed to read 'vmlinuz.cmdline'");
+        let append = fs::read_to_string(append_path).expect("failed to read 'vmlinuz.cmdline'");
 
-        for (
-            name, kp, ip, ap,
-            exp_kh, exp_ih, exp_ah
-        ) in vec![
+        for (name, kp, ip, ap, exp_kh, exp_ih, exp_ah) in vec![
             (
                 "all_args",
-                kernel_path.as_path(), Some(initrd_path.as_path()), Some(append.as_str()),
+                kernel_path.as_path(),
+                Some(initrd_path.as_path()),
+                Some(append.as_str()),
                 "d53eb8a5f14acd4f1aec25d5523686787498e2862742cd3020b087a18133740e",
                 "39ce25428652ef31aa24f3e94b3469c7a96860f4faad1d26529fb42f97f8a367",
-                "b4534934b699c65e5d21c0d1d8ad129163466f904bf0e7512952e2889694b324"
-            ),(
+                "b4534934b699c65e5d21c0d1d8ad129163466f904bf0e7512952e2889694b324",
+            ),
+            (
                 "no_initrd",
-                kernel_path.as_path(), None, Some(append.as_str()),
+                kernel_path.as_path(),
+                None,
+                Some(append.as_str()),
                 "d53eb8a5f14acd4f1aec25d5523686787498e2862742cd3020b087a18133740e",
                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                "b4534934b699c65e5d21c0d1d8ad129163466f904bf0e7512952e2889694b324"
-            ),(
+                "b4534934b699c65e5d21c0d1d8ad129163466f904bf0e7512952e2889694b324",
+            ),
+            (
                 "no_append",
-                kernel_path.as_path(), Some(initrd_path.as_path()), None,
+                kernel_path.as_path(),
+                Some(initrd_path.as_path()),
+                None,
                 "d53eb8a5f14acd4f1aec25d5523686787498e2862742cd3020b087a18133740e",
                 "39ce25428652ef31aa24f3e94b3469c7a96860f4faad1d26529fb42f97f8a367",
-                "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+                "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
             ),
         ] {
             println!("Running test: {}", name);
 
-            let sh = SevHashes::new(kp, ip, ap)
-                .expect("failed to construct SevHashes");
+            let sh = SevHashes::new(kp, ip, ap).expect("failed to construct SevHashes");
 
             assert_eq!(fmt_slice_vec_to_hex(&sh.kernel_hash), exp_kh);
             assert_eq!(fmt_slice_vec_to_hex(&sh.initrd_hash), exp_ih);
@@ -248,8 +245,7 @@ mod tests {
         let append_path = get_test_path("vmlinuz.cmdline");
         let initrd_path = get_test_path("initrd.img");
 
-        let append = fs::read_to_string(append_path)
-            .expect("failed to read 'vmlinuz.cmdline'");
+        let append = fs::read_to_string(append_path).expect("failed to read 'vmlinuz.cmdline'");
 
         for (
             name, kp, ip, ap,
@@ -287,8 +283,7 @@ mod tests {
         let append_path = get_test_path("vmlinuz.cmdline");
         let initrd_path = get_test_path("initrd.img");
 
-        let append = fs::read_to_string(append_path)
-            .expect("failed to read 'vmlinuz.cmdline'");
+        let append = fs::read_to_string(append_path).expect("failed to read 'vmlinuz.cmdline'");
 
         for (
             name, kp, ip, ap,

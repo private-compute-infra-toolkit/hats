@@ -6,9 +6,9 @@ use std::path::Path;
 use libc::{c_uchar, c_uint};
 use uuid::{Bytes, Uuid};
 
-use crate::common::binary::fmt_slice_vec_to_hex;
-use crate::common::guid::guid_le_to_slice;
-use crate::error::{conversion, io, validation, Result};
+use common::binary::fmt_slice_vec_to_hex;
+use common::guid::guid_le_to_slice;
+use error::{conversion, io, validation, Result};
 
 const EXPECTED_METADATA_SIG: &[u8] = b"ASEV";
 
@@ -30,7 +30,7 @@ pub enum SectionType {
 }
 
 impl TryFrom<u8> for SectionType {
-    type Error = crate::error::Error;
+    type Error = error::Error;
 
     fn try_from(value: u8) -> Result<Self> {
         match value {

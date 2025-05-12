@@ -5,29 +5,29 @@ use std::str::FromStr;
 use bytemuck::{bytes_of, Pod, Zeroable};
 use libc::{c_uchar, c_uint, c_ulonglong};
 use once_cell::sync::Lazy;
-use crate::common::binary::fmt_slice_vec_to_hex;
+use common::binary::fmt_slice_vec_to_hex;
 
-use crate::error::{conversion, io, map_io_err, Result, validation};
+use error::{conversion, io, map_io_err, Result, validation};
 
-pub(crate) const ID_BLK_DIGEST_BITS: usize = 384;
-pub(crate) const ID_BLK_DIGEST_BYTES: usize = ID_BLK_DIGEST_BITS / 8;
+pub const ID_BLK_DIGEST_BITS: usize = 384;
+pub const ID_BLK_DIGEST_BYTES: usize = ID_BLK_DIGEST_BITS / 8;
 
-pub(crate) const ID_BLK_FAMILY_ID_BITS: usize = 128;
-pub(crate) const ID_BLK_FAMILY_ID_BYTES: usize = ID_BLK_FAMILY_ID_BITS / 8;
+pub const ID_BLK_FAMILY_ID_BITS: usize = 128;
+pub const ID_BLK_FAMILY_ID_BYTES: usize = ID_BLK_FAMILY_ID_BITS / 8;
 
-pub(crate) const ID_BLK_IMAGE_ID_BITS: usize = 128;
-pub(crate) const ID_BLK_IMAGE_ID_BYTES: usize = ID_BLK_IMAGE_ID_BITS / 8;
+pub const ID_BLK_IMAGE_ID_BITS: usize = 128;
+pub const ID_BLK_IMAGE_ID_BYTES: usize = ID_BLK_IMAGE_ID_BITS / 8;
 
-pub(crate) const ID_BLK_VERSION: usize = 1;
+pub const ID_BLK_VERSION: usize = 1;
 
-pub(crate) const ID_AUTH_INFO_RESERVED1_BYTES: usize = 0x03F - 0x008 + 1;
-pub(crate) const ID_AUTH_INFO_RESERVED2_BYTES: usize = 0x67F - 0x644 + 1;
-pub(crate) const ID_AUTH_INFO_RESERVED3_BYTES: usize = 0xFFF - 0xC84 + 1;
+pub const ID_AUTH_INFO_RESERVED1_BYTES: usize = 0x03F - 0x008 + 1;
+pub const ID_AUTH_INFO_RESERVED2_BYTES: usize = 0x67F - 0x644 + 1;
+pub const ID_AUTH_INFO_RESERVED3_BYTES: usize = 0xFFF - 0xC84 + 1;
 
-pub(crate) const ECDSA_POINT_SIZE_BITS: usize = 576;
-pub(crate) const ECDSA_POINT_SIZE: usize = ECDSA_POINT_SIZE_BITS / 8;
-pub(crate) const ECDSA_PUBKEY_RSVD_SIZE: usize = 0x403 - 0x94 + 1;
-pub(crate) const ECDSA_SIG_RSVD_SIZE: usize = 0x1ff - 0x90 + 1;
+pub const ECDSA_POINT_SIZE_BITS: usize = 576;
+pub const ECDSA_POINT_SIZE: usize = ECDSA_POINT_SIZE_BITS / 8;
+pub const ECDSA_PUBKEY_RSVD_SIZE: usize = 0x403 - 0x94 + 1;
+pub const ECDSA_SIG_RSVD_SIZE: usize = 0x1ff - 0x90 + 1;
 
 pub trait BlockSigner {
     fn sign(&self,
@@ -40,7 +40,7 @@ pub trait ToBase64 {
     fn save_base64(&self, path: &Path) -> Result<()>;
 }
 
-pub(crate) static LD_ZEROED: Lazy<LaunchDigest> = Lazy::new(||
+pub static LD_ZEROED: Lazy<LaunchDigest> = Lazy::new(||
     LaunchDigest::zeroed());
 
 #[repr(transparent)]
@@ -66,7 +66,7 @@ impl LaunchDigest {
 }
 
 impl TryFrom<&[u8]> for LaunchDigest {
-    type Error = crate::error::Error;
+    type Error = error::Error;
 
     fn try_from(value: &[u8]) -> Result<Self> {
         if value.len() != ID_BLK_DIGEST_BYTES {
@@ -83,7 +83,7 @@ impl TryFrom<&[u8]> for LaunchDigest {
 }
 
 impl FromStr for LaunchDigest {
-    type Err = crate::error::Error;
+    type Err = error::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         let bytes = hex::decode(s)
@@ -120,7 +120,7 @@ impl FamilyId {
 }
 
 impl TryFrom<&[u8]> for FamilyId {
-    type Error = crate::error::Error;
+    type Error = error::Error;
 
     fn try_from(value: &[u8]) -> Result<Self> {
         if value.len() != ID_BLK_FAMILY_ID_BYTES {
@@ -137,7 +137,7 @@ impl TryFrom<&[u8]> for FamilyId {
 }
 
 impl FromStr for FamilyId {
-    type Err = crate::error::Error;
+    type Err = error::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         let bytes = hex::decode(s)
@@ -174,7 +174,7 @@ impl ImageId {
 }
 
 impl TryFrom<&[u8]> for ImageId {
-    type Error = crate::error::Error;
+    type Error = error::Error;
 
     fn try_from(value: &[u8]) -> Result<Self> {
         if value.len() != ID_BLK_IMAGE_ID_BYTES {
@@ -191,7 +191,7 @@ impl TryFrom<&[u8]> for ImageId {
 }
 
 impl FromStr for ImageId {
-    type Err = crate::error::Error;
+    type Err = error::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         let bytes = hex::decode(s)
