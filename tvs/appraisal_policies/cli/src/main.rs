@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use clap::Parser;
+use measure::{calc_launch_digest, types::SevMode, vcpu_types::CpuType};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 use std::path::PathBuf;
 use tar::Archive;
 use tempfile::TempDir;
@@ -34,12 +36,14 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     let system_bundle = unpack_system_bundle(&args.system_bundle_path)?;
+
+    let stage0_sha384 = stage0_measurement(&system_bundle.path().join("stage0_bin"))?;
     let (kernel_image_sha256, kernel_setup_data_sha256) =
         kernel_measurements(&system_bundle.path().join("kernel_bin"))?;
     let init_ram_fs_sha256 = sha256_for_file(&system_bundle.path().join("initrd.cpio.xz"))?;
     let memory_map_sha256 = memory_map(args.ram_size_kb)?;
     let system_image_sha256 = sha256_for_file(&system_bundle.path().join("system.tar.xz"))?;
-
+    println!("stage0_sha384: {}", hex::encode(stage0_sha384));
     println!("kernel_image_sha256: {}", hex::encode(kernel_image_sha256));
     println!(
         "kernel_set_data_sha256: {}",
@@ -59,6 +63,19 @@ fn unpack_system_bundle(file_name: &str) -> anyhow::Result<TempDir> {
     archive.unpack(&tmp_dir)?;
 
     Ok(tmp_dir)
+}
+
+fn stage0_measurement(file_name: &Path) -> anyhow::Result<Vec<u8>> {
+    let digest = calc_launch_digest(
+        SevMode::SevSnp,
+        /*vCPU=*/ 4,
+        CpuType::EpycMilan,
+        file_name,
+        /*kernel_path=*/ None,
+        /*initrd_path=*/ None,
+        /*append_path=*/ None,
+    )?;
+    Ok(digest.to_vec())
 }
 
 fn kernel_measurements(file_name: &PathBuf) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {

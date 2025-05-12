@@ -31,5 +31,9 @@ rust_binary(
         "@oak_crates_index//:tar",
         "@oak_crates_index//:tempfile",
         "@oak_crates_index//:zerocopy",
+        "@sev-snp-utils//:common",
+        "@sev-snp-utils//:error",
+        "@sev-snp-utils//:identity",
+        "@sev-snp-utils//:measure",
     ],
 )
