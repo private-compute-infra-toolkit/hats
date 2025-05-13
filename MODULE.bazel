@@ -18,7 +18,7 @@
 #
 # For more details, please check https://github.com/bazelbuild/bazel/issues/18958
 ###############################################################################
-bazel_dep(name = "rules_pkg", version = "0.9.1")
+bazel_dep(name = "rules_pkg", version = "1.0.1")
 bazel_dep(name = "rules_rust", version = "0.49.3")
 bazel_dep(name = "protobuf", version = "27.0", repo_name = "com_google_protobuf")
 bazel_dep(name = "grpc", version = "1.63.1", repo_name = "com_github_grpc_grpc")
@@ -80,7 +80,7 @@ bazel_dep(name = "opentelemetry-proto", version = "1.3.2", repo_name = "com_gith
 bazel_dep(name = "c-ares", version = "1.16.1", repo_name = "com_github_cares_cares")
 
 # Fix dependency using 1.2.11 breaking due to changed url
-bazel_dep(name = "zlib", version = "1.3.1.bcr.3")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.5")
 bazel_dep(name = "rules_cc_embed_binary", repo_name = "rules_cc_embed_binary")
 git_override(
     module_name = "rules_cc_embed_binary",

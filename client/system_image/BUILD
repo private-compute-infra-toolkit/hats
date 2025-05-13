@@ -44,6 +44,10 @@ pkg_tar(
         "//:syslogd_from_source": ["@oak//oak_containers/syslogd:oak_containers_syslogd"],
         "//conditions:default": [],
     }),
+    # TODO: This doesn't work, due to executables forced to 0755
+    # https://github.com/bazelbuild/rules_pkg/issues/822
+    # Suggested is to make pkg_files instead, passed as src to pkg_tar
+    mode = "0555",
     package_dir = "/usr/bin/",
 )
 
@@ -51,6 +55,7 @@ pkg_tar(
     name = "hats_system_image_test_single",
     # Order matters here as we intend to overwrite certain files in Oak's system
     # image. Oak system image should come first.
+    allow_duplicates_from_deps = True,
     # buildifier: leave-alone
     deps = [
         "@oak_containers_system_image_base//file:base-image.tar.xz",
@@ -65,6 +70,7 @@ pkg_tar(
     name = "hats_system_image_test_xor_2",
     # Order matters here as we intend to overwrite certain files in Oak's system
     # image. Oak system image should come first.
+    allow_duplicates_from_deps = True,
     # buildifier: leave-alone
     deps = [
         "@oak_containers_system_image_base//file:base-image.tar.xz",
@@ -79,6 +85,7 @@ pkg_tar(
     name = "hats_system_image_test_shamir_2_of_3",
     # Order matters here as we intend to overwrite certain files in Oak's system
     # image. Oak system image should come first.
+    allow_duplicates_from_deps = True,
     # buildifier: leave-alone
     deps = [
         "@oak_containers_system_image_base//file:base-image.tar.xz",
@@ -93,6 +100,7 @@ pkg_tar(
     name = "hats_system_image_test_single_1sec_heartbeat",
     # Order matters here as we intend to overwrite certain files in Oak's system
     # image. Oak system image should come first.
+    allow_duplicates_from_deps = True,
     # buildifier: leave-alone
     deps = [
         "@oak_containers_system_image_base//file:base-image.tar.xz",
