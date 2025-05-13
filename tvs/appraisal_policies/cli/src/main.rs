@@ -200,14 +200,15 @@ impl E820Table {
         }
 
         // Check whether the new entry overlaps with any existing later entries.
-        let entry = self.e820_table[index];
+        let mut entry = self.e820_table[index];
         let mut current = index + 1;
         while current < self.e820_entries && entry.end() > self.e820_table[current].addr() {
             if entry.end() >= self.e820_table[current].addr() {
-                println!("XXX need to delete");
                 self.delete_entry(current);
             } else if entry.entry_type() == self.e820_table[current].entry_type() {
-                println!("XXX need to merge");
+                // Merge the entries
+                entry.set_size(self.e820_table[current].end() - entry.addr());
+                self.delete_entry(current);
             } else {
                 self.e820_table[current].set_size(self.e820_table[current].end() - entry.end());
                 self.e820_table[current].set_addr(entry.end());
@@ -365,7 +366,7 @@ fn memory_map(memory_size_kb: usize) -> anyhow::Result<Vec<u8>> {
     log::debug!("E820 table before passing it to stage0");
     e.print();
 
-    // Now we build E820 the way QEMU does, modify it the way stage0 does.
+    // Now we built E820 the way QEMU does, modify it the way stage0 does.
     // Add a memory chunk for ACPI table.
     e.insert_e820_entry(BootE820Entry {
         addr: 0x80000,
