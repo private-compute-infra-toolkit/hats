@@ -85,7 +85,7 @@ echo "###### Stage 2: Testing on Swarming"
 # building the system image. As the build rule expects
 # `oak_containers_syslogd` to be in `client/prebuilt`.
 pushd "${KOKORO_HATS_DIR}"
-source "client/scripts/build-lib.sh"
+HATS_BAZEL_FLAGS="--config=ci" source "client/scripts/build-lib.sh"
 readonly PREBUILT_DIR="${KOKORO_HATS_DIR}/client/prebuilt"
 # functions in `client/scripts/build-lib.sh assumes the caller to be in
 # `client/script`.
