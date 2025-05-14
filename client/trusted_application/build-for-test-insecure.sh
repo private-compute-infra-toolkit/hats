@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -euo pipefail
 
 TEST_APP_DIR="$(dirname "$0")"
 readonly TEST_APP_DIR

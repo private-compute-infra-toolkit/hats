@@ -15,8 +15,7 @@
 
 ###### Compute hashes and store them in hash files
 
-set -e
-set -o pipefail
+set -euo pipefail
 
 TEST_APP_DIR="$(dirname "$0")"
 readonly TEST_APP_DIR

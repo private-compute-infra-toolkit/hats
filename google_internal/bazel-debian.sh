@@ -35,8 +35,7 @@
 #     BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
 #     EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
 
-set -o pipefail
-set -o errexit
+set -euo pipefail
 
 # TODO: Consider which directory to put this.
 # internal will be excluded, but this is also ideally temporary

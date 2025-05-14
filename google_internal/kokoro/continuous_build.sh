@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Fail on any error.
-set -e
+set -euo pipefail
 
 # Display commands being run.
 # WARNING: please only enable 'set -x' if necessary for debugging, and be very
@@ -201,13 +201,13 @@ readonly KOKORO_KEY_PATH="${KOKORO_KEYSTORE_DIR}/${KOKORO_KEY_NAME}"
 export SWARMING_AUTH_FLAG="--service-account-json=${KOKORO_KEY_PATH}"
 
 # Initialize some environment variables if unset
-if [[ -z "${SWARMING_TIMESTAMP}" ]]; then
+if [[ -z "${SWARMING_TIMESTAMP:-}" ]]; then
   SWARMING_TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
   export SWARMING_TIMESTAMP
 fi
 
 # Number that should be consistent for multiple runs of a PR
-if [[ -z "${SWARMING_TASK_PREFIX}" ]]; then
+if [[ -z "${SWARMING_TASK_PREFIX:-}" ]]; then
   #shellcheck disable=SC2154
   export SWARMING_TASK_PREFIX="Kokoro_CI"
 fi
