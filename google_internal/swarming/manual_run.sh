@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -euo pipefail
 
 export TZ=Etc/UTC
 export PS4='+\t $(basename ${BASH_SOURCE[0]}):${LINENO} ' # xtrace prompt
@@ -29,7 +29,7 @@ readonly SCRIPT_DIR
 
 SWARMING_TEST_SCRIPT=$1
 SWARMING_TEST_DIR=$(dirname -- "${SWARMING_TEST_SCRIPT}")
-if [[ -z "${SWARMING_TEST_SCRIPT}" ]] || [[ ! -f "${SWARMING_TEST_SCRIPT}" ]]; then
+if [[ -z "${SWARMING_TEST_SCRIPT:-}" ]] || [[ ! -f "${SWARMING_TEST_SCRIPT}" ]]; then
   echo "Error: missing or invalid test executable argument"
   echo "Usage: $(basename -- "$0") tests/foobar/test_executable"
   echo "This uses tests/foobar as the test directory containing all files"

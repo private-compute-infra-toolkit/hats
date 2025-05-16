@@ -15,8 +15,7 @@
 
 ###### Check appraisal policy hashes against hash files
 
-set -e
-set -o pipefail
+set -euo pipefail
 
 TEST_APP_DIR="$(dirname "$0")"
 readonly TEST_APP_DIR
@@ -48,7 +47,7 @@ while read -r line; do
     RUNTIME_HASH="$HASH"
   fi
 done < "$RUNTIME_HASH_FILE"
-if [[ -z $RUNTIME_HASH ]]; then
+if [[ -z ${RUNTIME_HASH:-} ]]; then
   echo "Error: No container binary hash found."
   exit 1
 fi

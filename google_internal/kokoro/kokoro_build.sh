@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Fail on any error.
-set -e
+set -euo pipefail
 
 # Display commands being run.
 # WARNING: please only enable 'set -x' if necessary for debugging, and be very

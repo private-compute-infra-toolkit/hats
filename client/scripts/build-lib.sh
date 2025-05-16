@@ -14,23 +14,23 @@
 # limitations under the License.
 
 ###### Env vars used
-# USE_OAK_DOCKER: uses oak's docker_run to run nix develop
+# USE_OAK_DOCKER: if set, uses oak's docker_run to run nix develop
 #   This makes it easier to build oak in some environments
 # HATS_BAZEL_FLAGS: List of flags passed to bazel build on hats targets
 #   Space delimited, since env vars can't be arrays
 #   For example, logging and CI configuration
 
-set -e
+set -euo pipefail
 # set -x
 
 # Convert to array to be easier to pass in
-IFS=" " read -r -a HATS_BAZEL_FLAGS_ARR <<< "$HATS_BAZEL_FLAGS"
+IFS=" " read -r -a HATS_BAZEL_FLAGS_ARR <<< "${HATS_BAZEL_FLAGS:-}"
 
 # Use oak scripts/docker_run if env var USE_OAK_DOCKER set
 # Needs oak scripts/docker_pull first to get the image
 # Similar to standard nix develop, only call from within oak (e.g. submodule)
 function nix_develop() {
-  if [[ "$USE_OAK_DOCKER" == 1 ]]; then
+  if [[ "${USE_OAK_DOCKER:-}" == 1 ]]; then
     ./scripts/docker_run nix develop "$@"
   else
     nix develop "$@"
@@ -172,7 +172,7 @@ EOF
   else
     if [[ -f "$BUILD_DIR/oak_containers_syslogd" ]]; then return; fi
     pushd ../../submodules/oak
-    if [[ "$USE_OAK_DOCKER" == 1 ]]; then
+    if [[ "${USE_OAK_DOCKER:-}" == 1 ]]; then
       # bazel-bin in docker_run is local, so copy in same run
       # Also oak docker script doesn't see hats, so artifact as middle
       ./scripts/docker_run /bin/bash -c "nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \

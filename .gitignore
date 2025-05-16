@@ -22,7 +22,7 @@
 prebuilt/
 
 # Files build by test scripts
-client/trusted_application/test_data/*_bundle.tar
+client/trusted_application/test_data/*_bundle*.tar
 client/trusted_application/test_data/*.txtpb
 
 # Rust Analyzer

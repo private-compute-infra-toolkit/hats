@@ -46,7 +46,7 @@ function lib_build::configure_gcloud_access() {
   # declare -r GAR_REPO="${GAR_HOST}/${GAR_PROJECT}/privacysandbox/builders"
 
   # Set account if no Kokoro artifact dir (i.e. not kokoro)
-  if [[ -z ${KOKORO_ARTIFACTS_DIR} ]]; then
+  if [[ -z ${KOKORO_ARTIFACTS_DIR:-} ]]; then
     declare -r _ACCOUNT="${USER}@google.com"
     if [[ $(gcloud config get account) != "${_ACCOUNT}" ]]; then
       printf "Error. Set default gcloud account using \`gcloud config set account %s\`\n" "${_ACCOUNT}" &>/dev/stderr
