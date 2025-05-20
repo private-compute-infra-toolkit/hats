@@ -246,19 +246,9 @@ Errors/warnings can be bypassed using a
 is to add a comment related to the code.
 
 ```shell
-# shellcheck disable=1091
-. lib_build.sh   # some line of code that gives 1091 error
+# shellcheck disable=XXXX
+source lib_build.sh   # some line of code that gives XXXX error
 ```
-
-Shellcheck supports following through imported/executed files within a script.
-However, this takes in the `-x` flag, which Kiwi does not use in their presubmit
-configuration, so currently we also don't. Therefore 1091 errors specifically
-should be always be disabled with a directive.
-
-This can still be tested locally using `shellcheck -x my-script.sh` Rather than
-the disable directive, the path to the file can be done with `# shellcheck
-source=path/to/lib.sh`. Note that this is just for local checking, and currently
-will not work with pre-commit.
 
 ### Clangd
 

@@ -53,7 +53,6 @@ pre-commit run -a
 
 cd "${KOKORO_HATS_DIR}/google_internal/kokoro"
 
-#shellcheck disable=SC1091
 source "${KOKORO_HATS_DIR}/google_internal/lib_build.sh"
 
 lib_build::configure_gcloud_access

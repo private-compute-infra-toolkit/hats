@@ -24,7 +24,6 @@ cd "$TEST_APP_DIR"
 mkdir -p "$PREBUILT_DIR"
 git submodule update --init --recursive ../../submodules/oak ../../builders
 
-# shellcheck disable=1091
 source ../scripts/build-lib.sh
 
 # build the workload and bundle them together.

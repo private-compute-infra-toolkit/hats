@@ -29,8 +29,7 @@ if ! (return 0 2>/dev/null); then
 fi
 
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-# shellcheck disable=1091
-. "${SCRIPT_DIR}"/lib_build.sh
+source "${SCRIPT_DIR}"/lib_build.sh
 
 lib_build::set_workspace
 lib_build::configure_gcloud_access
