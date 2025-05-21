@@ -210,9 +210,11 @@ popd
 pushd "${SWARMING_TEST_DIR}"
 
 SWARMING_FAILURE=0
+# Which depends on scm config, support both
+readonly COMMIT_HASH=${KOKORO_GIT_COMMIT:-KOKORO_GIT_COMMIT_hats}
 for TEST_NAME in triggered/*/*.json; do
   set +e
-  "${HATS_SWARMING_DIR}/collect.py" "${SWARMING_TIMESTAMP}" "${KOKORO_GIT_COMMIT}" "$(basename -- "${TEST_NAME}" .json)" "${TEST_NAME}"
+  "${HATS_SWARMING_DIR}/collect.py" "${SWARMING_TIMESTAMP}" "${COMMIT_HASH}" "$(basename -- "${TEST_NAME}" .json)" "${TEST_NAME}"
   EXIT_CODE=$?
   set -e
 
