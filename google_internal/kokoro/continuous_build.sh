@@ -221,8 +221,7 @@ pushd "${SWARMING_TEST_DIR}"
 
 for TEST_DIR in tests/*; do
   TEST_BINARY=$(basename -- "${TEST_DIR}")
-  readonly TEST_BINARY
-  readonly FULL_BINARY_PATH="${TEST_DIR}/${TEST_BINARY}"
+  FULL_BINARY_PATH="${TEST_DIR}/${TEST_BINARY}"
 
   set +e
   "${HATS_SWARMING_DIR}/trigger.py" --prefix "${SWARMING_TASK_PREFIX}" "${TEST_DIR}" "${FULL_BINARY_PATH}"
