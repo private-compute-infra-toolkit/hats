@@ -52,7 +52,10 @@ constexpr absl::string_view kTestAppraisalPolicies = R"pb(
       acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"
       kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"
       system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"
-      container_binary_sha256: "bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"
+      container_binary_sha256: [
+        "bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c",
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      ]
     }
     signature {
       signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c"
@@ -119,12 +122,21 @@ TEST(PolicyFetcherLocal, GetLatestNPoliciesForDigestSuccessfull) {
   HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
                             PolicyFetcher::Create());
 
-  std::string application_digest;
+  std::string first_application_digest;
   ASSERT_TRUE(absl::HexStringToBytes(
-      expected_policies.policies(0).measurement().container_binary_sha256(),
-      &application_digest));
+      expected_policies.policies(0).measurement().container_binary_sha256(0),
+      &first_application_digest));
   HATS_EXPECT_OK_AND_HOLDS(
-      policy_fetcher->GetLatestNPoliciesForDigest(application_digest,
+      policy_fetcher->GetLatestNPoliciesForDigest(first_application_digest,
+                                                  /*n=*/5),
+      EqualsProto(kTestAppraisalPolicies));
+
+  std::string second_application_digest;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      expected_policies.policies(0).measurement().container_binary_sha256(1),
+      &second_application_digest));
+  HATS_EXPECT_OK_AND_HOLDS(
+      policy_fetcher->GetLatestNPoliciesForDigest(second_application_digest,
                                                   /*n=*/5),
       EqualsProto(kTestAppraisalPolicies));
 }

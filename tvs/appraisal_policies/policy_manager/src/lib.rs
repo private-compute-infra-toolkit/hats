@@ -581,11 +581,15 @@ fn get_system_layer(measurement: &Measurement) -> anyhow::Result<SystemLayerRefe
 }
 
 fn get_container_layer(measurement: &Measurement) -> anyhow::Result<ContainerLayerReferenceValues> {
+    let mut digests_container = Digests::default();
+    for hex_string in &measurement.container_binary_sha256 {
+        let single_digest_result = single_sha256_to_raw_digest(hex_string)?;
+        digests_container.digests.push(single_digest_result);
+    }
+
     Ok(ContainerLayerReferenceValues {
         binary: Some(BinaryReferenceValue {
-            r#type: Some(binary_reference_value::Type::Digests(sha256_hex_to_digest(
-                &measurement.container_binary_sha256,
-            )?)),
+            r#type: Some(binary_reference_value::Type::Digests(digests_container)),
         }),
         // Skip configuration verification as we are not using it.
         configuration: Some(BinaryReferenceValue {
@@ -608,6 +612,21 @@ fn sha256_hex_to_digest(sha256_hex: &str) -> anyhow::Result<Digests> {
             sha3_224: vec![],
             sha2_384: vec![],
         }],
+    })
+}
+
+fn single_sha256_to_raw_digest(sha256_hex: &str) -> anyhow::Result<RawDigest> {
+    Ok(RawDigest {
+        sha2_256: hex::decode(sha256_hex)
+            .map_err(|err| anyhow::anyhow!("failed to decode sha256_hex: {err}"))?,
+        psha2: vec![],
+        sha1: vec![],
+        sha2_512: vec![],
+        sha3_512: vec![],
+        sha3_384: vec![],
+        sha3_256: vec![],
+        sha3_224: vec![],
+        sha2_384: vec![],
     })
 }
 
@@ -645,11 +664,88 @@ mod tests {
                     acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
                     kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
                     system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
-                    container_binary_sha256:String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"),
+                    container_binary_sha256:vec![String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c")],
 
                 }),
                 signature: vec![Signature{
                     signature: String::from("003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c"),
+                    signer: String::from(""),
+                    },
+                    ],
+            }],
+        };
+        let mut buf: Vec<u8> = Vec::with_capacity(1024);
+        policies.encode(&mut buf).unwrap();
+        buf
+    }
+
+    // two container_binary_sha256 appraisal policy
+    fn default_appraisal_policies_multiple_container_binaries() -> Vec<u8> {
+        let policies = AppraisalPolicies {
+            policies: vec![AppraisalPolicy{
+               description: "Test AMD-SNP measurements".to_string(),
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                            sha384: String::from("de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95"),
+                            min_tcb_version: Some(TcbVersion{
+                                boot_loader: 7,
+                                microcode: 62,
+                                snp: 15,
+                                tee: 0,
+                            }),
+                        })),
+                    }),
+                    kernel_image_sha256: String::from("442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"),
+                    kernel_setup_data_sha256: String::from("68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"),
+                    init_ram_fs_sha256: String::from("3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"),
+                    memory_map_sha256: String::from("4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"),
+                    acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
+                    kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
+                    system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
+                    container_binary_sha256:vec![String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"), String::from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")],
+                }),
+                signature: vec![Signature{
+                    signature: String::from("faffbe0b40b37fe2b3dc3b71045ee86e39cf2f19a5d9faf74a24e0c8fb07f320889970c5381b975e84e9f3bffacece121a9715e7543e640bb91d3dd44917b74b"),
+                    signer: String::from(""),
+                    },
+                    ],
+            }],
+        };
+        let mut buf: Vec<u8> = Vec::with_capacity(1024);
+        policies.encode(&mut buf).unwrap();
+        buf
+    }
+
+    // null container_binary_sha256 appraisal policy
+    fn default_appraisal_policies_no_container_binaries() -> Vec<u8> {
+        let policies = AppraisalPolicies {
+            policies: vec![AppraisalPolicy{
+               description: "Test AMD-SNP measurements".to_string(),
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                            sha384: String::from("de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95"),
+                            min_tcb_version: Some(TcbVersion{
+                                boot_loader: 7,
+                                microcode: 62,
+                                snp: 15,
+                                tee: 0,
+                            }),
+                        })),
+                    }),
+                    kernel_image_sha256: String::from("442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"),
+                    kernel_setup_data_sha256: String::from("68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"),
+                    init_ram_fs_sha256: String::from("3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"),
+                    memory_map_sha256: String::from("4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"),
+                    acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
+                    kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
+                    system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
+                    container_binary_sha256:vec![],
+
+                }),
+                signature: vec![Signature{
+                    signature: String::from("cd3767da7beb0f947c1b173af5d00c62db048c7330b813201831f29482239a315db3a8ca2064f278182dc3149ca962815dcf0fc9b07be2c87fd4d73dc6347119"),
                     signer: String::from(""),
                     },
                     ],
@@ -675,7 +771,7 @@ mod tests {
                     acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
                     kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
                     system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
-                    container_binary_sha256:String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"),
+                    container_binary_sha256:vec![String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c")],
 
                 }),
                 signature: vec![Signature{
@@ -720,6 +816,37 @@ mod tests {
         assert!(policy_manager
             .check_evidence(NOW_UTC_MILLIS, &get_good_evidence(), &get_genoa_vcek())
             .is_ok());
+    }
+
+    #[test]
+    fn check_evidence_successful_multiple_container_binaries() {
+        let policy_manager = PolicyManager::new_with_policies(
+            &default_appraisal_policies_multiple_container_binaries(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+        assert!(policy_manager
+            .check_evidence(NOW_UTC_MILLIS, &get_good_evidence(), &get_genoa_vcek())
+            .is_ok());
+    }
+
+    #[test]
+    fn check_evidence_error_no_container_binaries() {
+        let policy_manager = PolicyManager::new_with_policies(
+            &default_appraisal_policies_no_container_binaries(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+        match policy_manager.check_evidence(NOW_UTC_MILLIS, &get_bad_evidence(), &get_genoa_vcek())
+        {
+            Ok(_) => panic!("check_evidence() should fail."),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Failed to verify report. No matching appraisal policy found"
+            ),
+        }
     }
 
     #[test]

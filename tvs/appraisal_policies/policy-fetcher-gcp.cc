@@ -75,11 +75,15 @@ absl::StatusOr<AppraisalPolicies> PolicyFetcherGcp::GetLatestNPoliciesForDigest(
   google::cloud::spanner::SqlStatement select(
       R"sql(
       SELECT
-          Policy
+          p.Policy
       FROM
-          AppraisalPolicies
-      WHERE ApplicationDigest = @application_digest
-      ORDER BY UpdateTimestamp DESC
+          AppraisalPolicies AS p
+      JOIN
+          ApplicationDigests AS d ON p.PolicyId = d.PolicyId
+      WHERE
+          d.ApplicationDigest = @application_digest
+      ORDER BY
+          p.UpdateTimestamp DESC
       LIMIT @limit)sql",
       {{"application_digest",
         google::cloud::spanner::Value(

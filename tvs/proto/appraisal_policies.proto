@@ -63,5 +63,5 @@ message Measurement {
   string acpi_table_sha256 = 6;
   string kernel_cmd_line_regex = 7;
   string system_image_sha256 = 8;
-  string container_binary_sha256 = 9;
+  repeated string container_binary_sha256 = 9;
 }

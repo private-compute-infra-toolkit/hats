@@ -17,7 +17,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "453d27f58b75156f3f9fdbd4d4cf1eaec4fb5a3968fb6aca198ebb56ad9f20fc"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -44,7 +44,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "31744737e735c44fbbd5137ccf65df0d0d90ba47b6a1d5528a2a43bd4fd8af84"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -71,7 +71,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "0119e15545140af6503c159199540d86c09cd6bf75b51d4d4b569ecab24e1343"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -98,7 +98,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -125,7 +125,7 @@ policies {
     memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
     acpi_table_sha256: "22fd2b1eb93d6ba0e6fb99e1b09bd9ba8e4c2e5a020ff87006a672dbde49b477"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -152,7 +152,7 @@ policies {
     memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
     acpi_table_sha256: "a9891c38bb0899381cb71519df9d13e798d937c686e46be8e55ffc909f188450"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -179,7 +179,7 @@ policies {
     memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
     acpi_table_sha256: "5aac17f2d4b4fcb901fa11a358360448e7fad88f6f93aabaf313f19ba11bf316"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -206,7 +206,7 @@ policies {
     memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
     acpi_table_sha256: "601307f3dccc02cfe2d9967ff5bd1abefe8221606090a84d051509a3dbb659b3"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -233,7 +233,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "453d27f58b75156f3f9fdbd4d4cf1eaec4fb5a3968fb6aca198ebb56ad9f20fc"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -260,7 +260,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "31744737e735c44fbbd5137ccf65df0d0d90ba47b6a1d5528a2a43bd4fd8af84"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -287,7 +287,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "0119e15545140af6503c159199540d86c09cd6bf75b51d4d4b569ecab24e1343"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -314,7 +314,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -341,7 +341,7 @@ policies {
     memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
     acpi_table_sha256: "22fd2b1eb93d6ba0e6fb99e1b09bd9ba8e4c2e5a020ff87006a672dbde49b477"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -368,7 +368,7 @@ policies {
     memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
     acpi_table_sha256: "a9891c38bb0899381cb71519df9d13e798d937c686e46be8e55ffc909f188450"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -395,7 +395,7 @@ policies {
     memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
     acpi_table_sha256: "5aac17f2d4b4fcb901fa11a358360448e7fad88f6f93aabaf313f19ba11bf316"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -422,7 +422,7 @@ policies {
     memory_map_sha256: "93b5ebde624f92becfd8e9249f7d35c460ced7f782b1e827082dc115f81d63be"
     acpi_table_sha256: "601307f3dccc02cfe2d9967ff5bd1abefe8221606090a84d051509a3dbb659b3"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "12141eed11093c877a297df0c4d49a2752c4656fb33b61107c8769ddb6c6dd8b"
+    system_image_sha256: "16d457e561707db5151bbbabc9b2a080b2240a949b11dd5d13f6d4373974df5d"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -449,7 +449,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "7c7cd8ff943908efc4e1d8a48bcd57755cdca8567846308bad4626871f9e5451"
+    system_image_sha256: "9aeffe26b676b33e7c769350c0f3ebbfc7adb6a2c79f5558f17bf735637c7b48"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -476,7 +476,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "62f6a71a31573a1e44400f8b9151e27b83016ad1a7572ebc930698bc1b7d18ad"
+    system_image_sha256: "f55fd83a2a9340ec58a39f2c7e0e38365ddd4c5f8e3615f2d7bc26071f5b9a1c"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {
@@ -503,7 +503,7 @@ policies {
     memory_map_sha256: "c9a26ba0a492465327894303dc6b1bd23a41cc1093fe96daa05fa7de0d25e392"
     acpi_table_sha256: "6006fa52084ec0da69ff2e63bb4abba78a4aeeb457f4eb4d3a75b3b114ec862d"
     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
-    system_image_sha256: "ef553628dfceb6c131e94c2649d5914a98ffe72f1202c9e84e38e52b291a0f08"
+    system_image_sha256: "782c693c98f996a366d62d79aeadd45b9065d0553d2f2556f025dbae561274d3"
     container_binary_sha256: "9196833d7c856f8dbf73870676459b06d6086ce513a5d12979d8702fc5897a2c"
   }
   signature {

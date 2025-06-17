@@ -42,7 +42,6 @@ CREATE SEQUENCE UserIdSequence OPTIONS (
 -- * MemoryMapDigest: sha256 of the memory map.
 -- * AcpiTableDigest: sha256 of the ACPI tables.
 -- * SystemImageDigest: sha256 of the system image.
--- * ApplicationDigest: sha256 of the container binary application bundle.
 -- * UpdateTimestamp: timestamp of the last update to the row.
 -- * Policy: binary representation of the appraisal policy proto.
 CREATE TABLE AppraisalPolicies (
@@ -54,14 +53,17 @@ CREATE TABLE AppraisalPolicies (
   MemoryMapDigest BYTES(MAX) NOT NULL,
   AcpiTableDigest BYTES(MAX) NOT NULL,
   SystemImageDigest BYTES(MAX) NOT NULL,
-  ApplicationDigest BYTES(MAX) NOT NULL,
   Policy BYTES(MAX) NOT NULL,
   UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 ) PRIMARY KEY(PolicyId);
 
--- Non-unique Index ApplicationDigest field to enable efficient retrieval of
--- policies for a certain application.
-CREATE INDEX ApplicationDigestIndex ON AppraisalPolicies(ApplicationDigest);
+-- Table storing the application digests (acceptable sha256 hashes of
+-- the container binary application bundle)
+CREATE TABLE ApplicationDigests (
+  PolicyId INT64,
+  ApplicationDigest BYTES(MAX) NOT NULL,
+) PRIMARY KEY(PolicyId, ApplicationDigest),
+  INTERLEAVE IN PARENT AppraisalPolicies ON DELETE CASCADE;
 
 -- Table storing wrapped data encryption keys (DEK)s. DEKs are encrypted with
 -- KekId. The table contains the following columns:
