@@ -49,7 +49,6 @@ cc_library(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:empty_cc_proto",
-        "@curl",
         "@google_cloud_cpp//:storage",
     ],
 )

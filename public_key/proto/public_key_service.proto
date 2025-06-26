@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(sidachen): Upstream the per-adtech key design to common folder.
-// Common data plane repo:
-// src/public/cpio/proto/public_key_service/v1/public_key_service.proto
 syntax = "proto3";
 
 package privacy_sandbox.public_key_service;
@@ -40,19 +37,16 @@ message ListPublicKeysResponse {
 
 enum ExecutionEnvironment {
   EXECUTION_ENVIRONMENT_UNSPECIFIED = 0;
-  EXECUTION_ENVIRONMENT_GCP = 1;
-  EXECUTION_ENVIRONMENT_AWS = 2;
-  EXECUTION_ENVIRONMENT_AZURE = 3;
-  EXECUTION_ENVIRONMENT_ONPREM = 4;
+  EXECUTION_ENVIRONMENT_ONPREM = 1;
 }
 
 message PublicKey {
   // The id of the public key.
   string key_id = 1 [json_name = "id"];
-  // The value of the public key.
+  // The value of the public key formated in unsafe web base64.
   string public_key = 2 [json_name = "key"];
-  // The identifier for per adtech key origin.
-  string adtech_origin = 3 [json_name = "adtech_origin"];
+  // The identifier for per key origin.
+  string origin = 3 [json_name = "origin"];
   // The environment the service runs in.
   ExecutionEnvironment execution_environment = 4
       [json_name = "execution_environment"];

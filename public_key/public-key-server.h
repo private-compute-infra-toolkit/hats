@@ -28,8 +28,6 @@ namespace privacy_sandbox::public_key_service {
 
 struct PublicKeyServerOptions {
   int port;
-  std::string aws_key_endpoint;
-  std::string gcp_key_endpoint;
   // Bucket storing the public key json file distributed to all clients.
   std::string gcp_cloud_bucket_name;
 };

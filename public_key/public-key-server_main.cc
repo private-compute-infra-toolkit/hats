@@ -30,14 +30,6 @@
 #include "status_macro/status_macros.h"
 
 ABSL_FLAG(int, port, -1, "Port public key server listens to.");
-ABSL_FLAG(std::string, aws_key_endpoint,
-          "https://publickeyservice.pa.aws.privacysandboxservices.com/"
-          ".well-known/protected-auction/v1/public-keys",
-          "Address of the AWS public key instance");
-ABSL_FLAG(std::string, gcp_key_endpoint,
-          "https://publickeyservice.pa.gcp.privacysandboxservices.com/"
-          ".well-known/protected-auction/v1/public-keys",
-          "Address of the gcp public key instance");
 ABSL_FLAG(std::string, bucket_name, "ps-hats-playground-public-keys",
           "Name of the Bucket to store the json file");
 
@@ -78,8 +70,6 @@ int main(int argc, char* argv[]) {
   privacy_sandbox::public_key_service::CreateAndStartPublicKeyServer(
       {
           .port = port,
-          .aws_key_endpoint = absl::GetFlag(FLAGS_aws_key_endpoint),
-          .gcp_key_endpoint = absl::GetFlag(FLAGS_gcp_key_endpoint),
           .gcp_cloud_bucket_name = absl::GetFlag(FLAGS_bucket_name),
       },
       std::move(key_fetcher));

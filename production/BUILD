@@ -90,11 +90,10 @@ oci_image(
     entrypoint = [
         "/usr/bin/public-key-server_main",
         # Spanner database information
+        "--bucket_name=ps-hats-playground-public-keys",
         "--project_id=ps-hats-playground",
         "--instance_id=tvs-instance",
         "--database_id=tvs-db",
-        "--aws_key_endpoint=https://publickeyservice.pa.aws.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
-        "--gcp_key_endpoint=https://publickeyservice.pa.gcp.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
     ],
     tars = [
         ":public_key_server_binary",
