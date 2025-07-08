@@ -349,11 +349,88 @@ mod tests {
                     acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
                     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
                     system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
-                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
+                    container_binary_sha256:vec!["bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string()],
 
                 }),
                 signature: vec![PolicySignature{
                     signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c".to_string(),
+                    signer: "".to_string(),
+                    },
+                    ],
+            }],
+        };
+        let mut buf: Vec<u8> = Vec::with_capacity(1024);
+        policies.encode(&mut buf).unwrap();
+        buf
+    }
+
+    fn default_appraisal_policies_multiple_container_binaries() -> Vec<u8> {
+        let policies = AppraisalPolicies {
+            policies: vec![AppraisalPolicy{
+                description: "Test AMD-SNP measurements".to_string(),
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                            sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95".to_string(),
+                            min_tcb_version: Some(TcbVersion{
+                                boot_loader: 7,
+                                microcode: 62,
+                                snp: 15,
+                                tee: 0,
+                            }),
+                        })),
+                    }),
+                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
+                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
+                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
+                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
+                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
+                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
+                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
+                    container_binary_sha256:vec!["bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string()],
+
+                }),
+                signature: vec![PolicySignature{
+                    signature: "faffbe0b40b37fe2b3dc3b71045ee86e39cf2f19a5d9faf74a24e0c8fb07f320889970c5381b975e84e9f3bffacece121a9715e7543e640bb91d3dd44917b74b".to_string(),
+                    signer: "".to_string(),
+                    },
+                    ],
+            }],
+        };
+        let mut buf: Vec<u8> = Vec::with_capacity(1024);
+        policies.encode(&mut buf).unwrap();
+        buf
+    }
+
+    // should fail everytime
+    fn default_appraisal_policies_no_container_binaries() -> Vec<u8> {
+        let policies = AppraisalPolicies {
+            policies: vec![AppraisalPolicy{
+                description: "Test AMD-SNP measurements".to_string(),
+                measurement: Some(Measurement {
+                    stage0_measurement: Some(Stage0Measurement{
+                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                            sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95".to_string(),
+                            min_tcb_version: Some(TcbVersion{
+                                boot_loader: 7,
+                                microcode: 62,
+                                snp: 15,
+                                tee: 0,
+                            }),
+                        })),
+                    }),
+                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
+                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
+                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
+                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
+                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
+                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
+                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
+                    container_binary_sha256:vec![],
+
+                }),
+                signature: vec![PolicySignature{
+                    signature: "cd3767da7beb0f947c1b173af5d00c62db048c7330b813201831f29482239a315db3a8ca2064f278182dc3149ca962815dcf0fc9b07be2c87fd4d73dc6347119".to_string(),
                     signer: "".to_string(),
                     },
                     ],
@@ -408,6 +485,67 @@ mod tests {
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+        let user_id = b"1";
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret1";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id: user_id.to_vec(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
+        };
+
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            Arc::new(tvs_private_key),
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
+            "test_user1",
+        );
+
+        let mut tvs_client = TvsClient::new(&client_private_key.bytes(), &tvs_public_key).unwrap();
+
+        // Ask TVS to do its handshake part
+        let handshake_response = request_handler
+            .verify_report(&tvs_client.build_initial_message().unwrap())
+            .unwrap();
+
+        tvs_client
+            .process_handshake_response(&handshake_response)
+            .unwrap();
+
+        // Send the attestation report and get the secrets.
+        let secret_bin = request_handler
+            .verify_report(
+                &tvs_client
+                    .build_verify_report_request(
+                        &get_good_evidence(),
+                        &get_genoa_vcek(),
+                        /*application_signing_key=*/
+                        "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                    )
+                    .unwrap(),
+            )
+            .unwrap();
+
+        assert_eq!(
+            tvs_client.process_response(secret_bin.as_slice()).unwrap(),
+            secret
+        );
+    }
+
+    #[test]
+    fn verify_report_successful_multiple_container_binaries() {
+        let tvs_private_key = P256Scalar::generate();
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new_with_policies(
+            default_appraisal_policies_multiple_container_binaries().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
@@ -618,6 +756,83 @@ mod tests {
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new_with_policies(
             default_appraisal_policies().as_slice(),
+            /*enable_policy_signature=*/ true,
+            /*accept_insecure_policies=*/ false,
+        )
+        .unwrap();
+
+        let user_id = b"4";
+        let client_private_key = P256Scalar::generate();
+        let secret = b"secret4";
+        let test_key_fetcher = TestKeyFetcher {
+            user_id: user_id.to_vec(),
+            user_authentication_public_key: client_private_key.compute_public_key(),
+            secret: secret.to_vec(),
+        };
+        let mut request_handler = RequestHandler::new(
+            NOW_UTC_MILLIS,
+            Arc::new(tvs_private_key),
+            &tvs_public_key,
+            /*secondary_private_key=*/ None,
+            /*secondary_public_key=*/ None,
+            Arc::new(policy_manager),
+            Arc::new(test_key_fetcher),
+            "test_user",
+        );
+
+        let mut tvs_client = TvsClient::new(&client_private_key.bytes(), &tvs_public_key).unwrap();
+
+        // Ask TVS to do its handshake part
+        let handshake_response = request_handler
+            .verify_report(&tvs_client.build_initial_message().unwrap())
+            .unwrap();
+
+        tvs_client
+            .process_handshake_response(&handshake_response)
+            .unwrap();
+
+        // Send an attestation report whose measurements do not match any of
+        // the appraisal policies.
+        match request_handler.verify_report(
+            &tvs_client
+                .build_verify_report_request(
+                    &get_malformed_evidence(),
+                    &get_genoa_vcek(),
+                    /*application_signing_key=*/
+                    "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                )
+                .unwrap(),
+        ) {
+            Ok(_) => panic!("verify_command() should fail."),
+            Err(e) => {
+                assert!(e
+                    .to_string()
+                    .contains("Failed to verify report. No matching appraisal policy found"))
+            }
+        }
+
+        // Make sure the session is terminated if the attestation request failed.
+        match request_handler.verify_report(
+            &tvs_client
+                .build_verify_report_request(
+                    &get_malformed_evidence(),
+                    &get_genoa_vcek(),
+                    /*application_signing_key=*/
+                    "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                )
+                .unwrap(),
+        ) {
+            Ok(_) => panic!("verify_command() should fail."),
+            Err(e) => assert!(e.to_string().contains("The session is terminated.")),
+        }
+    }
+
+    #[test]
+    fn verify_report_invalid_report_error_no_container_binaries() {
+        let tvs_private_key = P256Scalar::generate();
+        let tvs_public_key = tvs_private_key.compute_public_key();
+        let policy_manager = PolicyManager::new_with_policies(
+            default_appraisal_policies_no_container_binaries().as_slice(),
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )

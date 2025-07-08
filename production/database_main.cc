@@ -400,6 +400,8 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
       [&spanner_client, &appraisal_policies = appraisal_policies](
           google::cloud::spanner::Transaction transaction)
           -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
+        google::cloud::spanner::Mutations mutations;
+
         for (const privacy_sandbox::tvs::AppraisalPolicy& appraisal_policy :
              appraisal_policies.policies()) {
           google::cloud::spanner::Value amd_sev_stage0_digest_value;
@@ -493,70 +495,79 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
                 "hex string.");
           }
 
-          std::string application_digest;
-          if (!absl::HexStringToBytes(
-                  appraisal_policy.measurement().container_binary_sha256(),
-                  &application_digest)) {
+          if (appraisal_policy.measurement().container_binary_sha256_size() ==
+              0) {
             return google::cloud::v2_36::Status(
                 google::cloud::StatusCode::kInvalidArgument,
-                "Failed to parse application digest. The digest should be in "
-                "formatted as "
-                "hex string.");
+                "No application digests found in the appraisal policy.");
           }
-          // Insert the appraisal policy.
-          google::cloud::spanner::SqlStatement sql(
-              R"sql(INSERT INTO AppraisalPolicies(
-            UpdateTimestamp,
-            AmdSevStage0Digest,
-            KernelImageDigest,
-            KernelSetupDataDigest,
-            InitRamFsDigest,
-            MemoryMapDigest,
-            AcpiTableDigest,
-            SystemImageDigest,
-            ApplicationDigest,
-            Policy
-        ) VALUES (
-            PENDING_COMMIT_TIMESTAMP(),
-            @amd_sev_stage0_digest,
-            @kernel_image_digest,
-            @kernel_setup_data_digest,
-            @init_ram_fs_digest,
-            @memory_map_digest,
-            @acpi_table_digest,
-            @system_image_digest,
-            @application_digest,
-            @policy
-        ))sql",
-              {{"amd_sev_stage0_digest", amd_sev_stage0_digest_value},
-               {"kernel_image_digest",
+
+          // Get next sequence value, which is the PolicyID
+          google::cloud::spanner::RowStream get_sequence_value_stream =
+              spanner_client.ExecuteQuery(
+                  transaction, google::cloud::spanner::SqlStatement(
+                                   "SELECT GET_NEXT_SEQUENCE_VALUE(SEQUENCE "
+                                   "PolicyIdSequence)"));
+          // Iterate through RowStream to get first row
+          auto it = get_sequence_value_stream.begin();
+          if (it == get_sequence_value_stream.end()) {
+            return google::cloud::StatusOr<google::cloud::spanner::Mutations>(
+                google::cloud::v2_36::Status(
+                    google::cloud::StatusCode::kInternal,
+                    "Failed to get next sequence value for PolicyId (no row "
+                    "returned)."));
+          }
+          HATS_ASSIGN_OR_RETURN(google::cloud::spanner::Row row, *it);
+          // Save the first row = PolicyID
+          std::int64_t generated_policy_id;
+          HATS_ASSIGN_OR_RETURN(generated_policy_id, row.get<std::int64_t>(0));
+
+          mutations.push_back(google::cloud::spanner::MakeInsertMutation(
+              "AppraisalPolicies",
+              {"PolicyId", "UpdateTimestamp", "AmdSevStage0Digest",
+               "KernelImageDigest", "KernelSetupDataDigest", "InitRamFsDigest",
+               "MemoryMapDigest", "AcpiTableDigest", "SystemImageDigest",
+               "Policy"},
+              google::cloud::spanner::Value(generated_policy_id),
+              google::cloud::spanner::Value(
+                  google::cloud::spanner::CommitTimestamp()),
+              amd_sev_stage0_digest_value,
+              google::cloud::spanner::Value(
+                  google::cloud::spanner::Bytes(kernel_image_digest)),
+              google::cloud::spanner::Value(
+                  google::cloud::spanner::Bytes(kernel_setup_data_digest)),
+              google::cloud::spanner::Value(
+                  google::cloud::spanner::Bytes(init_ram_fs_digest)),
+              google::cloud::spanner::Value(
+                  google::cloud::spanner::Bytes(memory_map_digest)),
+              google::cloud::spanner::Value(
+                  google::cloud::spanner::Bytes(acpi_table_digest)),
+              google::cloud::spanner::Value(
+                  google::cloud::spanner::Bytes(system_image_digest)),
+              google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                  appraisal_policy.SerializeAsString()))));
+
+          // Insert container binaries into ApplicationDigests for this
+          // appraisal policy
+          for (const std::string& application_digest_hex :
+               appraisal_policy.measurement().container_binary_sha256()) {
+            std::string application_digest_bytes;
+            if (!absl::HexStringToBytes(application_digest_hex,
+                                        &application_digest_bytes)) {
+              return google::cloud::v2_36::Status(
+                  google::cloud::StatusCode::kInvalidArgument,
+                  "Failed to parse application digest. The digest should be in "
+                  "formatted as hex string.");
+            }
+
+            mutations.push_back(google::cloud::spanner::MakeInsertMutation(
+                "ApplicationDigests", {"PolicyId", "ApplicationDigest"},
+                google::cloud::spanner::Value(generated_policy_id),
                 google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(kernel_image_digest))},
-               {"kernel_setup_data_digest",
-                google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(kernel_setup_data_digest))},
-               {"init_ram_fs_digest",
-                google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(init_ram_fs_digest))},
-               {"memory_map_digest",
-                google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(memory_map_digest))},
-               {"acpi_table_digest",
-                google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(acpi_table_digest))},
-               {"system_image_digest",
-                google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(system_image_digest))},
-               {"application_digest",
-                google::cloud::spanner::Value(
-                    google::cloud::spanner::Bytes(application_digest))},
-               {"policy",
-                google::cloud::spanner::Value(google::cloud::spanner::Bytes(
-                    appraisal_policy.SerializeAsString()))}});
-          HATS_ASSIGN_OR_RETURN(
-              auto _, spanner_client.ExecuteDml(transaction, std::move(sql)));
+                    google::cloud::spanner::Bytes(application_digest_bytes))));
+          }
         }
-        return google::cloud::spanner::Mutations{};
+        return mutations;  // Return all mutations together
       });
   HATS_RETURN_IF_ERROR(commit.status());
 

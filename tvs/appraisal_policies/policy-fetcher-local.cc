@@ -51,26 +51,38 @@ absl::StatusOr<AppraisalPolicies> ReadAppraisalPolicies(
   return appraisal_policies;
 }
 
+// Index appriasal policies by their application digest(s)
 absl::StatusOr<std::unordered_map<std::string, AppraisalPolicies>>
 IndexAppraisalPolicies(AppraisalPolicies appraisal_policies) {
   std::unordered_map<std::string, AppraisalPolicies> indexed_appraisal_policies;
   // Use non-const to enable effective use of std::move().
   for (AppraisalPolicy& appraisal_policy :
        *appraisal_policies.mutable_policies()) {
-    std::string application_digest;
-    if (!absl::HexStringToBytes(
-            appraisal_policy.measurement().container_binary_sha256(),
-            &application_digest)) {
-      return absl::InvalidArgumentError(
-          "Failed to parse application digest. The digest should be in "
-          "formatted as "
-          "hex string.");
+    // If an appraisal policy has an empty list of container binaries, ignore
+    // this invalid policy, skip and continue to the next
+    if (appraisal_policy.measurement().container_binary_sha256().empty()) {
+      continue;
     }
-    // operator[] inserts a key with default value if not there; otherwise it
-    // returns the value for that key. We then insert the given policy.
-    AppraisalPolicies& policies =
-        indexed_appraisal_policies[application_digest];
-    *policies.add_policies() = std::move(appraisal_policy);
+
+    // Iterate through each container binary application digest in this policy
+    // and insert into the unordered map
+    for (const std::string& digest_hex :
+         appraisal_policy.measurement().container_binary_sha256()) {
+      std::string application_digest;
+      if (!absl::HexStringToBytes(digest_hex, &application_digest)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse application digest. The digest should be "
+            "formatted as a hex string.");
+      }
+
+      // operator[] inserts a key with a default-constructed AppraisalPolicies
+      // if it's not already there; otherwise, it returns a reference to the
+      // existing one. We then add a copy of the current policy to the list of
+      // policies for that digest.
+      AppraisalPolicies& policies_for_digest =
+          indexed_appraisal_policies[application_digest];
+      *policies_for_digest.add_policies() = appraisal_policy;
+    }
   }
   return indexed_appraisal_policies;
 }

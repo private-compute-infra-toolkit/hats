@@ -105,10 +105,15 @@ fn policy_to_bytes(policy: &AppraisalPolicy) -> anyhow::Result<Vec<u8>> {
         hex::decode(&measurement.system_image_sha256)
             .map_err(|err| anyhow::anyhow!("Failed to decode system_image_sha256: {err}"))?,
     );
-    binary_data.extend(
-        hex::decode(&measurement.container_binary_sha256)
-            .map_err(|err| anyhow::anyhow!("Failed to decode container_binary_sha256: {err}"))?,
-    );
+
+    for hex_string in &measurement.container_binary_sha256 {
+        binary_data.extend(
+            hex::decode(hex_string).map_err(|err| {
+                anyhow::anyhow!("Failed to decode container_binary_sha256: {err}")
+            })?,
+        );
+    }
+
     Ok(binary_data)
 }
 
@@ -155,7 +160,7 @@ mod tests {
                     acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
                     kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
                     system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
-                    container_binary_sha256: String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"),
+                    container_binary_sha256: vec![String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c")],
                 }),
                 signature: vec![SignatureWrapper{
                     signature: String::from("003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c"),

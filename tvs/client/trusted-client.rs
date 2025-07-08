@@ -138,7 +138,7 @@ impl TvsClient {
         application_signing_key: &str,
     ) -> Result<Vec<u8>, String> {
         let signing_key = hex::decode(application_signing_key).map_err(|_| {
-            "Cannot de-serialize application_siging_key. The key is expected to be in hex format"
+            "Cannot de-serialize application_signing_key. The key is expected to be in hex format"
         })?;
         let signature = hash_and_sign_evidence(&self.handshake_hash, signing_key)?;
         if let Some(crypter) = self.crypter.as_mut() {
@@ -243,8 +243,7 @@ mod tests {
                     acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
                     kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
                     system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
-                    container_binary_sha256:"bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string(),
-
+                    container_binary_sha256:vec!["bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string()],
                 }),
                 signature: vec![PolicySignature{
                     signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c".to_string(),
