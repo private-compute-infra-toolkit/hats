@@ -26,7 +26,7 @@ cc_library(
     deps = [
         "//client/proto:trusted_service_cc_grpc",
         "//client/proto:trusted_service_cc_proto",
-        "//crypto:aead-crypter",
+        "//crypto:hpke-crypter",
         "//crypto:secret-data",
         "//status_macro:status_macros",
         "@com_google_absl//absl/status:statusor",

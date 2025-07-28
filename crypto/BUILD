@@ -54,6 +54,35 @@ cc_test(
 )
 
 cc_library(
+    name = "hpke-crypter",
+    srcs = ["hpke-crypter.cc"],
+    hdrs = ["hpke-crypter.h"],
+    deps = [
+        ":secret-data",
+        "@boringssl//:crypto",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "hpke-crypter_test",
+    size = "small",
+    srcs = ["hpke-crypter_test.cc"],
+    deps = [
+        ":hpke-crypter",
+        ":secret-data",
+        "//status_macro:status_test_macros",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "aead-crypter",
     srcs = ["aead-crypter.cc"],
     hdrs = ["aead-crypter.h"],

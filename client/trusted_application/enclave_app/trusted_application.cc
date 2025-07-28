@@ -20,7 +20,7 @@
 #include "client/proto/orchestrator.pb.h"
 #include "client/proto/trusted_service.pb.h"
 #include "client/sdk/hats_orchestrator_client.h"
-#include "crypto/aead-crypter.h"
+#include "crypto/hpke-crypter.h"
 #include "crypto/secret-data.h"
 #include "status_macro/status_macros.h"
 #include "status_macro/status_util.h"
@@ -56,11 +56,12 @@ grpc::Status TrustedApplication::Echo(grpc::ServerContext* context,
 
   crypto::SecretData encrypted_data =
       crypto::SecretData(request->encrypted_message());
-  HATS_ASSIGN_OR_RETURN(crypto::SecretData decrypted,
-                        crypto::Decrypt(decryption_key, encrypted_data,
-                                        privacy_sandbox::crypto::kSecretAd),
-                        _.PrependWith("Failed to decrypt message: ")
-                            .With(status_macro::FromAbslStatus));
+  HATS_ASSIGN_OR_RETURN(
+      crypto::SecretData decrypted,
+      crypto::HpkeDecrypt(decryption_key, encrypted_data,
+                          privacy_sandbox::crypto::kSecretHpkeAd),
+      _.PrependWith("Failed to decrypt message: ")
+          .With(status_macro::FromAbslStatus));
 
   *response->mutable_response() = decrypted.GetStringView();
 

@@ -33,10 +33,10 @@ constexpr absl::string_view kTestMessage =
 // encrypted requests and receive decrypted responses.
 class TrustedApplicationClient final {
  public:
-  TrustedApplicationClient(absl::string_view private_key,
+  TrustedApplicationClient(absl::string_view public_key,
                            absl::string_view key_id);
   TrustedApplicationClient(absl::string_view address,
-                           absl::string_view private_key,
+                           absl::string_view public_key,
                            absl::string_view key_id);
 
   absl::StatusOr<DecryptedResponse> SendEcho() const;
@@ -45,7 +45,7 @@ class TrustedApplicationClient final {
 
  private:
   std::unique_ptr<TrustedService::Stub> trusted_service_stub_;
-  crypto::SecretData private_key_;
+  std::string public_key_;
   std::string key_id_;
 };
 

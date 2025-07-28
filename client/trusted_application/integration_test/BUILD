@@ -35,7 +35,7 @@ cc_binary(
         "//client/proto:launcher_config_cc_proto",
         "//client/proto:trusted_service_cc_proto",
         "//client/trusted_application/client:trusted_application_client",
-        "//crypto:aead-crypter",
+        "//crypto:hpke-crypter",
         "//crypto:secret-data",
         "//crypto:test-ec-key",
         "//crypto/secret_sharing:bridge",

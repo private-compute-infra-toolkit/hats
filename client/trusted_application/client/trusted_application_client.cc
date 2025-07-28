@@ -22,26 +22,26 @@
 #include "absl/strings/string_view.h"
 #include "client/proto/trusted_service.grpc.pb.h"
 #include "client/proto/trusted_service.pb.h"
-#include "crypto/aead-crypter.h"
+#include "crypto/hpke-crypter.h"
 #include "crypto/secret-data.h"
 #include "grpcpp/create_channel.h"
 #include "status_macro/status_macros.h"
 
 namespace privacy_sandbox::client {
 
-TrustedApplicationClient::TrustedApplicationClient(
-    absl::string_view private_key, absl::string_view key_id)
+TrustedApplicationClient::TrustedApplicationClient(absl::string_view public_key,
+                                                   absl::string_view key_id)
     : trusted_service_stub_(TrustedService::NewStub(grpc::CreateChannel(
           std::string("localhost:8000"), grpc::InsecureChannelCredentials()))),
-      private_key_(private_key),
+      public_key_(public_key),
       key_id_(key_id) {}
 
-TrustedApplicationClient::TrustedApplicationClient(
-    absl::string_view address, absl::string_view private_key,
-    absl::string_view key_id)
+TrustedApplicationClient::TrustedApplicationClient(absl::string_view address,
+                                                   absl::string_view public_key,
+                                                   absl::string_view key_id)
     : trusted_service_stub_(TrustedService::NewStub(grpc::CreateChannel(
           std::string(address), grpc::InsecureChannelCredentials()))),
-      private_key_(private_key),
+      public_key_(public_key),
       key_id_(key_id) {}
 
 absl::StatusOr<DecryptedResponse> TrustedApplicationClient::SendEcho() const {
@@ -52,9 +52,9 @@ absl::StatusOr<DecryptedResponse> TrustedApplicationClient::SendEcho(
     absl::string_view to_encrypt) const {
   grpc::ClientContext context;
   HATS_ASSIGN_OR_RETURN(std::string encrypted,
-                        privacy_sandbox::crypto::Encrypt(
-                            private_key_, crypto::SecretData(to_encrypt),
-                            privacy_sandbox::crypto::kSecretAd));
+                        privacy_sandbox::crypto::HpkeEncrypt(
+                            public_key_, crypto::SecretData(to_encrypt),
+                            privacy_sandbox::crypto::kSecretHpkeAd));
 
   EncryptedRequest request;
   *request.mutable_encrypted_message() = std::move(encrypted);

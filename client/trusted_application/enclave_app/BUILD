@@ -45,7 +45,7 @@ cc_library(
         "//client/proto:trusted_service_cc_grpc",
         "//client/proto:trusted_service_cc_proto",
         "//client/sdk:hats_orchestrator_client",
-        "//crypto:aead-crypter",
+        "//crypto:hpke-crypter",
         "//crypto:secret-data",
         "//status_macro:status_macros",
         "//status_macro:status_util",

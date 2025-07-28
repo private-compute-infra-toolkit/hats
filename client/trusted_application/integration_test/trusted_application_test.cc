@@ -39,7 +39,7 @@
 #include "client/proto/launcher_config.pb.h"
 #include "client/proto/trusted_service.pb.h"
 #include "client/trusted_application/client/trusted_application_client.h"
-#include "crypto/aead-crypter.h"
+#include "crypto/hpke-crypter.h"
 #include "crypto/secret-data.h"
 #include "crypto/secret_sharing/src/interface.rs.h"
 #include "crypto/test-ec-key.h"
@@ -305,19 +305,21 @@ absl::Status WaitForApp(const HatsLauncher& launcher) {
 TEST(TrustedApplication, EchoSingleTvs) {
   HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
                             crypto::GenerateEcKeyForTest());
-  crypto::SecretData app_key = crypto::RandomAeadKey();
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::HpkeKeyPair key_pair,
+                            crypto::GenerateHpkeKeyPair());
 
   HATS_ASSERT_OK_AND_ASSIGN(
       TestTvs test_tvs,
-      CreateAndStartTestTvs(kFirstTvsPrimaryKey,
-                            /*test_user_data=*/{key_manager::TestUserData{
-                                .user_id = "1",
-                                .user_authentication_public_key =
-                                    client_authentication_key.public_key,
-                                .key_id = std::string(kKeyId),
-                                .secret = std::string(app_key.GetStringView()),
-                                .public_key = "1-public-key",
-                            }}));
+      CreateAndStartTestTvs(
+          kFirstTvsPrimaryKey,
+          /*test_user_data=*/{key_manager::TestUserData{
+              .user_id = "1",
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = std::string(kKeyId),
+              .secret = std::string(key_pair.private_key.GetStringView()),
+              .public_key = "1-public-key",
+          }}));
   LOG(INFO) << "TVS server is listening on port: " << test_tvs.ip_port->port();
 
   constexpr absl::string_view kSystemBundleName =
@@ -332,7 +334,7 @@ TEST(TrustedApplication, EchoSingleTvs) {
 
   TrustedApplicationClient app_client(
       absl::StrCat("localhost:", test_launcher.ip_port->port()),
-      app_key.GetStringView(), kKeyId);
+      key_pair.public_key, kKeyId);
 
   HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response, app_client.SendEcho());
 
@@ -346,12 +348,14 @@ TEST(TrustedApplication, EchoSingleTvs) {
 TEST(TrustedApplication, EchoXor2Tvs) {
   HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
                             crypto::GenerateEcKeyForTest());
-  crypto::SecretData app_key = crypto::RandomAeadKey();
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::HpkeKeyPair key_pair,
+                            crypto::GenerateHpkeKeyPair());
 
   HATS_ASSERT_OK_AND_ASSIGN(
       rust::Vec<rust::String> shares,
       privacy_sandbox::crypto::XorSplitSecret(
-          rust::Slice<const std::uint8_t>(app_key.GetData(), app_key.GetSize()),
+          rust::Slice<const std::uint8_t>(key_pair.private_key.GetData(),
+                                          key_pair.private_key.GetSize()),
           /*numshares=*/2));
 
   ASSERT_THAT(shares, SizeIs(2));
@@ -395,7 +399,7 @@ TEST(TrustedApplication, EchoXor2Tvs) {
 
   TrustedApplicationClient app_client(
       absl::StrCat("localhost:", test_launcher.ip_port->port()),
-      app_key.GetStringView(), kKeyId);
+      key_pair.public_key, kKeyId);
 
   HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response, app_client.SendEcho());
 
@@ -410,12 +414,14 @@ TEST(TrustedApplication, EchoXor2Tvs) {
 TEST(TrustedApplication, EchoShmir2Of3Tvs) {
   HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
                             crypto::GenerateEcKeyForTest());
-  crypto::SecretData app_key = crypto::RandomAeadKey();
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::HpkeKeyPair key_pair,
+                            crypto::GenerateHpkeKeyPair());
 
   HATS_ASSERT_OK_AND_ASSIGN(
       rust::Vec<rust::String> shares,
       privacy_sandbox::crypto::ShamirSplitSecret(
-          rust::Slice<const std::uint8_t>(app_key.GetData(), app_key.GetSize()),
+          rust::Slice<const std::uint8_t>(key_pair.private_key.GetData(),
+                                          key_pair.private_key.GetSize()),
           /*numshares=*/3, /*threshold=*/2));
 
   ASSERT_THAT(shares, SizeIs(3));
@@ -472,7 +478,7 @@ TEST(TrustedApplication, EchoShmir2Of3Tvs) {
 
   TrustedApplicationClient app_client(
       absl::StrCat("localhost:", test_launcher.ip_port->port()),
-      app_key.GetStringView(), kKeyId);
+      key_pair.public_key, kKeyId);
 
   HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response, app_client.SendEcho());
 
@@ -490,21 +496,23 @@ TEST(TrustedApplication, EchoShmir2Of3Tvs) {
 TEST(TrustedApplication, EchoSingleTvsUpdate) {
   HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
                             crypto::GenerateEcKeyForTest());
-  crypto::SecretData app_key1 = crypto::RandomAeadKey();
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::HpkeKeyPair key_pair1,
+                            crypto::GenerateHpkeKeyPair());
 
   constexpr absl::string_view kTvsPrimaryKey =
       "f664b3224ff336ca83923a730a8063c264746e76496334fa398fbbee1b630ab4";
   HATS_ASSERT_OK_AND_ASSIGN(
       TestTvs test_tvs,
-      CreateAndStartTestTvs(kTvsPrimaryKey,
-                            /*test_user_data=*/{key_manager::TestUserData{
-                                .user_id = "1",
-                                .user_authentication_public_key =
-                                    client_authentication_key.public_key,
-                                .key_id = std::string(kKeyId),
-                                .secret = std::string(app_key1.GetStringView()),
-                                .public_key = "1-public-key",
-                            }}));
+      CreateAndStartTestTvs(
+          kTvsPrimaryKey,
+          /*test_user_data=*/{key_manager::TestUserData{
+              .user_id = "1",
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = std::string(kKeyId),
+              .secret = std::string(key_pair1.private_key.GetStringView()),
+              .public_key = "1-public-key",
+          }}));
   LOG(INFO) << "TVS server is listening on port: " << test_tvs.ip_port->port();
 
   constexpr absl::string_view kSystemBundleName =
@@ -520,7 +528,7 @@ TEST(TrustedApplication, EchoSingleTvsUpdate) {
   {
     TrustedApplicationClient app_client(
         absl::StrCat("localhost:", test_launcher.ip_port->port()),
-        app_key1.GetStringView(), kKeyId);
+        key_pair1.public_key, kKeyId);
 
     HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response,
                               app_client.SendEcho());
@@ -532,18 +540,20 @@ TEST(TrustedApplication, EchoSingleTvsUpdate) {
   test_tvs.tvs_server->Shutdown();
 
   // Now start another TVS server and give it another key.
-  crypto::SecretData app_key2 = crypto::RandomAeadKey();
+  HATS_ASSERT_OK_AND_ASSIGN(crypto::HpkeKeyPair key_pair2,
+                            crypto::GenerateHpkeKeyPair());
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<tvs::TvsService> tvs_service,
-      CreateTvs(kTvsPrimaryKey,
-                /*test_user_data=*/{key_manager::TestUserData{
-                    .user_id = "1",
-                    .user_authentication_public_key =
-                        client_authentication_key.public_key,
-                    .key_id = "2",
-                    .secret = std::string(app_key2.GetStringView()),
-                    .public_key = "1-public-key",
-                }}));
+      CreateTvs(
+          kTvsPrimaryKey,
+          /*test_user_data=*/{key_manager::TestUserData{
+              .user_id = "1",
+              .user_authentication_public_key =
+                  client_authentication_key.public_key,
+              .key_id = "2",
+              .secret = std::string(key_pair2.private_key.GetStringView()),
+              .public_key = "1-public-key",
+          }}));
   std::unique_ptr<grpc::Server> tvs_server =
       grpc::ServerBuilder()
           .AddListeningPort(absl::StrCat("0.0.0.0:", test_tvs.ip_port->port()),
@@ -558,7 +568,7 @@ TEST(TrustedApplication, EchoSingleTvsUpdate) {
   {
     TrustedApplicationClient app_client(
         absl::StrCat("localhost:", test_launcher.ip_port->port()),
-        app_key2.GetStringView(), /*key_id=*/"2");
+        key_pair2.public_key, /*key_id=*/"2");
 
     HATS_ASSERT_OK_AND_ASSIGN(DecryptedResponse response,
                               app_client.SendEcho());
