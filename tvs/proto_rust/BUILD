@@ -43,8 +43,8 @@ cargo_build_script(
         "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
-        "//tvs/proto:appraisal_policies_proto",
-        "//tvs/proto:tvs_messages_proto",
+        "//tvs/proto:appraisal_policies.proto",
+        "//tvs/proto:tvs_messages.proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
         "@oak//proto:digest.proto",
@@ -57,7 +57,6 @@ cargo_build_script(
         "@com_google_protobuf//:protoc",
     ],
     deps = [
-        "@oak//oak_proto_build_utils",
         "@oak_crates_index//:prost-build",
     ],
 )

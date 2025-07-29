@@ -19,12 +19,12 @@
 # For more details, please check https://github.com/bazelbuild/bazel/issues/18958
 ###############################################################################
 bazel_dep(name = "rules_pkg", version = "1.0.1")
-bazel_dep(name = "rules_rust", version = "0.49.3")
-bazel_dep(name = "protobuf", version = "27.0", repo_name = "com_google_protobuf")
-bazel_dep(name = "grpc", version = "1.63.1", repo_name = "com_github_grpc_grpc")
+bazel_dep(name = "rules_rust", version = "0.61.0")
+bazel_dep(name = "protobuf", version = "30.0", repo_name = "com_google_protobuf")
+bazel_dep(name = "grpc", version = "1.74.0", repo_name = "com_github_grpc_grpc")
 bazel_dep(name = "rules_proto", version = "6.0.2", repo_name = "rules_proto")
 bazel_dep(name = "googletest", version = "1.14.0.bcr.1", repo_name = "com_google_googletest")
-bazel_dep(name = "abseil-cpp", version = "20240116.2", repo_name = "com_google_absl")
+bazel_dep(name = "abseil-cpp", version = "20250512.1", repo_name = "com_google_absl")
 bazel_dep(name = "rules_python", version = "0.35.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -36,13 +36,6 @@ python.toolchain(
 # TODO(b/409090030): Use updated libarchive that uses bcr2 (mirrored so less
 # flakey) over bcr1 or earlier (sourceware, which is flakey)
 bazel_dep(name = "bzip2", version = "1.0.8.bcr.2")
-
-git_override(
-    module_name = "abseil-cpp",
-    commit = "d9f501ef8482b3e6a41e3b544fde4569ad909c0b",
-    remote = "https://github.com/abseil/abseil-cpp",
-)
-
 bazel_dep(name = "depend_on_what_you_use", version = "0.5.0")
 
 # Used to support clangd
@@ -55,6 +48,10 @@ git_override(
     commit = "1e08f8e0507b6b6b1f4416a9a22cf5c28beaba93",
     remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
 )
+
+bazel_dep(name = "rules_rust_bindgen", version = "0.62.0")
+
+register_toolchains("@rules_rust_bindgen//:default_bindgen_toolchain")
 
 bazel_dep(name = "boringssl", version = "0.0.0-20230215-5c22014")
 git_override(
@@ -87,3 +84,181 @@ git_override(
     commit = "adb46ad79add825632b3b8807774eb06714bf3f1",
     remote = "https://github.com/jondo2010/rules_cc_embed_binary.git",
 )
+
+hats_crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+hats_crate.spec(
+    package = "hex",
+    version = "*",
+)
+hats_crate.spec(
+    package = "hpke",
+    version = "0.12.0",
+)
+hats_crate.spec(
+    features = [
+        "rand",
+        "serde",
+    ],
+    package = "num-bigint",
+    version = "0.4",
+)
+hats_crate.spec(
+    package = "p256",
+    version = "*",
+)
+hats_crate.spec(
+    default_features = False,
+    features = ["prost-derive"],
+    package = "prost",
+    version = "*",
+)
+hats_crate.spec(
+    package = "rand",
+    version = "0.8.5",
+)
+hats_crate.spec(
+    package = "rand_core",
+    version = "*",
+)
+hats_crate.spec(
+    default_features = False,
+    features = ["derive"],
+    package = "serde",
+    version = "*",
+)
+hats_crate.spec(
+    package = "serde_json",
+    version = "*",
+)
+hats_crate.spec(
+    package = "thiserror",
+    version = "*",
+)
+hats_crate.from_specs(name = "hats_crate_index")
+use_repo(hats_crate, "hats_crate_index")
+
+enclave_crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+enclave_crate.spec(
+    default_features = False,
+    features = ["alloc"],
+    package = "aead",
+    version = "0.5.2",
+)
+enclave_crate.spec(
+    default_features = False,
+    features = ["aes"],
+    package = "aes-gcm",
+    version = "0.10.3",
+)
+enclave_crate.spec(
+    default_features = False,
+    features = [
+        "der",
+        "pkcs8",
+        "signing",
+        "der",
+        "pem",
+        "pkcs8",
+    ],
+    package = "ecdsa",
+    version = "0.16.6",
+)
+enclave_crate.spec(
+    default_features = False,
+    features = ["rdrand"],
+    package = "getrandom",
+    version = "0.2.15",
+)
+enclave_crate.spec(
+    default_features = False,
+    package = "hkdf",
+    version = "0.12.3",
+)
+enclave_crate.spec(
+    default_features = False,
+    features = [
+        "alloc",
+        "arithmetic",
+        "ecdsa-core",
+        "ecdsa",
+        "pkcs8",
+    ],
+    package = "p256",
+    version = "0.13.2",
+)
+enclave_crate.spec(
+    default_features = False,
+    package = "pkcs8",
+    version = "0.10.2",
+)
+enclave_crate.spec(
+    default_features = False,
+    package = "primeorder",
+    version = "0.13.2",
+)
+enclave_crate.spec(
+    default_features = False,
+    package = "rand_chacha",
+    version = "0.3.1",
+)
+enclave_crate.spec(
+    default_features = False,
+    features = ["getrandom"],
+    package = "rand_core",
+    version = "0.6.4",
+)
+enclave_crate.spec(
+    default_features = False,
+    package = "sha2",
+    version = "0.10.8",
+)
+enclave_crate.spec(
+    package = "static_assertions",
+    version = "*",
+)
+enclave_crate.from_specs(name = "enclave_crate_index")
+use_repo(enclave_crate, "enclave_crate_index")
+
+sev_snp_utils_crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+sev_snp_utils_crate.spec(
+    package = "base64",
+    version = "0.20.0-alpha.1",
+)
+sev_snp_utils_crate.spec(
+    package = "bytemuck",
+    version = "1.12.3",
+)
+sev_snp_utils_crate.spec(
+    package = "hex",
+    version = "0.4.3",
+)
+sev_snp_utils_crate.spec(
+    package = "libc",
+    version = "0.2.134",
+)
+sev_snp_utils_crate.spec(
+    default_features = False,
+    features = ["future"],
+    package = "moka",
+    version = "0.12.10",
+)
+sev_snp_utils_crate.spec(
+    package = "once_cell",
+    version = "1.17.0",
+)
+sev_snp_utils_crate.spec(
+    package = "sha2",
+    version = "0.10.6",
+)
+sev_snp_utils_crate.spec(
+    default_features = False,
+    features = [
+        "v4",
+        "fast-rng",
+        "macro-diagnostics",
+    ],
+    package = "uuid",
+    version = "1.2.2",
+)
+sev_snp_utils_crate.from_specs(name = "sev_snp_utils_crate_index")
+use_repo(sev_snp_utils_crate, "sev_snp_utils_crate_index")

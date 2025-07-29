@@ -278,7 +278,8 @@ mod debug {
                 )
             };
 
-            let tcb_version = amd_sev.min_tcb_version.clone().unwrap_or_default();
+            #[allow(deprecated)]
+            let tcb_version = amd_sev.min_tcb_version.unwrap_or_default();
             return Ok(format!(
                 r#"
                   amd_sev {{
@@ -421,7 +422,9 @@ fn create_endorsements(tee_certificate: &[u8]) -> Endorsements {
     };
     Endorsements {
         r#type: Some(endorsements::Type::OakContainers(ends)),
-        event_endorsements: None,
+        events: vec![],
+        initial: None,
+        platform: None,
     }
 }
 
@@ -484,10 +487,14 @@ fn get_root_layer(
             if stage0.min_tcb_version.is_none() {
                 anyhow::bail!("min_tcb_version is not set");
             }
+            #[allow(deprecated)]
             Ok(RootLayerReferenceValues {
                 amd_sev: Some(AmdSevReferenceValues {
                     allow_debug: false,
-                    min_tcb_version: stage0.min_tcb_version.clone(),
+                    min_tcb_version: stage0.min_tcb_version,
+                    genoa: None,
+                    milan: None,
+                    turin: None,
                     stage0: Some(BinaryReferenceValue {
                         r#type: Some(binary_reference_value::Type::Digests(Digests {
                             digests: vec![RawDigest {
@@ -562,11 +569,6 @@ fn get_kernel_layer(measurement: &Measurement) -> anyhow::Result<KernelLayerRefe
                 &measurement.acpi_table_sha256,
             )?)),
         }),
-        // Deprecated fields that are not used anymore.
-        kernel_setup_data: None,
-        kernel_image: None,
-        kernel_cmd_line_regex: None,
-        kernel_cmd_line: None,
     })
 }
 
@@ -654,6 +656,7 @@ mod tests {
                                 microcode: 62,
                                 snp: 15,
                                 tee: 0,
+                                fmc: 0,
                             }),
                         })),
                     }),
@@ -693,6 +696,7 @@ mod tests {
                                 microcode: 62,
                                 snp: 15,
                                 tee: 0,
+                                fmc: 0,
                             }),
                         })),
                     }),
@@ -731,6 +735,7 @@ mod tests {
                                 microcode: 62,
                                 snp: 15,
                                 tee: 0,
+                                fmc: 0,
                             }),
                         })),
                     }),

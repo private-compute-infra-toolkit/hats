@@ -14,9 +14,13 @@
 
 use anyhow::{anyhow, Context};
 use clap::{Parser, ValueEnum};
+#[allow(deprecated)]
+use oak_attestation::ApplicationKeysAttester;
+use oak_attestation_types::attester::Attester;
 use oak_containers_orchestrator::ipc_server::create_services;
 use oak_containers_orchestrator::launcher_client::LauncherClient;
 use oak_proto_rust::oak::attestation::v1::{endorsements, Endorsements, OakContainersEndorsements};
+use prost::Message;
 use secret_sharing::SecretSplit;
 use std::{fs, path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
@@ -63,7 +67,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+pub async fn main() -> anyhow::Result<()> {
     oak_containers_orchestrator::logging::setup()?;
 
     let args = Args::parse();
@@ -101,26 +105,39 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // Load application.
-    let container_bundle = launcher_client
+    let mut container_bundle = launcher_client
         .get_container_bundle()
         .await
         .map_err(|error| anyhow!("couldn't get container bundle: {:?}", error))?;
 
-    // Generate attestation evidence and send it to the Hostlib.
-    let dice_builder = oak_containers_orchestrator::dice::load_stage1_dice_data()?;
-    let additional_claims =
-        oak_containers_attestation::measure_container_and_config(&container_bundle, &[]);
-    let evidence = dice_builder.add_application_keys(
-        additional_claims,
-        &instance_public_keys.encryption_public_key,
-        &instance_public_keys.signing_public_key,
-        if let Some(ref group_public_keys) = group_public_keys {
-            Some(&group_public_keys.encryption_public_key)
-        } else {
-            None
-        },
-        None,
-    )?;
+    // Create a container event and add it to the event log.
+    let mut attester: oak_attestation::dice::DiceAttester =
+        oak_containers_orchestrator::dice::load_stage1_dice_data()?;
+    let container_event = oak_containers_attestation::create_container_event(
+        container_bundle.clone(),
+        /*application_config=*/ &[0u8; 0][..],
+        &instance_public_keys,
+    );
+    let encoded_event = container_event.encode_to_vec();
+    attester.extend(&encoded_event)?;
+
+    // Add the container event to the DICE chain.
+    #[allow(deprecated)]
+    let evidence = {
+        let container_layer =
+            oak_containers_attestation::create_container_dice_layer(&container_event);
+        attester.add_application_keys(
+            container_layer,
+            &instance_public_keys.encryption_public_key,
+            &instance_public_keys.signing_public_key,
+            if let Some(ref group_public_keys) = group_public_keys {
+                Some(&group_public_keys.encryption_public_key)
+            } else {
+                None
+            },
+            None,
+        )?
+    };
 
     launcher_client
         .send_attestation_evidence(evidence.clone())
@@ -139,7 +156,9 @@ async fn main() -> anyhow::Result<()> {
                 container_layer: None,
             },
         )),
-        event_endorsements: None,
+        events: vec![],
+        initial: None,
+        platform: None,
     };
     let signing_key_clone = instance_keys.signing_key.clone();
     let (oak_orchestrator_server, oak_crypto_server) = create_services(
@@ -201,7 +220,7 @@ async fn main() -> anyhow::Result<()> {
             cancellation_token.clone(),
         ),
         oak_containers_orchestrator::container_runtime::run(
-            &container_bundle,
+            &mut container_bundle,
             &args.container_dir,
             user.uid,
             user.gid,

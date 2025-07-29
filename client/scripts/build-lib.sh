@@ -72,8 +72,8 @@ function build_oak_containers_kernel() {
   if [[ -f "$BUILD_DIR//bzImage" ]]; then return; fi
   printf "\nBUILDING OAK CONTAINERS KERNEL...\n"
   pushd ../../submodules/oak/
-  nix_develop --extra-experimental-features 'nix-command flakes' --command just oak_containers_kernel && \
-    rsync artifacts/oak_containers_kernel "$BUILD_DIR//bzImage"
+  nix_develop --extra-experimental-features 'nix-command flakes' --command just github-oak_containers_kernel && \
+    rsync artifacts/binaries/oak_containers_kernel "$BUILD_DIR//bzImage"
   popd
 }
 
@@ -102,8 +102,8 @@ function build_oak_containers_stage0() {
   if [[ -f "$BUILD_DIR/stage0_bin" ]]; then return; fi
   printf "\nBUILDING OAK CONTAINERS STAGE0...\n"
   pushd ../../submodules/oak
-  nix_develop --extra-experimental-features 'nix-command flakes' --command just stage0_bin && \
-    rsync ./artifacts/stage0_bin "$BUILD_DIR/stage0_bin"
+  nix_develop --extra-experimental-features 'nix-command flakes' --command just github-stage0_bin && \
+    rsync ./artifacts/binaries/stage0_bin "$BUILD_DIR/stage0_bin"
   popd
 }
 
@@ -112,8 +112,8 @@ function build_oak_containers_stage1() {
   if [[ -f "$BUILD_DIR/stage1.cpio" ]]; then return; fi
   printf "\nBUILDING OAK CONTAINERS STAGE1...\n"
   pushd ../../submodules/oak
-  nix_develop --extra-experimental-features 'nix-command flakes' --command just stage1_cpio && \
-    rsync ./artifacts/stage1.cpio "$BUILD_DIR/stage1.cpio"
+  nix_develop --extra-experimental-features 'nix-command flakes' --command just github-stage1_cpio && \
+    rsync ./artifacts/binaries/stage1.cpio "$BUILD_DIR/stage1.cpio"
   popd
 }
 
@@ -154,37 +154,12 @@ exports_files([
   "oak_containers_syslogd",
 ])
 EOF
+  if [[ -f "$BUILD_DIR/oak_containers_syslogd" ]]; then return; fi
   printf "\nBUILDING OAK CONTAINERS SYSLOGD...\n"
-  . /etc/os-release
-  if [[ "$ID" == "centos" ]]
-  then
-    printf "\nCentOS requires building inside a docker container to prevent linking issue"
-    pushd ../../submodules/oak
-    docker build . --tag local_oak_builder:latest
-    popd
-    pushd ../..
-    docker run -v "$(readlink -f .)":/workspace -v "$(readlink -f "$BUILD_DIR")":/hats_build -w /workspace local_oak_builder:latest /bin/bash -c "
-    cd /workspace/submodules/oak && git config --global --add safe.directory /workspace/submodules/oak && git status && \
-    nix develop --extra-experimental-features 'nix-command flakes' \
-      --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
-    cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd /hats_build/oak_containers_syslogd"
-    popd
-  else
-    if [[ -f "$BUILD_DIR/oak_containers_syslogd" ]]; then return; fi
-    pushd ../../submodules/oak
-    if [[ "${USE_OAK_DOCKER:-}" == 1 ]]; then
-      # bazel-bin in docker_run is local, so copy in same run
-      # Also oak docker script doesn't see hats, so artifact as middle
-      ./scripts/docker_run /bin/bash -c "nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
-        cp -f bazel-bin/oak_containers/syslogd/oak_containers_syslogd artifacts/oak_containers_syslogd"
-      rsync artifacts/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
-    else
-      nix develop --command bazel build -c opt //oak_containers/syslogd:oak_containers_syslogd && \
-        cp -f --preserve=timestamp bazel-bin/oak_containers/syslogd/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
-    fi
-
-    popd
-  fi
+  pushd ../../submodules/oak/
+  nix_develop --extra-experimental-features 'nix-command flakes' --command just github-oak_containers_syslogd && \
+    rsync artifacts/binaries/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
+  popd
 }
 
 function build_all_hats_containers_images() {

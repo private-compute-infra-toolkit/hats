@@ -185,7 +185,7 @@ TEST(KeyFetcherGcp, GetLatestNPoliciesForDigest) {
   constexpr absl::string_view kApplicationDigest = "some_digest";
   EXPECT_CALL(*mock_connection, ExecuteQuery)
       .WillOnce(
-          [&mock_result_set_source](
+          [&mock_result_set_source, &kApplicationDigest](
               const google::cloud::spanner::Connection::SqlParams& sql_params)
               -> google::cloud::spanner::RowStream {
             // Make sure the right parameter is specified in the code.

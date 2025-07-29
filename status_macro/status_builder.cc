@@ -96,8 +96,12 @@ void StatusBuilder::ConditionallyLog(const absl::Status& status) const {
   const std::string maybe_stack_trace =
       rep_->should_log_stack_trace ? absl::StrCat(" ", CurrentStackTrace())
                                    : "";
-  absl::log_internal::LogMessage(loc_.file_name(), loc_.line(), severity)
-      << status << maybe_stack_trace;
+  absl::log_internal::LogMessage log_message(loc_.file_name(), loc_.line(),
+                                             severity);
+  log_message << status << maybe_stack_trace;
+  // We need to flush manually here since the destructor checks for minimum
+  // logging version, which causes unit-tests to fail.
+  log_message.Flush();
 }
 
 absl::Status StatusBuilder::CreateStatusAndConditionallyLog() && {

@@ -16,7 +16,6 @@
 #![feature(never_type)]
 #[allow(unused_attributes)]
 #[allow(clippy::let_unit_value)]
-
 pub mod proto {
     pub mod privacy_sandbox {
         pub mod tvs {

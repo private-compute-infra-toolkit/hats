@@ -17,6 +17,7 @@ use client_proto::privacy_sandbox::client::{
     launcher_service_client, FetchOrchestratorMetadataResponse, ForwardingTvsMessage,
 };
 use client_proto::privacy_sandbox::tvs::OpaqueMessage;
+use hyper_util::rt::TokioIo;
 use mockall::automock;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;
@@ -100,7 +101,7 @@ impl TvsGrpcClient {
                     .context("failed to extract authority from vsock address")?
                     .as_str()
                     .split(':')
-                    .last()
+                    .next_back()
                     .context("failed to extract port from vsock address")?
                     .parse::<u32>()
                     .context("invalid vsock port")?,
@@ -110,8 +111,11 @@ impl TvsGrpcClient {
             // Here we pass a fake URI schema so that it fails and falls
             // back to connect_with_connector where we create a vSock stream.
             // https://github.com/hyperium/tonic/issues/608
+            let connector = service_fn(move |_| async move {
+                Ok::<_, std::io::Error>(TokioIo::new(VsockStream::connect(vsock_addr).await?))
+            });
             Channel::builder(tonic::transport::Uri::from_static("http://0:0"))
-                .connect_with_connector(service_fn(move |_| VsockStream::connect(vsock_addr)))
+                .connect_with_connector(connector)
                 .await?
         } else {
             Channel::builder(addr.clone()).connect().await?
@@ -363,6 +367,7 @@ mod tests {
                                 microcode: 62,
                                 snp: 15,
                                 tee: 0,
+                                fmc: 0,
                             }),
                         })),
                     }),

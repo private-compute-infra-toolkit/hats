@@ -133,6 +133,7 @@ cc_library(
         "//client/proto:launcher_cc_proto",
         "//tvs/proto:tvs_cc_grpc",
         "//tvs/proto:tvs_messages_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:empty_cc_proto",
         "@oak//proto/containers:interfaces_cc_grpc",

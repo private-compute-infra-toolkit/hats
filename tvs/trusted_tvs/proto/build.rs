@@ -20,6 +20,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &[".", protobuf_include_path],
         Default::default(),
     );
-    oak_proto_build_utils::fix_prost_derives()?;
     Ok(())
 }

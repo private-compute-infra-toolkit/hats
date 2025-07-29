@@ -50,7 +50,7 @@ cargo_build_script(
         "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
     },
     data = [
-        ":tvs_enclave_proto",
+        ":tvs_enclave.proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
     ],
@@ -59,6 +59,5 @@ cargo_build_script(
     ],
     deps = [
         "@oak//micro_rpc_build",
-        "@oak//oak_proto_build_utils",
     ],
 )

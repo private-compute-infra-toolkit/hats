@@ -42,8 +42,8 @@ cargo_build_script(
     },
     data = [
         "//client/proto:launcher.proto",
-        "//client/proto:orchestrator_proto",
-        "//tvs/proto:tvs_messages_proto",
+        "//client/proto:orchestrator.proto",
+        "//tvs/proto:tvs_messages.proto",
         "@com_google_protobuf//:descriptor_proto_srcs",
         "@com_google_protobuf//:well_known_type_protos",
         "@oak//proto:digest.proto",

@@ -34,6 +34,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &["../proto", oak_include_path, protobuf_include_path],
         )?;
 
-    oak_proto_build_utils::fix_prost_derives()?;
     Ok(())
 }

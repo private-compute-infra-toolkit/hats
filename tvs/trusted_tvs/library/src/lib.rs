@@ -37,7 +37,6 @@
 ///    crate to C++.
 /// 3. enclave: export TvsEnclave RPC service over MicroRpc to be used in Oak's
 ///    restricted kernel.
-
 #[cfg(feature = "enclave")]
 pub mod enclave_service;
 #[cfg(feature = "default")]

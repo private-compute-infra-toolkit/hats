@@ -21,7 +21,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use tar::Archive;
 use tempfile::TempDir;
-use zerocopy::AsBytes;
+use zerocopy::{Immutable, IntoBytes};
 
 #[derive(Parser)]
 struct Args {
@@ -125,7 +125,7 @@ const RESERVED: u32 = 2;
 const ACPI: u32 = 3;
 
 #[repr(C, packed)]
-#[derive(AsBytes, Debug, Copy, Clone)]
+#[derive(IntoBytes, Debug, Copy, Clone, Immutable)]
 struct BootE820Entry {
     addr: usize,
     size: usize,

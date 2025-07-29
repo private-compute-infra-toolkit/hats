@@ -37,6 +37,7 @@
 #include "grpcpp/support/sync_stream.h"
 #include "gtest/gtest.h"
 #include "key_manager/test-key-fetcher.h"
+#include "src/google/protobuf/io/zero_copy_stream_impl.h"
 #include "src/google/protobuf/test_textproto.h"
 #include "status_macro/status_macros.h"
 #include "status_macro/status_test_macros.h"

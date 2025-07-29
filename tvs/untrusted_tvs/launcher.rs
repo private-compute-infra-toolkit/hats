@@ -121,6 +121,8 @@ impl Launcher {
                     memory_size: Some(params.memory_size.clone()),
                     gdb: None,
                     pci_passthrough: None,
+                    initial_data_version: oak_launcher_utils::launcher::InitialDataVersion::default(
+                    ),
                 },
             ))
             .map_err(|err| anyhow::anyhow!("Failed to launch qemu: {err}"))?;
@@ -177,7 +179,7 @@ pub struct EnclaveClient<'a> {
     inner_client: TvsEnclaveAsyncClient<ConnectorHandle>,
 }
 
-impl<'a> EnclaveClient<'a> {
+impl EnclaveClient<'_> {
     pub fn provision_keys(&mut self, private_key: &[u8]) -> anyhow::Result<()> {
         self.runtime
             .block_on(self.inner_client.provision_keys(&ProvisionKeysRequest {

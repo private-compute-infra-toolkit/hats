@@ -1,12 +1,21 @@
 diff --git a/MODULE.bazel b/MODULE.bazel
-index 1d181bee4..304801f55 100644
+index 1d181bee4..71e733054 100644
 --- MODULE.bazel
 +++ MODULE.bazel
-@@ -30,3 +30,4 @@ bazel_dep(name = "googletest", version = "1.14.0.bcr.1")
+@@ -30,3 +30,6 @@ bazel_dep(name = "googletest", version = "1.14.0.bcr.1")
  
  bazel_dep(name = "platforms", version = "0.0.9")
  bazel_dep(name = "rules_cc", version = "0.0.9")
-+bazel_dep(name = "rules_rust", version = "0.45.1")
++bazel_dep(name = "rules_rust", version = "0.61.0")
++bazel_dep(name = "rules_rust_bindgen", version = "0.62.0")
++register_toolchains("@rules_rust_bindgen//:default_bindgen_toolchain")
+diff --git a/WORKSPACE b/WORKSPACE
+new file mode 100755
+index 000000000..4f6eac9d5
+--- /dev/null
++++ WORKSPACE
+@@ -0,0 +1 @@
++workspace(name = "boringssl~")
 diff --git a/rust/bssl-crypto/BUILD b/rust/bssl-crypto/BUILD
 new file mode 100644
 index 000000000..f0f41ac2c
@@ -49,14 +58,13 @@ index 000000000..f0f41ac2c
 +)
 diff --git a/rust/bssl-sys/BUILD b/rust/bssl-sys/BUILD
 new file mode 100644
-index 000000000..2f9de969d
+index 000000000..0ac032931
 --- /dev/null
 +++ rust/bssl-sys/BUILD
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,49 @@
 +load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test", "rust_binary")
-+load("@rules_rust//bindgen:defs.bzl", "rust_bindgen_library", "rust_bindgen")
++load("@rules_rust_bindgen//:defs.bzl", "rust_bindgen_library", "rust_bindgen")
 +load("//:util/util.bzl", "bssl_cc_binary", "bssl_cc_library", "bssl_cc_test")
-+
 +package(
 +    default_visibility = ["//visibility:public"],
 +)

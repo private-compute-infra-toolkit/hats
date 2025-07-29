@@ -233,6 +233,7 @@ mod tests {
                                 microcode: 62,
                                 snp: 15,
                                 tee: 0,
+                                fmc: 0,
                             }),
                         })),
                     }),

@@ -22,8 +22,7 @@ rules_rust_dependencies()
 RUST_EDITION = "2021"
 
 RUST_VERSIONS = [
-    "1.76.0",
-    "nightly/2024-09-01",
+    "nightly/2025-03-01",
 ]
 
 rust_register_toolchains(
@@ -56,26 +55,6 @@ load("@rules_rust//tools/rust_analyzer:deps.bzl", "rust_analyzer_dependencies")
 
 rust_analyzer_dependencies()
 
-load("@rules_rust//proto/prost/private:repositories.bzl", "rust_prost_dependencies", "rust_prost_register_toolchains")
-
-rust_prost_dependencies()
-
-rust_prost_register_toolchains()
-
-load("@rules_rust//proto/prost:transitive_repositories.bzl", "rust_prost_transitive_repositories")
-
-rust_prost_transitive_repositories()
-
-load("@rules_rust//proto/protobuf:repositories.bzl", "rust_proto_protobuf_dependencies", "rust_proto_protobuf_register_toolchains")
-
-rust_proto_protobuf_dependencies()
-
-rust_proto_protobuf_register_toolchains()
-
-load("@rules_rust//proto/protobuf:transitive_repositories.bzl", "rust_proto_protobuf_transitive_repositories")
-
-rust_proto_protobuf_transitive_repositories()
-
 # Java gRPC support -- required by oak.
 # https://github.com/grpc/grpc-java
 http_archive(
@@ -88,68 +67,36 @@ http_archive(
     ],
 )
 
-load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
-
-crate_universe_dependencies(bootstrap = True)
-
-load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository")
-
-# Stash packages used by rust code in a repository.
-crates_repository(
-    name = "hats_crate_index",
-    cargo_lockfile = "//:Cargo.bazel.lock",
-    lockfile = "//:cargo-bazel-lock.json",
-    packages = {
-        "hex": crate.spec(version = "*"),
-        "hpke": crate.spec(version = "*"),
-        "num-bigint": crate.spec(
-            features = [
-                "rand",
-                "serde",
-            ],
-            version = "*",
-        ),
-        "p256": crate.spec(version = "*"),
-        "prost": crate.spec(
-            default_features = False,
-            features = ["prost-derive"],
-            version = "*",
-        ),
-        "rand": crate.spec(version = "*"),
-        "rand_core": crate.spec(version = "*"),
-        "serde": crate.spec(
-            default_features = False,
-            features = ["derive"],
-            version = "*",
-        ),
-        "serde_json": crate.spec(version = "*"),
-        "thiserror": crate.spec(
-            version = "*",
-        ),
-    },
-)
-
-load("@hats_crate_index//:defs.bzl", hats_crate_repositories = "crate_repositories")
-
-hats_crate_repositories()
-
 http_archive(
     name = "oak",
-    sha256 = "bfcb5b72bc4ba0829cec3285cf415736af13c712e6f25ab34c69e811942b98d7",
-    strip_prefix = "oak-55607dd8e075bca3607b616efca041a16bd1dedf",
-    url = "https://github.com/project-oak/oak/archive/55607dd8e075bca3607b616efca041a16bd1dedf.tar.gz",
+    sha256 = "63fde89ca958db3f5c3759396bc91df73d06d09c06a4ab9e501bf958fc64c910",
+    strip_prefix = "oak-d83ae4deadebd2a058af3bb8b91cad4d2925f81c",
+    url = "https://github.com/project-oak/oak/archive/d83ae4deadebd2a058af3bb8b91cad4d2925f81c.tar.gz",
 )
+
+load("@oak//bazel/llvm:deps.bzl", "load_llvm_repositories")
+
+load_llvm_repositories()
+
+load("@oak//bazel/llvm:defs.bzl", "setup_llvm_toolchains")
+
+setup_llvm_toolchains()
+
+load("@oak//bazel/llvm:reg.bzl", "register_llvm_toolchains")
+
+register_llvm_toolchains()
+
+load("@oak//bazel/crates:patched_crates.bzl", "load_patched_crates")
+
+load_patched_crates()
+
+load("@oak//bazel/rust:defs.bzl", "setup_rust_dependencies")
+
+setup_rust_dependencies()
 
 load("@oak//bazel/crates:repositories.bzl", "create_oak_crate_repositories")
 
-create_oak_crate_repositories(
-    cargo_lockfile = "//:Cargo_oak.bazel.lock",
-    lockfile = "//:cargo-oak-bazel-lock.json",
-    no_std_cargo_lockfile = "//:Cargo_oak_no_std.bazel.lock",
-    no_std_lockfile = "//:cargo-oak-no-std-bazel-lock.json",
-    no_std_no_avx_cargo_lockfile = "//:Cargo_oak_no_std_no_avx-test.bazel.lock",
-    no_std_no_avx_lockfile = "//:cargo-oak-no-std-no-avx-test-bazel-lock.json",
-)
+create_oak_crate_repositories()
 
 load("@oak//bazel/crates:crates.bzl", "load_oak_crate_repositories")
 
@@ -159,82 +106,6 @@ local_repository(
     name = "enclave",
     path = "third_party/enclave",
 )
-
-crates_repository(
-    name = "enclave_crate_index",
-    cargo_lockfile = "//:Cargo.enclave-bazel.lock",
-    lockfile = "//:cargo-enclave-bazel-lock.json",
-    packages = {
-        "aead": crate.spec(
-            default_features = False,
-            features = ["alloc"],
-            version = "0.5.2",
-        ),
-        "aes-gcm": crate.spec(
-            default_features = False,
-            features = ["aes"],
-            version = "0.10.3",
-        ),
-        "ecdsa": crate.spec(
-            default_features = False,
-            features = [
-                "der",
-                "pkcs8",
-                "signing",
-                "der",
-                "pem",
-                "pkcs8",
-            ],
-            version = "0.16.6",
-        ),
-        "getrandom": crate.spec(
-            default_features = False,
-            features = ["rdrand"],
-            version = "0.2.15",
-        ),
-        "hkdf": crate.spec(
-            default_features = False,
-            version = "0.12.3",
-        ),
-        "p256": crate.spec(
-            default_features = False,
-            features = [
-                "alloc",
-                "arithmetic",
-                "ecdsa-core",
-                "ecdsa",
-                "pkcs8",
-            ],
-            version = "0.13.2",
-        ),
-        "pkcs8": crate.spec(
-            default_features = False,
-            version = "0.10.2",
-        ),
-        "primeorder": crate.spec(
-            default_features = False,
-            version = "0.13.2",
-        ),
-        "rand_chacha": crate.spec(
-            default_features = False,
-            version = "0.3.1",
-        ),
-        "rand_core": crate.spec(
-            default_features = False,
-            features = ["getrandom"],
-            version = "0.6.4",
-        ),
-        "sha2": crate.spec(
-            default_features = False,
-            version = "0.10.8",
-        ),
-        "static_assertions": crate.spec(version = "*"),
-    },
-)
-
-load("@enclave_crate_index//:defs.bzl", enclave_crate_repositories = "crate_repositories")
-
-enclave_crate_repositories()
 
 http_archive(
     name = "google_cloud_cpp",
@@ -353,35 +224,3 @@ local_repository(
     name = "sev-snp-utils",
     path = "third_party/sev-snp-utils",
 )
-
-crates_repository(
-    name = "sev_snp_utils_crate_index",
-    cargo_lockfile = "//:Cargo.sev_snp_util-bazel.lock",
-    lockfile = "//:cargo-sev_snp_util-bazel-lock.json",
-    packages = {
-        "base64": crate.spec(version = "0.20.0-alpha.1"),
-        "bytemuck": crate.spec(version = "1.12.3"),
-        "hex": crate.spec(version = "0.4.3"),
-        "libc": crate.spec(version = "0.2.134"),
-        "moka": crate.spec(
-            default_features = False,
-            features = ["future"],
-            version = "0.12.10",
-        ),
-        "once_cell": crate.spec(version = "1.17.0"),
-        "sha2": crate.spec(version = "0.10.6"),
-        "uuid": crate.spec(
-            default_features = False,
-            features = [
-                "v4",
-                "fast-rng",
-                "macro-diagnostics",
-            ],
-            version = "1.2.2",
-        ),
-    },
-)
-
-load("@sev_snp_utils_crate_index//:defs.bzl", sev_snp_utils_crate_repositories = "crate_repositories")
-
-sev_snp_utils_crate_repositories()
