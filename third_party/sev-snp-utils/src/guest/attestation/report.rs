@@ -199,15 +199,14 @@ pub struct AttestationReport {
     pub body: Vec<u8>,
     pub version: u32,
     pub guest_svn: u32,
-    pub policy: u64,
+    pub policy: u64, // THIS IS NOW A BITFIELD
     pub family_id: FamilyId,
     pub image_id: ImageId,
     pub vmpl: u32,
     pub signature_algo: u32,
-    pub platform_version: TcbVersion,
+    pub platform_version: TcbVersion, // current_tcb
     pub platform_info: u64,
-    pub flags: u32,
-    reserved0: u32,
+    pub flags: u32, // this is now called key_info but still u32
     pub report_data: Vec<u8>,
     pub measurement: LaunchDigest,
     pub host_data: Vec<u8>,
@@ -216,24 +215,22 @@ pub struct AttestationReport {
     pub report_id: Vec<u8>,
     pub report_id_ma: Vec<u8>,
     pub reported_tcb: TcbVersion,
-    reserved1: Vec<u8>,
+    pub cpuid_fam_id: u8,
+    pub cpuid_mod_id: u8,
+    pub cpuid_step: u8,
     pub chip_id: Vec<u8>,
     pub committed_tcb: TcbVersion,
     pub current_build: BuildVersion,
     pub committed_build: BuildVersion,
     pub launch_tcb: TcbVersion,
-    reserved2: Vec<u8>,
     pub signature: Signature,
 }
 
 #[allow(dead_code)]
 impl AttestationReport {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let file = File::open(&path)
-            .map_err(|e| error::io(e, None))?;
-        let file_len = file.metadata()
-            .map_err(|e| error::io(e, None))?
-            .len();
+        let file = File::open(&path).map_err(|e| error::io(e, None))?;
+        let file_len = file.metadata().map_err(|e| error::io(e, None))?.len();
 
         if file_len < REPORT_LAST_POSITION {
             return Err(error::io(
@@ -248,29 +245,20 @@ impl AttestationReport {
 
     pub fn from_reader(mut rdr: impl Read + Seek) -> Result<Self> {
         // Take note of reader position.
-        let reader_initial_pos = rdr.stream_position()
-            .map_err(error::map_io_err)?;
+        let reader_initial_pos = rdr.stream_position().map_err(error::map_io_err)?;
 
         // Start parsing.
-        let version = rdr.read_u32::<LittleEndian>()
-            .map_err(error::map_io_err)?;
-        let guest_svn = rdr.read_u32::<LittleEndian>()
-            .map_err(error::map_io_err)?;
-        let policy = rdr.read_u64::<LittleEndian>()
-            .map_err(error::map_io_err)?;
+        let version = rdr.read_u32::<LittleEndian>().map_err(error::map_io_err)?;
+        let guest_svn = rdr.read_u32::<LittleEndian>().map_err(error::map_io_err)?;
+        let policy = rdr.read_u64::<LittleEndian>().map_err(error::map_io_err)?;
         let family_id = FamilyId::from_reader(&mut rdr)?;
         let image_id = ImageId::from_reader(&mut rdr)?;
-        let vmpl = rdr.read_u32::<LittleEndian>()
-            .map_err(error::map_io_err)?;
-        let signature_algo = rdr.read_u32::<LittleEndian>()
-            .map_err(error::map_io_err)?;
+        let vmpl = rdr.read_u32::<LittleEndian>().map_err(error::map_io_err)?;
+        let signature_algo = rdr.read_u32::<LittleEndian>().map_err(error::map_io_err)?;
         let platform_version = TcbVersion::from_reader(&mut rdr)?;
-        let platform_info = rdr.read_u64::<LittleEndian>()
-            .map_err(error::map_io_err)?;
-        let flags = rdr.read_u32::<LittleEndian>()
-            .map_err(error::map_io_err)?;
-        let reserved0 = rdr.read_u32::<LittleEndian>()
-            .map_err(error::map_io_err)?;
+        let platform_info = rdr.read_u64::<LittleEndian>().map_err(error::map_io_err)?;
+        let flags = rdr.read_u32::<LittleEndian>().map_err(error::map_io_err)?; // RAD: now called key_info
+        let _ = rdr.read_u32::<LittleEndian>().map_err(error::map_io_err)?; // RAD: padding
         let report_data = read_exact_to_bin_vec(&mut rdr, 64)?;
         let measurement = LaunchDigest::from_reader(&mut rdr)?;
         let host_data = read_exact_to_bin_vec(&mut rdr, 32)?;
@@ -279,26 +267,34 @@ impl AttestationReport {
         let report_id = read_exact_to_bin_vec(&mut rdr, 32)?;
         let report_id_ma = read_exact_to_bin_vec(&mut rdr, 32)?;
         let reported_tcb = TcbVersion::from_reader(&mut rdr)?;
-        let reserved1 = read_exact_to_bin_vec(&mut rdr, 24)?;
+        let cpuid_fam_id = rdr.read_u8().map_err(error::map_io_err)?;
+        let cpuid_mod_id = rdr.read_u8().map_err(error::map_io_err)?;
+        let cpuid_step = rdr.read_u8().map_err(error::map_io_err)?;
+        let _ = read_exact_to_bin_vec(&mut rdr, 21)?; // padding
         let chip_id = read_exact_to_bin_vec(&mut rdr, 64)?;
         let committed_tcb = TcbVersion::from_reader(&mut rdr)?;
         let current_build = BuildVersion::from_reader(&mut rdr)?;
+        let _ = rdr.read_u8().map_err(error::map_io_err)?; // padding
         let committed_build = BuildVersion::from_reader(&mut rdr)?;
+        let _ = rdr.read_u8().map_err(error::map_io_err)?; // padding
         let launch_tcb = TcbVersion::from_reader(&mut rdr)?;
-        let reserved2 = read_exact_to_bin_vec(&mut rdr, 168)?;
-
-        let signature_pos = rdr.stream_position()
-            .map_err(error::map_io_err)?;
+        let _ = read_exact_to_bin_vec(&mut rdr, 168)?; // reserved: 168 bytes
+        let signature_pos = rdr.stream_position().map_err(error::map_io_err)?;
         let signature = Signature::from_reader(&mut rdr)?;
 
         // Rewind to initial reader position and read body (without signature)
         let body_byte_len = signature_pos - reader_initial_pos;
-        let mut body = vec![0;body_byte_len as usize];
+        if body_byte_len != 0x29F + 1 {
+            return Err(validation(format!("Invalid body length: expected {}, got {}",
+                0x29F + 1,
+                body_byte_len
+            ), None));
+        }
+        let mut body = vec![0; body_byte_len as usize];
 
         rdr.seek(SeekFrom::Start(reader_initial_pos))
             .map_err(error::map_io_err)?;
-        rdr.read(&mut body)
-            .map_err(error::map_io_err)?;
+        rdr.read(&mut body).map_err(error::map_io_err)?;
 
         Ok(AttestationReport {
             body,
@@ -312,7 +308,6 @@ impl AttestationReport {
             platform_version,
             platform_info,
             flags,
-            reserved0,
             report_data,
             measurement,
             host_data,
@@ -321,13 +316,14 @@ impl AttestationReport {
             report_id,
             report_id_ma,
             reported_tcb,
-            reserved1,
+            cpuid_fam_id,
+            cpuid_mod_id,
+            cpuid_step,
             chip_id,
             committed_tcb,
             current_build,
             committed_build,
             launch_tcb,
-            reserved2,
             signature,
         })
     }
