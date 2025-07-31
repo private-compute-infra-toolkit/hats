@@ -22,6 +22,12 @@ impl GCTX {
         }
     }
 
+    pub fn new_from_seed(seed: [u8; 48]) -> Self {
+        Self {
+            ld: LaunchDigest(seed),
+        }
+    }
+
     pub fn ld(&self) -> &LaunchDigest {
         &self.ld
     }

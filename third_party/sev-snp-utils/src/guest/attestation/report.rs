@@ -4,16 +4,16 @@ use std::io::{Seek, SeekFrom};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use openssl::ecdsa::EcdsaSig;
-use openssl::error::ErrorStack;
 use sha2::{Digest, Sha256, Sha384};
 use sha2::digest::Output;
 
-use crate::common::binary::{fmt_bin_vec_to_decimal, fmt_bin_vec_to_hex, read_exact_to_bin_vec};
-use crate::common::cert::ecdsa_sig;
-use crate::error;
-use crate::error::Result as Result;
-use crate::guest::identity::{FamilyId, ImageId, LaunchDigest};
+use common::binary::{fmt_bin_vec_to_decimal, fmt_bin_vec_to_hex, read_exact_to_bin_vec};
+use error::Result as Result;
+use error::validation;
+use identity::{FamilyId, ImageId, LaunchDigest};
+
+#[cfg(feature = "openssl")]
+use openssl::{ecdsa::EcdsaSig, error::ErrorStack};
 
 const REPORT_LAST_POSITION: u64 = 960; // End of signature.
 
@@ -187,7 +187,10 @@ impl Signature {
     pub fn s_hex(&self) -> String {
         fmt_bin_vec_to_hex(self.s.as_ref())
     }
+}
 
+#[cfg(feature = "openssl")]
+impl Signature {
     pub fn to_ecdsa_sig(&self) -> core::result::Result<EcdsaSig, ErrorStack> {
         ecdsa_sig(self.r.as_ref(), self.s.as_ref())
     }

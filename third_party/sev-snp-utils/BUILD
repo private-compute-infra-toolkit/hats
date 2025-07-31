@@ -12,6 +12,7 @@ rust_library(
         ":common",
         ":error",
         ":identity",
+        ":vcpu_types",
         "@sev_snp_utils_crate_index//:bytemuck",
         "@sev_snp_utils_crate_index//:libc",
         "@sev_snp_utils_crate_index//:sha2",
@@ -46,5 +47,26 @@ rust_library(
         ":error",
         "@sev_snp_utils_crate_index//:sha2",
         "@sev_snp_utils_crate_index//:uuid",
+    ],
+)
+
+rust_library(
+    name = "vcpu_types",
+    srcs = ["src/guest/measure/vcpu_types.rs"],
+    deps = [
+        ":error",
+    ],
+)
+
+rust_library(
+    name = "attestation_report",
+    srcs = ["src/guest/attestation/report.rs"],
+    deps = [
+        ":common",
+        ":error",
+        ":identity",
+        ":vcpu_types",
+        "@sev_snp_utils_crate_index//:byteorder",
+        "@sev_snp_utils_crate_index//:sha2",
     ],
 )

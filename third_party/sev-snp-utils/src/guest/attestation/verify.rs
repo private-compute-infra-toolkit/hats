@@ -96,6 +96,7 @@ impl Verification for AttestationReport {
     }
 }
 
+#[cfg(feature = "openssl")]
 async fn verify_report_signature(report: &AttestationReport) -> Result<bool> {
     let vcek_ec = report.get_kds_vcek_ec_key().await?;
 

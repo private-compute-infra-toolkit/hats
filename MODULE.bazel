@@ -229,12 +229,20 @@ sev_snp_utils_crate.spec(
     version = "1.12.3",
 )
 sev_snp_utils_crate.spec(
+    package = "byteorder",
+    version = "1.4.3",
+)
+sev_snp_utils_crate.spec(
     package = "hex",
     version = "0.4.3",
 )
 sev_snp_utils_crate.spec(
     package = "libc",
     version = "0.2.134",
+)
+sev_snp_utils_crate.spec(
+    package = "log",
+    version = "0.4.19",
 )
 sev_snp_utils_crate.spec(
     default_features = False,
