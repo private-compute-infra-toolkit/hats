@@ -83,6 +83,9 @@ build:ci --show_timestamps
 # and avoid attempting to parallelize steps that are actually serialized by Bazel.
 build:ci --block_for_lock=false
 
+# Dynamic Attestation compile time flag
+build:dynamic_attestation --define=enable_dynamic_attestation=true
+
 ############################################################
 # Use `bazel test --config=debug` to enable these settings #
 ############################################################

@@ -18,23 +18,42 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+config_setting(
+    name = "dynamic_attestation_enabled",
+    define_values = {"enable_dynamic_attestation": "true"},
+)
+
 rust_library(
     name = "policy-manager",
     srcs = glob(["src/**"]),
-    crate_features = ["regex"],
+    crate_features = ["regex"] + select({
+        ":dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//tvs/appraisal_policies/policy_signature:policy-signature",
         "//tvs/proto_rust:tvs-proto",
         "//tvs/trusted_tvs/types:trusted-tvs-types",
-        "@hats_crate_index//:hex",
         "@oak//oak_attestation_verification:oak_attestation_verification_with_regex",
         "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",
+        "@oak_crates_index//:hex",
         "@oak_crates_index//:log",
         "@oak_crates_index//:p256",
         "@oak_crates_index//:prost",
         "@oak_crates_index//:regex",
-    ],
+    ] + select({
+        # Dependencies ONLY for dynamic attestation.
+        ":dynamic_attestation_enabled": [
+            "@oak//oak_sev_snp_attestation_report",
+            "@oak_crates_index//:zerocopy",
+            "@sev-snp-utils//:common",
+            "@sev-snp-utils//:error",
+            "@sev-snp-utils//:measure",
+            "@sev-snp-utils//:vcpu_types",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 rust_test(
@@ -42,7 +61,22 @@ rust_test(
     size = "small",
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = ":policy-manager",
-    crate_features = ["regex"],
+    crate_features = ["regex"] + select({
+        ":dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
+    deps = select({
+        ":dynamic_attestation_enabled": [
+            "@oak//oak_sev_snp_attestation_report",
+            "@oak_crates_index//:hex",
+            "@oak_crates_index//:zerocopy",
+            "@sev-snp-utils//:common",
+            "@sev-snp-utils//:error",
+            "@sev-snp-utils//:measure",
+            "@sev-snp-utils//:vcpu_types",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 rust_library(

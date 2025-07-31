@@ -46,7 +46,8 @@ use tvs_proto::privacy_sandbox::tvs::{
 /// Linux kernel command line arguments against regex reference string.
 /// To make the crate fully no_std, turn off *regex* feature flag.
 /// This in turn would ignore Linux command line parameter validation.
-
+// PolicyManager struct when dynamic attestation is OFF
+#[cfg(not(feature = "dynamic_attestation"))]
 #[derive(Clone)]
 pub struct PolicyManager {
     enable_policy_signature: bool,
@@ -54,6 +55,17 @@ pub struct PolicyManager {
     reference_values: Vec<ReferenceValues>,
 }
 
+// PolicyManager struct when dynamic attestation is ON
+#[derive(Clone)]
+#[cfg(feature = "dynamic_attestation")]
+pub struct PolicyManager {
+    enable_policy_signature: bool,
+    accept_insecure_policies: bool,
+    appraisal_policies: Vec<AppraisalPolicy>,
+}
+
+// PolicyManager when dynamic attestation is OFF
+#[cfg(not(feature = "dynamic_attestation"))]
 impl PolicyManager {
     /// Create a new policy manager object. The function takes the following
     /// parameters:
@@ -113,6 +125,62 @@ impl PolicyManager {
     }
 }
 
+// PolicyManager when dynamic attestation is ON
+#[cfg(feature = "dynamic_attestation")]
+impl PolicyManager {
+    /// Create a new policy manager object. The function takes the following
+    /// parameters:
+    /// enable_policy_signature: whether or not to check signature on the
+    /// policies.
+    /// accept_insecure_policies: whether or not to accept policies allowing
+    /// measurement from non-CVM i.e. self signed reports.
+    pub fn new(enable_policy_signature: bool, accept_insecure_policies: bool) -> Self {
+        Self {
+            enable_policy_signature,
+            accept_insecure_policies,
+            appraisal_policies: vec![],
+        }
+    }
+
+    /// Create a new policy manager object with initial appraisal policies.
+    /// The function takes the following
+    /// parameters:
+    /// policies: serialized bytes of `AppraisalPolicies` to validate
+    /// measurements against.
+    /// enable_policy_signature: whether or not to check signature on the
+    /// policies.
+    /// accept_insecure_policies: whether or not to accept policies allowing
+    /// measurement from non-CVM i.e. self signed reports.
+    pub fn new_with_policies(
+        policies: &[u8],
+        enable_policy_signature: bool,
+        accept_insecure_policies: bool,
+    ) -> anyhow::Result<Self> {
+        let mut policy_manager = Self::new(enable_policy_signature, accept_insecure_policies);
+        policy_manager.update(policies)?;
+        Ok(policy_manager)
+    }
+
+    /// Update the appraisal policies used to check measurements against.
+    pub fn update(&mut self, policies: &[u8]) -> anyhow::Result<()> {
+        let appraisal_policies = AppraisalPolicies::decode(policies)
+            .map_err(|_| anyhow::anyhow!("Failed to decode (serialize) appraisal policy."))?;
+        let validated_policies = if self.enable_policy_signature {
+            let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
+            process_and_validate_policies(
+                appraisal_policies,
+                &[&policy_verifying_key],
+                /*num_pass_required=*/ 1,
+            )
+        } else {
+            process_and_validate_policies(appraisal_policies, &[], /*num_pass_required=*/ 0)
+        }?;
+
+        self.appraisal_policies = validated_policies;
+        Ok(())
+    }
+}
+
 #[cfg(feature = "regex")]
 impl EvidenceValidator for PolicyManager {
     /// Check evidence against the appraisal policies.
@@ -126,6 +194,7 @@ impl EvidenceValidator for PolicyManager {
     /// sign the root attestation report. The certificate is used to validate
     /// the root layer signature. The certificate is validated against a cert
     /// chain issued by the vendor.
+    #[cfg(not(feature = "dynamic_attestation"))]
     fn check_evidence(
         &self,
         time_milis: i64,
@@ -156,6 +225,186 @@ impl EvidenceValidator for PolicyManager {
         Err(anyhow::anyhow!(
             "Failed to verify report. No matching appraisal policy found"
         ))
+    }
+
+    // Dynamic Attestation implementation
+    #[cfg(feature = "dynamic_attestation")]
+    fn check_evidence(
+        &self,
+        time_milis: i64,
+        evidence: &Evidence,
+        tee_certificate: &[u8],
+    ) -> anyhow::Result<()> {
+        dynamic::check_evidence(self, time_milis, evidence, tee_certificate)
+    }
+}
+
+#[cfg(feature = "dynamic_attestation")]
+mod dynamic {
+    // imports
+    use super::*;
+    use {
+        anyhow::{anyhow, Context},
+        measure::{gctx::GCTX, types::SevMode, vcpu_types::CpuType, vmsa::VMSA},
+        oak_sev_snp_attestation_report::AttestationReport,
+        tvs_proto::privacy_sandbox::tvs::stage0_measurement::Type,
+        zerocopy::FromBytes,
+    };
+
+    // Main logic of check_evidence to perform dynamic computation
+    pub fn check_evidence(
+        policy_manager: &PolicyManager,
+        time_milis: i64,
+        evidence: &Evidence,
+        tee_certificate: &[u8],
+    ) -> anyhow::Result<()> {
+        let endorsement = create_endorsements(tee_certificate);
+
+        // turn CVM attestation report/evidence into an AttestationReport object
+        let root_layer = evidence
+            .root_layer
+            .as_ref()
+            .context("Evidence is missing root_layer")?;
+        let report_bytes = &root_layer.remote_attestation_report;
+        let attestation_report = AttestationReport::read_from_bytes(report_bytes).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to parse attestation report from bytes. Zerocopy error: {:?}",
+                e
+            )
+        })?;
+
+        // Extract measured CPU information:
+        let measured_cpu = (
+            attestation_report.data.cpuid_fam_id as i32,
+            attestation_report.data.cpuid_mod_id,
+            attestation_report.data.cpuid_step,
+        );
+
+        for policy in &policy_manager.appraisal_policies {
+            // Extract the partial stage0 hex string from the policy, or skip policy if missing.
+            let Some(measurement) = &policy.measurement else {
+                continue;
+            };
+            let Some(stage0) = &measurement.stage0_measurement else {
+                continue;
+            };
+            let Some(Type::AmdSev(amd_sev)) = &stage0.r#type else {
+                continue;
+            };
+            let Ok(partial_hash_bytes) = hex::decode(&amd_sev.sha384) else {
+                continue;
+            };
+
+            // TODO: b/328604827 - Compare measured CPU info against the allowed CPU from the policy.
+
+            // Pass the stage0 measurement info into validation function:
+            // ensures there is a matching vcpu count that enables this stage0 measurment to be valid
+            if stage0_measurement_is_valid(&partial_hash_bytes, &attestation_report, measured_cpu)?
+            {
+                let mut final_policy = policy.clone();
+                update_policy_with_final_hash(
+                    &mut final_policy,
+                    &attestation_report.data.measurement,
+                );
+
+                // turn final_policy AppraisalPolicy object into a ReferenceValues object for Oak Verifier
+                let final_reference_values = appraisal_policy_to_reference_values(
+                    &final_policy,
+                    policy_manager.accept_insecure_policies,
+                )?;
+
+                // Let Oak verifier match this policy
+                if oak_attestation_verification_with_regex::verifier::verify(
+                    time_milis,
+                    evidence,
+                    &endorsement,
+                    &final_reference_values,
+                )
+                .is_ok()
+                {
+                    return Ok(()); // Found matching policy
+                }
+            }
+        }
+
+        if log::log_enabled!(log::Level::Debug) {
+            if let Err(err) = debug::suggest_appraisal_policy(evidence) {
+                log::debug!(
+                    "Failed to suggest appraisal policy based on the provided evidence: {err}"
+                );
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "Failed to verify report. No matching appraisal policy found"
+        ))
+    }
+
+    fn update_policy_with_final_hash(final_policy: &mut AppraisalPolicy, actual_hash: &[u8]) {
+        if let Some(measurement) = final_policy.measurement.as_mut() {
+            if let Some(stage0) = measurement.stage0_measurement.as_mut() {
+                if let Some(Type::AmdSev(amd_sev)) = stage0.r#type.as_mut() {
+                    amd_sev.sha384 = hex::encode(actual_hash);
+                }
+            }
+        }
+    }
+
+    // Note: After adding implementation to AppraisalPolicy to store accepted vcpu values in next CL,
+    // this function will change to only loop through accepted vcpus, not all 1-256.
+    fn stage0_measurement_is_valid(
+        partial_hash: &[u8],
+        attestation_report: &AttestationReport,
+        cpu_info: (i32, u8, u8),
+    ) -> anyhow::Result<bool> {
+        let actual_hash = attestation_report.data.measurement.as_slice(); // extract stage0 hash
+
+        for vcpu_count in 1..=256 {
+            let expected_hash = compute_expected_stage0(partial_hash, cpu_info, vcpu_count)?;
+
+            if expected_hash.as_slice() == actual_hash {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    pub fn compute_expected_stage0(
+        partial_hash: &[u8],
+        cpu_info: (i32, u8, u8),
+        vcpu_count: u32,
+    ) -> anyhow::Result<Vec<u8>> {
+        // Initialize GCTX with the partial hash
+        let mut gctx = GCTX::new_from_seed(partial_hash.try_into()?);
+
+        let (family, model, stepping) = cpu_info;
+        let vcpu_type = cpu_info_to_type(family, model.into(), stepping.into())?;
+
+        // Create new VMSA object
+        let vmsa = VMSA::new(SevMode::SevSnp, 0, vcpu_type);
+        let vmsa_pages = vmsa.pages(vcpu_count as usize);
+
+        // update GCTX with the VMSA pages
+        for page_data in vmsa_pages {
+            gctx.update_vmsa_page(&page_data)?;
+        }
+        Ok(gctx.ld().to_vec())
+    }
+
+    //see vcpu_types.rs - Utility function takes the family, model, and stepping information and categorizes it into the following CPU types.
+    fn cpu_info_to_type(family: i32, model: i32, stepping: i32) -> anyhow::Result<CpuType> {
+        match (family, model, stepping) {
+            (23, 1, 2) => Ok(CpuType::Epyc),
+            (23, 49, 0) => Ok(CpuType::EpycRome),
+            (25, 1, 1) => Ok(CpuType::EpycMilan),
+            (25, 17, 0) => Ok(CpuType::EpycGenoa),
+            _ => Err(anyhow!(
+                "Unsupported or unknown CPU type with family: {}, model: {}, stepping: {}",
+                family,
+                model,
+                stepping
+            )),
+        }
     }
 }
 
@@ -428,6 +677,33 @@ fn create_endorsements(tee_certificate: &[u8]) -> Endorsements {
     }
 }
 
+#[cfg(feature = "dynamic_attestation")]
+fn process_and_validate_policies(
+    policies: AppraisalPolicies,
+    verifying_keys: &[&VerifyingKey],
+    num_pass_required: u32,
+) -> anyhow::Result<Vec<AppraisalPolicy>> {
+    policies
+        .policies
+        .into_iter()
+        .map(|policy| {
+            if num_pass_required == 0 {
+                Ok(policy)
+            } else {
+                match policy_signature::verify_policy_signature(
+                    &policy,
+                    verifying_keys,
+                    num_pass_required,
+                ) {
+                    Ok(_) => Ok(policy),
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .collect()
+}
+
+#[cfg(not(feature = "dynamic_attestation"))]
 fn process_and_validate_policies(
     policies: AppraisalPolicies,
     verifying_keys: &[&VerifyingKey],
@@ -893,6 +1169,48 @@ mod tests {
         ) {
             Ok(_) => panic!("PolicyManager::new() should fail."),
             Err(e) => assert_eq!(e.to_string(), "Cannot accept insecure policies."),
+        }
+    }
+
+    #[cfg(feature = "dynamic_attestation")]
+    mod dynamic_attestation_tests {
+        use super::*;
+
+        // Uses a known expected value generated by running compute_expected_stage0 hash
+        #[test]
+        fn test_compute_expected_stage0_is_stable() {
+            let partial_hash = [0u8; 48];
+            let cpu_info = (25, 1, 1); // Milan
+            let vcpu_count = 1;
+
+            let expected_final_hash: [u8; 48] = [
+                236, 208, 55, 237, 118, 178, 166, 178, 52, 93, 103, 228, 88, 167, 176, 163, 175,
+                66, 225, 250, 34, 68, 73, 33, 157, 239, 111, 64, 201, 22, 246, 41, 252, 171, 214,
+                53, 25, 220, 158, 88, 152, 7, 100, 246, 144, 248, 125, 226,
+            ];
+
+            let result =
+                dynamic::compute_expected_stage0(&partial_hash, cpu_info, vcpu_count).unwrap();
+
+            assert_eq!(
+                result,
+                expected_final_hash.to_vec(),
+                "The computed hash did not match the expected stable value."
+            );
+        }
+
+        #[test]
+        fn test_compute_expected_stage0_unsupported_cpu() {
+            let partial_hash = [0u8; 48];
+            let cpu_info = (0, 0, 0); // An invalid CPU type.
+            let vcpu_count = 1;
+
+            let result = dynamic::compute_expected_stage0(&partial_hash, cpu_info, vcpu_count);
+
+            assert!(
+                result.is_err(),
+                "Function should have failed for an unsupported CPU."
+            );
         }
     }
 }
