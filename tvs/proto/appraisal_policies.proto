@@ -39,8 +39,24 @@ message Signature {
   string signer = 2;
 }
 
+message CpuInfo {
+  uint32 family = 1;
+  uint32 model = 2;
+  uint32 stepping = 3;
+}
+
+message AmdSevDynamic {
+  repeated string stage0_ovmf_binary_hash = 1;
+  // Minimum accepted versions of all TCB components.
+  oak.attestation.v1.TcbVersion min_tcb_version = 2;
+  // All acceptable CPU types
+  repeated CpuInfo cpu_info = 3;
+  // All acceptable vCPU counts
+  repeated uint32 vcpu_count = 4;
+}
+
 message AmdSev {
-  // Sha384 digest of stage0 is in hex string format.
+  // This full Sha384 digest of stage0 is in hex string format.
   string sha384 = 1;
   // Minimum accepted versions of all TCB components.
   oak.attestation.v1.TcbVersion min_tcb_version = 2;
@@ -50,6 +66,7 @@ message Stage0Measurement {
   oneof type {
     AmdSev amd_sev = 1;
     oak.attestation.v1.InsecureReferenceValues insecure = 2;
+    AmdSevDynamic amd_sev_dynamic = 3;
   }
 }
 

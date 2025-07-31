@@ -65,6 +65,25 @@ CREATE TABLE ApplicationDigests (
 ) PRIMARY KEY(PolicyId, ApplicationDigest),
   INTERLEAVE IN PARENT AppraisalPolicies ON DELETE CASCADE;
 
+-- Table storing dynamic appraisal policies used to validate attestation report
+-- against. The table contains the following columns:
+-- * PolicyId: a string used to identify the appraisal policy.
+-- * UpdateTimestamp: timestamp of the last update to the row.
+-- * Policy: binary representation of the appraisal policy proto.
+CREATE TABLE AppraisalPoliciesDynamic (
+    PolicyId INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE PolicyIdSequence)),
+    Policy BYTES(MAX) NOT NULL,
+    UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+) PRIMARY KEY(PolicyId);
+
+-- Table storing the application digests (acceptable sha256 hashes of
+-- the container binary application bundle) for a dynamic policy
+CREATE TABLE ApplicationDigestsDynamic (
+    PolicyId INT64,
+    ApplicationDigest BYTES(MAX) NOT NULL,
+) PRIMARY KEY(PolicyId, ApplicationDigest),
+INTERLEAVE IN PARENT AppraisalPoliciesDynamic ON DELETE CASCADE;
+
 -- Table storing wrapped data encryption keys (DEK)s. DEKs are encrypted with
 -- KekId. The table contains the following columns:
 -- * DekId: a unique identifier for a DEK.
