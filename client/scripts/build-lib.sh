@@ -54,7 +54,7 @@ function copy_oak_artifacts() {
   local BUILD_DIR="$1"
   echo "Copying oak artifacts"
   pushd ../../google_internal/oak_artifacts/
-  rsync kernel_bin "$BUILD_DIR//bzImage"
+  rsync kernel_bin "$BUILD_DIR/bzImage"
   rsync stage0_bin "$BUILD_DIR/stage0_bin"
   rsync initrd.cpio.xz "$BUILD_DIR/stage1.cpio"
   rsync oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
