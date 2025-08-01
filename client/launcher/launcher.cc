@@ -343,21 +343,21 @@ class HatsLauncherImpl final : public HatsLauncher {
 
   // private:
   HatsLauncherImpl(
-      LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Vmm>> vmm,
-      absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
-      absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
-      absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
-      absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
+      LauncherExtDeps deps, absl_nonnull std::unique_ptr<Vmm> vmm,
+      absl_nonnull std::unique_ptr<LauncherOakServer> launcher_oak_server,
+      absl_nonnull std::unique_ptr<LauncherServer> launcher_server,
+      absl_nonnull std::unique_ptr<LogsService> logs_service,
+      absl_nonnull std::unique_ptr<grpc::Server> vsock_server,
       uint32_t vsock_port);
 
   // The external dependencies are not owned by HatsLauncher but required
   // for system health.
   const LauncherExtDeps deps_;
-  absl::Nonnull<std::unique_ptr<Vmm>> vmm_;
-  absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server_;
-  absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server_;
-  absl::Nonnull<std::unique_ptr<LogsService>> logs_service_;
-  std::unique_ptr<grpc::Server> vsock_server_;
+  absl_nonnull std::unique_ptr<Vmm> vmm_;
+  absl_nonnull std::unique_ptr<LauncherOakServer> launcher_oak_server_;
+  absl_nonnull std::unique_ptr<LauncherServer> launcher_server_;
+  absl_nonnull std::unique_ptr<LogsService> logs_service_;
+  absl_nonnull std::unique_ptr<grpc::Server> vsock_server_;
   uint32_t vsock_port_;
   // Whether all underlying processes was started or not.
   // The mutex is only for controlling access to started_.
@@ -433,11 +433,11 @@ bool HatsLauncherImpl::IsAppReady() const {
 }
 
 HatsLauncherImpl::HatsLauncherImpl(
-    LauncherExtDeps deps, absl::Nonnull<std::unique_ptr<Vmm>> vmm,
-    absl::Nonnull<std::unique_ptr<LauncherOakServer>> launcher_oak_server,
-    absl::Nonnull<std::unique_ptr<LauncherServer>> launcher_server,
-    absl::Nonnull<std::unique_ptr<LogsService>> logs_service,
-    absl::Nonnull<std::unique_ptr<grpc::Server>> vsock_server,
+    LauncherExtDeps deps, absl_nonnull std::unique_ptr<Vmm> vmm,
+    absl_nonnull std::unique_ptr<LauncherOakServer> launcher_oak_server,
+    absl_nonnull std::unique_ptr<LauncherServer> launcher_server,
+    absl_nonnull std::unique_ptr<LogsService> logs_service,
+    absl_nonnull std::unique_ptr<grpc::Server> vsock_server,
     uint32_t vsock_port)
     : deps_(std::move(deps)),
       vmm_(std::move(vmm)),

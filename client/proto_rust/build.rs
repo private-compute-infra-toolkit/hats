@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .build_client(false)
         .build_server(true)
-        .compile(
+        .compile_protos(
             &["../proto/orchestrator.proto"],
             &["../", protobuf_include_path],
         )?;
@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ".oak.attestation.v1",
             "::oak_proto_rust::oak::attestation::v1",
         )
-        .compile(
+        .compile_protos(
             &["../proto/launcher.proto", "../../tvs/proto/tvs_messages.proto"],
             &["../", "../../", protobuf_include_path, oak_include_path],
         )?;
