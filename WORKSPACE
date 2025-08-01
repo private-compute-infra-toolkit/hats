@@ -69,9 +69,9 @@ http_archive(
 
 http_archive(
     name = "oak",
-    sha256 = "63fde89ca958db3f5c3759396bc91df73d06d09c06a4ab9e501bf958fc64c910",
-    strip_prefix = "oak-d83ae4deadebd2a058af3bb8b91cad4d2925f81c",
-    url = "https://github.com/project-oak/oak/archive/d83ae4deadebd2a058af3bb8b91cad4d2925f81c.tar.gz",
+    sha256 = "a144f19619a8a2356852d6ba7c55c357e59b2fb0986fbeb782fa401a36b4d00d",
+    strip_prefix = "oak-d6f890b76203f55446f46edb51b8690eca3adb4c",
+    url = "https://github.com/project-oak/oak/archive/d6f890b76203f55446f46edb51b8690eca3adb4c.tar.gz",
 )
 
 load("@oak//bazel/llvm:deps.bzl", "load_llvm_repositories")
