@@ -39,14 +39,6 @@ popd() {
 readonly KOKORO_HATS_DIR="${KOKORO_ARTIFACTS_DIR}/git/hats"
 readonly HATS_SWARMING_DIR="${KOKORO_HATS_DIR}/google_internal/swarming"
 
-# Install latest bazel, since ubuntu2004 image used has 6.5.0
-readonly BAZEL_VERSION=bazel-7.4.1-linux-x86_64
-readonly BAZEL_TMP_DIR=/tmpfs/tmp/bazel-release
-mkdir -p "${BAZEL_TMP_DIR}"
-ln -fs "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}" "${BAZEL_TMP_DIR}/bazel"
-chmod 755 "${KOKORO_GFILE_DIR}/${BAZEL_VERSION?}"
-export PATH="${BAZEL_TMP_DIR}:${PATH}"
-
 ################ Test on Kokoro
 echo "###### Stage 1: Testing on Kokoro"
 
@@ -65,11 +57,10 @@ args=(
   --dynamic_mode=off # Static build now as pre-build for swarming
   --build_tag_filters="${tag_filters}"
   --test_tag_filters="${tag_filters}"
-  --
   //...
 )
-./google_internal/kokoro/bazel_wrapper.py "${args[@]}"
 
+./google_internal/kokoro/docker_run.sh bazel "${args[@]}"
 popd
 
 # TODO(b/410633945): Check hashes (with oak built) in continuous, before swarming.
@@ -85,91 +76,16 @@ echo "###### Stage 2: Testing on Swarming"
 # building the system image. As the build rule expects
 # `oak_containers_syslogd` to be in `client/prebuilt`.
 pushd "${KOKORO_HATS_DIR}"
-HATS_BAZEL_FLAGS="--config=ci" source "client/scripts/build-lib.sh"
-readonly PREBUILT_DIR="${KOKORO_HATS_DIR}/client/prebuilt"
-# functions in `client/scripts/build-lib.sh assumes the caller to be in
-# `client/script`.
-pushd "client/scripts"
-mkdir -p "$PREBUILT_DIR"
-copy_oak_artifacts "$PREBUILT_DIR"
-
-# Build the system image, and the trusted application bundle so that
-# we can bundle them with oak artifacts before building the
-# trusted_application_test.
-build_all_hats_containers_images "$PREBUILT_DIR"
-build_test_application_container_bundle_tar "$PREBUILT_DIR"
-popd
-popd
-
-# Bundle the trusted_application_test.
-TEST_DATA_DIR="$KOKORO_HATS_DIR/client/trusted_application/test_data"
-build_test_bundles \
-  "$TEST_DATA_DIR" \
-  "$PREBUILT_DIR/stage0_bin" \
-  "$PREBUILT_DIR/stage1.cpio" \
-  "$PREBUILT_DIR/bzImage" \
-  "$PREBUILT_DIR" \
-  "$PREBUILT_DIR/bundle.tar" \
-  "$KOKORO_HATS_DIR/client/trusted_application/configs/appraisal_policy.txtpb" \
-  "$KOKORO_HATS_DIR/client/trusted_application/configs/launcher_config.txtpb"
-
-# TODO(b/395680242): Resolve RBE on GCP_UBUNTU_DOCKER.
-# RBE doesn't auth correctly, but also still runs without it.
-
-###### Build in bazel
-
-pushd "${KOKORO_HATS_DIR}"
-
-args=(
-  build
-  --config=ci
-  --verbose_failures=true
-  --dynamic_mode=off # Force static build, for binaries sent to bot
-  --build_tag_filters="virtualization"
-  --test_tag_filters="virtualization"
-  --compilation_mode=opt
-  --
-  //...
-)
-./google_internal/kokoro/bazel_wrapper.py "${args[@]}"
-
-popd
-
+./google_internal/kokoro/docker_run.sh ./google_internal/kokoro/build_test.sh
 
 ##### Copy binaries to directory
 
-pushd "${KOKORO_HATS_DIR}"
-
-readonly TESTS_LIST=(
-  "client/launcher/launcher_test"
-  "client/trusted_application/integration_test/trusted_application_test"
-)
-
-# Path within test_name.runfiles to copy over
-declare -rA RUNFILE_PATHS=(
-  ["client/launcher/launcher_test"]="_main/client/test_data/launcher"
-  ["client/trusted_application/integration_test/trusted_application_test"]="_main/client/trusted_application/test_data"
-)
-
 readonly SWARMING_TEST_DIR=${KOKORO_ARTIFACTS_DIR}/swarming_test
-mkdir -p "${SWARMING_TEST_DIR}/tests"
-
-# Copy into directory with same name as the test
-for TEST_PATH in "${TESTS_LIST[@]}"; do
-  TEST_NAME="$(basename -- "${TEST_PATH}")"
-  TEST_DEST="${SWARMING_TEST_DIR}/tests/${TEST_NAME}/${TEST_NAME}"
-  mkdir -p "${SWARMING_TEST_DIR}/tests/${TEST_NAME}"
-  cp "bazel-bin/${TEST_PATH}" "${TEST_DEST}"
-
-  if [[ -n "${RUNFILE_PATHS[${TEST_PATH}]}" ]]; then
-    RUNFILE_PATH="${RUNFILE_PATHS[${TEST_PATH}]}"
-    mkdir -p "${TEST_DEST}.runfiles/${RUNFILE_PATH}"
-    # Copy files in path, resolving symlinks
-    cp -rL "bazel-bin/${TEST_PATH}.runfiles/${RUNFILE_PATH}/." "${TEST_DEST}.runfiles/${RUNFILE_PATH}"
-  fi
-done
-
+rsync -rvaz ./binaries/tests  "${SWARMING_TEST_DIR}/"
 popd
+
+# TODO(b/395680242): Resolve RBE on GCP_UBUNTU_DOCKER.
+# RBE doesn't auth correctly, but also still runs without it.
 
 ###### Install and set up swarming/isolate
 
