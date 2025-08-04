@@ -42,21 +42,8 @@ readonly HATS_SWARMING_DIR="${KOKORO_HATS_DIR}/google_internal/swarming"
 pushd "${KOKORO_HATS_DIR}"
 
 ##### Launch Docker to build the test binaries.
-docker_run_flags=(
-  '--rm'
-  '--workdir=/workspace'
-  '--network=host'
-  '--security-opt=seccomp=unconfined'
-  # BIND MOUNTS - Make host directories available in container.
-  "--mount=type=bind,source=$KOKORO_HATS_DIR,target=/workspace"
-  # This prevent bazel from having to re-populate the cache every time you start
-  # your local docker container.
-  '--mount=type=volume,src=bazel-cache,target=/root/.cache/bazel'
-)
 
-DOCKER_IMAGE_ID="us-central1-docker.pkg.dev/ps-hats-playground/presubmit/presubmit@sha256:2249f8185aa452c63ad76f0721c10f7ddff8bc26b4e0a36f8e682f264b3f1057"
-
-docker run "${docker_run_flags[@]}" $DOCKER_IMAGE_ID ./google_internal/kokoro/build_test.sh
+./google_internal/kokoro/docker_run.sh ./google_internal/kokoro/build_test.sh
 
 ##### Copy binaries to directory
 
