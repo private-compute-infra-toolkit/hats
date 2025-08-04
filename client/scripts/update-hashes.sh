@@ -44,9 +44,6 @@ echo "${RUNTIME_HASH} container_binary" >> "${RUNTIME_HASH_FILE}"
 
 #### Group 2: Various system images
 
-# Oak syslogd and a BUILD file are needed. This will use artifact if it exists.
-build_oak_containers_syslogd "${PREBUILT_DIR}"
-
 build_all_hats_containers_images "$PREBUILT_DIR"
 
 # Get suffixes of images from $PREBUILT_DIR.

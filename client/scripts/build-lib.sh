@@ -57,13 +57,6 @@ function copy_oak_artifacts() {
   rsync kernel_bin "$BUILD_DIR/bzImage"
   rsync stage0_bin "$BUILD_DIR/stage0_bin"
   rsync initrd.cpio.xz "$BUILD_DIR/stage1.cpio"
-  rsync oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
-  local BUILD_DIR="$1"
-  cat << EOF > "$BUILD_DIR/BUILD"
-exports_files([
-  "oak_containers_syslogd",
-])
-EOF
   popd
 }
 
@@ -147,25 +140,10 @@ function build_hats_launcher() {
   cp -f --preserve=timestamp ../../bazel-bin/client/launcher/launcher_main "$BUILD_DIR"
 }
 
-function build_oak_containers_syslogd() {
-  local BUILD_DIR="$1"
-  cat << EOF > "$BUILD_DIR/BUILD"
-exports_files([
-  "oak_containers_syslogd",
-])
-EOF
-  if [[ -f "$BUILD_DIR/oak_containers_syslogd" ]]; then return; fi
-  printf "\nBUILDING OAK CONTAINERS SYSLOGD...\n"
-  pushd ../../submodules/oak/
-  nix_develop --extra-experimental-features 'nix-command flakes' --command just github-oak_containers_syslogd && \
-    rsync artifacts/binaries/oak_containers_syslogd "$BUILD_DIR/oak_containers_syslogd"
-  popd
-}
-
 function build_all_hats_containers_images() {
   local BUILD_DIR="$1"
   printf "\nBUILDING HATS CONTAINERS IMAGES...\n"
-  bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt "//client/system_image/..." --//:syslogd_source=binary
+  bazel build "${HATS_BAZEL_FLAGS_ARR[@]}" -c opt "//client/system_image/..."
   cp -f --preserve=timestamp ../../bazel-bin/client/system_image/hats_system_image_*.tar "$BUILD_DIR"
   xz -T 1 -v --force "$BUILD_DIR"/hats_system_image_*.tar
 }
@@ -217,6 +195,4 @@ function build_test_bundles() {
 
   # Clean up the extra stuff in the folder.
   rm -rf ../prebuilt
-
-  rm -f "$BUILD_DIR/oak_containers_syslogd"
 }

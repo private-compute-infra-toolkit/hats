@@ -30,7 +30,6 @@ source ../scripts/build-lib.sh
 build_oak_containers_stage0 "$PREBUILT_DIR"
 build_oak_containers_stage1 "$PREBUILT_DIR"
 build_oak_containers_kernel "$PREBUILT_DIR"
-build_oak_containers_syslogd "$PREBUILT_DIR"
 build_all_hats_containers_images "$PREBUILT_DIR"
 build_test_application_container_bundle_tar "$PREBUILT_DIR"
 

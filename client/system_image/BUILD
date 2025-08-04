@@ -34,16 +34,8 @@ pkg_tar(
     srcs = [
         "//client/orchestrator:orchestrator_main",
         "@oak//oak_containers/agent:bin/oak_containers_agent",
-    ] + select({
-        # Use syslogd from the `prebuilt` directory. This requires the user
-        # to run ./client/trusted_application/build-for-test.sh or similar
-        "//:syslogd_from_binary": ["//client/prebuilt:oak_containers_syslogd"],
-        # Build syslogd only if the user specifically enabled it
-        # oak_containers_syslogd requires libsystemd.so during the
-        # build, which might not exists.
-        "//:syslogd_from_source": ["@oak//oak_containers/syslogd:oak_containers_syslogd"],
-        "//conditions:default": [],
-    }),
+        "@oak//oak_containers/syslogd:oak_containers_syslogd",
+    ],
     # TODO: This doesn't work, due to executables forced to 0755
     # https://github.com/bazelbuild/rules_pkg/issues/822
     # Suggested is to make pkg_files instead, passed as src to pkg_tar
