@@ -29,3 +29,9 @@ config_setting(
         "platform": "gcp_coordinator",
     },
 )
+
+config_setting(
+    name = "dynamic_attestation_enabled",
+    define_values = {"enable_dynamic_attestation": "true"},
+    visibility = ["//visibility:public"],
+)

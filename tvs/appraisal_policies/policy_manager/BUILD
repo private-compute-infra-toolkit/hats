@@ -18,16 +18,11 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-config_setting(
-    name = "dynamic_attestation_enabled",
-    define_values = {"enable_dynamic_attestation": "true"},
-)
-
 rust_library(
     name = "policy-manager",
     srcs = glob(["src/**"]),
     crate_features = ["regex"] + select({
-        ":dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
         "//conditions:default": [],
     }),
     deps = [
@@ -44,8 +39,9 @@ rust_library(
         "@oak_crates_index//:regex",
     ] + select({
         # Dependencies ONLY for dynamic attestation.
-        ":dynamic_attestation_enabled": [
+        "//:dynamic_attestation_enabled": [
             "@oak//oak_sev_snp_attestation_report",
+            "@oak_crates_index//:hashbrown",
             "@oak_crates_index//:zerocopy",
             "@sev-snp-utils//:common",
             "@sev-snp-utils//:error",
@@ -62,12 +58,13 @@ rust_test(
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = ":policy-manager",
     crate_features = ["regex"] + select({
-        ":dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
         "//conditions:default": [],
     }),
     deps = select({
-        ":dynamic_attestation_enabled": [
+        "//:dynamic_attestation_enabled": [
             "@oak//oak_sev_snp_attestation_report",
+            "@oak_crates_index//:hashbrown",
             "@oak_crates_index//:hex",
             "@oak_crates_index//:zerocopy",
             "@sev-snp-utils//:common",

@@ -245,7 +245,7 @@ mod dynamic {
         anyhow::{anyhow, Context},
         measure::{gctx::GCTX, types::SevMode, vcpu_types::CpuType, vmsa::VMSA},
         oak_sev_snp_attestation_report::AttestationReport,
-        tvs_proto::privacy_sandbox::tvs::stage0_measurement::Type,
+        tvs_proto::pcit::tvs::stage0_measurement::Type,
         zerocopy::FromBytes,
     };
 
