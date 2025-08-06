@@ -12,7 +12,7 @@ use crate::sev_hashes::SevHashes;
 use crate::types::SevMode;
 use crate::vcpu_types::CpuType;
 use crate::vmsa::VMSA;
-use error::{validation, Result};
+use error::{validation, Result, io};
 use identity::LaunchDigest;
 
 use self::ovmf::OvmfSevMetadataSectionDesc;
@@ -134,7 +134,19 @@ pub fn snp_calc_launch_digest(
     initrd_path: Option<&Path>,
     append: Option<&str>,
 ) -> Result<LaunchDigest> {
-    let ovmf = OVMF::from_path(ovmf_path)?;
+    let ovmf_data = std::fs::read(ovmf_path).map_err(|e| io(e, None))?; // std operation
+    snp_calc_launch_digest_from_bytes(vcpus, vcpu_type, &ovmf_data, kernel_path, initrd_path, append)
+}
+
+pub fn snp_calc_launch_digest_from_bytes(
+    vcpus: usize,
+    vcpu_type: CpuType,
+    ovmf_data: &[u8],
+    kernel_path: Option<&Path>,
+    initrd_path: Option<&Path>,
+    append: Option<&str>,
+) -> Result<LaunchDigest> {
+    let ovmf = OVMF::from_bytes(ovmf_data)?;
 
     let mut gctx = GCTX::new();
     // TODO:  https://github.com/virtee/sev-snp-measure/blob/9dabc4b6a853ec5a41b20d899ae2b68d8f0b81c0/sevsnpmeasure/guest.py#L100
