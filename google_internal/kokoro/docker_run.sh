@@ -27,6 +27,6 @@ docker_run_flags=(
   '--mount=type=volume,src=bazel-cache,target=/root/.cache/bazel'
 )
 
-DOCKER_IMAGE_ID="us-central1-docker.pkg.dev/ps-hats-playground/presubmit/presubmit@sha256:2249f8185aa452c63ad76f0721c10f7ddff8bc26b4e0a36f8e682f264b3f1057"
+DOCKER_IMAGE_ID="us-central1-docker.pkg.dev/ps-hats-playground/presubmit/presubmit@sha256:71f2a1a6aa339ad7b71488fb5d732f65c94972ffe68dec11d71beda65189bb14"
 
 docker run "${docker_run_flags[@]}" $DOCKER_IMAGE_ID "$@"
