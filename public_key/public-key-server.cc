@@ -36,11 +36,11 @@
 #include "status_macro/status_macros.h"
 #include "status_macro/status_util.h"
 
-namespace privacy_sandbox::public_key_service {
+namespace pcit::public_key_service {
 grpc::Status PublicKeyServer::ListPublicKeys(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
     ListPublicKeysResponse* response) {
-  absl::StatusOr<std::vector<privacy_sandbox::key_manager::PerOriginPublicKey>>
+  absl::StatusOr<std::vector<pcit::key_manager::PerOriginPublicKey>>
       onprem_public_key = fetcher_->GetLatestPublicKeys();
   if (!onprem_public_key.ok()) {
     return grpc::Status(
@@ -49,7 +49,7 @@ grpc::Status PublicKeyServer::ListPublicKeys(
                      " ONPREM: ", onprem_public_key.status()));
   }
 
-  for (const privacy_sandbox::key_manager::PerOriginPublicKey& key :
+  for (const pcit::key_manager::PerOriginPublicKey& key :
        (*onprem_public_key)) {
     PublicKey* onprem_key = response->add_public_keys();
     // Example existing key ID format:
@@ -100,7 +100,7 @@ grpc::Status PublicKeyServer::UpdateCloudBucket(
 
 PublicKeyServer::PublicKeyServer(
     const PublicKeyServerOptions& options,
-    std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> fetcher,
+    std::unique_ptr<pcit::key_manager::PublicKeyFetcher> fetcher,
     google::cloud::storage::Client bucket_client)
     : options_(options),
       fetcher_(std::move(fetcher)),
@@ -108,7 +108,7 @@ PublicKeyServer::PublicKeyServer(
 
 void CreateAndStartPublicKeyServer(
     const PublicKeyServerOptions& options,
-    std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> fetcher) {
+    std::unique_ptr<pcit::key_manager::PublicKeyFetcher> fetcher) {
   std::string server_address = absl::StrCat("0.0.0.0:", options.port);
   PublicKeyServer public_key_server(options, std::move(fetcher),
                                     google::cloud::storage::Client());
@@ -121,4 +121,4 @@ void CreateAndStartPublicKeyServer(
   LOG(INFO) << "Server listening on " << server_address;
   server->Wait();
 }
-}  // namespace privacy_sandbox::public_key_service
+}  // namespace pcit::public_key_service

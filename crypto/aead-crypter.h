@@ -23,7 +23,7 @@
 #include "absl/strings/string_view.h"
 #include "crypto/secret-data.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 // Predefined associated data for secrets used by the TVS.
 constexpr absl::string_view kTvsPrivateKeyAd = "hats_tvs_private_key";
@@ -42,6 +42,6 @@ absl::StatusOr<SecretData> Decrypt(const SecretData& key,
                                    const SecretData& ciphertext,
                                    absl::string_view associated_data);
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto
 
 #endif  // HATS_CRYPTO_AEAD_CRYPTER_H_

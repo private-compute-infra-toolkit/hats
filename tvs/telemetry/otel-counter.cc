@@ -23,11 +23,10 @@
 #include "opentelemetry/metrics/meter.h"
 #include "opentelemetry/metrics/provider.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 namespace {
 
-constexpr absl::string_view kMeterName =
-    "privacy_sandbox.tvs.TeeVerificationService";
+constexpr absl::string_view kMeterName = "pcit.tvs.TeeVerificationService";
 constexpr absl::string_view kMeterVersion = "0.1.0";
 }  // namespace
 
@@ -50,4 +49,4 @@ void OtelCounter::Increment(const std::map<std::string, std::string>& labels) {
   IncrementBy(1, labels);
 }
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

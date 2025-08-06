@@ -175,7 +175,7 @@ mod tests {
     use key_fetcher::ffi::create_test_key_fetcher_wrapper;
     use oak_proto_rust::oak::attestation::v1::{InsecureReferenceValues, TcbVersion};
     use prost::Message;
-    use tvs_proto::privacy_sandbox::tvs::{
+    use tvs_proto::pcit::tvs::{
         attest_report_request, stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy,
         AttestReportRequest, InitSessionRequest, Measurement, Secret, Signature as PolicySignature,
         Stage0Measurement, VerifyReportResponse,

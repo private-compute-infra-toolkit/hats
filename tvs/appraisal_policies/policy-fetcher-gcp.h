@@ -23,7 +23,7 @@
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 class PolicyFetcherGcp final : public PolicyFetcher {
  public:
@@ -46,6 +46,6 @@ class PolicyFetcherGcp final : public PolicyFetcher {
   google::cloud::spanner::Client spanner_client_;
 };
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs
 
 #endif  // HATS_TVS_APPRAISAL_POLICIES_POLICY_FETCHER_GCP_H_

@@ -20,7 +20,7 @@
 // Structs come from Archived tool:
 // https://github.com/AMDESE/sev-tool/blob/master/src/sevapi.h
 // The structs may not be available in linux kernel.
-namespace privacy_sandbox::client {
+namespace pcit::client {
 // TCB bytes pointed by snp_platform_status_buffer.reported_tcb.
 typedef union snp_tcb_version  // TCB
 {
@@ -49,6 +49,6 @@ typedef struct __attribute__((__packed__)) snp_platform_status_buffer_t {
   uint64_t tcb_version;     /* Platform/installed version */
   uint64_t reported_tcb;    /* SetReportedTCB() version */
 } snp_platform_status_buffer;
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 #endif  // CLIENT_LAUNCHER_SNP_ABI_H_

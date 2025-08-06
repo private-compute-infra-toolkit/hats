@@ -26,7 +26,7 @@
 #include "grpcpp/channel.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::server_common {
+namespace pcit::server_common {
 
 HatsOrchestratorClient::HatsOrchestratorClient()
     : hats_stub_(HatsOrchestrator::NewStub(
@@ -50,4 +50,4 @@ absl::StatusOr<std::vector<Key>> HatsOrchestratorClient::GetKeys() const {
   return keys;
 }
 
-}  // namespace privacy_sandbox::server_common
+}  // namespace pcit::server_common

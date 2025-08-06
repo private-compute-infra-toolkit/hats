@@ -22,7 +22,7 @@
 #include "gtest/gtest.h"
 #include "status_macro/status_test_macros.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 namespace {
 
 // Silly randomness test, this is meant to catch situations if there is no
@@ -74,4 +74,4 @@ TEST(EcKey, WrapPrivateKey) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto

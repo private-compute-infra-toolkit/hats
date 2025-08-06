@@ -23,7 +23,7 @@
 #include "crypto/secret-data.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 absl::StatusOr<TestEcKey> GenerateEcKeyForTest() {
   HATS_ASSIGN_OR_RETURN(std::unique_ptr<crypto::EcKey> ec_key,
@@ -44,4 +44,4 @@ absl::StatusOr<TestEcKey> GenerateEcKeyForTest() {
   };
 }
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto

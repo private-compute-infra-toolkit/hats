@@ -16,7 +16,7 @@ use crate::xor_sharing;
 use crate::SecretSplit;
 
 /// Export Secret Sharing TVS library to C++ code.
-#[cxx::bridge(namespace = "privacy_sandbox::crypto")]
+#[cxx::bridge(namespace = "pcit::crypto")]
 mod ffi {
     extern "Rust" {
         #[cxx_name = "XorSplitSecret"]

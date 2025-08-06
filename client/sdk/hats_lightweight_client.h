@@ -23,7 +23,7 @@
 #include "client/proto/orchestrator.pb.h"
 #include "grpcpp/channel.h"
 
-namespace privacy_sandbox::server_common {
+namespace pcit::server_common {
 
 // Client to the orchestrator to be used by the workload to obtain the HPKE key.
 class HatsLightweightClient final {
@@ -37,5 +37,5 @@ class HatsLightweightClient final {
   std::unique_ptr<HatsOrchestrator::Stub> hats_stub_;
 };
 
-}  // namespace privacy_sandbox::server_common
+}  // namespace pcit::server_common
 #endif  // HATS_CLIENT_SDK_HATS_LIGHTWEIGHT_CLIENT_H_

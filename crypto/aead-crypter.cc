@@ -27,7 +27,7 @@
 #include "openssl/rand.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 namespace {
 
@@ -114,4 +114,4 @@ absl::StatusOr<SecretData> Decrypt(const SecretData& key,
   return plaintext;
 }
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto

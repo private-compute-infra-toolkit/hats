@@ -26,7 +26,7 @@
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 // Communicate with a TVS server and fetches a JWT token. The class sends an
 // attestation report and gets a JWT token from a TVS server over a streaming
@@ -68,6 +68,6 @@ class TvsUntrustedClient final {
   rust::Box<TvsClient> tvs_client_;
 };
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs
 
 #endif  // HATS_TVS_TEST_CLIENT_TVS_UNTRUSTED_CLIENT_H_

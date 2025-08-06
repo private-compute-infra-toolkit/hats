@@ -24,7 +24,7 @@
 #include "public_key/proto/public_key_service.grpc.pb.h"
 #include "public_key/proto/public_key_service.pb.h"
 
-namespace privacy_sandbox::public_key_service {
+namespace pcit::public_key_service {
 
 struct PublicKeyServerOptions {
   int port;
@@ -35,10 +35,9 @@ struct PublicKeyServerOptions {
 class PublicKeyServer final : public PublicKeyService::Service {
  public:
   PublicKeyServer() = delete;
-  PublicKeyServer(
-      const PublicKeyServerOptions& options,
-      std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> fetcher,
-      google::cloud::storage::Client bucket_client);
+  PublicKeyServer(const PublicKeyServerOptions& options,
+                  std::unique_ptr<pcit::key_manager::PublicKeyFetcher> fetcher,
+                  google::cloud::storage::Client bucket_client);
   grpc::Status ListPublicKeys(grpc::ServerContext* context,
                               const google::protobuf::Empty* request,
                               ListPublicKeysResponse* response) override;
@@ -48,13 +47,12 @@ class PublicKeyServer final : public PublicKeyService::Service {
 
  private:
   const PublicKeyServerOptions options_;
-  const std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher>
-      fetcher_;
+  const std::unique_ptr<pcit::key_manager::PublicKeyFetcher> fetcher_;
   google::cloud::storage::Client bucket_client_;
 };
 
 void CreateAndStartPublicKeyServer(
     const PublicKeyServerOptions& options,
-    std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> fetcher);
-}  // namespace privacy_sandbox::public_key_service
+    std::unique_ptr<pcit::key_manager::PublicKeyFetcher> fetcher);
+}  // namespace pcit::public_key_service
 #endif  // HATS_PUBLIC_KEY_PUBLIC_KEY_SERVER_H_

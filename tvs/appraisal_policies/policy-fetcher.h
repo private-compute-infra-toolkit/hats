@@ -22,7 +22,7 @@
 #include "absl/strings/string_view.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 class PolicyFetcher {
  public:
@@ -43,6 +43,6 @@ class PolicyFetcher {
       absl::string_view application_digest, int n) = 0;
 };
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs
 
 #endif  // HATS_TVS_APPRAISAL_POLICIES_POLICY_FETCHER_H_

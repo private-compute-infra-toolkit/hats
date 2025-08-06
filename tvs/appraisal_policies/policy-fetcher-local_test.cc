@@ -30,7 +30,7 @@
 
 ABSL_DECLARE_FLAG(std::string, appraisal_policy_file);
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 namespace {
 
 using ::google::protobuf::EqualsProto;
@@ -155,4 +155,4 @@ TEST(PolicyFetcherLocal, GetLatestNPoliciesForDigestNotFoundError) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

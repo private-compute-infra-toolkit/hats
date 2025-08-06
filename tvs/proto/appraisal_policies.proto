@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package privacy_sandbox.tvs;
+package pcit.tvs;
 
 import "proto/attestation/reference_value.proto";
 import "proto/attestation/tcb_version.proto";

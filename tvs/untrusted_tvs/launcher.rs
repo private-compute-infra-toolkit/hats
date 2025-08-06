@@ -16,8 +16,8 @@ use crate::ffi::{CreateSessionResult, Params};
 use oak_launcher_utils::channel::ConnectorHandle;
 use oak_launcher_utils::launcher::GuestInstance;
 use tokio::runtime::Runtime;
-use tvs_enclave::proto::privacy_sandbox::tvs::TvsEnclaveAsyncClient;
-use tvs_enclave::proto::privacy_sandbox::tvs::{
+use tvs_enclave::proto::pcit::tvs::TvsEnclaveAsyncClient;
+use tvs_enclave::proto::pcit::tvs::{
     CreateSessionRequest, DoCommandRequest, LoadAppraisalPoliciesRequest, ProvisionKeysRequest,
     RegisterOrUpdateUserRequest, TerminateSessionRequest,
 };
@@ -30,7 +30,7 @@ use tvs_enclave::proto::privacy_sandbox::tvs::{
 /// Define FFI interface for Launcher and EnclaveClient rust structs to be
 /// used in C++.
 #[allow(clippy::needless_lifetimes)]
-#[cxx::bridge(namespace = "privacy_sandbox::tvs")]
+#[cxx::bridge(namespace = "pcit::tvs")]
 mod ffi {
     #[derive(Debug)]
     pub struct Params {

@@ -28,7 +28,7 @@
 #include "key_manager/gcp-kms-client.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 constexpr absl::string_view kAssociatedData = "HATS_SECRET";
 
@@ -61,8 +61,7 @@ absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
 
 absl::StatusOr<crypto::SecretData> UnwrapSecret(
     absl::string_view associated_data,
-    privacy_sandbox::key_manager::GcpKmsClient& gcp_kms_client,
-    const Keys& keys) {
+    pcit::key_manager::GcpKmsClient& gcp_kms_client, const Keys& keys) {
   HATS_ASSIGN_OR_RETURN(
       std::string unwrapped_dek,
       gcp_kms_client.DecryptData(keys.kek, keys.dek, kAssociatedData));
@@ -70,4 +69,4 @@ absl::StatusOr<crypto::SecretData> UnwrapSecret(
                          crypto::SecretData(keys.private_key), associated_data);
 }
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

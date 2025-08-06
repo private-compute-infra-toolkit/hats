@@ -67,13 +67,12 @@ absl::StatusOr<int> GetPort() {
   return port;
 }
 
-absl::StatusOr<privacy_sandbox::tvs::TvsService::Options>
-TvsServiceOptionsFromFlags() {
-  privacy_sandbox::tvs::TvsService::Options options;
-  options.key_fetcher = privacy_sandbox::key_manager::KeyFetcher::Create();
+absl::StatusOr<pcit::tvs::TvsService::Options> TvsServiceOptionsFromFlags() {
+  pcit::tvs::TvsService::Options options;
+  options.key_fetcher = pcit::key_manager::KeyFetcher::Create();
   HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
-      privacy_sandbox::tvs::PolicyFetcher::Create(),
+      std::unique_ptr<pcit::tvs::PolicyFetcher> policy_fetcher,
+      pcit::tvs::PolicyFetcher::Create(),
       _.PrependWith("Failed to create a policy fetcher: "));
   options.enable_policy_signature =
       absl::GetFlag(FLAGS_enable_policy_signature);
@@ -82,10 +81,9 @@ TvsServiceOptionsFromFlags() {
   if (absl::GetFlag(FLAGS_enable_dynamic_policy_fetching)) {
     options.policy_fetcher = std::move(policy_fetcher);
   } else {
-    HATS_ASSIGN_OR_RETURN(
-        privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
-        policy_fetcher->GetLatestNPolicies(/*n=*/30),
-        _.PrependWith("Failed to get appraisal policies: "));
+    HATS_ASSIGN_OR_RETURN(pcit::tvs::AppraisalPolicies appraisal_policies,
+                          policy_fetcher->GetLatestNPolicies(/*n=*/30),
+                          _.PrependWith("Failed to get appraisal policies: "));
     options.appraisal_policies = std::move(appraisal_policies);
   }
   return options;
@@ -106,18 +104,17 @@ int main(int argc, char* argv[]) {
                     "enabled for testing only.";
   }
 
-  if (!privacy_sandbox::tvs::InitializeTelemetry().ok()) {
+  if (!pcit::tvs::InitializeTelemetry().ok()) {
     LOG(ERROR) << "Failed to initialize telemetry";
     return 1;
   }
 
-  HATS_ASSIGN_OR_RETURN(
-      privacy_sandbox::tvs::TvsService::Options tvs_service_options,
-      TvsServiceOptionsFromFlags(), _.LogErrorAndExit());
+  HATS_ASSIGN_OR_RETURN(pcit::tvs::TvsService::Options tvs_service_options,
+                        TvsServiceOptionsFromFlags(), _.LogErrorAndExit());
 
   HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::tvs::TvsService> tvs_service,
-      privacy_sandbox::tvs::TvsService::Create(std::move(tvs_service_options)),
+      std::unique_ptr<pcit::tvs::TvsService> tvs_service,
+      pcit::tvs::TvsService::Create(std::move(tvs_service_options)),
       _.PrependWith("Failed to create TVS server: ").LogErrorAndExit());
 
   LOG(INFO) << "Starting TVS server on port " << port;

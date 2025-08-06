@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package privacy_sandbox.public_key_service;
+package pcit.public_key_service;
 
 import "google/protobuf/empty.proto";
 

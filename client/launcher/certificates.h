@@ -20,7 +20,7 @@
 #include "absl/status/statusor.h"
 #include "client/launcher/kernel-api.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 // Get a URL for the current CPU certificate. The method constructs the URL by
 // getting the CPU ID, and TcbVersions along the CPU module name.
@@ -41,5 +41,5 @@ absl::StatusOr<std::string> DownloadCertificate();
 // wait for it. This way, we download the certificate only once.
 absl::StatusOr<std::string> ReadOrDownloadCertificate();
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 #endif  // HATS_CLIENT_LAUNCHER_CERTIFICATES_

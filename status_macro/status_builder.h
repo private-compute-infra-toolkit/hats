@@ -25,7 +25,7 @@
 #include "absl/time/time.h"
 #include "status_macro/source_location.h"
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 // Creates a status based on an original_status, but enriched with additional
 // information.  The builder implicitly converts to absl::Status and
 // absl::StatusOr<T> allowing for it to be returned directly.
@@ -639,5 +639,5 @@ inline int StatusBuilder::LogErrorAndExit() {
   return (*this).LogError().With([](const absl::Status _) -> int { return 1; });
 }
 
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro
 #endif  // HATS_STATUS_MACRO_STATUS_BUILDER_H_

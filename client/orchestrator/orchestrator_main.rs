@@ -241,8 +241,8 @@ pub async fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use client_proto::privacy_sandbox::server_common::hats_orchestrator_server::HatsOrchestrator;
-    use client_proto::privacy_sandbox::tvs::{Secret, VerifyReportResponse};
+    use client_proto::pcit::server_common::hats_orchestrator_server::HatsOrchestrator;
+    use client_proto::pcit::tvs::{Secret, VerifyReportResponse};
     use hats_server::HatsServer;
     use mockall::predicate::*;
     use oak_containers_attestation::generate_instance_keys;

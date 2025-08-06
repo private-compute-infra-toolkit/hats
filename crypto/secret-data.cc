@@ -23,7 +23,7 @@
 #include "absl/strings/string_view.h"
 #include "openssl/mem.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 SecretData::SecretData(size_t size)
     : size_(size), actual_size_(size), data_(new uint8_t[size_]) {}
@@ -77,4 +77,4 @@ absl::string_view SecretData::GetStringView() const {
 
 void SecretData::Cleanse() { OPENSSL_cleanse(data_.get(), actual_size_); }
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto

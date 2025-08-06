@@ -27,8 +27,7 @@ ABSL_FLAG(std::string, app_key,
 ABSL_FLAG(std::string, address, "localhost:8000",
           "address used for making grpc calls to this service");
 ABSL_FLAG(std::string, key_id, "1", "key_id to retrieve from orchestrator");
-ABSL_FLAG(std::string, echo_message,
-          std::string(privacy_sandbox::client::kTestMessage),
+ABSL_FLAG(std::string, echo_message, std::string(pcit::client::kTestMessage),
           "message to echo back from trusted app");
 
 int main(int argc, char* argv[]) {
@@ -38,9 +37,9 @@ int main(int argc, char* argv[]) {
     std::cerr << "Application key must be a hex string" << std::endl;
     return 1;
   }
-  privacy_sandbox::client::TrustedApplicationClient app_client(
+  pcit::client::TrustedApplicationClient app_client(
       absl::GetFlag(FLAGS_address), key, absl::GetFlag(FLAGS_key_id));
-  absl::StatusOr<privacy_sandbox::client::DecryptedResponse> response =
+  absl::StatusOr<pcit::client::DecryptedResponse> response =
       app_client.SendEcho(absl::GetFlag(FLAGS_echo_message));
   if (!response.ok()) {
     std::cerr << "Failed to send echo request to trusted application: "

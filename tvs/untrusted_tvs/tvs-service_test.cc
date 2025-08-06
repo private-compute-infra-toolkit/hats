@@ -36,7 +36,7 @@
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 namespace {
 
 using ::google::protobuf::EqualsProto;
@@ -399,7 +399,7 @@ TEST(TvsService, AuthenticationError) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

@@ -27,7 +27,7 @@
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/trusted_tvs/library/src/interface.rs.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 // An implementation of TeeVerificationService.
 // The service exports one bidirectional streaming rpc, namely VerifyReport.
@@ -71,6 +71,6 @@ class TvsService final : public TeeVerificationService::Service {
   rust::Box<trusted::Service> trusted_service_;
 };
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs
 
 #endif  // HATS_TVS_UNTRUSTED_TVS_SERVICE_

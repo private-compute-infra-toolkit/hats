@@ -21,7 +21,7 @@
 
 #include "external/psp-sev/file/psp-sev.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 void KernelApi::Cpuid(uint32_t command, uint32_t* eax, uint32_t* ebx,
                       uint32_t* ecx, uint32_t* edx) const {
   uint32_t eax1, ebx1, ecx1, edx1;
@@ -38,4 +38,4 @@ int KernelApi::Close(int fd) const { return close(fd); }
 int KernelApi::Ioctl(int fd, sev_issue_cmd& cmd) const {
   return ioctl(fd, SEV_ISSUE_CMD, &cmd);
 }
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

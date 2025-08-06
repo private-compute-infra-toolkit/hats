@@ -18,7 +18,7 @@
 #include "opentelemetry/proto/collector/logs/v1/logs_service.grpc.pb.h"
 #include "opentelemetry/proto/collector/logs/v1/logs_service.pb.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 // C++ implementation of Oak's LogService
 // https://github.com/project-oak/oak/blob/385d5d40f9da5f0ab1df8d4e3ddfa0062b813490/oak_containers/launcher/src/server.rs#L232
@@ -35,6 +35,6 @@ class LogsService final
           response) override;
 };
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 #endif  // HATS_CLIENT_LAUNCHER_LOGS_SERVICE_H_

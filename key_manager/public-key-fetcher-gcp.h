@@ -23,7 +23,7 @@
 #include "google/cloud/spanner/client.h"
 #include "key_manager/public-key-fetcher.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 class PublicKeyFetcherGcp : public PublicKeyFetcher {
  public:
@@ -46,6 +46,6 @@ class PublicKeyFetcherGcp : public PublicKeyFetcher {
   google::cloud::spanner::Client spanner_client_;
 };
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager
 
 #endif  // HATS_KEY_MANAGER_PUBLIC_KEY_FETCHER_GCP_H_

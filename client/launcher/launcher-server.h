@@ -30,7 +30,7 @@
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 class LauncherOakServer final : public oak::containers::Launcher::Service {
  public:
@@ -78,8 +78,7 @@ class LauncherOakServer final : public oak::containers::Launcher::Service {
   bool is_app_ready_ ABSL_GUARDED_BY(ready_lock_) = false;
 };
 
-class LauncherServer final
-    : public privacy_sandbox::client::LauncherService::Service {
+class LauncherServer final : public pcit::client::LauncherService::Service {
  public:
   // tvs_authentication_key is in bytes format.
   LauncherServer(
@@ -98,8 +97,7 @@ class LauncherServer final
 
   grpc::Status FetchOrchestratorMetadata(
       grpc::ServerContext* context, const google::protobuf::Empty* request,
-      privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply)
-      override;
+      pcit::client::FetchOrchestratorMetadataResponse* reply) override;
 
  private:
   const std::string tvs_authentication_key_;
@@ -110,6 +108,6 @@ class LauncherServer final
   const std::string tee_certificate_;
 };
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 #endif  // HATS_CLIENT_LAUNCHER_LAUNCHER_SERVER_

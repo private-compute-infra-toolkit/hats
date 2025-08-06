@@ -25,7 +25,7 @@
 #include "gtest/gtest.h"
 #include "status_macro/status_test_macros.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 namespace {
 
 using ::testing::Eq;
@@ -145,4 +145,4 @@ TEST(PublicKeyFetcherGcp, Failure) {
 
 }  // namespace
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

@@ -29,7 +29,7 @@ ABSL_DECLARE_FLAG(std::string, user_public_key);
 ABSL_DECLARE_FLAG(std::string, user_secret);
 ABSL_DECLARE_FLAG(std::string, user_authentication_public_key);
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 namespace {
 
 using ::testing::Eq;
@@ -114,4 +114,4 @@ TEST(KeyFetcherLocal, Error) {
 
 }  // namespace
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

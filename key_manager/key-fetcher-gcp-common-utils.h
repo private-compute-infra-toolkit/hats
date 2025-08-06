@@ -24,7 +24,7 @@
 #include "google/cloud/spanner/client.h"
 #include "key_manager/gcp-kms-client.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 struct Keys {
   std::string kek;
   std::string dek;
@@ -38,8 +38,7 @@ absl::StatusOr<Keys> WrappedEcKeyFromSpanner(
 
 absl::StatusOr<crypto::SecretData> UnwrapSecret(
     absl::string_view associated_data,
-    privacy_sandbox::key_manager::GcpKmsClient& gcp_kms_client,
-    const Keys& keys);
-}  // namespace privacy_sandbox::key_manager
+    pcit::key_manager::GcpKmsClient& gcp_kms_client, const Keys& keys);
+}  // namespace pcit::key_manager
 
 #endif  // HATS_KEY_MANAGER_KEY_FETCHER_GCP_COMMON_UTILS_H_

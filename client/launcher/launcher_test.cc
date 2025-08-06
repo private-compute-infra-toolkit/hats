@@ -37,7 +37,7 @@
 #include "status_macro/status_test_macros.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 namespace {
 
 using ::testing::HasSubstr;
@@ -94,7 +94,7 @@ TEST(HatsLauncher, Successful) {
   config.mutable_cvm_config()->set_hats_system_bundle(system_bundle);
 
   HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HatsLauncher> launcher,
-                            privacy_sandbox::client::HatsLauncher::Create({
+                            pcit::client::HatsLauncher::Create({
                                 .config = config,
                                 .tvs_authentication_key_bytes = "test",
                             }));
@@ -164,11 +164,11 @@ TEST(HatsLauncherTest, Unsuccessful) {
                             GetRunfilePath("missing_bundle.tar"));
   config.mutable_cvm_config()->set_hats_system_bundle(system_bundle);
 
-  HATS_EXPECT_STATUS(privacy_sandbox::client::HatsLauncher::Create({
+  HATS_EXPECT_STATUS(pcit::client::HatsLauncher::Create({
                          .config = std::move(config),
                          .tvs_authentication_key_bytes = "test",
                      }),
                      absl::StatusCode::kInternal);
 }
 }  // namespace
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

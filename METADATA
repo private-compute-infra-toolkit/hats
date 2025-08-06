@@ -1,6 +1,6 @@
 name: "HATs framework"
 description:
-    "Framework for launching Privacy Sandbox workloads inside Hardware "
+    "Framework for launching workloads inside Hardware "
     "Attested TEEs on-prem in any data center, not just the popular clouds.  "
     "Trusted Execution Environments are remotely attested to be running in a "
     "Confidential Virtual Machine (CVM), such as AMD SEV-SNP or Intel TDX."
@@ -8,11 +8,11 @@ description:
 third_party {
   url {
     type: HOMEPAGE
-    value: "https://github.com/privacysandbox"
+    value: "https://github.com/private-compute-infra-toolkit""
   }
   url {
     type: GIT
-    value: "https://github.com/privacysandbox"
+    value: "https://github.com/private-compute-infra-toolkit"
   }
   version: "0.0.1"
   license_type: NOTICE

@@ -22,7 +22,7 @@
 
 using ::testing::StrEq;
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 namespace {
 
 constexpr std::pair<grpc::StatusCode, absl::StatusCode> status_mappings[] = {
@@ -86,4 +86,4 @@ TEST(StatusUtilTest, SaveStatusAsRpcStatus) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro

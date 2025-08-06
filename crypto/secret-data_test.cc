@@ -22,7 +22,7 @@
 #include "gtest/gtest.h"
 #include "status_macro/status_test_macros.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 namespace {
 
 using ::testing::HasSubstr;
@@ -103,4 +103,4 @@ TEST(SecretData, ResizeError) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto

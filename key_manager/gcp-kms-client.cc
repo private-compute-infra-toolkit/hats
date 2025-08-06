@@ -24,7 +24,7 @@
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 absl::StatusOr<PublicKey> GcpKmsClient::GetPublicKey(absl::string_view key_id) {
   google::cloud::kms::v1::GetPublicKeyRequest request;
@@ -91,4 +91,4 @@ GcpKmsClient::GcpKmsClient(
     google::cloud::kms_v1::v2_36::KeyManagementServiceClient client)
     : client_(std::move(client)) {}
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

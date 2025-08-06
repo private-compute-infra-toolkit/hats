@@ -24,7 +24,7 @@ use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use prost::Message;
 use trusted_tvs_types::{EvidenceValidator, KeyProvider};
-use tvs_proto::privacy_sandbox::tvs::{
+use tvs_proto::pcit::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionResponse, VerifyReportRequest, VerifyReportResponseEncrypted,
 };
@@ -304,7 +304,7 @@ mod tests {
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use policy_manager::PolicyManager;
-    use tvs_proto::privacy_sandbox::tvs::{
+    use tvs_proto::pcit::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, InitSessionRequest,
         Measurement, Signature as PolicySignature, Stage0Measurement,
     };

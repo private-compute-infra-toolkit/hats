@@ -29,7 +29,7 @@ use std::sync::Arc;
 /// Upon receiving a request, the client should call Service::create_request_handler()
 /// to process all requests from a session.
 
-#[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
+#[cxx::bridge(namespace = "pcit::tvs::trusted")]
 mod ffi {
 
     extern "C++" {

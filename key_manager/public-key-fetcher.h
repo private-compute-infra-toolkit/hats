@@ -21,7 +21,7 @@
 
 #include "absl/status/statusor.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 struct PerOriginPublicKey {
   int64_t key_id;
@@ -44,6 +44,6 @@ class PublicKeyFetcher {
   GetLatestPublicKeys() = 0;
 };
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager
 
 #endif  // HATS_KEY_MANAGER_PUBLIC_KEY_FETCHER_H_

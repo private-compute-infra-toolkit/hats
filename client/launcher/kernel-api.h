@@ -19,7 +19,7 @@
 
 #include "external/psp-sev/file/psp-sev.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 // Thin wrapper of the underlying kernel or gcc function call to enable gmock
 // for testing purpose. It is not intended to be generalized.
 class KernelApiInterface {
@@ -40,5 +40,5 @@ class KernelApi : public KernelApiInterface {
   void Cpuid(uint32_t command, uint32_t* eax, uint32_t* ebx, uint32_t* ecx,
              uint32_t* edx) const override;
 };
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 #endif  // CLIENT_LAUNCHER_KERNEL_API_H_

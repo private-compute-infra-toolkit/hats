@@ -22,7 +22,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 struct Secret {
   std::string key_id;
@@ -49,6 +49,6 @@ class KeyFetcher {
   virtual absl::StatusOr<bool> MaybeAcquireLock(absl::string_view user_id) = 0;
 };
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager
 
 #endif  // HATS_KEY_MANAGER_KEY_FETCHER_H_

@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
   }
   std::ifstream if_stream(verify_report_request_file);
   google::protobuf::io::IstreamInputStream istream(&if_stream);
-  privacy_sandbox::tvs::VerifyReportRequest verify_report_request;
+  pcit::tvs::VerifyReportRequest verify_report_request;
   if (!google::protobuf::TextFormat::Parse(&istream, &verify_report_request)) {
     LOG(ERROR) << "Failed to parse " << verify_report_request_file;
     return 1;
@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
 
   HATS_ASSIGN_OR_RETURN(
       std::shared_ptr<grpc::Channel> channel,
-      privacy_sandbox::tvs::CreateGrpcChannel({
+      pcit::tvs::CreateGrpcChannel({
           .use_tls = absl::GetFlag(FLAGS_use_tls),
           .target = absl::GetFlag(FLAGS_tvs_address),
           .access_token = absl::GetFlag(FLAGS_access_token),
@@ -97,20 +97,20 @@ int main(int argc, char* argv[]) {
   const std::string tvs_address = absl::GetFlag(FLAGS_tvs_address);
   LOG(INFO) << "Creating TVS client to : " << tvs_address;
   HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient> tvs_client,
-      privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
+      std::unique_ptr<pcit::tvs::TvsUntrustedClient> tvs_client,
+      pcit::tvs::TvsUntrustedClient::CreateClient({
           .tvs_public_key = absl::GetFlag(FLAGS_tvs_public_key),
           .tvs_authentication_key = absl::GetFlag(FLAGS_tvs_authentication_key),
           .channel = std::move(channel),
       }),
       _.PrependWith("Couldn't create TVS client: ").LogErrorAndExit());
   HATS_ASSIGN_OR_RETURN(
-      privacy_sandbox::tvs::VerifyReportResponse response,
+      pcit::tvs::VerifyReportResponse response,
       tvs_client->VerifyReportAndGetSecrets(application_signing_key,
                                             verify_report_request),
       _.PrependWith("TVS rejected the report: ").LogErrorAndExit());
 
-  for (const privacy_sandbox::tvs::Secret& secret : response.secrets()) {
+  for (const pcit::tvs::Secret& secret : response.secrets()) {
     std::cout << "Key id: " << secret.key_id() << std::endl;
     std::cout << "Public key: " << secret.public_key() << std::endl;
     std::string private_key_hex = absl::BytesToHexString(secret.private_key());

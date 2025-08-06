@@ -27,7 +27,7 @@
 #include "key_manager/kms-client.h"
 #include "status_macro/status_test_macros.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 namespace {
 
 using ::google::cloud::StatusOr;
@@ -96,8 +96,7 @@ TEST(GcpKmsClientTest, CreateAsymmetricKeySuccess) {
 
   HATS_EXPECT_OK_AND_HOLDS(
       client->CreateAsymmetricKey(kExpectedParent, kExpectedKeyName),
-      AllOf(
-          Field(&privacy_sandbox::key_manager::CryptoKey::key_id, "key-name")));
+      AllOf(Field(&pcit::key_manager::CryptoKey::key_id, "key-name")));
 }
 
 TEST(GcpKmsClientTest, CreateAsymmetricKeyFailure) {
@@ -229,4 +228,4 @@ TEST(GcpKmsClientTest, DecryptDataFailure_AuthenticationError) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

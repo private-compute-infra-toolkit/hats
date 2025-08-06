@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package privacy_sandbox.client;
+package pcit.client;
 
 message LauncherConfig {
   // Address to talk to Tee Verification Service ( TVS ).

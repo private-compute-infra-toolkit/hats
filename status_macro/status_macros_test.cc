@@ -25,7 +25,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 namespace {
 
 using ::testing::AllOf;
@@ -324,4 +324,4 @@ TEST(ReturnIfError, WorksWithVoidReturnAdaptor) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro

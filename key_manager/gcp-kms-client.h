@@ -21,7 +21,7 @@
 #include "google/cloud/kms/v1/key_management_client.h"
 #include "key_manager/kms-client.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 class GcpKmsClient : public KmsClient {
  public:
   explicit GcpKmsClient(
@@ -42,6 +42,6 @@ class GcpKmsClient : public KmsClient {
   google::cloud::kms_v1::v2_36::KeyManagementServiceClient client_;
 };
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager
 
 #endif  // HATS_KEY_MANAGER_GCP_KEY_MANAGER_

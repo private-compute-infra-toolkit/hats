@@ -31,7 +31,7 @@ using ::testing::Pointee;
 using ::testing::StrEq;
 using ::testing::Test;
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 namespace {
 // We use `#line` to produce some `source_location` values pointing at various
 // different (fake) files to test e.g. `VLog`, but we use it at the end of this
@@ -428,4 +428,4 @@ const SourceLocation Locs::kFoo = SourceLocation::current();
 const SourceLocation Locs::kBar = SourceLocation::current();
 
 }  // namespace
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro

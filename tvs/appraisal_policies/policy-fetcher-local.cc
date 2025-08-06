@@ -31,7 +31,7 @@
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 namespace {
 
@@ -164,4 +164,4 @@ absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create(
       std::move(indexed_appraisal_policies));
 }
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

@@ -21,7 +21,7 @@ use alloc::vec::Vec;
 use crypto::{P256Scalar, P256_SCALAR_LENGTH, P256_X962_LENGTH};
 use policy_manager::PolicyManager;
 use trusted_tvs_types::{EvidenceValidator, KeyProvider};
-use tvs_enclave::proto::privacy_sandbox::tvs::{
+use tvs_enclave::proto::pcit::tvs::{
     CreateSessionRequest, CreateSessionResponse, DoCommandRequest, DoCommandResponse,
     LoadAppraisalPoliciesRequest, ProvisionKeysRequest, RegisterOrUpdateUserRequest,
     TerminateSessionRequest, TvsEnclave,
@@ -242,7 +242,7 @@ mod tests {
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use prost::Message;
-    use tvs_proto::privacy_sandbox::tvs::{
+    use tvs_proto::pcit::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement,
         Signature as PolicySignature, Stage0Measurement,
     };

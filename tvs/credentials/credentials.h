@@ -21,7 +21,7 @@
 #include "absl/status/statusor.h"
 #include "grpcpp/channel.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 struct CreateGrpcChannelOptions {
   bool use_tls;
@@ -33,6 +33,6 @@ struct CreateGrpcChannelOptions {
 absl::StatusOr<std::shared_ptr<grpc::Channel>> CreateGrpcChannel(
     const CreateGrpcChannelOptions& options);
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs
 
 #endif  // HATS_TVS_CREDENTIALS_CREDENTIALS_H_

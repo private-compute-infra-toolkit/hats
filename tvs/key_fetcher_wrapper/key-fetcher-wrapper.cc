@@ -29,7 +29,7 @@
 #include "tvs/key_fetcher_wrapper/src/key_fetcher.rs.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
-namespace privacy_sandbox::tvs::trusted {
+namespace pcit::tvs::trusted {
 
 namespace {
 
@@ -142,4 +142,4 @@ std::unique_ptr<KeyFetcherWrapper> CreateTestKeyFetcherWrapper(
           }}));
 }
 
-}  // namespace privacy_sandbox::tvs::trusted
+}  // namespace pcit::tvs::trusted

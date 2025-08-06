@@ -27,7 +27,7 @@
 #include "key_manager/key-fetcher.h"
 #include "tvs/telemetry/otel-counter.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 class KeyFetcherGcpCoordinator : public KeyFetcher {
  public:
@@ -67,14 +67,14 @@ class KeyFetcherGcpCoordinator : public KeyFetcher {
       google::cloud::spanner::Client coordinator_spanner_client,
       int64_t max_age_seconds, int64_t coordinator_version);
 
-  privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client_;
+  pcit::key_manager::GcpKmsClient gcp_kms_client_;
   google::cloud::spanner::Client tvs_spanner_client_;
   google::cloud::spanner::Client coordinator_spanner_client_;
   int64_t max_age_seconds_;
   int64_t coordinator_version_;
-  privacy_sandbox::tvs::OtelCounter origin_for_authentication_key_counter_;
+  pcit::tvs::OtelCounter origin_for_authentication_key_counter_;
 };
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager
 
 #endif  // HATS_KEY_MANAGER_KEY_FETCHER_GCP_COORDINATOR_H_

@@ -46,7 +46,7 @@
 #include "src/core/lib/iomgr/socket_mutator.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 namespace {
 // The size of gRPC chunk used for orchestrator service to send the blob. Might
@@ -504,4 +504,4 @@ absl::StatusOr<std::unique_ptr<HatsLauncher>> HatsLauncher::Create(
       std::move(vsock_server), vsock_port);
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

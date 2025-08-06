@@ -35,7 +35,7 @@ To convert a proto that depends on multiple protos e.g. VerifyReportRequest, run
 the following:
 
 ```shell
-protoc --encode="privacy_sandbox.tvs.VerifyReportRequest" \
+protoc --encode="pcit.tvs.VerifyReportRequest" \
   tvs/proto/tvs_messages.proto -Itvs/proto -Ibazel-hats/external/oak \
  < tvs/test_data/good_verify_request_report.txtpb \
  > tvs/test_data/good_verify_request_report.binarypb

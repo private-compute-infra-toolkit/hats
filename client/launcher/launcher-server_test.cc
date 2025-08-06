@@ -52,7 +52,7 @@
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/standalone_server/tvs-service.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 namespace {
 
 using ::google::protobuf::EqualsProto;
@@ -604,4 +604,4 @@ TEST(LauncherServer, BadReportError) {
 
 }  // namespace
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

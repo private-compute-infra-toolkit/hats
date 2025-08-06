@@ -20,7 +20,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 TestKeyFetcher::TestKeyFetcher(absl::string_view primary_private_key,
                                absl::string_view secondary_private_key,
@@ -72,4 +72,4 @@ absl::StatusOr<bool> TestKeyFetcher::MaybeAcquireLock(
   return absl::UnimplementedError("unimplemented");
 }
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

@@ -20,7 +20,7 @@
 #include "include/cxx.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 
-namespace privacy_sandbox::tvs::trusted {
+namespace pcit::tvs::trusted {
 
 // Forward declaration for the shared types. We cannot include the header
 // generated from rust as we are redefining KeyFetcherWrapper in there.
@@ -46,6 +46,6 @@ class PolicyFetcherWrapper final {
   std::unique_ptr<PolicyFetcher> policy_fetcher_;
 };
 
-}  // namespace privacy_sandbox::tvs::trusted
+}  // namespace pcit::tvs::trusted
 
 #endif  // HATS_TVS_APPRAISAL_POLICIES_POLICY_FETCHER_WRAPPER_H_

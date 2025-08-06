@@ -33,7 +33,7 @@
 
 ABSL_FLAG(std::string, curl_opt_cainfo, "", "path to CA bundle");
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 namespace {
 size_t ResponseHandler(char* contents, size_t byte_size, size_t num_bytes,
                        std::string* output) {
@@ -238,4 +238,4 @@ absl::StatusOr<std::string> ReadOrDownloadCertificate() {
   return certificate;
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

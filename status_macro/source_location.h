@@ -17,7 +17,7 @@
 
 #include <cstdint>
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 // Class representing a specific location in the source code of a program.
 // SourceLocation is copyable.
 class SourceLocation {
@@ -58,13 +58,12 @@ class SourceLocation {
   std::uint_least32_t line_;
   const char* file_name_;
 };
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro
 
 // If a function takes a SourceLocation parameter, pass this as the argument.
-#define HATS_LOC                                                               \
-  privacy_sandbox::status_macro::SourceLocation::DoNotInvokeDirectly(__LINE__, \
-                                                                     __FILE__)
+#define HATS_LOC \
+  pcit::status_macro::SourceLocation::DoNotInvokeDirectly(__LINE__, __FILE__)
 #define HATS_LOC_CURRENT_DEFAULT_ARG \
-  = privacy_sandbox::status_macro::SourceLocation::current()
+  = pcit::status_macro::SourceLocation::current()
 
 #endif  // HATS_STATUS_MACRO_SOURCE_LOCATION_H_

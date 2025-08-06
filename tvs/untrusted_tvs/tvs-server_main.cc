@@ -73,25 +73,25 @@ int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
 
-  std::unique_ptr<privacy_sandbox::key_manager::KeyFetcher> key_fetcher =
-      privacy_sandbox::key_manager::KeyFetcher::Create();
+  std::unique_ptr<pcit::key_manager::KeyFetcher> key_fetcher =
+      pcit::key_manager::KeyFetcher::Create();
   HATS_ASSIGN_OR_RETURN(
       int port, GetPort(),
       _.PrependWith("Cannot get server port: ").LogErrorAndExit());
 
   HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::tvs::PolicyFetcher> policy_fetcher,
-      privacy_sandbox::tvs::PolicyFetcher::Create(),
+      std::unique_ptr<pcit::tvs::PolicyFetcher> policy_fetcher,
+      pcit::tvs::PolicyFetcher::Create(),
       _.PrependWith("Failed to create a policy fetcher: ").LogErrorAndExit());
 
   HATS_ASSIGN_OR_RETURN(
-      privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
+      pcit::tvs::AppraisalPolicies appraisal_policies,
       policy_fetcher->GetLatestNPolicies(/*n=*/30),
       _.PrependWith("Failed to get appraisal policies: ").LogErrorAndExit());
 
   HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::tvs::TvsService> tvs_service,
-      privacy_sandbox::tvs::TvsService::Create({
+      std::unique_ptr<pcit::tvs::TvsService> tvs_service,
+      pcit::tvs::TvsService::Create({
           .key_fetcher = std::move(key_fetcher),
           .appraisal_policies = std::move(appraisal_policies),
           .vmm_binary = absl::GetFlag(FLAGS_vmm_binary),

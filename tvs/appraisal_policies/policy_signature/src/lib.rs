@@ -17,7 +17,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 use p256::ecdsa::{signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey};
-use tvs_proto::privacy_sandbox::tvs::AppraisalPolicy;
+use tvs_proto::pcit::tvs::AppraisalPolicy;
 
 /// Validate and generate signatures attached to an appraisal policy.
 ///
@@ -64,7 +64,7 @@ fn policy_to_bytes(policy: &AppraisalPolicy) -> anyhow::Result<Vec<u8>> {
     };
 
     let mut binary_data = vec![];
-    if let Some(tvs_proto::privacy_sandbox::tvs::stage0_measurement::Type::AmdSev(stage0)) =
+    if let Some(tvs_proto::pcit::tvs::stage0_measurement::Type::AmdSev(stage0)) =
         stage0_measurement.r#type.as_ref()
     {
         let Some(min_tcb_version) = &stage0.min_tcb_version else {
@@ -134,7 +134,7 @@ mod tests {
     use super::*;
     use crate::alloc::string::{String, ToString};
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
-    use tvs_proto::privacy_sandbox::tvs::{
+    use tvs_proto::pcit::tvs::{
         stage0_measurement, AmdSev, Measurement, Signature as SignatureWrapper, Stage0Measurement,
     };
 

@@ -19,7 +19,7 @@
 #include "client/proto/trusted_service.pb.h"
 #include "client/sdk/hats_orchestrator_client.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 class TrustedApplication final : public TrustedService::Service {
  public:
@@ -30,9 +30,8 @@ class TrustedApplication final : public TrustedService::Service {
                     DecryptedResponse* response) override;
 
  private:
-  privacy_sandbox::server_common::HatsOrchestratorClient
-      hats_orchestrator_client_;
+  pcit::server_common::HatsOrchestratorClient hats_orchestrator_client_;
 };
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 #endif  // HATS_CLIENT_TRUSTED_APPLICATION_ENCLAVE_APP_TRUSTED_APPLICATION_H_

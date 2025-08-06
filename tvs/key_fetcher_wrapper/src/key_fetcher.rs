@@ -22,7 +22,7 @@ use trusted_tvs_types::KeyProvider;
 /// 2. Implements KeyProvider trait that the trusted TVS understand.
 
 /// FFI for methods in tvs/key_fetcher_wrapper/key-fetcher-wrapper.h.
-#[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
+#[cxx::bridge(namespace = "pcit::tvs::trusted")]
 pub mod ffi {
     struct VecU8Result {
         value: Vec<u8>,

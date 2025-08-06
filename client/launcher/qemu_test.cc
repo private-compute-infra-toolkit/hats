@@ -21,7 +21,7 @@
 #include "gtest/gtest.h"
 #include "status_macro/status_test_macros.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 namespace {
 
 using ::testing::HasSubstr;
@@ -304,4 +304,4 @@ TEST(Qemu, CreationError) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
