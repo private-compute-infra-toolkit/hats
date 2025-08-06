@@ -73,6 +73,27 @@ impl CpuType {
             CpuType::EpycGenoaV2 => cpu_sig(25, 17, 0),
         }
     }
+
+    /// Creates a CpuType from raw CPUID family, model, and stepping info.
+    ///
+    /// Note: This can only map to the base type for a given CPU generation,
+    /// as version differences (e.g., EpycMilan vs EpycMilanV1) are not
+    /// distinguishable from CPUID alone.
+    pub fn from_cpuid(family: i32, model: i32, stepping: i32) -> Result<Self, error::Error> {
+        match (family, model, stepping) {
+            (23, 1, 2) => Ok(CpuType::Epyc),
+            (23, 49, 0) => Ok(CpuType::EpycRome),
+            (25, 1, 1) => Ok(CpuType::EpycMilan),
+            (25, 17, 0) => Ok(CpuType::EpycGenoa),
+            _ => Err(conversion(
+                format!(
+                    "Unsupported or unknown CPU type with family: {}, model: {}, stepping: {}",
+                    family, model, stepping
+                ),
+                None,
+            )),
+        }
+    }
 }
 
 impl fmt::Display for CpuType {

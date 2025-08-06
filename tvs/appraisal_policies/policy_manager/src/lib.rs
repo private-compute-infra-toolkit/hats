@@ -376,7 +376,7 @@ mod dynamic {
         let mut gctx = GCTX::new_from_seed(partial_hash.try_into()?);
 
         let (family, model, stepping) = cpu_info;
-        let vcpu_type = cpu_info_to_type(family, model.into(), stepping.into())?;
+        let vcpu_type = CpuType::from_cpuid(family, model.into(), stepping.into())?;
 
         // Create new VMSA object
         let vmsa = VMSA::new(SevMode::SevSnp, 0, vcpu_type);
@@ -387,22 +387,6 @@ mod dynamic {
             gctx.update_vmsa_page(&page_data)?;
         }
         Ok(gctx.ld().to_vec())
-    }
-
-    //see vcpu_types.rs - Utility function takes the family, model, and stepping information and categorizes it into the following CPU types.
-    fn cpu_info_to_type(family: i32, model: i32, stepping: i32) -> anyhow::Result<CpuType> {
-        match (family, model, stepping) {
-            (23, 1, 2) => Ok(CpuType::Epyc),
-            (23, 49, 0) => Ok(CpuType::EpycRome),
-            (25, 1, 1) => Ok(CpuType::EpycMilan),
-            (25, 17, 0) => Ok(CpuType::EpycGenoa),
-            _ => Err(anyhow!(
-                "Unsupported or unknown CPU type with family: {}, model: {}, stepping: {}",
-                family,
-                model,
-                stepping
-            )),
-        }
     }
 }
 
