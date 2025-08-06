@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -68,5 +68,22 @@ rust_library(
         ":vcpu_types",
         "@sev_snp_utils_crate_index//:byteorder",
         "@sev_snp_utils_crate_index//:sha2",
+    ],
+)
+
+rust_test(
+    name = "measure_test",
+    crate = ":measure",
+    data = glob(["resources/test/measure/**"]),
+    deps = [
+        ":common",
+        ":error",
+        ":identity",
+        ":vcpu_types",
+        "@rules_rust//tools/runfiles",
+        "@sev_snp_utils_crate_index//:bytemuck",
+        "@sev_snp_utils_crate_index//:libc",
+        "@sev_snp_utils_crate_index//:sha2",
+        "@sev_snp_utils_crate_index//:uuid",
     ],
 )

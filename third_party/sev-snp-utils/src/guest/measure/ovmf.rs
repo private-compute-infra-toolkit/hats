@@ -10,6 +10,8 @@ use common::binary::fmt_slice_vec_to_hex;
 use common::guid::guid_le_to_slice;
 use error::{conversion, io, validation, Result};
 
+use alloc::vec::Vec;
+
 const EXPECTED_METADATA_SIG: &[u8] = b"ASEV";
 
 const FOUR_GB: u64 = 0x100000000;
@@ -158,6 +160,20 @@ impl OVMF {
 
         let mut ovmf = Self {
             data,
+            table: HashMap::new(),
+            metadata_header: None,
+            metadata_items: Vec::new(),
+        };
+
+        ovmf.parse_footer_table()?;
+        ovmf.parse_sev_metadata()?;
+
+        Ok(ovmf)
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Result<Self>{
+        let mut ovmf = Self {
+            data: data.to_vec(),
             table: HashMap::new(),
             metadata_header: None,
             metadata_items: Vec::new(),
@@ -336,18 +352,91 @@ impl OVMF {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::binary::fmt_slice_vec_to_hex;
-    use crate::guest::measure::ovmf::{SectionType, OVMF};
+    use common::binary::fmt_slice_vec_to_hex;
+    use super::{SectionType, OVMF};
     use std::path::PathBuf;
+    use runfiles::Runfiles;
 
     #[test]
     fn ovmf_file_test() {
-        const TEST_OVMF_FILE: &str = "resources/test/measure/OVMF_CODE.fd";
+        let r = Runfiles::create().expect("Failed to create runfiles object");
 
-        let mut test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        test_file.push(TEST_OVMF_FILE);
+        let ovmf_path = r.rlocation("sev-snp-utils/resources/test/measure/OVMF_CODE.fd")
+            .expect("Failed to find OVMF_CODE.fd in runfiles");
 
-        let ovmf = OVMF::from_path(&test_file).expect("failed to load OVMF file");
+        let ovmf = OVMF::from_path(&ovmf_path).expect("failed to load OVMF file");
+
+        let metadata_header = ovmf.metadata_header.unwrap();
+        metadata_header.verify().unwrap();
+
+        assert_eq!(metadata_header.size, 76);
+        assert_eq!(metadata_header.num_items, 5);
+
+        // metadata_items
+        assert_eq!(ovmf.metadata_items().len(), 5);
+
+        for (idx, exp_gpa, exp_size, exp_section_type_id, exp_section_type) in vec![
+            (0, 8388608, 36864, 1, SectionType::SnpSecMem),
+            (1, 8429568, 12288, 1, SectionType::SnpSecMem),
+            (2, 8441856, 4096, 2, SectionType::SnpSecrets),
+            (3, 8445952, 4096, 3, SectionType::CPUID),
+            (4, 8454144, 65536, 1, SectionType::SnpSecMem),
+        ] {
+            println!("Running metadata_items test idx: {}", idx);
+
+            match ovmf.metadata_items().get(idx) {
+                Some(item) => {
+                    assert_eq!(exp_gpa, item.gpa());
+                    assert_eq!(exp_size, item.size());
+                    assert_eq!(exp_section_type_id, item.section_type_id());
+                    assert_eq!(exp_section_type, item.section_type().unwrap());
+                }
+                None => {
+                    panic!("missing metadata_items idx: {}", idx);
+                }
+            }
+        }
+
+        // table
+        assert_eq!(ovmf.table.len(), 5);
+
+        for (guid, data) in vec![
+            ("00f771de-1a7e-4fcb-890e-68c77e2fb44e", "04b08000"),
+            ("4c2eb361-7d9b-4cc3-8081-127c90d3d294", "00f08000000c0000"),
+            ("7255371f-3a3b-4b04-927b-1da6efa8d454", "00fc800000040000"),
+            ("dc886566-984a-4798-a75e-5585a7bf67cc", "2c050000"),
+            ("e47a6535-984a-4798-865e-4685a7bf8ec2", "40080000"),
+        ] {
+            println!("Running table_item test guid: {}", guid);
+
+            match ovmf.table_item(guid) {
+                Some(entry) => {
+                    assert_eq!(data, fmt_slice_vec_to_hex(entry));
+                }
+                None => {
+                    panic!("missing table guid: {}", guid);
+                }
+            }
+        }
+
+        // sev_hashes_table_gpa
+        assert_eq!(ovmf.sev_hashes_table_gpa().unwrap(), 8453120);
+
+        // sev_es_reset_eip
+        assert_eq!(ovmf.sev_es_reset_eip().unwrap(), 8433668);
+    }
+
+    #[test]
+    fn ovmf_bytes_test() {
+        let r = Runfiles::create().expect("Failed to create runfiles object");
+
+        let ovmf_path = r.rlocation("sev-snp-utils/resources/test/measure/OVMF_CODE.fd")
+            .expect("Failed to find OVMF_CODE.fd in runfiles");
+
+        let ovmf_bytes = std::fs::read(&ovmf_path)
+            .unwrap_or_else(|e| panic!("failed to read test file at {:?}: {}", ovmf_path, e));
+
+        let ovmf = OVMF::from_bytes(&ovmf_bytes).expect("failed to load OVMF from bytes");
 
         let metadata_header = ovmf.metadata_header.unwrap();
         metadata_header.verify().unwrap();
