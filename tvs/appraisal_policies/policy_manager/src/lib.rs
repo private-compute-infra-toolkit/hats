@@ -801,6 +801,10 @@ fn get_root_layer(
                 intel_tdx: None,
             })
         }
+        Some(stage0_measurement::Type::AmdSevDynamic(_)) => {
+            //TODO: b/434016988 - to be implemented
+            anyhow::bail!("Dynamic appraisal policy is not yet supported")
+        }
         None => Err(anyhow::anyhow!("stage0_measurement field is not set")),
     }
 }
