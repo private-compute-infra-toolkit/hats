@@ -32,7 +32,7 @@
 #include "grpcpp/support/sync_stream.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 namespace {
 
@@ -183,11 +183,11 @@ grpc::Status LauncherServer::VerifyReport(
 
 grpc::Status LauncherServer::FetchOrchestratorMetadata(
     grpc::ServerContext* context, const google::protobuf::Empty* request,
-    privacy_sandbox::client::FetchOrchestratorMetadataResponse* reply) {
+    pcit::client::FetchOrchestratorMetadataResponse* reply) {
   reply->set_tvs_authentication_key(tvs_authentication_key_);
   *reply->mutable_private_key_wrapping_keys() = private_key_wrapping_keys_;
   reply->set_tee_certificate(tee_certificate_);
   return grpc::Status::OK;
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

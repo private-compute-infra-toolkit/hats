@@ -28,7 +28,7 @@
 #include "status_macro/status_test_macros.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 namespace {
 
 using ::google::protobuf::EqualsProto;
@@ -252,4 +252,4 @@ TEST(KeyFetcherGcp, GetLatestNPoliciesForDigestNotFoundError) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

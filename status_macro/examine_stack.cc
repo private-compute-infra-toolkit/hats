@@ -22,7 +22,7 @@
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 namespace {
 constexpr int kDefaultStackTraceDepth = 32;
 // The %p field width for printf() functions is two characters per byte,
@@ -74,4 +74,4 @@ std::string CurrentStackTrace() {
   DumpStackTrace(1, DebugWriteToString, &result);
   return result;
 }
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro

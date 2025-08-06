@@ -24,7 +24,7 @@
 #include "absl/strings/string_view.h"
 #include "key_manager/key-fetcher.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 // Store data for every user.
 struct TestUserData {
@@ -63,6 +63,6 @@ class TestKeyFetcher final : public KeyFetcher {
   std::vector<TestUserData> user_data_;
 };
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager
 
 #endif  // HATS_KEY_MANAGER_TEST_KEY_FETCHER_H_

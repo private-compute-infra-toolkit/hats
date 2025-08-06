@@ -22,7 +22,7 @@
 #ifndef HATS_CLIENT_LAUNCHER_VMM_H_
 #define HATS_CLIENT_LAUNCHER_VMM_H_
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 // Defines an interface for implementing a VMM.
 // This interface defines common options availble to the VMMs
@@ -132,6 +132,6 @@ class Vmm {
   virtual void Shutdown() = 0;
 };
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 #endif  // HATS_CLIENT_LAUNCHER_VMM_H_

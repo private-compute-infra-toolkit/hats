@@ -27,7 +27,7 @@
 #include "grpcpp/create_channel.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 TrustedApplicationClient::TrustedApplicationClient(absl::string_view public_key,
                                                    absl::string_view key_id)
@@ -51,10 +51,10 @@ absl::StatusOr<DecryptedResponse> TrustedApplicationClient::SendEcho() const {
 absl::StatusOr<DecryptedResponse> TrustedApplicationClient::SendEcho(
     absl::string_view to_encrypt) const {
   grpc::ClientContext context;
-  HATS_ASSIGN_OR_RETURN(std::string encrypted,
-                        privacy_sandbox::crypto::HpkeEncrypt(
-                            public_key_, crypto::SecretData(to_encrypt),
-                            privacy_sandbox::crypto::kSecretHpkeAd));
+  HATS_ASSIGN_OR_RETURN(
+      std::string encrypted,
+      pcit::crypto::HpkeEncrypt(public_key_, crypto::SecretData(to_encrypt),
+                                pcit::crypto::kSecretHpkeAd));
 
   EncryptedRequest request;
   *request.mutable_encrypted_message() = std::move(encrypted);
@@ -69,4 +69,4 @@ absl::StatusOr<DecryptedResponse> TrustedApplicationClient::SendEcho(
   return response;
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

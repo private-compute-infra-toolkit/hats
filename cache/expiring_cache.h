@@ -23,7 +23,7 @@
 #include "absl/time/time.h"
 #include "cache/interface.h"
 
-namespace privacy_sandbox::cache {
+namespace pcit::cache {
 
 // A thread-safe cache implementation where entries expire after a
 // specified time-to-live (TTL).
@@ -131,5 +131,5 @@ class ExpiringCache final : public CacheInterface<Key, Value> {
   absl::Duration cache_ttl_;
 };
 
-}  // namespace privacy_sandbox::cache
+}  // namespace pcit::cache
 #endif  // HATS_CACHE_EXPIRING_CACHE_H_

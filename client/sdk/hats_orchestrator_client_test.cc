@@ -26,7 +26,7 @@
 #include "src/google/protobuf/test_textproto.h"
 #include "status_macro/status_test_macros.h"
 
-namespace privacy_sandbox::server_common {
+namespace pcit::server_common {
 namespace {
 
 using ::google::protobuf::EqualsProto;
@@ -82,4 +82,4 @@ TEST(HatsOrchestratorClient, Error) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::server_common
+}  // namespace pcit::server_common

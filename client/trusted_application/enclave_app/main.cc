@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
   absl::InitializeLog();
 
   std::string port_to_use = absl::GetFlag(FLAGS_port);
-  privacy_sandbox::client::TrustedApplication service;
+  pcit::client::TrustedApplication service;
 
   grpc::ServerBuilder builder;
   builder.AddListeningPort(absl::StrCat("[::]:", port_to_use),
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
   builder.RegisterService(&service);
   std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
 
-  privacy_sandbox::server_common::HatsOrchestratorClient client;
+  pcit::server_common::HatsOrchestratorClient client;
   HATS_RETURN_IF_ERROR(client.NotifyAppReady())
       .PrependWith("Failed to notify launcher that app is ready: ")
       .LogErrorAndExit();

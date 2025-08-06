@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use anyhow::Context;
-use client_proto::privacy_sandbox::server_common::{
+use client_proto::pcit::server_common::{
     hats_orchestrator_server::{HatsOrchestrator, HatsOrchestratorServer},
     GetKeysResponse, Key,
 };
@@ -28,7 +28,7 @@ use tokio::{fs::set_permissions, net::UnixListener};
 use tokio_stream::wrappers::UnixListenerStream;
 use tokio_util::sync::CancellationToken;
 use tonic::{transport::Server, Request, Response};
-use tvs_proto::privacy_sandbox::tvs::VerifyReportResponse;
+use tvs_proto::pcit::tvs::VerifyReportResponse;
 
 impl HatsServer {
     pub fn new(tvs_secret_manager: Box<dyn tvs_secret_manager::TvsSecretManagerInterface>) -> Self {
@@ -99,7 +99,7 @@ pub async fn create_services(
 mod tests {
     use super::*;
     use anyhow::anyhow;
-    use tvs_proto::privacy_sandbox::tvs::Secret;
+    use tvs_proto::pcit::tvs::Secret;
     use tvs_secret_manager::MockTvsSecretManagerInterface;
 
     #[tokio::test]

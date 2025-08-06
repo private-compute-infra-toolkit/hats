@@ -48,7 +48,7 @@ ABSL_FLAG(bool, qemu_use_microvm, false,
 // porting from oak qemu launcher: http://shortn/_LgMZgnCwOM
 // currently Start() is non-blocking, do not terminate process
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 // SLIRP assings 10.0.2.15 to the guest.
 constexpr char kVmLocalAddress[] = "10.0.2.15";
@@ -402,4 +402,4 @@ void Qemu::Shutdown() {
   kill(process_id_, SIGTERM);
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

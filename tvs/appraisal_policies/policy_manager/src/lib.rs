@@ -31,9 +31,7 @@ use oak_proto_rust::oak::RawDigest;
 use p256::ecdsa::VerifyingKey;
 use prost::Message;
 use trusted_tvs_types::EvidenceValidator;
-use tvs_proto::privacy_sandbox::tvs::{
-    stage0_measurement, AppraisalPolicies, AppraisalPolicy, Measurement,
-};
+use tvs_proto::pcit::tvs::{stage0_measurement, AppraisalPolicies, AppraisalPolicy, Measurement};
 
 /// Validate measurements against a given appraisal policies.
 ///
@@ -639,9 +637,7 @@ mod tests {
     use alloc::string::String;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use prost::Message;
-    use tvs_proto::privacy_sandbox::tvs::{
-        stage0_measurement, AmdSev, Signature, Stage0Measurement,
-    };
+    use tvs_proto::pcit::tvs::{stage0_measurement, AmdSev, Signature, Stage0Measurement};
 
     fn default_appraisal_policies() -> Vec<u8> {
         let policies = AppraisalPolicies {

@@ -19,7 +19,7 @@
 
 #include "grpcpp/create_channel.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 absl::StatusOr<std::shared_ptr<grpc::Channel>> CreateGrpcChannel(
     const CreateGrpcChannelOptions& options) {
@@ -45,4 +45,4 @@ absl::StatusOr<std::shared_ptr<grpc::Channel>> CreateGrpcChannel(
                              grpc::InsecureChannelCredentials());
 }
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

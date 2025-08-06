@@ -25,7 +25,7 @@
 // out with minimal code changes.  For example, the implementation could
 // use the Google Cloud Platform KMS, or it could use a local KMS for
 // testing purposes.
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 enum class ProtectionLevel { SOFTWARE, HSM, UNKNOWN };
 
 enum class CryptoKeyPurpose { ASYMMETRIC_SIGN, ENCRYPT_DECRYPT };
@@ -58,5 +58,5 @@ class KmsClient {
       absl::string_view associated_data) = 0;
 };
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager
 #endif  // HATS_KEY_MANAGER_KMS_CLIENT

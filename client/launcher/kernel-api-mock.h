@@ -17,7 +17,7 @@
 #include "client/launcher/snp-abi.h"
 #include "external/psp-sev/file/psp-sev.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 class KernelApiMock : public KernelApiInterface {
  public:
   int OpenSev() const override { return 133; }
@@ -28,8 +28,9 @@ class KernelApiMock : public KernelApiInterface {
     // location.
     switch (cmd.cmd) {
       case SNP_PLATFORM_STATUS: {
-        auto buffer = reinterpret_cast<
-            privacy_sandbox::client::snp_platform_status_buffer*>(cmd.data);
+        auto buffer =
+            reinterpret_cast<pcit::client::snp_platform_status_buffer*>(
+                cmd.data);
         buffer->reported_tcb = reported_tcb_;
       } break;
       case SEV_GET_ID2: {
@@ -65,4 +66,4 @@ class KernelApiMock : public KernelApiInterface {
   uint64_t reported_tcb_;
   __u8 sev_user_get_id_socket1_[64];
 };
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

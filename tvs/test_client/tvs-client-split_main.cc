@@ -37,7 +37,7 @@
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
 
-using privacy_sandbox::crypto::SecretData;
+using pcit::crypto::SecretData;
 
 ABSL_FLAG(std::vector<std::string>, tvs_addresses,
           std::vector<std::string>({""}), "Ports TVS servers listens to.");
@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
   }
   std::ifstream if_stream(verify_report_request_file);
   google::protobuf::io::IstreamInputStream istream(&if_stream);
-  privacy_sandbox::tvs::VerifyReportRequest verify_report_request;
+  pcit::tvs::VerifyReportRequest verify_report_request;
   if (!google::protobuf::TextFormat::Parse(&istream, &verify_report_request)) {
     LOG(ERROR) << "Failed to parse " << verify_report_request_file;
     return 1;
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
   for (size_t i = 0; i < tvs_addresses.size(); i++) {
     HATS_ASSIGN_OR_RETURN(
         std::shared_ptr<grpc::Channel> channel,
-        privacy_sandbox::tvs::CreateGrpcChannel({
+        pcit::tvs::CreateGrpcChannel({
             .use_tls = absl::GetFlag(FLAGS_use_tls),
             .target = tvs_addresses[i],
             .access_token = absl::GetFlag(FLAGS_access_token),
@@ -144,8 +144,8 @@ int main(int argc, char* argv[]) {
             .LogErrorAndExit());
 
     HATS_ASSIGN_OR_RETURN(
-        std::unique_ptr<privacy_sandbox::tvs::TvsUntrustedClient> tvs_client,
-        privacy_sandbox::tvs::TvsUntrustedClient::CreateClient({
+        std::unique_ptr<pcit::tvs::TvsUntrustedClient> tvs_client,
+        pcit::tvs::TvsUntrustedClient::CreateClient({
             .tvs_public_key = tvs_public_keys[i],
             .tvs_authentication_key =
                 absl::GetFlag(FLAGS_tvs_authentication_key),
@@ -155,11 +155,11 @@ int main(int argc, char* argv[]) {
                                    tvs_addresses[i], ": "))
             .LogErrorAndExit());
     HATS_ASSIGN_OR_RETURN(
-        privacy_sandbox::tvs::VerifyReportResponse response,
+        pcit::tvs::VerifyReportResponse response,
         tvs_client->VerifyReportAndGetSecrets(application_signing_key,
                                               verify_report_request),
         _.PrependWith("TVS rejected the report: ").LogErrorAndExit());
-    for (const privacy_sandbox::tvs::Secret& secret : response.secrets()) {
+    for (const pcit::tvs::Secret& secret : response.secrets()) {
       KeyShares& shares = keys[secret.key_id()];
       shares.public_key = secret.public_key();
       shares.secret_shares.push_back(secret.private_key());
@@ -171,14 +171,14 @@ int main(int argc, char* argv[]) {
     if (share_split_type == "XOR") {
       HATS_ASSIGN_OR_RETURN(
           recovered_secret,
-          privacy_sandbox::crypto::XorRecoverSecret(
+          pcit::crypto::XorRecoverSecret(
               StringVecToRustVec(shared_secret.secret_shares),
               tvs_addresses.size()),
           _.PrependWith("Failed to recover XOR secret: ").LogErrorAndExit());
     } else if (share_split_type == "SHAMIR") {
       HATS_ASSIGN_OR_RETURN(
           recovered_secret,
-          privacy_sandbox::crypto::ShamirRecoverSecret(
+          pcit::crypto::ShamirRecoverSecret(
               StringVecToRustVec(shared_secret.secret_shares),
               tvs_addresses.size(),
               std::max(tvs_addresses.size() - 1, static_cast<size_t>(2))),
@@ -202,8 +202,7 @@ int main(int argc, char* argv[]) {
       SecretData dek = SecretData(dec);
       HATS_ASSIGN_OR_RETURN(
           SecretData unwrapped_key,
-          privacy_sandbox::crypto::Decrypt(dek, wrapped_secret,
-                                           privacy_sandbox::crypto::kSecretAd),
+          pcit::crypto::Decrypt(dek, wrapped_secret, pcit::crypto::kSecretAd),
           _.PrependWith("Invalid private key recovered").LogErrorAndExit());
       bytes = unwrapped_key.GetStringView();
     } else {

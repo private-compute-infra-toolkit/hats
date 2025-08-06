@@ -19,7 +19,7 @@
 #include "google/rpc/status.pb.h"
 #include "grpcpp/grpcpp.h"  // IWYU pragma: keep
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 
 // Converts from absl::Status to grpc::Status.
 grpc::Status FromAbslStatus(const absl::Status& status);
@@ -34,6 +34,6 @@ inline google::rpc::Status SaveStatusAsRpcStatus(const absl::Status& status) {
   return ret;
 }
 
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro
 
 #endif  // HATS_STATUS_MACRO_STATUS_UTIL_H_

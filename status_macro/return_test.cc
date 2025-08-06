@@ -33,7 +33,7 @@ absl::Status IfFiveReturnError(int x) {
 TEST(ReturnTest, ReturnsBool) {
   auto if_five_return_false = [](int x) -> bool {
     HATS_RETURN_IF_ERROR(IfFiveReturnError(x))
-        .With(::privacy_sandbox::status_macros::Return(false));
+        .With(::pcit::status_macros::Return(false));
     return true;
   };
   EXPECT_EQ(if_five_return_false(5), false);
@@ -43,7 +43,7 @@ TEST(ReturnTest, ReturnsBool) {
 TEST(ReturnTest, ReturnsInt) {
   auto if_five_return_404 = [](int x) -> int {
     HATS_RETURN_IF_ERROR(IfFiveReturnError(x))
-        .With(::privacy_sandbox::status_macros::Return(404));
+        .With(::pcit::status_macros::Return(404));
     return 200;
   };
   EXPECT_EQ(if_five_return_404(5), 404);
@@ -54,7 +54,7 @@ TEST(ReturnTest, ReturnsConstRef) {
   auto if_five_return_foo = [](int x) -> std::string {
     const std::string foo = "foo";
     HATS_RETURN_IF_ERROR(IfFiveReturnError(x))
-        .With(::privacy_sandbox::status_macros::Return(foo));
+        .With(::pcit::status_macros::Return(foo));
     return "bar";
   };
   EXPECT_EQ(if_five_return_foo(5), "foo");
@@ -63,7 +63,7 @@ TEST(ReturnTest, ReturnsConstRef) {
 
 TEST(ReturnTest, ReturnsConstRefAdaptor) {
   auto if_five_return_foo = [](int x) -> std::string {
-    const auto return_foo = ::privacy_sandbox::status_macros::Return("foo");
+    const auto return_foo = ::pcit::status_macros::Return("foo");
     HATS_RETURN_IF_ERROR(IfFiveReturnError(x)).With(return_foo);
     return "bar";
   };
@@ -74,7 +74,7 @@ TEST(ReturnTest, ReturnsConstRefAdaptor) {
 TEST(ReturnTest, ReturnsNullptr) {
   auto if_five_return_null = [](int x) -> std::unique_ptr<std::string> {
     HATS_RETURN_IF_ERROR(IfFiveReturnError(x))
-        .With(::privacy_sandbox::status_macros::Return(nullptr));
+        .With(::pcit::status_macros::Return(nullptr));
     return std::make_unique<std::string>("ok");
   };
   EXPECT_EQ(if_five_return_null(5), nullptr);
@@ -84,8 +84,7 @@ TEST(ReturnTest, ReturnsNullptr) {
 TEST(ReturnTest, ReturnsUniquePtr) {
   auto if_five_return_404 = [](int x) -> std::unique_ptr<int> {
     HATS_RETURN_IF_ERROR(IfFiveReturnError(x))
-        .With(::privacy_sandbox::status_macros::Return(
-            std::make_unique<int>(404)));
+        .With(::pcit::status_macros::Return(std::make_unique<int>(404)));
     return std::make_unique<int>(200);
   };
   EXPECT_THAT(if_five_return_404(5), Pointee<int>(404));
@@ -97,7 +96,7 @@ TEST(ReturnTest, ReturnsVoid) {
   auto if_five_then_fail = [&success](int x) -> void {
     success = false;
     HATS_RETURN_IF_ERROR(IfFiveReturnError(x))
-        .With(::privacy_sandbox::status_macros::ReturnVoid());
+        .With(::pcit::status_macros::ReturnVoid());
     success = true;
   };
 

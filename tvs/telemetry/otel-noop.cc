@@ -14,6 +14,6 @@
 
 #include "tvs/telemetry/otel.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 absl::Status InitializeTelemetry() { return absl::OkStatus(); }
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

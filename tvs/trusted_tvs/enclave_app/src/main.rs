@@ -30,7 +30,7 @@ use oak_restricted_kernel_sdk::{
     utils::samplestore::StaticSampleStore,
 };
 use trusted_tvs_enclave::enclave_service::EnclaveService;
-use tvs_enclave::proto::privacy_sandbox::tvs::TvsEnclaveServer;
+use tvs_enclave::proto::pcit::tvs::TvsEnclaveServer;
 
 #[entrypoint]
 fn start_server() -> ! {

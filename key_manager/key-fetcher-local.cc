@@ -37,7 +37,7 @@ ABSL_FLAG(std::string, user_authentication_public_key, "",
           "Public portion of the key used by the user to authenticate with "
           "TVS.");
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 class KeyFetcherLocal : public KeyFetcher {
  public:
@@ -141,4 +141,4 @@ std::unique_ptr<KeyFetcher> KeyFetcher::Create() {
       absl::GetFlag(FLAGS_user_authentication_public_key));
 }
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

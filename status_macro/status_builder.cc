@@ -24,7 +24,7 @@
 #include "absl/synchronization/mutex.h"
 #include "status_macro/examine_stack.h"
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 StatusBuilder::StatusBuilder() {}
 
 StatusBuilder::Rep::Rep(const absl::Status& s) : status(s) {}
@@ -122,4 +122,4 @@ std::ostream& operator<<(std::ostream& os, const StatusBuilder& builder) {
 std::ostream& operator<<(std::ostream& os, StatusBuilder&& builder) {
   return os << static_cast<absl::Status>(std::move(builder));
 }
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro

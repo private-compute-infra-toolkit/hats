@@ -31,7 +31,7 @@
 #include "tvs/proto/tvs.grpc.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 namespace {
 
@@ -155,4 +155,4 @@ TvsUntrustedClient::VerifyReportAndGetSecrets(
   return response;
 }
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

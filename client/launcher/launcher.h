@@ -23,7 +23,7 @@
 #include "client/proto/launcher_config.pb.h"
 #include "grpcpp/channel.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 struct HatsLauncherConfig {
   // Config file provided configurations.
@@ -68,6 +68,6 @@ class HatsLauncher {
   virtual bool CheckStatus() const = 0;
 };
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 #endif  // HATS_CLIENT_LAUNCHER_LAUNCHER_H_

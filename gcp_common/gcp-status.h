@@ -18,10 +18,10 @@
 #include "absl/status/status.h"
 #include "google/cloud/status.h"
 
-namespace privacy_sandbox::gcp_common {
+namespace pcit::gcp_common {
 
 absl::Status GcpToAbslStatus(const google::cloud::Status& status);
 
-}  // namespace privacy_sandbox::gcp_common
+}  // namespace pcit::gcp_common
 
 #endif  // HATS_GCP_COMMON_GCP_STATUS_H_

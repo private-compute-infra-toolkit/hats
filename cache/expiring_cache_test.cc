@@ -23,7 +23,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-namespace privacy_sandbox::cache {
+namespace pcit::cache {
 namespace {
 
 using ::testing::AllOf;
@@ -163,4 +163,4 @@ TEST(ExpiringCacheTest, CleanExpiredRemovesOnlyExpiredItems) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::cache
+}  // namespace pcit::cache

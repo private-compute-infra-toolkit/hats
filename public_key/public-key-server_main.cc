@@ -65,9 +65,9 @@ int main(int argc, char* argv[]) {
       _.PrependWith("Failed to get port from env or commandline: ")
           .LogErrorAndExit());
 
-  std::unique_ptr<privacy_sandbox::key_manager::PublicKeyFetcher> key_fetcher =
-      privacy_sandbox::key_manager::PublicKeyFetcher::Create();
-  privacy_sandbox::public_key_service::CreateAndStartPublicKeyServer(
+  std::unique_ptr<pcit::key_manager::PublicKeyFetcher> key_fetcher =
+      pcit::key_manager::PublicKeyFetcher::Create();
+  pcit::public_key_service::CreateAndStartPublicKeyServer(
       {
           .port = port,
           .gcp_cloud_bucket_name = absl::GetFlag(FLAGS_bucket_name),

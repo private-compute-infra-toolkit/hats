@@ -30,7 +30,7 @@
 #include "opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader_factory.h"
 #include "opentelemetry/sdk/metrics/meter_provider.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 namespace {
 
 using ::opentelemetry::sdk::metrics::InstrumentDescriptor;
@@ -90,4 +90,4 @@ TEST(OtelCounterTest, CounterIncrement) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

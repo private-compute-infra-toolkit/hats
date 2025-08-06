@@ -29,7 +29,7 @@
 #include "openssl/hpke.h"
 #include "openssl/rand.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 absl::StatusOr<HpkeKeyPair> GenerateHpkeKeyPair() {
   EVP_PKEY_CTX* pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, /*e=*/nullptr);
@@ -191,4 +191,4 @@ absl::StatusOr<SecretData> HpkeDecrypt(const SecretData& private_key,
       reinterpret_cast<char*>(recovered_plaintext.data()), recovered_pt_len));
 }
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto

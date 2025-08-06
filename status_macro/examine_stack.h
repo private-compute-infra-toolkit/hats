@@ -17,7 +17,7 @@
 
 #include <string>
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 // Type of function used for printing in stack trace dumping, etc.
 // We avoid closures to keep things simple.
 typedef void DebugWriter(const char*, void*);
@@ -29,6 +29,6 @@ void DumpPCAndStackTrace(void* pc, void* const stack[], int depth,
 // Return the current stack trace as a string (on multiple lines, beginning with
 // "Stack trace:\n").
 std::string CurrentStackTrace();
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro
 
 #endif  // HATS_STATUS_MACRO_EXAMINESTACK_H_

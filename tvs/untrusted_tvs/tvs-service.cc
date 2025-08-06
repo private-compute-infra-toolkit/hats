@@ -29,7 +29,7 @@
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/proto/tvs_messages.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 namespace {
 
@@ -126,7 +126,7 @@ TvsService::TvsService(rust::Box<Launcher> launcher,
 absl::StatusOr<std::unique_ptr<TvsService>> TvsService::Create(
     Options options) {
   HATS_ASSIGN_OR_RETURN(rust::Box<Launcher> launcher,
-                        privacy_sandbox::tvs::NewLauncher({
+                        pcit::tvs::NewLauncher({
                             .vmm_binary = options.vmm_binary,
                             .bios_binary = options.bios_binary,
                             .kernel = options.kernel,
@@ -208,4 +208,4 @@ grpc::Status TvsService::VerifyReport(
   return grpc::Status::OK;
 }
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

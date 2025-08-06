@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package privacy_sandbox.client;
+package pcit.client;
 
 message EncryptedRequest {
   string key_id = 1;

@@ -18,7 +18,7 @@
 #include "opentelemetry/proto/collector/logs/v1/logs_service.pb.h"
 #include "opentelemetry/proto/logs/v1/logs.pb.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 namespace {
 
@@ -61,4 +61,4 @@ grpc::Status LogsService::Export(
   return grpc::Status::OK;
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

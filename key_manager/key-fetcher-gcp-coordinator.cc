@@ -80,7 +80,7 @@ ABSL_FLAG(int64_t, max_age_seconds, 3888000,
 ABSL_FLAG(CoordinatorVersion, coordinator_version, CoordinatorVersion(1),
           "Major version of coordinator");
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 namespace {
 
@@ -97,8 +97,8 @@ constexpr int kKeyArnPrefixSize = 10;
 
 absl::StatusOr<std::vector<Secret>> WrappedSecretsByUserIdFromSpanner(
     absl::string_view user_id, google::cloud::spanner::Client& client,
-    privacy_sandbox::key_manager::GcpKmsClient& gcp_kms_client,
-    int64_t max_age_seconds, int64_t coordinator_version) {
+    pcit::key_manager::GcpKmsClient& gcp_kms_client, int64_t max_age_seconds,
+    int64_t coordinator_version) {
   google::cloud::spanner::SqlStatement select;
   if (coordinator_version == 1) {
     select = google::cloud::spanner::SqlStatement(
@@ -131,14 +131,14 @@ absl::StatusOr<std::vector<Secret>> WrappedSecretsByUserIdFromSpanner(
                               unescaped_wrapped_key, /*associated_data=*/""));
 
     // Wrap the private key into a TVS serialized XOR Share struct.
-    HATS_ASSIGN_OR_RETURN(rust::Vec<rust::String> shares,
-                          privacy_sandbox::crypto::XorSplitSecret(
-                              rust::Slice<const std::uint8_t>(
-                                  reinterpret_cast<const unsigned char*>(
-                                      unwrapped_private_key.data()),
-                                  unwrapped_private_key.size()),
-                              1),
-                          _.PrependWith("Failed to serialize XOR secret: "));
+    HATS_ASSIGN_OR_RETURN(
+        rust::Vec<rust::String> shares,
+        pcit::crypto::XorSplitSecret(rust::Slice<const std::uint8_t>(
+                                         reinterpret_cast<const unsigned char*>(
+                                             unwrapped_private_key.data()),
+                                         unwrapped_private_key.size()),
+                                     1),
+        _.PrependWith("Failed to serialize XOR secret: "));
     secrets.push_back({.key_id = std::get<0>(*row),
                        .public_key = std::get<1>(*row),
                        .private_key = static_cast<std::string>(shares[0])});
@@ -162,7 +162,7 @@ KeyFetcherGcpCoordinator::KeyFetcherGcpCoordinator(
       coordinator_spanner_client_(std::move(coordinator_spanner_client)),
       max_age_seconds_(max_age_seconds),
       coordinator_version_(coordinator_version),
-      origin_for_authentication_key_counter_(privacy_sandbox::tvs::OtelCounter(
+      origin_for_authentication_key_counter_(pcit::tvs::OtelCounter(
           kAuthKeyCounterName, kAuthKeyCounterHelp, kAuthKeyCounterUnit)) {}
 
 KeyFetcherGcpCoordinator::KeyFetcherGcpCoordinator(
@@ -184,7 +184,7 @@ KeyFetcherGcpCoordinator::KeyFetcherGcpCoordinator(
               std::string(coordinator_database_id)))),
       max_age_seconds_(max_age_seconds),
       coordinator_version_(coordinator_version),
-      origin_for_authentication_key_counter_(privacy_sandbox::tvs::OtelCounter(
+      origin_for_authentication_key_counter_(pcit::tvs::OtelCounter(
           kAuthKeyCounterName, kAuthKeyCounterHelp, kAuthKeyCounterUnit)) {}
 
 absl::StatusOr<std::string> KeyFetcherGcpCoordinator::GetPrimaryPrivateKey() {
@@ -277,4 +277,4 @@ std::unique_ptr<KeyFetcher> KeyFetcher::Create() {
       absl::GetFlag(FLAGS_coordinator_version).version);
 }
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

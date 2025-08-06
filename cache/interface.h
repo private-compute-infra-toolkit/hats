@@ -17,7 +17,7 @@
 
 #include <memory>
 
-namespace privacy_sandbox::cache {
+namespace pcit::cache {
 
 template <typename Key, typename Value>
 class CacheInterface {
@@ -29,5 +29,5 @@ class CacheInterface {
   virtual void Erase(const Key& key) = 0;
 };
 
-}  // namespace privacy_sandbox::cache
+}  // namespace pcit::cache
 #endif  // HATS_CACHE_INTERFACE_H_

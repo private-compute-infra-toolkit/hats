@@ -124,7 +124,7 @@ ABSL_FLAG(std::string, share_split_type, "SHAMIR",
 
 namespace {
 
-using ::privacy_sandbox::crypto::SecretData;
+using ::pcit::crypto::SecretData;
 
 absl::StatusOr<google::cloud::spanner::Database> CreateSpannerDatabase(
     absl::string_view spanner_database) {
@@ -208,12 +208,10 @@ struct TvsSecrets {
 absl::StatusOr<TvsSecrets> GenerateTvsSecrets(
     absl::string_view kms_key_resource_name) {
   // Create EC Keys for TVS handshake.
-  HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::crypto::EcKey> primary_ec_key,
-      privacy_sandbox::crypto::EcKey::Create());
-  HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::crypto::EcKey> secondary_ec_key,
-      privacy_sandbox::crypto::EcKey::Create());
+  HATS_ASSIGN_OR_RETURN(std::unique_ptr<pcit::crypto::EcKey> primary_ec_key,
+                        pcit::crypto::EcKey::Create());
+  HATS_ASSIGN_OR_RETURN(std::unique_ptr<pcit::crypto::EcKey> secondary_ec_key,
+                        pcit::crypto::EcKey::Create());
 
   // Get TVS public keys.
   HATS_ASSIGN_OR_RETURN(std::string primary_ec_public_key,
@@ -222,19 +220,19 @@ absl::StatusOr<TvsSecrets> GenerateTvsSecrets(
                         secondary_ec_key->GetPublicKeyInHex());
 
   // Generate data encryption key (DEK) to wrap keys.
-  SecretData dek = privacy_sandbox::crypto::RandomAeadKey();
+  SecretData dek = pcit::crypto::RandomAeadKey();
 
   // Wrap EC private keys with `dek`.
-  HATS_ASSIGN_OR_RETURN(std::string wrapped_primary_ec_private_key,
-                        primary_ec_key->WrapPrivateKey(
-                            dek, privacy_sandbox::crypto::kTvsPrivateKeyAd));
+  HATS_ASSIGN_OR_RETURN(
+      std::string wrapped_primary_ec_private_key,
+      primary_ec_key->WrapPrivateKey(dek, pcit::crypto::kTvsPrivateKeyAd));
 
-  HATS_ASSIGN_OR_RETURN(std::string wrapped_secondary_ec_private_key,
-                        secondary_ec_key->WrapPrivateKey(
-                            dek, privacy_sandbox::crypto::kTvsPrivateKeyAd));
+  HATS_ASSIGN_OR_RETURN(
+      std::string wrapped_secondary_ec_private_key,
+      secondary_ec_key->WrapPrivateKey(dek, pcit::crypto::kTvsPrivateKeyAd));
 
   // GCP KMS client.
-  privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client(
+  pcit::key_manager::GcpKmsClient gcp_kms_client(
       (google::cloud::kms_v1::KeyManagementServiceClient(
           google::cloud::kms_v1::MakeKeyManagementServiceConnection())));
 
@@ -369,7 +367,7 @@ absl::Status CreateTvsKeys(absl::string_view spanner_database,
   return absl::OkStatus();
 }
 
-absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies> ReadAppraisalPolicies(
+absl::StatusOr<pcit::tvs::AppraisalPolicies> ReadAppraisalPolicies(
     absl::string_view filename) {
   std::ifstream if_stream({std::string(filename)});
   if (!if_stream.is_open()) {
@@ -377,7 +375,7 @@ absl::StatusOr<privacy_sandbox::tvs::AppraisalPolicies> ReadAppraisalPolicies(
         absl::StrCat("Failed to open: ", filename));
   }
   google::protobuf::io::IstreamInputStream istream(&if_stream);
-  privacy_sandbox::tvs::AppraisalPolicies appraisal_policies;
+  pcit::tvs::AppraisalPolicies appraisal_policies;
   if (!google::protobuf::TextFormat::Parse(&istream, &appraisal_policies)) {
     return absl::FailedPreconditionError(
         absl::StrCat("Failed to parse: ", filename));
@@ -389,9 +387,8 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
                                    absl::string_view appraisal_policy_path) {
   HATS_ASSIGN_OR_RETURN(google::cloud::spanner::Database database,
                         CreateSpannerDatabase(spanner_database));
-  HATS_ASSIGN_OR_RETURN(
-      privacy_sandbox::tvs::AppraisalPolicies appraisal_policies,
-      ReadAppraisalPolicies(appraisal_policy_path));
+  HATS_ASSIGN_OR_RETURN(pcit::tvs::AppraisalPolicies appraisal_policies,
+                        ReadAppraisalPolicies(appraisal_policy_path));
   // Spanner client.
   google::cloud::spanner::Client spanner_client(
       google::cloud::spanner::MakeConnection(database));
@@ -402,7 +399,7 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
           -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
         google::cloud::spanner::Mutations mutations;
 
-        for (const privacy_sandbox::tvs::AppraisalPolicy& appraisal_policy :
+        for (const pcit::tvs::AppraisalPolicy& appraisal_policy :
              appraisal_policies.policies()) {
           google::cloud::spanner::Value amd_sev_stage0_digest_value;
 
@@ -636,14 +633,13 @@ struct WrappedSecrets {
 absl::StatusOr<WrappedSecrets> WrapSecret(
     absl::string_view kms_key_resource_name, const SecretData& user_secret) {
   // Generate data encryption key (DEK) to wrap keys and secrets.
-  SecretData dek = privacy_sandbox::crypto::RandomAeadKey();
+  SecretData dek = pcit::crypto::RandomAeadKey();
   // Wrap secret - returned by TVS after successful attestation verification -
   // with DEK.
   HATS_ASSIGN_OR_RETURN(
       std::string wrapped_user_secret,
-      privacy_sandbox::crypto::Encrypt(dek, user_secret,
-                                       privacy_sandbox::crypto::kSecretAd));
-  privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client(
+      pcit::crypto::Encrypt(dek, user_secret, pcit::crypto::kSecretAd));
+  pcit::key_manager::GcpKmsClient gcp_kms_client(
       (google::cloud::kms_v1::KeyManagementServiceClient(
           google::cloud::kms_v1::MakeKeyManagementServiceConnection())));
 
@@ -667,7 +663,7 @@ absl::StatusOr<std::vector<SecretData>> SplitSecret(
   if (share_split_type == "SHAMIR") {
     HATS_ASSIGN_OR_RETURN(
         rust::Vec<rust::String> shares,
-        privacy_sandbox::crypto::ShamirSplitSecret(
+        pcit::crypto::ShamirSplitSecret(
             rust::Slice<const std::uint8_t>(secret_to_split.GetData(),
                                             secret_to_split.GetSize()),
             num_shares, threshold),
@@ -678,7 +674,7 @@ absl::StatusOr<std::vector<SecretData>> SplitSecret(
   } else if (share_split_type == "XOR") {
     HATS_ASSIGN_OR_RETURN(
         rust::Vec<rust::String> shares,
-        privacy_sandbox::crypto::XorSplitSecret(
+        pcit::crypto::XorSplitSecret(
             rust::Slice<const std::uint8_t>(secret_to_split.GetData(),
                                             secret_to_split.GetSize()),
             num_shares),
@@ -912,8 +908,8 @@ absl::Status RegisterOrUpdateUserSplitTrust(
   if (double_wrap) {
     HATS_ASSIGN_OR_RETURN(
         std::string wrapped_user_secret,
-        privacy_sandbox::crypto::Encrypt(SecretData(dec), user_private_key,
-                                         privacy_sandbox::crypto::kSecretAd));
+        pcit::crypto::Encrypt(SecretData(dec), user_private_key,
+                              pcit::crypto::kSecretAd));
     to_split = SecretData(wrapped_user_secret);
   }
   HATS_ASSIGN_OR_RETURN(

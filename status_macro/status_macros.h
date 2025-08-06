@@ -41,7 +41,7 @@
 //     return absl::OkStatus();
 //   }
 //
-// The macro ends with a `::privacy_sandbox::status_macro
+// The macro ends with a `::pcit::status_macro
 // ::StatusBuilder` which allows the returned status to be extended with more
 // details.  Any chained expressions after the macro will not be evaluated
 // unless there is an error.
@@ -54,7 +54,7 @@
 //     return absl::OkStatus();
 //   }
 //
-// `::privacy_sandbox::status_macro ::StatusBuilder` supports
+// `::pcit::status_macro ::StatusBuilder` supports
 // adapting the builder chain using a `With` method and a functor.  This allows
 // for powerful extensions to the macro.
 //
@@ -68,10 +68,10 @@
 //   HATS_RETURN_IF_ERROR(bar()).With(TeamPolicy);
 //
 // Changing the return type allows the macro to be used with Task and Rpc
-// interfaces.  See `::privacy_sandbox::status_macro ::TaskReturn`
+// interfaces.  See `::pcit::status_macro ::TaskReturn`
 // and `rpc::RpcSetStatus` for details.
 //
-//   void Read(StringPiece name, ::privacy_sandbox::status_macro
+//   void Read(StringPiece name, ::pcit::status_macro
 //   ::Task* task) {
 //     int64 id;
 //     HATS_RETURN_IF_ERROR(GetIdForName(name, &id)).With(TaskReturn(task));
@@ -80,7 +80,7 @@
 //   }
 //
 // If using this macro inside a lambda, you need to annotate the return type
-// to avoid confusion between a `::privacy_sandbox::status_macro
+// to avoid confusion between a `::pcit::status_macro
 // ::StatusBuilder` and a `absl::Status` type. E.g.
 //
 //   []() -> absl::Status {
@@ -88,12 +88,11 @@
 //     HATS_RETURN_IF_ERROR(foo.Method(args...));
 //     return absl::OkStatus();
 //   }
-#define HATS_RETURN_IF_ERROR(expr)                                             \
-  HATS_STATUS_MACROS_IMPL_ELSE_BLOCKER_                                        \
-  if (::privacy_sandbox::status_macro ::status_macro_internal::                \
-          StatusAdaptorForMacros status_macro_internal_adaptor = {(expr),      \
-                                                                  HATS_LOC}) { \
-  } else /* NOLINT */                                                          \
+#define HATS_RETURN_IF_ERROR(expr)                                         \
+  HATS_STATUS_MACROS_IMPL_ELSE_BLOCKER_                                    \
+  if (::pcit::status_macro ::status_macro_internal::StatusAdaptorForMacros \
+          status_macro_internal_adaptor = {(expr), HATS_LOC}) {            \
+  } else /* NOLINT */                                                      \
     return status_macro_internal_adaptor.Consume()
 // Executes an expression `rexpr` that returns a
 // `absl::StatusOr<T>`. On OK, extracts its value into the variable defined by
@@ -131,7 +130,7 @@
 //
 // If passed, the `error_expression` is evaluated to produce the return
 // value. The expression may reference any variable visible in scope, as
-// well as a `::privacy_sandbox::status_macro ::StatusBuilder` object
+// well as a `::pcit::status_macro ::StatusBuilder` object
 // populated with the error and named by a single underscore `_`. The expression
 // typically uses the builder to modify the status and is returned directly in
 // manner similar to HATS_RETURN_IF_ERROR. The expression may, however, evaluate
@@ -153,16 +152,16 @@
 // =================================================================
 // == Implementation details, do not rely on anything below here. ==
 // =================================================================
-namespace privacy_sandbox::status_macro::internal {
+namespace pcit::status_macro::internal {
 constexpr bool HasPotentialConditionalOperator(const char* lhs, int index) {
   return (index == -1
               ? false
               : (lhs[index] == '?'
                      ? true
-                     : ::privacy_sandbox::status_macro ::internal::
+                     : ::pcit::status_macro ::internal::
                            HasPotentialConditionalOperator(lhs, index - 1)));
 }
-}  // namespace privacy_sandbox::status_macro::internal
+}  // namespace pcit::status_macro::internal
 
 #define HATS_STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_(_1, _2, _3, NAME, ...) NAME
 #define HATS_STATUS_MACROS_IMPL_GET_VARIADIC_(args) \
@@ -177,7 +176,7 @@ constexpr bool HasPotentialConditionalOperator(const char* lhs, int index) {
                                                          error_expression)     \
   HATS_STATUS_MACROS_IMPL_HATS_ASSIGN_OR_RETURN_(                              \
       HATS_STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__), lhs, rexpr, \
-      ::privacy_sandbox::status_macro ::StatusBuilder _(                       \
+      ::pcit::status_macro ::StatusBuilder _(                                  \
           std::move(                                                           \
               HATS_STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__))     \
               .status(),                                                       \
@@ -193,8 +192,8 @@ constexpr bool HasPotentialConditionalOperator(const char* lhs, int index) {
   {                                                                          \
     static_assert(                                                           \
         #lhs[0] != '(' || #lhs[sizeof(#lhs) - 2] != ')' ||                   \
-            !privacy_sandbox::status_macro ::internal::                      \
-                HasPotentialConditionalOperator(#lhs, sizeof(#lhs) - 2),     \
+            !pcit::status_macro ::internal::HasPotentialConditionalOperator( \
+                #lhs, sizeof(#lhs) - 2),                                     \
         "Identified potential conditional operator, consider not "           \
         "using HATS_ASSIGN_OR_RETURN");                                      \
   }                                                                          \
@@ -271,7 +270,7 @@ namespace google::cloud {
 class Status;
 }
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 namespace status_macro_internal {
 // Provides a conversion to bool so that it can be used inside an if statement
 // that declares a variable.
@@ -285,8 +284,7 @@ class StatusAdaptorForMacros {
 
   StatusAdaptorForMacros(const google::cloud::v2_36::Status& cloud_status,
                          SourceLocation loc)
-      : builder_(::privacy_sandbox::gcp_common::GcpToAbslStatus(cloud_status),
-                 loc) {}
+      : builder_(::pcit::gcp_common::GcpToAbslStatus(cloud_status), loc) {}
 
   StatusAdaptorForMacros(absl::Status&& status, SourceLocation loc)
       : builder_(std::move(status), loc) {}
@@ -308,6 +306,6 @@ class StatusAdaptorForMacros {
   StatusBuilder builder_;
 };
 }  // namespace status_macro_internal
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro
 
 #endif  // HATS_STATUS_MACRO_STATUS_MACROS_H_

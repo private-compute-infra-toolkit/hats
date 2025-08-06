@@ -28,7 +28,7 @@
 #include "status_macro/status_macros.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 PolicyFetcherGcp::PolicyFetcherGcp(
     google::cloud::spanner::Client spanner_client)
@@ -117,4 +117,4 @@ absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create() {
                                             absl::GetFlag(FLAGS_database_id));
 }
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

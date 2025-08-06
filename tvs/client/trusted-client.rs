@@ -17,7 +17,7 @@ use handshake::{client::HandshakeInitiator, noise::HandshakeType, Crypter};
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 use prost::Message;
-use tvs_proto::privacy_sandbox::tvs::{
+use tvs_proto::pcit::tvs::{
     attest_report_request, attest_report_response, AttestReportRequest, AttestReportResponse,
     InitSessionRequest, VerifyReportRequest, VerifyReportRequestEncrypted,
 };
@@ -27,7 +27,7 @@ use tvs_proto::privacy_sandbox::tvs::{
 // We use the reverse logic here as there is no way to set features in
 // cxx bazel rules. By default ffi is enabled.
 #[cfg(not(feature = "noffi"))]
-#[cxx::bridge(namespace = "privacy_sandbox::tvs")]
+#[cxx::bridge(namespace = "pcit::tvs")]
 #[cfg(not(feature = "noffi"))]
 mod ffi {
     extern "Rust" {
@@ -211,7 +211,7 @@ mod tests {
     use key_fetcher::{ffi::create_test_key_fetcher_wrapper, KeyFetcher};
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use std::sync::Arc;
-    use tvs_proto::privacy_sandbox::tvs::{
+    use tvs_proto::pcit::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
         Signature as PolicySignature, Stage0Measurement, VerifyReportResponse,
     };
@@ -343,7 +343,7 @@ mod tests {
         }
         let report = AttestReportRequest {
             request: Some(
-                tvs_proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                tvs_proto::pcit::tvs::attest_report_request::Request::VerifyReportRequest(
                     VerifyReportRequestEncrypted {
                         client_message: vec![1, 2],
                     },
@@ -411,7 +411,7 @@ mod tests {
         }
         let report = AttestReportRequest {
             request: Some(
-                tvs_proto::privacy_sandbox::tvs::attest_report_request::Request::VerifyReportRequest(
+                tvs_proto::pcit::tvs::attest_report_request::Request::VerifyReportRequest(
                     VerifyReportRequestEncrypted {
                         client_message: vec![1, 2],
                     },

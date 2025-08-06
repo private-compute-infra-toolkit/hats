@@ -56,7 +56,7 @@ ABSL_FLAG(bool, vmm_log_to_std, false,
           "Whether to send vmm logs to stdout/stderr instead of a temporary "
           "file.");
 
-absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
+absl::StatusOr<pcit::client::LauncherConfig> LoadConfig(
     absl::string_view path) {
   std::ifstream file(path.data());
   if (!file.is_open()) {
@@ -66,7 +66,7 @@ absl::StatusOr<privacy_sandbox::client::LauncherConfig> LoadConfig(
   std::string raw_config((std::istreambuf_iterator<char>(file)),
                          (std::istreambuf_iterator<char>()));
   file.close();
-  privacy_sandbox::client::LauncherConfig config;
+  pcit::client::LauncherConfig config;
   if (!google::protobuf::TextFormat::ParseFromString(raw_config, &config)) {
     return absl::InvalidArgumentError(
         absl::StrCat("invalid textproto message at path '", path, "'"));
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  privacy_sandbox::client::PrivateKeyWrappingKeys wrapping_keys;
+  pcit::client::PrivateKeyWrappingKeys wrapping_keys;
   bool primary = true;
   for (const std::string& key_hex :
        absl::GetFlag(FLAGS_private_key_wrapping_keys)) {
@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
   }
 
   HATS_ASSIGN_OR_RETURN(
-      privacy_sandbox::client::LauncherConfig config,
+      pcit::client::LauncherConfig config,
       LoadConfig(absl::GetFlag(FLAGS_launcher_config_path)),
       _.PrependWith("Failed to fetch launcher config with error: ")
           .LogErrorAndExit());
@@ -119,20 +119,19 @@ int main(int argc, char* argv[]) {
   for (const std::string& tvs_address : absl::GetFlag(FLAGS_tvs_addresses)) {
     HATS_ASSIGN_OR_RETURN(
         std::shared_ptr<grpc::Channel> tvs_channel,
-        privacy_sandbox::tvs::CreateGrpcChannel(
-            privacy_sandbox::tvs::CreateGrpcChannelOptions{
-                .use_tls = absl::GetFlag(FLAGS_use_tls),
-                .target = tvs_address,
-                .access_token = absl::GetFlag(FLAGS_tvs_access_token),
-            }),
+        pcit::tvs::CreateGrpcChannel(pcit::tvs::CreateGrpcChannelOptions{
+            .use_tls = absl::GetFlag(FLAGS_use_tls),
+            .target = tvs_address,
+            .access_token = absl::GetFlag(FLAGS_tvs_access_token),
+        }),
         _.PrependWith("Failed to establish gRPC channel to TVS server")
             .LogErrorAndExit());
     channel_map[tvs_id++] = std::move(tvs_channel);
   }
 
   HATS_ASSIGN_OR_RETURN(
-      std::unique_ptr<privacy_sandbox::client::HatsLauncher> launcher,
-      privacy_sandbox::client::HatsLauncher::Create({
+      std::unique_ptr<pcit::client::HatsLauncher> launcher,
+      pcit::client::HatsLauncher::Create({
           .config = std::move(config),
           .tvs_authentication_key_bytes =
               std::move(tvs_authentication_key_bytes),

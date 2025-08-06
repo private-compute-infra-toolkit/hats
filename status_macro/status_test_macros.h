@@ -20,7 +20,7 @@
 #include "absl/status/status_matchers.h"  // IWYU pragma: keep for absl_testing
 #include "status_macro/status_util.h"     // IWYU pragma: keep for ToAbslStatus
 
-namespace privacy_sandbox {
+namespace pcit {
 
 // Check that expression returning absl::Status is ok
 #define HATS_EXPECT_OK(expression) \
@@ -29,7 +29,7 @@ namespace privacy_sandbox {
   ASSERT_THAT(expression, ::absl_testing::IsOk())
 // Check that expression returning grpc::Status is ok
 #define HATS_EXPECT_OK_GRPC(expression) \
-  HATS_EXPECT_OK(privacy_sandbox::status_macro::ToAbslStatus(expression))
+  HATS_EXPECT_OK(pcit::status_macro::ToAbslStatus(expression))
 // Check that StatusOr lhs is Ok and holds value
 // Value can be testing pieces, like EqualsProto, strings, allof, etc.
 #define HATS_EXPECT_OK_AND_HOLDS(lhs, value) \
@@ -42,9 +42,8 @@ namespace privacy_sandbox {
   EXPECT_THAT(lhs, ::absl_testing::StatusIs(status))
 // Expect that grpc::Status/StatusOr lhs has non-ok status that casts to the
 // provided absl::Status
-#define HATS_EXPECT_STATUS_GRPC(lhs, absl_status)                      \
-  HATS_EXPECT_STATUS(privacy_sandbox::status_macro::ToAbslStatus(lhs), \
-                     absl_status)
+#define HATS_EXPECT_STATUS_GRPC(lhs, absl_status) \
+  HATS_EXPECT_STATUS(pcit::status_macro::ToAbslStatus(lhs), absl_status)
 // Expect that Status/StatusOr lhs has type status with message
 // message can be a string, or e.g. HasSubstr("text")
 #define HATS_EXPECT_STATUS_MESSAGE(lhs, status, message) \
@@ -63,6 +62,6 @@ namespace privacy_sandbox {
   HATS_ASSERT_OK(statusor) << statusor.status();              \
   lhs = std::move(statusor.value())
 
-}  // namespace privacy_sandbox
+}  // namespace pcit
 
 #endif  // HATS_STATUS_MACRO_STATUS_TEST_MACROS_H_

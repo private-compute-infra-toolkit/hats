@@ -27,7 +27,7 @@
 #include "openssl/nid.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 EcKey::EcKey(EC_KEY* ec_key) : ec_key_(ec_key) {}
 
@@ -58,8 +58,7 @@ absl::StatusOr<SecretData> EcKey::GetPrivateKey() const {
 absl::StatusOr<std::string> EcKey::WrapPrivateKey(
     const SecretData& wrapping_key, absl::string_view associated_data) const {
   HATS_ASSIGN_OR_RETURN(SecretData private_key, GetPrivateKey());
-  return privacy_sandbox::crypto::Encrypt(wrapping_key, private_key,
-                                          associated_data);
+  return pcit::crypto::Encrypt(wrapping_key, private_key, associated_data);
 }
 
 absl::StatusOr<std::string> EcKey::GetPublicKey() const {
@@ -81,4 +80,4 @@ absl::StatusOr<std::string> EcKey::GetPublicKeyInHex() const {
   return absl::BytesToHexString(public_key);
 }
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto

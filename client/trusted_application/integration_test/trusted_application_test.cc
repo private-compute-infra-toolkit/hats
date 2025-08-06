@@ -56,7 +56,7 @@
 #include "tvs/proto/appraisal_policies.pb.h"
 #include "tvs/standalone_server/tvs-service.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 namespace {
 
 using ::testing::SizeIs;
@@ -237,7 +237,7 @@ absl::StatusOr<TestLauncher> CreateAndStartTestLauncher(
 
   HATS_ASSIGN_OR_RETURN(std::unique_ptr<IPPort> enclave_proxy_ip_port,
                         GetUnusedPort());
-  privacy_sandbox::client::NetworkConfig& network_config =
+  pcit::client::NetworkConfig& network_config =
       *config.mutable_cvm_config()->mutable_network_config();
   network_config.mutable_inbound_only()->set_host_enclave_app_proxy_port(
       enclave_proxy_ip_port->port());
@@ -353,7 +353,7 @@ TEST(TrustedApplication, EchoXor2Tvs) {
 
   HATS_ASSERT_OK_AND_ASSIGN(
       rust::Vec<rust::String> shares,
-      privacy_sandbox::crypto::XorSplitSecret(
+      pcit::crypto::XorSplitSecret(
           rust::Slice<const std::uint8_t>(key_pair.private_key.GetData(),
                                           key_pair.private_key.GetSize()),
           /*numshares=*/2));
@@ -419,7 +419,7 @@ TEST(TrustedApplication, EchoShmir2Of3Tvs) {
 
   HATS_ASSERT_OK_AND_ASSIGN(
       rust::Vec<rust::String> shares,
-      privacy_sandbox::crypto::ShamirSplitSecret(
+      pcit::crypto::ShamirSplitSecret(
           rust::Slice<const std::uint8_t>(key_pair.private_key.GetData(),
                                           key_pair.private_key.GetSize()),
           /*numshares=*/3, /*threshold=*/2));
@@ -582,7 +582,7 @@ TEST(TrustedApplication, EchoSingleTvsUpdate) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

@@ -26,7 +26,7 @@
 #include "grpcpp/create_channel.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::server_common {
+namespace pcit::server_common {
 
 HatsLightweightClient::HatsLightweightClient()
     // UDS socket is the one used by Oak.
@@ -54,4 +54,4 @@ absl::StatusOr<std::vector<Key>> HatsLightweightClient::GetKeys() const {
   return keys;
 }
 
-}  // namespace privacy_sandbox::server_common
+}  // namespace pcit::server_common

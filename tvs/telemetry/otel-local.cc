@@ -30,7 +30,7 @@
 #include "opentelemetry/sdk/metrics/view/view_factory.h"
 #include "tvs/telemetry/otel.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 namespace {
 
@@ -85,4 +85,4 @@ absl::Status InitializeTelemetry() {
       .SetMeterProvider(meter_provider)
       .BuildAndRegisterGlobal();
 }
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

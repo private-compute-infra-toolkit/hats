@@ -36,7 +36,7 @@
 #include "key_manager/key-fetcher.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 namespace {
 
@@ -230,4 +230,4 @@ std::unique_ptr<KeyFetcher> KeyFetcher::Create() {
                                          absl::GetFlag(FLAGS_database_id));
 }
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

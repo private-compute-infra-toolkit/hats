@@ -22,7 +22,7 @@
 #include "absl/strings/string_view.h"
 #include "opentelemetry/metrics/sync_instruments.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 class OtelCounter final {
  public:
@@ -36,6 +36,6 @@ class OtelCounter final {
   std::unique_ptr<opentelemetry::metrics::Counter<uint64_t>> counter_;
 };
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs
 
 #endif  // HATS_TVS_TELEMETRY_OTEL_COUNTER_

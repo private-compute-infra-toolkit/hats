@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod privacy_sandbox {
+pub mod pcit {
 
     pub mod server_common {
-        include!(concat!(
-            env!("OUT_DIR"),
-            "/privacy_sandbox.server_common.rs"
-        ));
+        include!(concat!(env!("OUT_DIR"), "/pcit.server_common.rs"));
     }
 
     pub mod client {
-        include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.client.rs"));
+        include!(concat!(env!("OUT_DIR"), "/pcit.client.rs"));
     }
 
     pub mod tvs {
-        include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
+        include!(concat!(env!("OUT_DIR"), "/pcit.tvs.rs"));
     }
 }

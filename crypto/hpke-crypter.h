@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef PRIVACY_SANDBOX_CLIENT_CRYPTO_HPKE_CRYPTER_H_
-#define PRIVACY_SANDBOX_CLIENT_CRYPTO_HPKE_CRYPTER_H_
+#ifndef PCIT_CLIENT_CRYPTO_HPKE_CRYPTER_H_
+#define PCIT_CLIENT_CRYPTO_HPKE_CRYPTER_H_
 
 #include <string>
 #include <vector>
@@ -23,7 +23,7 @@
 #include "crypto/secret-data.h"
 #include "openssl/hpke.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 constexpr absl::string_view kSecretHpkeAd = "hats_secret";
 
@@ -45,6 +45,6 @@ absl::StatusOr<SecretData> HpkeDecrypt(const SecretData& private_key,
                                        const SecretData& ciphertext,
                                        absl::string_view associated_data);
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto
 
-#endif  // PRIVACY_SANDBOX_CLIENT_CRYPTO_HPKE_CRYPTER_H_
+#endif  // PCIT_CLIENT_CRYPTO_HPKE_CRYPTER_H_

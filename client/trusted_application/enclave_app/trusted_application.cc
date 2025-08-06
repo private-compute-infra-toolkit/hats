@@ -25,7 +25,7 @@
 #include "status_macro/status_macros.h"
 #include "status_macro/status_util.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 grpc::Status TrustedApplication::Echo(grpc::ServerContext* context,
                                       const EncryptedRequest* request,
@@ -56,16 +56,15 @@ grpc::Status TrustedApplication::Echo(grpc::ServerContext* context,
 
   crypto::SecretData encrypted_data =
       crypto::SecretData(request->encrypted_message());
-  HATS_ASSIGN_OR_RETURN(
-      crypto::SecretData decrypted,
-      crypto::HpkeDecrypt(decryption_key, encrypted_data,
-                          privacy_sandbox::crypto::kSecretHpkeAd),
-      _.PrependWith("Failed to decrypt message: ")
-          .With(status_macro::FromAbslStatus));
+  HATS_ASSIGN_OR_RETURN(crypto::SecretData decrypted,
+                        crypto::HpkeDecrypt(decryption_key, encrypted_data,
+                                            pcit::crypto::kSecretHpkeAd),
+                        _.PrependWith("Failed to decrypt message: ")
+                            .With(status_macro::FromAbslStatus));
 
   *response->mutable_response() = decrypted.GetStringView();
 
   return grpc::Status::OK;
 }
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

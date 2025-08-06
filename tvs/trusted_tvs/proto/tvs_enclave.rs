@@ -17,10 +17,10 @@
 #[allow(unused_attributes)]
 #[allow(clippy::let_unit_value)]
 pub mod proto {
-    pub mod privacy_sandbox {
+    pub mod pcit {
         pub mod tvs {
             use prost::Message;
-            include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
+            include!(concat!(env!("OUT_DIR"), "/pcit.tvs.rs"));
         }
     }
 }

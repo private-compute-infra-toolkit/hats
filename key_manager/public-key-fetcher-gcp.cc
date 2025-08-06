@@ -28,7 +28,7 @@
 #include "key_manager/public-key-fetcher.h"
 #include "status_macro/status_macros.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 PublicKeyFetcherGcp::PublicKeyFetcherGcp(
     google::cloud::spanner::Client spanner_client)
@@ -98,4 +98,4 @@ std::unique_ptr<PublicKeyFetcher> PublicKeyFetcher::Create() {
       absl::GetFlag(FLAGS_project_id), absl::GetFlag(FLAGS_instance_id),
       absl::GetFlag(FLAGS_database_id));
 }
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager

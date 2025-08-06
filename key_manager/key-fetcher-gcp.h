@@ -26,7 +26,7 @@
 #include "key_manager/gcp-kms-client.h"
 #include "key_manager/key-fetcher.h"
 
-namespace privacy_sandbox::key_manager {
+namespace pcit::key_manager {
 
 class KeyFetcherGcp : public KeyFetcher {
  public:
@@ -55,10 +55,10 @@ class KeyFetcherGcp : public KeyFetcher {
   KeyFetcherGcp(google::cloud::kms_v1::v2_36::KeyManagementServiceClient client,
                 google::cloud::spanner::Client spanner_client);
 
-  privacy_sandbox::key_manager::GcpKmsClient gcp_kms_client_;
+  pcit::key_manager::GcpKmsClient gcp_kms_client_;
   google::cloud::spanner::Client spanner_client_;
 };
 
-}  // namespace privacy_sandbox::key_manager
+}  // namespace pcit::key_manager
 
 #endif  // HATS_KEY_MANAGER_KEY_FETCHER_GCP_H_

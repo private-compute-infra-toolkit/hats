@@ -13,9 +13,9 @@
 // limitations under the License.
 #![no_std]
 
-pub mod privacy_sandbox {
+pub mod pcit {
     pub mod tvs {
         use core::{concat, env, include};
-        include!(concat!(env!("OUT_DIR"), "/privacy_sandbox.tvs.rs"));
+        include!(concat!(env!("OUT_DIR"), "/pcit.tvs.rs"));
     }
 }

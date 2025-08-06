@@ -25,7 +25,7 @@
 #include "crypto/secret-data.h"
 #include "openssl/base.h"  // for EC_KEY
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 // Helper class to generate and wrap EC keys.
 class EcKey final {
@@ -56,6 +56,6 @@ class EcKey final {
   EC_KEY* ec_key_;
 };
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto
 
 #endif  // HATS_CRYPTO_EC_KEY_H_

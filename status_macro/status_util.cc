@@ -16,7 +16,7 @@
 
 #include <string>
 
-namespace privacy_sandbox::status_macro {
+namespace pcit::status_macro {
 
 namespace {
 absl::StatusCode MapStatusCode(grpc::StatusCode const& code) {
@@ -112,4 +112,4 @@ absl::Status ToAbslStatus(const grpc::Status& status) {
                       status.error_message());
 }
 
-}  // namespace privacy_sandbox::status_macro
+}  // namespace pcit::status_macro

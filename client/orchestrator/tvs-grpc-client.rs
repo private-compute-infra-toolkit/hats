@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use anyhow::Context;
-use client_proto::privacy_sandbox::client::{
+use client_proto::pcit::client::{
     launcher_service_client, FetchOrchestratorMetadataResponse, ForwardingTvsMessage,
 };
-use client_proto::privacy_sandbox::tvs::OpaqueMessage;
+use client_proto::pcit::tvs::OpaqueMessage;
 use hyper_util::rt::TokioIo;
 use mockall::automock;
 use oak_proto_rust::oak::attestation::v1::Evidence;
@@ -275,7 +275,7 @@ impl TvsGrpcClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use client_proto::privacy_sandbox::client::launcher_service_server::{
+    use client_proto::pcit::client::launcher_service_server::{
         LauncherService, LauncherServiceServer,
     };
     use crypto::P256Scalar;
@@ -290,7 +290,7 @@ mod tests {
     use tokio_stream::wrappers::TcpListenerStream;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::Response;
-    use tvs_proto::privacy_sandbox::tvs::{
+    use tvs_proto::pcit::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
         Signature as PolicySignature, Stage0Measurement, VerifyReportResponse,
     };

@@ -27,7 +27,7 @@
 #include "absl/meta/type_traits.h"
 #include "absl/status/status.h"
 
-namespace privacy_sandbox::status_macros {
+namespace pcit::status_macros {
 namespace internal_return {
 template <typename T>
 struct ReturnImpl;
@@ -98,6 +98,6 @@ inline internal_return::ReturnImpl<absl::decay_t<T>> Return(T&& value) {
   return internal_return::ReturnImpl<absl::decay_t<T>>{std::forward<T>(value)};
 }
 
-}  // namespace privacy_sandbox::status_macros
+}  // namespace pcit::status_macros
 
 #endif  // HATS_STATUS_MACRO_RETURN_H_

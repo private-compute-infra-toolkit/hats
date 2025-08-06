@@ -29,7 +29,7 @@ use trusted_tvs_types::EvidenceValidator;
 /// TrustedTvs.
 
 /// Provide Rust interface to `tvs/appraisal_policies/policy-fetcher.h`.
-#[cxx::bridge(namespace = "privacy_sandbox::tvs::trusted")]
+#[cxx::bridge(namespace = "pcit::tvs::trusted")]
 pub mod ffi {
     struct VecU8Result {
         value: Vec<u8>,

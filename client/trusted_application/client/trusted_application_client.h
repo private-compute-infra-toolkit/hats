@@ -24,7 +24,7 @@
 #include "client/proto/trusted_service.pb.h"
 #include "crypto/secret-data.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 constexpr absl::string_view kTestMessage =
     "Hello from inside the trusted application!\n";
@@ -49,6 +49,6 @@ class TrustedApplicationClient final {
   std::string key_id_;
 };
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 #endif  // HATS_CLIENT_TRUSTED_APPLICATION_CLIENT_TRUSTED_APPLICATION_CLIENT_H_

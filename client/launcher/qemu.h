@@ -27,7 +27,7 @@
 
 ABSL_DECLARE_FLAG(bool, qemu_use_microvm);
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 
 // Main Qemu Class
 class Qemu final : public Vmm {
@@ -74,6 +74,6 @@ class Qemu final : public Vmm {
   const bool log_to_std_ = false;
 };
 
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client
 
 #endif  // HATS_CLIENT_LAUNCHER_QEMU_H_

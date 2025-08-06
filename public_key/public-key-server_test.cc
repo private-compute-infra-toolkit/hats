@@ -32,14 +32,14 @@
 #include "src/google/protobuf/test_textproto.h"
 #include "status_macro/status_test_macros.h"
 
-namespace privacy_sandbox::public_key_service {
+namespace pcit::public_key_service {
 namespace {
 namespace gcs = ::google::cloud::storage;
 using ::google::cloud::storage::internal::CreateResumableUploadResponse;
 using ::google::cloud::storage::internal::QueryResumableUploadResponse;
 using ::google::protobuf::EqualsProto;
-using ::privacy_sandbox::key_manager::PerOriginPublicKey;
-using ::privacy_sandbox::key_manager::PublicKeyFetcher;
+using ::pcit::key_manager::PerOriginPublicKey;
+using ::pcit::key_manager::PublicKeyFetcher;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
 using ::testing::Property;
@@ -197,4 +197,4 @@ TEST(PublicKeyServer, UpdateCloudBucketFailure) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::public_key_service
+}  // namespace pcit::public_key_service

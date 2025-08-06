@@ -31,7 +31,7 @@
 #include "httplib.h"
 #include "kernel-api-mock.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 namespace {
 using ::testing::_;
 using ::testing::Exactly;
@@ -152,4 +152,4 @@ TEST(Certificates, GetCertificateUrlSuccessful) {
       "?blSPL=07&teeSPL=00&snpSPL=15&ucodeSPL=62");
 }
 }  // namespace
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

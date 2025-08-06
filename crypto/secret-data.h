@@ -22,7 +22,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 
 // Object to store sensitive data. The object helps minimizing data leakage, and
 // ensure proper erasure that are often caused by optimization.
@@ -64,6 +64,6 @@ class SecretData final {
   std::unique_ptr<uint8_t[]> data_;
 };
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto
 
 #endif  // HATS_SECRET_DATA_H_

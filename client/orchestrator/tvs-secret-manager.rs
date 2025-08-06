@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use anyhow::anyhow;
-use client_proto::privacy_sandbox::tvs::Secret;
-use client_proto::privacy_sandbox::tvs::VerifyReportResponse;
+use client_proto::pcit::tvs::Secret;
+use client_proto::pcit::tvs::VerifyReportResponse;
 use mockall::automock;
 use oak_proto_rust::oak::attestation::v1::Evidence;
 use p256::ecdsa::SigningKey;

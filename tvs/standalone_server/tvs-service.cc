@@ -31,7 +31,7 @@
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/trusted_tvs/library/src/interface.rs.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 
 namespace {
 
@@ -105,4 +105,4 @@ grpc::Status TvsService::VerifyReport(
   return grpc::Status::OK;
 }
 
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs

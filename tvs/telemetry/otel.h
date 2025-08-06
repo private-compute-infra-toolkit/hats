@@ -17,8 +17,8 @@
 
 #include "absl/status/status.h"
 
-namespace privacy_sandbox::tvs {
+namespace pcit::tvs {
 absl::Status InitializeTelemetry();
-}  // namespace privacy_sandbox::tvs
+}  // namespace pcit::tvs
 
 #endif  // HATS_TVS_TELEMETRY_OTEL_

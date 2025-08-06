@@ -28,7 +28,7 @@
 #include "opentelemetry/proto/collector/logs/v1/logs_service.pb.h"
 #include "status_macro/status_test_macros.h"
 
-namespace privacy_sandbox::client {
+namespace pcit::client {
 namespace {
 
 using ::absl::LogSeverity;
@@ -111,4 +111,4 @@ TEST(LogsService, Successful) {
 }
 
 }  // namespace
-}  // namespace privacy_sandbox::client
+}  // namespace pcit::client

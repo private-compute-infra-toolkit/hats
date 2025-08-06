@@ -22,7 +22,7 @@
 #include "absl/status/statusor.h"
 #include "crypto/secret-data.h"
 
-namespace privacy_sandbox::crypto {
+namespace pcit::crypto {
 struct TestEcKey {
   std::string private_key_hex;
   crypto::SecretData private_key;
@@ -35,6 +35,6 @@ struct TestEcKey {
 // unit-tests.
 absl::StatusOr<TestEcKey> GenerateEcKeyForTest();
 
-}  // namespace privacy_sandbox::crypto
+}  // namespace pcit::crypto
 
 #endif  // HATS_CRYPTO_TEST_EC_KEY_H_

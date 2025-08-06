@@ -22,7 +22,7 @@
 #include "tvs/appraisal_policies/dynamic_policy_manager/src/lib.rs.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
-namespace privacy_sandbox::tvs::trusted {
+namespace pcit::tvs::trusted {
 
 PolicyFetcherWrapper::PolicyFetcherWrapper(
     std::unique_ptr<PolicyFetcher> policy_fetcher)
@@ -53,4 +53,4 @@ VecU8Result PolicyFetcherWrapper::GetLatestNPoliciesForDigest(
   };
 }
 
-}  // namespace privacy_sandbox::tvs::trusted
+}  // namespace pcit::tvs::trusted

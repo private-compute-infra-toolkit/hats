@@ -20,7 +20,7 @@
 #include "include/cxx.h"
 #include "key_manager/key-fetcher.h"
 
-namespace privacy_sandbox::tvs::trusted {
+namespace pcit::tvs::trusted {
 
 // Forward declaration for the shared types. We cannot include the header
 // generated from rust as we are redefining KeyFetcherWrapper in there.
@@ -62,6 +62,6 @@ std::unique_ptr<KeyFetcherWrapper> CreateTestKeyFetcherWrapper(
     rust::Slice<const uint8_t> key_id, rust::Slice<const uint8_t> secret,
     rust::Slice<const uint8_t> public_key);
 
-}  // namespace privacy_sandbox::tvs::trusted
+}  // namespace pcit::tvs::trusted
 
 #endif  // HATS_TVS_TRUSTED_TVS_KEY_FETCHER_WRAPPER_H_
