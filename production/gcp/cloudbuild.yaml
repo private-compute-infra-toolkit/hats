@@ -22,7 +22,7 @@ steps:
       '-c',
       'chmod -R 777 /workspace /builder',
     ]
-- name: 'gcr.io/bazel-public/bazel:7.4.1'
+- name: 'gcr.io/bazel-public/bazel:7.6.0'
   entrypoint: 'bazel'
   args: ['run', '//production:push_tvs_image', '--define', 'platform=gcp_platform', '--', '--repository', '$_OUTPUT_IMAGE_REPO_PATH/tvs-image', '--tag', '$_OUTPUT_IMAGE_TAG']
   automapSubstitutions: true

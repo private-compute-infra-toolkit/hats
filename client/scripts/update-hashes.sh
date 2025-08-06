@@ -47,7 +47,7 @@ echo "${RUNTIME_HASH} container_binary" >> "${RUNTIME_HASH_FILE}"
 build_all_hats_containers_images "$PREBUILT_DIR"
 
 # Get suffixes of images from $PREBUILT_DIR.
-mapfile -t IMAGE_SUFFIXES < <(find "${PREBUILT_DIR}" -name "hats_system_image_*" | sed -rn 's/.*hats_system_image_(.*).tar.xz/\1/p')
+mapfile -t IMAGE_SUFFIXES < <(find "${PREBUILT_DIR}" -name "hats_system_image_*" | sed -rn 's/.*hats_system_image_(.*).tar.xz/\1/p' | sort)
 
 # Compute hashes
 IMAGE_HASHES=()

@@ -47,6 +47,6 @@ RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gp
     | tee /etc/apt/sources.list.d/bazel.list
 
 RUN eatmydata apt-get update && \
-    eatmydata apt-get install -y bazel-7.4.1
+    eatmydata apt-get install -y bazel-7.6.0
 
-RUN ln -s /usr/bin/bazel-7.4.1 /usr/bin/bazel
+RUN ln -s /usr/bin/bazel-7.6.0 /usr/bin/bazel
