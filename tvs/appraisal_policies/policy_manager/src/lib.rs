@@ -242,10 +242,10 @@ mod dynamic {
     // imports
     use super::*;
     use {
-        anyhow::{anyhow, Context},
+        anyhow::Context,
         measure::{gctx::GCTX, types::SevMode, vcpu_types::CpuType, vmsa::VMSA},
         oak_sev_snp_attestation_report::AttestationReport,
-        tvs_proto::pcit::tvs::stage0_measurement::Type,
+        tvs_proto::pcit::tvs::{stage0_measurement::Type, CpuInfo},
         zerocopy::FromBytes,
     };
 
@@ -281,22 +281,35 @@ mod dynamic {
         for policy in &policy_manager.appraisal_policies {
             // Extract the partial stage0 hex string from the policy, or skip policy if missing.
             let Some(measurement) = &policy.measurement else {
+                log::debug!("Skipping policy: no measurement field present.");
                 continue;
             };
             let Some(stage0) = &measurement.stage0_measurement else {
+                log::debug!("Skipping policy: no stage0_measurement field present.");
                 continue;
             };
-            let Some(Type::AmdSev(amd_sev)) = &stage0.r#type else {
+            let Some(Type::AmdSevDynamic(amd_sev_dynamic)) = &stage0.r#type else {
+                log::debug!("Skipping policy: not an AmdSevDynamic type.");
                 continue;
             };
-            let Ok(partial_hash_bytes) = hex::decode(&amd_sev.sha384) else {
+            // TODO: b/434016988 - This logic will be updated to loop through the given stage0_ovmf_binary_hashes.
+            let Ok(partial_hash_bytes) = hex::decode(&amd_sev_dynamic.stage0_ovmf_binary_hash)
+            else {
+                log::debug!("Skipping policy: could not decode partial SHA384 hash from hex.");
                 continue;
             };
 
-            // TODO: b/328604827 - Compare measured CPU info against the allowed CPU from the policy.
+            if !is_cpu_type_allowed(measured_cpu, &amd_sev_dynamic.cpu_info) {
+                log::debug!(
+                    "Measured CPU type (family: {}, model: {}, stepping: {}) is not in the policy's allowlist. Skipping policy.",
+                    measured_cpu.0, measured_cpu.1, measured_cpu.2
+                );
+                continue; // This policy doesn't match, try the next one.
+            }
 
             // Pass the stage0 measurement info into validation function:
-            // ensures there is a matching vcpu count that enables this stage0 measurment to be valid
+            // TODO: b/434016988 will be refactored in a future CL, "partial hash" calculation needs edits
+            // to be treated as a stage0 ovmf binary hash instead
             if stage0_measurement_is_valid(&partial_hash_bytes, &attestation_report, measured_cpu)?
             {
                 let mut final_policy = policy.clone();
@@ -387,6 +400,22 @@ mod dynamic {
             gctx.update_vmsa_page(&page_data)?;
         }
         Ok(gctx.ld().to_vec())
+    }
+
+    // Checks if measured CPU ID information is permissible by the appraisal policy
+    pub fn is_cpu_type_allowed(measured_cpu: (i32, u8, u8), allowed_cpus: &[CpuInfo]) -> bool {
+        let (measured_family, measured_model, measured_stepping) = measured_cpu;
+
+        // Cast to u32 to compare with CpuInfo proto fields
+        let measured_family = measured_family as u32;
+        let measured_model = measured_model as u32;
+        let measured_stepping = measured_stepping as u32;
+
+        allowed_cpus.iter().any(|allowed_cpu| {
+            allowed_cpu.family == measured_family
+                && allowed_cpu.model == measured_model
+                && allowed_cpu.stepping == measured_stepping
+        })
     }
 }
 
@@ -1159,7 +1188,42 @@ mod tests {
     #[cfg(feature = "dynamic_attestation")]
     mod dynamic_attestation_tests {
         use super::*;
+        use tvs_proto::pcit::tvs::CpuInfo;
 
+        #[test]
+        fn test_is_cpu_type_allowed() {
+            let allowed_cpus = vec![
+                // Milan CPU
+                CpuInfo {
+                    family: 25,
+                    model: 1,
+                    stepping: 1,
+                },
+                // Genoa CPU
+                CpuInfo {
+                    family: 25,
+                    model: 17,
+                    stepping: 0,
+                },
+            ];
+
+            // should succeed
+            let milan_cpu = (25, 1, 1);
+            assert!(dynamic::is_cpu_type_allowed(milan_cpu, &allowed_cpus));
+            let genoa_cpu = (25, 17, 0);
+            assert!(dynamic::is_cpu_type_allowed(genoa_cpu, &allowed_cpus));
+
+            // should fail
+            let rome_cpu = (23, 49, 0);
+            assert!(!dynamic::is_cpu_type_allowed(rome_cpu, &allowed_cpus));
+            let wrong_stepping_milan = (25, 1, 2);
+            assert!(!dynamic::is_cpu_type_allowed(
+                wrong_stepping_milan,
+                &allowed_cpus
+            ));
+        }
+
+        // TODO: Since compute_stage0_hash will be reworked in a future CL, this test will also be updated
         // Uses a known expected value generated by running compute_expected_stage0 hash
         #[test]
         fn test_compute_expected_stage0_is_stable() {
