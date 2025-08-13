@@ -965,6 +965,7 @@ mod tests {
                     },
                     ],
             }],
+            stage0_binary_sha256_to_blob: Default::default(),
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
@@ -1004,6 +1005,7 @@ mod tests {
                     },
                     ],
             }],
+            stage0_binary_sha256_to_blob: Default::default(),
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
@@ -1044,6 +1046,7 @@ mod tests {
                     },
                     ],
             }],
+            stage0_binary_sha256_to_blob: Default::default(),
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();
@@ -1074,6 +1077,7 @@ mod tests {
                     },
                     ],
             }],
+            stage0_binary_sha256_to_blob: Default::default(),
         };
         let mut buf: Vec<u8> = Vec::with_capacity(1024);
         policies.encode(&mut buf).unwrap();

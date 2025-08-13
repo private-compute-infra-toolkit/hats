@@ -21,6 +21,9 @@ import "proto/attestation/tcb_version.proto";
 
 message AppraisalPolicies {
   repeated AppraisalPolicy policies = 1;
+  // The key is the SHA-256 hash of the binary, as a hex string.
+  // The value is the raw binary content of the stage0/OVMF file.
+  map<string, bytes> stage0_binary_sha256_to_blob = 2;
 }
 
 message AppraisalPolicy {
@@ -46,6 +49,7 @@ message CpuInfo {
 }
 
 message AmdSevDynamic {
+  // This SHA-256 hash is a key to look up the stage0/OVMF binary
   repeated string stage0_ovmf_binary_hash = 1;
   // Minimum accepted versions of all TCB components.
   oak.attestation.v1.TcbVersion min_tcb_version = 2;

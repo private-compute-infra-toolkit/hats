@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ".oak.attestation.v1",
             "::oak_proto_rust::oak::attestation::v1",
         )
+        .btree_map(&["."])
         .compile_protos(
             &[
                 "../proto/tvs_messages.proto",
