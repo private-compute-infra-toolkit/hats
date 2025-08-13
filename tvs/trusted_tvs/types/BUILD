@@ -21,10 +21,6 @@ package(
 rust_library(
     name = "trusted-tvs-types",
     srcs = glob(["src/**"]),
-    crate_features = select({
-        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
-        "//conditions:default": [],
-    }),
     deps = [
         "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",
