@@ -32,6 +32,8 @@ use p256::ecdsa::VerifyingKey;
 use prost::Message;
 use trusted_tvs_types::EvidenceValidator;
 use tvs_proto::pcit::tvs::{stage0_measurement, AppraisalPolicies, AppraisalPolicy, Measurement};
+#[cfg(feature = "dynamic_attestation")]
+use {alloc::collections::BTreeMap, alloc::string::String};
 
 /// Validate measurements against a given appraisal policies.
 ///
@@ -60,6 +62,7 @@ pub struct PolicyManager {
     enable_policy_signature: bool,
     accept_insecure_policies: bool,
     appraisal_policies: Vec<AppraisalPolicy>,
+    stage0_binary_store: BTreeMap<String, Vec<u8>>,
 }
 
 // PolicyManager when dynamic attestation is OFF
@@ -137,6 +140,7 @@ impl PolicyManager {
             enable_policy_signature,
             accept_insecure_policies,
             appraisal_policies: vec![],
+            stage0_binary_store: BTreeMap::new(),
         }
     }
 
@@ -166,15 +170,23 @@ impl PolicyManager {
         let validated_policies = if self.enable_policy_signature {
             let policy_verifying_key: VerifyingKey = get_policy_public_key()?;
             process_and_validate_policies(
-                appraisal_policies,
+                appraisal_policies.policies,
                 &[&policy_verifying_key],
                 /*num_pass_required=*/ 1,
             )
         } else {
-            process_and_validate_policies(appraisal_policies, &[], /*num_pass_required=*/ 0)
+            process_and_validate_policies(
+                appraisal_policies.policies,
+                &[],
+                /*num_pass_required=*/ 0,
+            )
         }?;
 
         self.appraisal_policies = validated_policies;
+        self.stage0_binary_store = appraisal_policies
+            .stage0_binary_sha256_to_blob
+            .into_iter()
+            .collect();
         Ok(())
     }
 }
@@ -690,12 +702,11 @@ fn create_endorsements(tee_certificate: &[u8]) -> Endorsements {
 
 #[cfg(feature = "dynamic_attestation")]
 fn process_and_validate_policies(
-    policies: AppraisalPolicies,
+    policies: Vec<AppraisalPolicy>,
     verifying_keys: &[&VerifyingKey],
     num_pass_required: u32,
 ) -> anyhow::Result<Vec<AppraisalPolicy>> {
     policies
-        .policies
         .into_iter()
         .map(|policy| {
             if num_pass_required == 0 {
