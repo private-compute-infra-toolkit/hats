@@ -255,9 +255,9 @@ mod dynamic {
     use super::*;
     use {
         anyhow::Context,
-        measure::{gctx::GCTX, types::SevMode, vcpu_types::CpuType, vmsa::VMSA},
+        measure::{snp_calc_launch_digest_from_bytes, vcpu_types::CpuType},
         oak_sev_snp_attestation_report::AttestationReport,
-        tvs_proto::pcit::tvs::{stage0_measurement::Type, CpuInfo},
+        tvs_proto::pcit::tvs::{stage0_measurement::Type, AmdSev, CpuInfo},
         zerocopy::FromBytes,
     };
 
@@ -289,63 +289,71 @@ mod dynamic {
             attestation_report.data.cpuid_mod_id,
             attestation_report.data.cpuid_step,
         );
+        let (family, model, stepping) = measured_cpu;
+        let measured_vcpu_type = CpuType::from_cpuid(family, model.into(), stepping.into())?;
 
         for policy in &policy_manager.appraisal_policies {
-            // Extract the partial stage0 hex string from the policy, or skip policy if missing.
-            let Some(measurement) = &policy.measurement else {
-                log::debug!("Skipping policy: no measurement field present.");
-                continue;
-            };
-            let Some(stage0) = &measurement.stage0_measurement else {
-                log::debug!("Skipping policy: no stage0_measurement field present.");
-                continue;
-            };
-            let Some(Type::AmdSevDynamic(amd_sev_dynamic)) = &stage0.r#type else {
+            // Just check that if the policy is not dynamic (e.g. static or insecure), we can skip/ignore.
+            let Some(Type::AmdSevDynamic(amd_sev_dynamic)) = policy
+                .measurement
+                .as_ref()
+                .and_then(|m| m.stage0_measurement.as_ref())
+                .and_then(|s0| s0.r#type.as_ref())
+            else {
                 log::debug!("Skipping policy: not an AmdSevDynamic type.");
                 continue;
             };
-            // TODO: b/434016988 - This logic will be updated to loop through the given stage0_ovmf_binary_hashes.
-            let Ok(partial_hash_bytes) = hex::decode(&amd_sev_dynamic.stage0_ovmf_binary_hash)
-            else {
-                log::debug!("Skipping policy: could not decode partial SHA384 hash from hex.");
-                continue;
-            };
 
+            // check if CPU info is allowed by policy
             if !is_cpu_type_allowed(measured_cpu, &amd_sev_dynamic.cpu_info) {
                 log::debug!(
                     "Measured CPU type (family: {}, model: {}, stepping: {}) is not in the policy's allowlist. Skipping policy.",
                     measured_cpu.0, measured_cpu.1, measured_cpu.2
                 );
-                continue; // This policy doesn't match, try the next one.
+                continue;
             }
+            // Loop through the stage0_binary reference hashes in the policy and fetch blob from store
+            for stage0_binary_hash in &amd_sev_dynamic.stage0_ovmf_binary_hash {
+                let Some(stage0_blob) = policy_manager.stage0_binary_store.get(stage0_binary_hash)
+                else {
+                    log::debug!(
+                        "Stage0 binary content not found for hash: {}. Skipping.",
+                        stage0_binary_hash
+                    );
+                    continue;
+                };
+                // Check if blob, CPU, and vCPU count together produce valid stage0 measurement
+                if stage0_measurement_is_valid(
+                    stage0_blob,
+                    &attestation_report,
+                    &measured_vcpu_type,
+                    &amd_sev_dynamic.vcpu_count,
+                )? {
+                    // stage0 measurement is valid, set up so Oak verifier can match rest of policy with measured evidence
+                    // TODO: b/434016988 directly create reference values from a verified stage0 sha384, without mutable situation
+                    let mut final_policy = policy.clone();
+                    update_policy_with_final_hash(
+                        &mut final_policy,
+                        &attestation_report.data.measurement,
+                    );
 
-            // Pass the stage0 measurement info into validation function:
-            // TODO: b/434016988 will be refactored in a future CL, "partial hash" calculation needs edits
-            // to be treated as a stage0 ovmf binary hash instead
-            if stage0_measurement_is_valid(&partial_hash_bytes, &attestation_report, measured_cpu)?
-            {
-                let mut final_policy = policy.clone();
-                update_policy_with_final_hash(
-                    &mut final_policy,
-                    &attestation_report.data.measurement,
-                );
+                    // turn final_policy AppraisalPolicy object into a ReferenceValues object for Oak Verifier
+                    let final_reference_values = appraisal_policy_to_reference_values(
+                        &final_policy,
+                        policy_manager.accept_insecure_policies,
+                    )?;
 
-                // turn final_policy AppraisalPolicy object into a ReferenceValues object for Oak Verifier
-                let final_reference_values = appraisal_policy_to_reference_values(
-                    &final_policy,
-                    policy_manager.accept_insecure_policies,
-                )?;
-
-                // Let Oak verifier match this policy
-                if oak_attestation_verification_with_regex::verifier::verify(
-                    time_milis,
-                    evidence,
-                    &endorsement,
-                    &final_reference_values,
-                )
-                .is_ok()
-                {
-                    return Ok(()); // Found matching policy
+                    // Let Oak verifier match this policy
+                    if oak_attestation_verification_with_regex::verifier::verify(
+                        time_milis,
+                        evidence,
+                        &endorsement,
+                        &final_reference_values,
+                    )
+                    .is_ok()
+                    {
+                        return Ok(()); // Found matching policy
+                    }
                 }
             }
         }
@@ -363,55 +371,56 @@ mod dynamic {
         ))
     }
 
+    // TODO: b/434016988 The purpose of this method will need to be merged with the ReferenceValues conversion in a later CL.
     fn update_policy_with_final_hash(final_policy: &mut AppraisalPolicy, actual_hash: &[u8]) {
         if let Some(measurement) = final_policy.measurement.as_mut() {
             if let Some(stage0) = measurement.stage0_measurement.as_mut() {
-                if let Some(Type::AmdSev(amd_sev)) = stage0.r#type.as_mut() {
-                    amd_sev.sha384 = hex::encode(actual_hash);
+                if let Some(Type::AmdSevDynamic(amd_sev_dynamic)) = stage0.r#type.as_mut() {
+                    // replace AmdSevDynamic stage0 measurement to be an AmdSev static one
+                    let static_policy = AmdSev {
+                        sha384: hex::encode(actual_hash),
+                        min_tcb_version: amd_sev_dynamic.min_tcb_version,
+                    };
+                    stage0.r#type = Some(Type::AmdSev(static_policy));
                 }
             }
         }
     }
 
-    // Note: After adding implementation to AppraisalPolicy to store accepted vcpu values in next CL,
-    // this function will change to only loop through accepted vcpus, not all 1-256.
-    fn stage0_measurement_is_valid(
-        partial_hash: &[u8],
+    /// Checks if a given stage0 binary blob and CPU config can produce the measured hash,
+    /// using one of the allowed vCPU counts.
+    pub fn stage0_measurement_is_valid(
+        stage0_blob: &[u8],
         attestation_report: &AttestationReport,
-        cpu_info: (i32, u8, u8),
+        measured_cpu_type: &CpuType,
+        allowed_vcpu_counts: &[u32],
     ) -> anyhow::Result<bool> {
         let actual_hash = attestation_report.data.measurement.as_slice(); // extract stage0 hash
 
-        for vcpu_count in 1..=256 {
-            let expected_hash = compute_expected_stage0(partial_hash, cpu_info, vcpu_count)?;
-
-            if expected_hash.as_slice() == actual_hash {
+        // Loop only through the vCPU counts specified in the policy.
+        for &vcpu_count in allowed_vcpu_counts {
+            // Re-calculate the full launch digest using snp utility function.
+            // Note: kernel_path, initrd_path, and append are `None` because the launch
+            // digest measurement in the attestation report is calculated before these
+            // components are loaded. This ensures the recalculated digest matches the evidence
+            let calculated_digest = snp_calc_launch_digest_from_bytes(
+                vcpu_count as usize,
+                measured_cpu_type.clone(),
+                stage0_blob,
+                None, // kernel_path
+                None, // initrd_path
+                None, // append
+            )?;
+            // Compare measured digest and calculated digest
+            if calculated_digest.0.as_slice() == actual_hash {
+                log::debug!(
+                    "Found a valid stage0 measurement match for vCPU count {}",
+                    vcpu_count
+                );
                 return Ok(true);
             }
         }
         Ok(false)
-    }
-
-    pub fn compute_expected_stage0(
-        partial_hash: &[u8],
-        cpu_info: (i32, u8, u8),
-        vcpu_count: u32,
-    ) -> anyhow::Result<Vec<u8>> {
-        // Initialize GCTX with the partial hash
-        let mut gctx = GCTX::new_from_seed(partial_hash.try_into()?);
-
-        let (family, model, stepping) = cpu_info;
-        let vcpu_type = CpuType::from_cpuid(family, model.into(), stepping.into())?;
-
-        // Create new VMSA object
-        let vmsa = VMSA::new(SevMode::SevSnp, 0, vcpu_type);
-        let vmsa_pages = vmsa.pages(vcpu_count as usize);
-
-        // update GCTX with the VMSA pages
-        for page_data in vmsa_pages {
-            gctx.update_vmsa_page(&page_data)?;
-        }
-        Ok(gctx.ld().to_vec())
     }
 
     // Checks if measured CPU ID information is permissible by the appraisal policy
@@ -1209,8 +1218,14 @@ mod tests {
 
     #[cfg(feature = "dynamic_attestation")]
     mod dynamic_attestation_tests {
+        extern crate std;
         use super::*;
+        use measure::{snp_calc_launch_digest_from_bytes, vcpu_types::CpuType};
+        use oak_sev_snp_attestation_report::{AttestationReport, AttestationReportData};
+        use runfiles::Runfiles;
+        use std::fs;
         use tvs_proto::pcit::tvs::CpuInfo;
+        use zerocopy::FromZeros;
 
         #[test]
         fn test_is_cpu_type_allowed() {
@@ -1245,42 +1260,83 @@ mod tests {
             ));
         }
 
-        // TODO: Since compute_stage0_hash will be reworked in a future CL, this test will also be updated
-        // Uses a known expected value generated by running compute_expected_stage0 hash
         #[test]
-        fn test_compute_expected_stage0_is_stable() {
-            let partial_hash = [0u8; 48];
-            let cpu_info = (25, 1, 1); // Milan
-            let vcpu_count = 1;
+        fn test_stage0_measurement_is_valid_success() {
+            let r = Runfiles::create().unwrap();
+            let stage0_path = r
+                .rlocation("_main/google_internal/oak_artifacts/stage0_bin")
+                .expect("Failed to find stage0_bin in runfiles");
+            let stage0_blob =
+                fs::read(stage0_path).expect("Failed to read stage0_bin from runfiles");
 
-            let expected_final_hash: [u8; 48] = [
-                236, 208, 55, 237, 118, 178, 166, 178, 52, 93, 103, 228, 88, 167, 176, 163, 175,
-                66, 225, 250, 34, 68, 73, 33, 157, 239, 111, 64, 201, 22, 246, 41, 252, 171, 214,
-                53, 25, 220, 158, 88, 152, 7, 100, 246, 144, 248, 125, 226,
-            ];
+            let measured_cpu_type = CpuType::from_cpuid(25, 1, 1).unwrap(); // Milan
+            let allowed_vcpu_counts = vec![1, 2, 4, 8];
 
-            let result =
-                dynamic::compute_expected_stage0(&partial_hash, cpu_info, vcpu_count).unwrap();
+            let expected_digest = snp_calc_launch_digest_from_bytes(
+                4,
+                measured_cpu_type.clone(),
+                &stage0_blob,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-            assert_eq!(
-                result,
-                expected_final_hash.to_vec(),
-                "The computed hash did not match the expected stable value."
+            let mut report_data = AttestationReportData::new_zeroed();
+            report_data.measurement.copy_from_slice(&expected_digest.0);
+            let mut mock_report = AttestationReport::new_zeroed();
+            mock_report.data = report_data;
+
+            let result = dynamic::stage0_measurement_is_valid(
+                &stage0_blob,
+                &mock_report,
+                &measured_cpu_type,
+                &allowed_vcpu_counts,
             );
+
+            assert!(result.is_ok());
+            assert!(result.unwrap());
         }
 
         #[test]
-        fn test_compute_expected_stage0_unsupported_cpu() {
-            let partial_hash = [0u8; 48];
-            let cpu_info = (0, 0, 0); // An invalid CPU type.
-            let vcpu_count = 1;
+        fn test_stage0_measurement_is_valid_failure() {
+            let r = Runfiles::create().unwrap();
+            let stage0_path = r
+                .rlocation("_main/google_internal/oak_artifacts/stage0_bin")
+                .expect("Failed to find stage0_bin in runfiles");
+            let stage0_blob =
+                fs::read(stage0_path).expect("Failed to read stage0_bin from runfiles");
 
-            let result = dynamic::compute_expected_stage0(&partial_hash, cpu_info, vcpu_count);
+            let measured_cpu_type = CpuType::from_cpuid(25, 1, 1).unwrap();
+            let allowed_vcpu_counts = vec![1, 2, 4, 8];
 
-            assert!(
-                result.is_err(),
-                "Function should have failed for an unsupported CPU."
+            // vCPU count of 5 is not within the appraisal policy
+            let non_matching_digest = snp_calc_launch_digest_from_bytes(
+                5,
+                measured_cpu_type.clone(),
+                &stage0_blob,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+            let mut report_data = AttestationReportData::new_zeroed();
+            report_data
+                .measurement
+                .copy_from_slice(&non_matching_digest.0);
+            let mut mock_report = AttestationReport::new_zeroed();
+            mock_report.data = report_data;
+
+            let result = dynamic::stage0_measurement_is_valid(
+                &stage0_blob,
+                &mock_report,
+                &measured_cpu_type,
+                &allowed_vcpu_counts,
             );
+
+            assert!(result.is_ok());
+            assert!(!result.unwrap()); // No match should be found
         }
     }
 }
