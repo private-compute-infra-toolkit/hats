@@ -329,6 +329,10 @@ mod dynamic {
                     &measured_vcpu_type,
                     &amd_sev_dynamic.vcpu_count,
                 )? {
+                    log::debug!(
+                        "Stage0 measurement is VALID for stage0 hash '{}'. Proceeding to full verification.",
+                        stage0_binary_hash
+                    );
                     // stage0 measurement is valid, set up so Oak verifier can match rest of policy with measured evidence
                     // TODO: b/434016988 directly create reference values from a verified stage0 sha384, without mutable situation
                     let mut final_policy = policy.clone();
@@ -354,6 +358,11 @@ mod dynamic {
                     {
                         return Ok(()); // Found matching policy
                     }
+                } else {
+                    log::debug!(
+                        "Stage0 measurement is INVALID for stage0 hash '{}'. Skipping.",
+                        stage0_binary_hash
+                    );
                 }
             }
         }
@@ -420,6 +429,7 @@ mod dynamic {
                 return Ok(true);
             }
         }
+        log::debug!("No vCPU count in policy produced a matching stage0 measurement.");
         Ok(false)
     }
 
@@ -950,159 +960,9 @@ mod tests {
     use alloc::string::String;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use prost::Message;
-    use tvs_proto::pcit::tvs::{stage0_measurement, AmdSev, Signature, Stage0Measurement};
+    use tvs_proto::pcit::tvs::stage0_measurement;
 
-    fn default_appraisal_policies() -> Vec<u8> {
-        let policies = AppraisalPolicies {
-            policies: vec![AppraisalPolicy{
-                description: "Test AMD-SNP measurements".to_string(),
-                measurement: Some(Measurement {
-                    stage0_measurement: Some(Stage0Measurement{
-                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
-                            sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc".to_string(),
-                            min_tcb_version: Some(TcbVersion{
-                                boot_loader: 10,
-                                microcode: 84,
-                                snp: 25,
-                                tee: 0,
-                                fmc: 0,
-                            }),
-                        })),
-                    }),
-                    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
-                    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
-                    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
-                    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
-                    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
-                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$".to_string(),
-                    system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
-                    container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string()],
-
-                }),
-                signature: vec![Signature{
-                    signature: "db07413c03902c54275858269fb19aac96ba5d80f027653bc2664a87c37c277407bffa411e6b06de773cee60fd5bb7a0f7a01eda746fa8a508bbc2bdfd83c3b6".to_string(),
-                    signer: "".to_string(),
-                    },
-                    ],
-            }],
-            stage0_binary_sha256_to_blob: Default::default(),
-        };
-        let mut buf: Vec<u8> = Vec::with_capacity(1024);
-        policies.encode(&mut buf).unwrap();
-        buf
-    }
-
-    fn default_appraisal_policies_multiple_container_binaries() -> Vec<u8> {
-        let policies = AppraisalPolicies {
-            policies: vec![AppraisalPolicy{
-                description: "Test AMD-SNP measurements".to_string(),
-                measurement: Some(Measurement {
-                    stage0_measurement: Some(Stage0Measurement{
-                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
-                            sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc".to_string(),
-                            min_tcb_version: Some(TcbVersion{
-                                boot_loader: 10,
-                                microcode: 84,
-                                snp: 25,
-                                tee: 0,
-                                fmc: 0,
-                            }),
-                        })),
-                    }),
-                    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
-                    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
-                    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
-                    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
-                    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
-                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$".to_string(),
-                    system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
-                    container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string(), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string()],
-
-                }),
-                signature: vec![Signature{
-                    signature: "253879b00ed106485940dbb0abd0c2b8d08b1cdd0a25b4537265f24c5dca36b5908c87728e0a8e7a3d0c97f534d4d517c029ee2a16fb6dc98801f5b50c618fb3".to_string(),
-                    signer: "".to_string(),
-                    },
-                    ],
-            }],
-            stage0_binary_sha256_to_blob: Default::default(),
-        };
-        let mut buf: Vec<u8> = Vec::with_capacity(1024);
-        policies.encode(&mut buf).unwrap();
-        buf
-    }
-
-    // should fail everytime
-    fn default_appraisal_policies_no_container_binaries() -> Vec<u8> {
-        let policies = AppraisalPolicies {
-            policies: vec![AppraisalPolicy{
-                description: "Test AMD-SNP measurements".to_string(),
-                measurement: Some(Measurement {
-                    stage0_measurement: Some(Stage0Measurement{
-                        r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
-                            sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc".to_string(),
-                            min_tcb_version: Some(TcbVersion{
-                                boot_loader: 10,
-                                microcode: 84,
-                                snp: 25,
-                                tee: 0,
-                                fmc: 0,
-                            }),
-                        })),
-                    }),
-                    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
-                    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
-                    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
-                    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
-                    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
-                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
-                    system_image_sha256: "b0f34de77126561d911e0687f79eaad808b0948e0a1045f7449274efc2e411c5".to_string(),
-                    container_binary_sha256:vec![],
-
-                }),
-                signature: vec![Signature{
-                    signature: "273dd08d4f420e1aeaf7ed1ab3e40c364d33fa59a18119d06500db00de92b3032c0198fa331c4506f29a76545b17ad588f2e27bd3819a5ab040a756b7ee4b21c".to_string(),
-                    signer: "".to_string(),
-                    },
-                    ],
-            }],
-            stage0_binary_sha256_to_blob: Default::default(),
-        };
-        let mut buf: Vec<u8> = Vec::with_capacity(1024);
-        policies.encode(&mut buf).unwrap();
-        buf
-    }
-
-    fn insecure_appraisal_policies() -> Vec<u8> {
-        let policies = AppraisalPolicies {
-            policies: vec![AppraisalPolicy{
-                description: "Test insecure VM measurements".to_string(),
-                measurement: Some(Measurement {
-                    stage0_measurement: Some(Stage0Measurement{
-                        r#type: Some(stage0_measurement::Type::Insecure(InsecureReferenceValues{})),
-                    }),
-                    kernel_image_sha256: String::from("442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"),
-                    kernel_setup_data_sha256: String::from("68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"),
-                    init_ram_fs_sha256: String::from("3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"),
-                    memory_map_sha256: String::from("4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"),
-                    acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
-                    kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
-                    system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
-                    container_binary_sha256:vec![String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c")],
-
-                }),
-                signature: vec![Signature{
-                    signature: String::from("6870ebf5f55debe04cd66d47ea3b2a878edd436aba59be30b1f52478bb4e12e4d40c223664ee3c0f13ce27e159bc8e7726cce52520f4fb171d6622a26169dcb6"),
-                    signer: String::from(""),
-                    },
-                    ],
-            }],
-            stage0_binary_sha256_to_blob: Default::default(),
-        };
-        let mut buf: Vec<u8> = Vec::with_capacity(1024);
-        policies.encode(&mut buf).unwrap();
-        buf
-    }
+    const NOW_UTC_MILLIS: i64 = 1698829200000;
 
     fn get_genoa_vcek() -> Vec<u8> {
         include_bytes!("../../../test_data/vcek_genoa.crt").to_vec()
@@ -1122,97 +982,254 @@ mod tests {
         .expect("could not decode evidence")
     }
 
-    const NOW_UTC_MILLIS: i64 = 1698829200000;
+    #[cfg(not(feature = "dynamic_attestation"))]
+    mod static_attestation {
+        use super::*;
+        use tvs_proto::pcit::tvs::{AmdSev, Signature, Stage0Measurement};
 
-    #[test]
-    fn check_evidence_successful() {
-        let policy_manager = PolicyManager::new_with_policies(
-            &default_appraisal_policies(),
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
-        assert!(policy_manager
-            .check_evidence(NOW_UTC_MILLIS, &get_evidence_v1_genoa(), &get_genoa_vcek())
-            .is_ok());
-    }
+        // Static test appraisal policies
+        fn default_appraisal_policies() -> Vec<u8> {
+            let policies = AppraisalPolicies {
+                policies: vec![AppraisalPolicy{
+                 description: "Test AMD-SNP measurements".to_string(),
+                    measurement: Some(Measurement {
+                        stage0_measurement: Some(Stage0Measurement{
+                            r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                                sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc".to_string(),
+                                min_tcb_version: Some(TcbVersion{
+                                    boot_loader: 10,
+                                    microcode: 84,
+                                    snp: 25,
+                                    tee: 0,
+                                    fmc: 0,
+                                }),
+                            })),
+                        }),
+                        kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
+                        kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
+                        init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
+                        memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
+                        acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
+                        kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$".to_string(),
+                        system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
+                        container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string()],
 
-    #[test]
-    fn check_evidence_successful_multiple_container_binaries() {
-        let policy_manager = PolicyManager::new_with_policies(
-            &default_appraisal_policies_multiple_container_binaries(),
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
-        assert!(policy_manager
-            .check_evidence(NOW_UTC_MILLIS, &get_evidence_v1_genoa(), &get_genoa_vcek())
-            .is_ok());
-    }
-
-    #[test]
-    fn check_evidence_error_no_container_binaries() {
-        let policy_manager = PolicyManager::new_with_policies(
-            &default_appraisal_policies_no_container_binaries(),
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
-        match policy_manager.check_evidence(
-            NOW_UTC_MILLIS,
-            &get_evidence_v2_genoa(),
-            &get_genoa_vcek(),
-        ) {
-            Ok(_) => panic!("check_evidence() should fail."),
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "Failed to verify report. No matching appraisal policy found"
-            ),
-        }
-    }
-
-    #[test]
-    fn check_evidence_error() {
-        let policy_manager = PolicyManager::new_with_policies(
-            &default_appraisal_policies(),
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        )
-        .unwrap();
-        match policy_manager.check_evidence(
-            NOW_UTC_MILLIS,
-            &get_evidence_v2_genoa(),
-            &get_genoa_vcek(),
-        ) {
-            Ok(_) => panic!("check_evidence() should fail."),
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "Failed to verify report. No matching appraisal policy found"
-            ),
-        }
-    }
-
-    #[test]
-    fn policy_manager_creation_error() {
-        match PolicyManager::new_with_policies(
-            /*policies=*/ &[1, 2, 3],
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        ) {
-            Ok(_) => panic!("PolicyManager::new() should fail."),
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "Failed to decode (serialize) appraisal policy."
-            ),
+                    }),
+                    signature: vec![Signature{
+                        signature: "db07413c03902c54275858269fb19aac96ba5d80f027653bc2664a87c37c277407bffa411e6b06de773cee60fd5bb7a0f7a01eda746fa8a508bbc2bdfd83c3b6".to_string(),
+                        signer: "".to_string(),
+                        },
+                        ],
+                }],
+                stage0_binary_sha256_to_blob: Default::default(),
+            };
+            let mut buf: Vec<u8> = Vec::with_capacity(1024);
+            policies.encode(&mut buf).unwrap();
+            buf
         }
 
-        match PolicyManager::new_with_policies(
-            &insecure_appraisal_policies(),
-            /*enable_policy_signature=*/ true,
-            /*accept_insecure_policies=*/ false,
-        ) {
-            Ok(_) => panic!("PolicyManager::new() should fail."),
-            Err(e) => assert_eq!(e.to_string(), "Cannot accept insecure policies."),
+        fn default_appraisal_policies_multiple_container_binaries() -> Vec<u8> {
+            let policies = AppraisalPolicies {
+                policies: vec![AppraisalPolicy{
+                 description: "Test AMD-SNP measurements".to_string(),
+                    measurement: Some(Measurement {
+                        stage0_measurement: Some(Stage0Measurement{
+                            r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                                sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc".to_string(),
+                                min_tcb_version: Some(TcbVersion{
+                                    boot_loader: 10,
+                                    microcode: 84,
+                                    snp: 25,
+                                    tee: 0,
+                                    fmc: 0,
+                                }),
+                            })),
+                        }),
+                        kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
+                        kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
+                        init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
+                        memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
+                        acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
+                        kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$".to_string(),
+                        system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
+                        container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string(), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string()],
+
+                    }),
+                    signature: vec![Signature{
+                        signature: "253879b00ed106485940dbb0abd0c2b8d08b1cdd0a25b4537265f24c5dca36b5908c87728e0a8e7a3d0c97f534d4d517c029ee2a16fb6dc98801f5b50c618fb3".to_string(),
+                        signer: "".to_string(),
+                        },
+                        ],
+                }],
+                stage0_binary_sha256_to_blob: Default::default(),
+            };
+            let mut buf: Vec<u8> = Vec::with_capacity(1024);
+            policies.encode(&mut buf).unwrap();
+            buf
+        }
+
+        // should fail everytime
+        fn default_appraisal_policies_no_container_binaries() -> Vec<u8> {
+            let policies = AppraisalPolicies {
+                policies: vec![AppraisalPolicy{
+                 description: "Test AMD-SNP measurements".to_string(),
+                    measurement: Some(Measurement {
+                        stage0_measurement: Some(Stage0Measurement{
+                            r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
+                                sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc".to_string(),
+                                min_tcb_version: Some(TcbVersion{
+                                    boot_loader: 10,
+                                    microcode: 84,
+                                    snp: 25,
+                                    tee: 0,
+                                    fmc: 0,
+                                }),
+                            })),
+                        }),
+                        kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
+                        kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
+                        init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
+                        memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
+                        acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
+                        kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
+                        system_image_sha256: "b0f34de77126561d911e0687f79eaad808b0948e0a1045f7449274efc2e411c5".to_string(),
+                        container_binary_sha256:vec![],
+
+                    }),
+                    signature: vec![Signature{
+                        signature: "273dd08d4f420e1aeaf7ed1ab3e40c364d33fa59a18119d06500db00de92b3032c0198fa331c4506f29a76545b17ad588f2e27bd3819a5ab040a756b7ee4b21c".to_string(),
+                        signer: "".to_string(),
+                        },
+                        ],
+                }],
+                stage0_binary_sha256_to_blob: Default::default(),
+            };
+            let mut buf: Vec<u8> = Vec::with_capacity(1024);
+            policies.encode(&mut buf).unwrap();
+            buf
+        }
+
+        fn insecure_appraisal_policies() -> Vec<u8> {
+            let policies = AppraisalPolicies {
+                policies: vec![AppraisalPolicy{
+                    description: "Test insecure VM measurements".to_string(),
+                    measurement: Some(Measurement {
+                        stage0_measurement: Some(Stage0Measurement{
+                            r#type: Some(stage0_measurement::Type::Insecure(InsecureReferenceValues{})),
+                        }),
+                        kernel_image_sha256: String::from("442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"),
+                        kernel_setup_data_sha256: String::from("68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"),
+                        init_ram_fs_sha256: String::from("3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"),
+                        memory_map_sha256: String::from("4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"),
+                        acpi_table_sha256: String::from("a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"),
+                        kernel_cmd_line_regex: String::from("^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"),
+                        system_image_sha256: String::from("e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"),
+                        container_binary_sha256:vec![String::from("bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c")],
+
+                    }),
+                    signature: vec![Signature{
+                        signature: String::from("6870ebf5f55debe04cd66d47ea3b2a878edd436aba59be30b1f52478bb4e12e4d40c223664ee3c0f13ce27e159bc8e7726cce52520f4fb171d6622a26169dcb6"),
+                        signer: String::from(""),
+                        },
+                        ],
+                }],
+                stage0_binary_sha256_to_blob: Default::default(),
+            };
+            let mut buf: Vec<u8> = Vec::with_capacity(1024);
+            policies.encode(&mut buf).unwrap();
+            buf
+        }
+
+        #[test]
+        fn check_evidence_successful() {
+            let policy_manager = PolicyManager::new_with_policies(
+                &default_appraisal_policies(),
+                /*enable_policy_signature=*/ true,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap();
+            assert!(policy_manager
+                .check_evidence(NOW_UTC_MILLIS, &get_evidence_v1_genoa(), &get_genoa_vcek())
+                .is_ok());
+        }
+
+        #[test]
+        fn check_evidence_successful_multiple_container_binaries() {
+            let policy_manager = PolicyManager::new_with_policies(
+                &default_appraisal_policies_multiple_container_binaries(),
+                /*enable_policy_signature=*/ true,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap();
+            assert!(policy_manager
+                .check_evidence(NOW_UTC_MILLIS, &get_evidence_v1_genoa(), &get_genoa_vcek())
+                .is_ok());
+        }
+
+        #[test]
+        fn check_evidence_error_no_container_binaries() {
+            let policy_manager = PolicyManager::new_with_policies(
+                &default_appraisal_policies_no_container_binaries(),
+                /*enable_policy_signature=*/ true,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap();
+            match policy_manager.check_evidence(
+                NOW_UTC_MILLIS,
+                &get_evidence_v2_genoa(),
+                &get_genoa_vcek(),
+            ) {
+                Ok(_) => panic!("check_evidence() should fail."),
+                Err(e) => assert_eq!(
+                    e.to_string(),
+                    "Failed to verify report. No matching appraisal policy found"
+                ),
+            }
+        }
+
+        #[test]
+        fn check_evidence_error() {
+            let policy_manager = PolicyManager::new_with_policies(
+                &default_appraisal_policies(),
+                /*enable_policy_signature=*/ true,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap();
+            match policy_manager.check_evidence(
+                NOW_UTC_MILLIS,
+                &get_evidence_v2_genoa(),
+                &get_genoa_vcek(),
+            ) {
+                Ok(_) => panic!("check_evidence() should fail."),
+                Err(e) => assert_eq!(
+                    e.to_string(),
+                    "Failed to verify report. No matching appraisal policy found"
+                ),
+            }
+        }
+
+        #[test]
+        fn policy_manager_creation_error() {
+            match PolicyManager::new_with_policies(
+                /*policies=*/ &[1, 2, 3],
+                /*enable_policy_signature=*/ true,
+                /*accept_insecure_policies=*/ false,
+            ) {
+                Ok(_) => panic!("PolicyManager::new() should fail."),
+                Err(e) => assert_eq!(
+                    e.to_string(),
+                    "Failed to decode (serialize) appraisal policy."
+                ),
+            }
+
+            match PolicyManager::new_with_policies(
+                &insecure_appraisal_policies(),
+                /*enable_policy_signature=*/ true,
+                /*accept_insecure_policies=*/ false,
+            ) {
+                Ok(_) => panic!("PolicyManager::new() should fail."),
+                Err(e) => assert_eq!(e.to_string(), "Cannot accept insecure policies."),
+            }
         }
     }
 
@@ -1223,41 +1240,213 @@ mod tests {
         use measure::{snp_calc_launch_digest_from_bytes, vcpu_types::CpuType};
         use oak_sev_snp_attestation_report::{AttestationReport, AttestationReportData};
         use runfiles::Runfiles;
+        use sha2::{Digest, Sha256};
         use std::fs;
-        use tvs_proto::pcit::tvs::CpuInfo;
+        use tvs_proto::pcit::tvs::{
+            AmdSevDynamic, AppraisalPolicy, CpuInfo, Measurement, Stage0Measurement,
+        };
         use zerocopy::FromZeros;
 
+        fn get_milan_vcek() -> Vec<u8> {
+            include_bytes!("../../../test_data/vcek_milan.crt").to_vec()
+        }
+
+        fn get_evidence_v1_milan() -> Evidence {
+            Evidence::decode(
+                include_bytes!("../../../test_data/evidence_v1_milan.binarypb").as_slice(),
+            )
+            .expect("could not decode evidence")
+        }
+
+        fn get_evidence_v2_milan() -> Evidence {
+            Evidence::decode(
+                include_bytes!("../../../test_data/evidence_v2_milan.binarypb").as_slice(),
+            )
+            .expect("could not decode evidence")
+        }
+
+        fn dynamic_milan_policies(stage0_hash: String, stage0_blob: &[u8]) -> Vec<u8> {
+            let policies = AppraisalPolicies {
+                policies: vec![AppraisalPolicy {
+                    description: "Test against golden dynamic evidence milan".to_string(),
+                    measurement: Some(Measurement {
+                        stage0_measurement: Some(Stage0Measurement {
+                            r#type: Some(stage0_measurement::Type::AmdSevDynamic(AmdSevDynamic {
+                                stage0_ovmf_binary_hash: vec![stage0_hash.clone()],
+                                min_tcb_version: Some(TcbVersion {
+                                    boot_loader: 4,
+                                    snp: 22,
+                                    microcode: 213,
+                                    ..Default::default()
+                                }),
+                                cpu_info: vec![CpuInfo { family: 25, model: 1, stepping: 1 }],
+                                vcpu_count: vec![4],
+                            })),
+                        }),
+                        kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
+                        kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
+                        init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
+                        memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
+                        acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
+                        kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$".to_string(),
+                        system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
+                        container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string()],
+                    }),
+                    ..Default::default()
+                }],
+                stage0_binary_sha256_to_blob: BTreeMap::from([(stage0_hash.clone(), stage0_blob.to_vec())]),
+            };
+            let mut buf = Vec::new();
+            policies.encode(&mut buf).unwrap();
+            buf
+        }
+
         #[test]
-        fn test_is_cpu_type_allowed() {
-            let allowed_cpus = vec![
-                // Milan CPU
-                CpuInfo {
-                    family: 25,
-                    model: 1,
-                    stepping: 1,
-                },
-                // Genoa CPU
-                CpuInfo {
-                    family: 25,
-                    model: 17,
-                    stepping: 0,
-                },
-            ];
+        fn check_evidence_dynamic_success_milan() {
+            let _ = env_logger::builder().is_test(true).try_init(); // comment/uncomment for logging
 
-            // should succeed
-            let milan_cpu = (25, 1, 1);
-            assert!(dynamic::is_cpu_type_allowed(milan_cpu, &allowed_cpus));
-            let genoa_cpu = (25, 17, 0);
-            assert!(dynamic::is_cpu_type_allowed(genoa_cpu, &allowed_cpus));
+            let r = Runfiles::create().unwrap();
+            let stage0_path = r
+                .rlocation("_main/google_internal/oak_artifacts/stage0_bin")
+                .expect("Failed to find stage0_bin in runfiles");
+            let stage0_blob = fs::read(stage0_path).expect("Failed to read stage0_bin");
+            let stage0_hash = hex::encode(Sha256::digest(&stage0_blob));
 
-            // should fail
-            let rome_cpu = (23, 49, 0);
-            assert!(!dynamic::is_cpu_type_allowed(rome_cpu, &allowed_cpus));
-            let wrong_stepping_milan = (25, 1, 2);
-            assert!(!dynamic::is_cpu_type_allowed(
-                wrong_stepping_milan,
-                &allowed_cpus
-            ));
+            let serialized_policies = dynamic_milan_policies(stage0_hash.clone(), &stage0_blob);
+            let policy_manager = PolicyManager::new_with_policies(
+                &serialized_policies,
+                /*enable_policy_signature=*/ false,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap();
+
+            assert!(policy_manager
+                .check_evidence(NOW_UTC_MILLIS, &get_evidence_v1_milan(), &get_milan_vcek())
+                .is_ok());
+        }
+
+        #[test]
+        fn check_evidence_dynamic_error_milan() {
+            let _ = env_logger::builder().is_test(true).try_init(); // comment/uncomment for logging
+
+            let r = Runfiles::create().unwrap();
+            let stage0_path = r
+                .rlocation("_main/google_internal/oak_artifacts/stage0_bin")
+                .expect("Failed to find stage0_bin in runfiles");
+            let stage0_blob = fs::read(stage0_path).expect("Failed to read stage0_bin");
+            let stage0_hash = hex::encode(Sha256::digest(&stage0_blob));
+
+            let serialized_policies = dynamic_milan_policies(stage0_hash.clone(), &stage0_blob);
+            let policy_manager = PolicyManager::new_with_policies(
+                &serialized_policies,
+                /*enable_policy_signature=*/ false,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap();
+
+            match policy_manager.check_evidence(
+                NOW_UTC_MILLIS,
+                &get_evidence_v2_milan(),
+                &get_milan_vcek(),
+            ) {
+                Ok(_) => panic!("check_evidence() should fail."),
+                Err(e) => assert_eq!(
+                    e.to_string(),
+                    "Failed to verify report. No matching appraisal policy found"
+                ),
+            }
+        }
+
+        fn dynamic_genoa_policies(stage0_hash: String, stage0_blob: &[u8]) -> Vec<u8> {
+            let policies = AppraisalPolicies {
+                policies: vec![AppraisalPolicy {
+                    description: "Test against golden dynamic evidence genoa".to_string(),
+                    measurement: Some(Measurement {
+                        stage0_measurement: Some(Stage0Measurement {
+                            r#type: Some(stage0_measurement::Type::AmdSevDynamic(AmdSevDynamic {
+                                stage0_ovmf_binary_hash: vec![stage0_hash.clone()],
+                                min_tcb_version: Some(TcbVersion {
+                                    boot_loader: 10,
+                                    microcode: 84,
+                                    snp: 25,
+                                    ..Default::default()
+                                }),
+                                cpu_info: vec![CpuInfo { family: 25, model: 17, stepping: 1 }],
+                                vcpu_count: vec![4],
+                            })),
+                        }),
+                        kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
+                        kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
+                        init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
+                        memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
+                        acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
+                        kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$".to_string(),
+                        system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
+                        container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string()],
+                    }),
+                    ..Default::default()
+                }],
+                stage0_binary_sha256_to_blob: BTreeMap::from([(stage0_hash.clone(), stage0_blob.to_vec())]),
+            };
+            let mut buf = Vec::new();
+            policies.encode(&mut buf).unwrap();
+            buf
+        }
+
+        #[test]
+        fn check_evidence_dynamic_success_genoa() {
+            let _ = env_logger::builder().is_test(true).try_init(); // comment/uncomment for logging
+
+            let r = Runfiles::create().unwrap();
+            let stage0_path = r
+                .rlocation("_main/google_internal/oak_artifacts/stage0_bin")
+                .expect("Failed to find stage0_bin in runfiles");
+            let stage0_blob = fs::read(stage0_path).expect("Failed to read stage0_bin");
+            let stage0_hash = hex::encode(Sha256::digest(&stage0_blob));
+
+            let serialized_policies = dynamic_genoa_policies(stage0_hash.clone(), &stage0_blob);
+            let policy_manager = PolicyManager::new_with_policies(
+                &serialized_policies,
+                /*enable_policy_signature=*/ false,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap();
+
+            assert!(policy_manager
+                .check_evidence(NOW_UTC_MILLIS, &get_evidence_v1_genoa(), &get_genoa_vcek())
+                .is_ok());
+        }
+
+        #[test]
+        fn check_evidence_dynamic_error_genoa() {
+            let _ = env_logger::builder().is_test(true).try_init(); // comment/uncomment for logging
+
+            let r = Runfiles::create().unwrap();
+            let stage0_path = r
+                .rlocation("_main/google_internal/oak_artifacts/stage0_bin")
+                .expect("Failed to find stage0_bin in runfiles");
+            let stage0_blob = fs::read(stage0_path).expect("Failed to read stage0_bin");
+            let stage0_hash = hex::encode(Sha256::digest(&stage0_blob));
+
+            let serialized_policies = dynamic_genoa_policies(stage0_hash.clone(), &stage0_blob);
+            let policy_manager = PolicyManager::new_with_policies(
+                &serialized_policies,
+                /*enable_policy_signature=*/ false,
+                /*accept_insecure_policies=*/ false,
+            )
+            .unwrap();
+
+            match policy_manager.check_evidence(
+                NOW_UTC_MILLIS,
+                &get_evidence_v2_genoa(),
+                &get_genoa_vcek(),
+            ) {
+                Ok(_) => panic!("check_evidence() should fail."),
+                Err(e) => assert_eq!(
+                    e.to_string(),
+                    "Failed to verify report. No matching appraisal policy found"
+                ),
+            }
         }
 
         #[test]
@@ -1337,6 +1526,39 @@ mod tests {
 
             assert!(result.is_ok());
             assert!(!result.unwrap()); // No match should be found
+        }
+
+        #[test]
+        fn test_is_cpu_type_allowed() {
+            let allowed_cpus = vec![
+                // Milan CPU
+                CpuInfo {
+                    family: 25,
+                    model: 1,
+                    stepping: 1,
+                },
+                // Genoa CPU
+                CpuInfo {
+                    family: 25,
+                    model: 17,
+                    stepping: 0,
+                },
+            ];
+
+            // should succeed
+            let milan_cpu = (25, 1, 1);
+            assert!(dynamic::is_cpu_type_allowed(milan_cpu, &allowed_cpus));
+            let genoa_cpu = (25, 17, 0);
+            assert!(dynamic::is_cpu_type_allowed(genoa_cpu, &allowed_cpus));
+
+            // should fail
+            let rome_cpu = (23, 49, 0);
+            assert!(!dynamic::is_cpu_type_allowed(rome_cpu, &allowed_cpus));
+            let wrong_stepping_milan = (25, 1, 2);
+            assert!(!dynamic::is_cpu_type_allowed(
+                wrong_stepping_milan,
+                &allowed_cpus
+            ));
         }
     }
 }

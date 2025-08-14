@@ -67,8 +67,10 @@ rust_test(
     deps = select({
         "//:dynamic_attestation_enabled": [
             "@oak//oak_sev_snp_attestation_report",
+            "@oak_crates_index//:env_logger",
             "@oak_crates_index//:hashbrown",
             "@oak_crates_index//:hex",
+            "@oak_crates_index//:sha2",
             "@oak_crates_index//:zerocopy",
             "@rules_rust//tools/runfiles",
             "@sev-snp-utils//:common",
