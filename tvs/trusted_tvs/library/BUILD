@@ -58,6 +58,7 @@ rust_test(
         "//tvs/trusted_tvs/proto:tvs_enclave",
         "@hats_crate_index//:hex",
         "@oak//micro_rpc",
+        "@oak_crates_index//:log",
     ],
 )
 

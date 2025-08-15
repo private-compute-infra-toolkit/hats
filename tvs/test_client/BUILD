@@ -35,6 +35,7 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
         "@com_google_protobuf//src/google/protobuf/io",
+        "@oak//proto/attestation:evidence_cc_proto",
     ],
 )
 
@@ -59,6 +60,7 @@ cc_binary(
         "@com_google_protobuf//:protobuf",
         "@com_google_protobuf//src/google/protobuf/io",
         "@hats_crate_index//:hex",
+        "@oak//proto/attestation:evidence_cc_proto",
     ],
 )
 

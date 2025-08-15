@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "absl/flags/flag.h"
@@ -32,6 +33,7 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/channel.h"
+#include "proto/attestation/evidence.pb.h"
 #include "status_macro/status_macros.h"
 #include "tvs/credentials/credentials.h"
 #include "tvs/proto/tvs_messages.pb.h"
@@ -46,9 +48,11 @@ ABSL_FLAG(std::vector<std::string>, tvs_public_keys,
           "Comma-separated List of TVS public key in hex format e.g. deadbeef");
 
 ABSL_FLAG(bool, use_tls, false, "Whether to use TLS to connect to TVS or not.");
-ABSL_FLAG(std::string, verify_report_request_file, "",
-          "File containing a VerifyReportRequest to be sent to TVS for "
-          "validation");
+ABSL_FLAG(std::string, evidence_file, "",
+          "File containing an oak evidence to be sent to TVS for validation");
+ABSL_FLAG(std::string, tee_certificate_file, "",
+          "File containing a tee certificate (vcek) - an endorsement from the "
+          "vendor - to be sent along evidenced to TVS for validation");
 ABSL_FLAG(std::string, application_signing_key, "",
           "Signing key in the application layer of the DICE certificate in hex "
           "format e.g. deadbeef. The key is used to sign the handshake hash "
@@ -66,9 +70,47 @@ ABSL_FLAG(
     "Describe the type of way to recover the split shares. Valid values are: "
     "SHAMIR, XOR");
 
-rust::Slice<const std::uint8_t> StringToRustSlice(const std::string& str) {
-  return rust::Slice<const std::uint8_t>(
-      reinterpret_cast<const unsigned char*>(str.data()), str.size());
+namespace {
+
+absl::StatusOr<oak::attestation::v1::Evidence> EvidenceFromFile(
+    const std::string& file_path) {
+  oak::attestation::v1::Evidence evidence;
+  std::ifstream if_stream(file_path);
+  google::protobuf::io::IstreamInputStream istream(&if_stream);
+  if (!google::protobuf::TextFormat::Parse(&istream, &evidence)) {
+    return absl::UnknownError(
+        absl::StrCat("Cannot parse proto from '", file_path, "'"));
+  }
+  return evidence;
+}
+
+absl::StatusOr<std::string> ReadBinaryFile(const std::string& path) {
+  std::ifstream if_stream(path);
+  if (!if_stream.is_open()) {
+    return absl::UnknownError(absl::StrCat("Cannot open file at '", path, "'"));
+  }
+  if_stream.seekg(0, std::ios::end);
+  std::streampos file_size = if_stream.tellg();
+  if_stream.seekg(0, std::ios::beg);
+  std::string data;
+  data.resize(file_size);
+  if_stream.read(data.data(), file_size);
+  if (!if_stream) {
+    return absl::UnknownError(
+        absl::StrCat("Cannot read from file at '", path, "'"));
+  }
+  return data;
+}
+
+absl::StatusOr<pcit::tvs::VerifyReportRequest> GetVerifyReportRequest(
+    const std::string& evidence_file, const std::string& tee_certificate_file) {
+  HATS_ASSIGN_OR_RETURN(oak::attestation::v1::Evidence evidence,
+                        EvidenceFromFile(evidence_file));
+  pcit::tvs::VerifyReportRequest request;
+  *request.mutable_evidence() = std::move(evidence);
+  HATS_ASSIGN_OR_RETURN(*request.mutable_tee_certificate(),
+                        ReadBinaryFile(tee_certificate_file));
+  return request;
 }
 
 std::string RustVecToString(const rust::Vec<std::uint8_t>& vec) {
@@ -90,16 +132,11 @@ struct KeyShares {
   std::vector<std::string> secret_shares;
 };
 
+}  // namespace
+
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
-
-  const std::string verify_report_request_file =
-      absl::GetFlag(FLAGS_verify_report_request_file);
-  if (verify_report_request_file.empty()) {
-    LOG(ERROR) << "--verify_report_request_file cannot be empty.";
-    return 1;
-  }
 
   const std::string application_signing_key =
       absl::GetFlag(FLAGS_application_signing_key);
@@ -107,13 +144,12 @@ int main(int argc, char* argv[]) {
     LOG(ERROR) << "--application_signing_key cannot be empty.";
     return 1;
   }
-  std::ifstream if_stream(verify_report_request_file);
-  google::protobuf::io::IstreamInputStream istream(&if_stream);
-  pcit::tvs::VerifyReportRequest verify_report_request;
-  if (!google::protobuf::TextFormat::Parse(&istream, &verify_report_request)) {
-    LOG(ERROR) << "Failed to parse " << verify_report_request_file;
-    return 1;
-  }
+
+  HATS_ASSIGN_OR_RETURN(
+      pcit::tvs::VerifyReportRequest verify_report_request,
+      GetVerifyReportRequest(absl::GetFlag(FLAGS_evidence_file),
+                             absl::GetFlag(FLAGS_tee_certificate_file)),
+      _.PrependWith("Couldn't create VerifyReportRequest: ").LogErrorAndExit());
 
   if (!absl::GetFlag(FLAGS_access_token).empty() &&
       !absl::GetFlag(FLAGS_use_tls)) {
@@ -165,8 +201,9 @@ int main(int argc, char* argv[]) {
       shares.secret_shares.push_back(secret.private_key());
     }
   }
+
+  std::string share_split_type = absl::GetFlag(FLAGS_share_split_type);
   for (const auto& [key_id, shared_secret] : keys) {
-    absl::string_view share_split_type = absl::GetFlag(FLAGS_share_split_type);
     rust::Vec<uint8_t> recovered_secret;
     if (share_split_type == "XOR") {
       HATS_ASSIGN_OR_RETURN(

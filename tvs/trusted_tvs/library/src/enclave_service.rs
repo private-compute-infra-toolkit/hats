@@ -248,12 +248,12 @@ mod tests {
     };
     use tvs_trusted_client::TvsClient;
 
-    fn get_good_evidence() -> Vec<u8> {
-        include_bytes!("../../../test_data/good_evidence.binarypb").to_vec()
+    fn get_evidence_v1_genoa() -> Vec<u8> {
+        include_bytes!("../../../test_data/evidence_v1_genoa.binarypb").to_vec()
     }
 
-    fn get_malformed_evidence() -> Vec<u8> {
-        include_bytes!("../../../test_data/malformed_evidence.binarypb").to_vec()
+    fn get_evidence_v2_genoa() -> Vec<u8> {
+        include_bytes!("../../../test_data/evidence_v2_genoa.binarypb").to_vec()
     }
 
     fn get_genoa_vcek() -> Vec<u8> {
@@ -267,28 +267,28 @@ mod tests {
                 measurement: Some(Measurement {
                     stage0_measurement: Some(Stage0Measurement{
                         r#type: Some(stage0_measurement::Type::AmdSev(AmdSev{
-                            sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95".to_string(),
+                            sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc".to_string(),
                             min_tcb_version: Some(TcbVersion{
-                                boot_loader: 7,
-                                microcode: 62,
-                                snp: 15,
+                                boot_loader: 10,
+                                microcode: 84,
+                                snp: 25,
                                 tee: 0,
                                 fmc: 0,
                             }),
                         })),
                     }),
-                    kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf".to_string(),
-                    kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9".to_string(),
-                    init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae".to_string(),
-                    memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28".to_string(),
-                    acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8".to_string(),
-                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$".to_string(),
-                    system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd".to_string(),
-                    container_binary_sha256:vec!["bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c".to_string()],
+                    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
+                    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a".to_string(),
+                    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391".to_string(),
+                    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe".to_string(),
+                    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e".to_string(),
+                    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$".to_string(),
+                    system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
+                    container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string()],
 
                 }),
                 signature: vec![PolicySignature{
-                    signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c".to_string(),
+                    signature: "db07413c03902c54275858269fb19aac96ba5d80f027653bc2664a87c37c277407bffa411e6b06de773cee60fd5bb7a0f7a01eda746fa8a508bbc2bdfd83c3b6".to_string(),
                     signer: "".to_string(),
                     },
                     ],
@@ -300,8 +300,17 @@ mod tests {
         buf
     }
 
+    fn init_logger() {
+        // https://docs.rs/env_logger/0.9.1/env_logger/#capturing-logs-in-tests
+        let _ = env_logger::builder()
+            .is_test(true)
+            .filter_level(log::LevelFilter::max())
+            .try_init();
+    }
+
     #[test]
     fn verify_report_successful() {
+        init_logger();
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
         let mut service = EnclaveService::new().unwrap();
@@ -354,10 +363,10 @@ mod tests {
                 session_id: session_id.clone(),
                 binary_message: tvs_client
                     .build_verify_report_request(
-                        &get_good_evidence(),
+                        &get_evidence_v1_genoa(),
                         &get_genoa_vcek(),
                         /*application_signing_key=*/
-                        "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                        "be828103ab28b93a5d91592d69374541d6e7decd287ef7df1f990a87f231cb8c",
                     )
                     .unwrap(),
             })
@@ -377,6 +386,7 @@ mod tests {
 
     #[test]
     fn verify_report_invalid_report_error() {
+        init_logger();
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
         let mut service = EnclaveService::new().unwrap();
@@ -427,10 +437,10 @@ mod tests {
             session_id: session_id.clone(),
             binary_message: tvs_client
                 .build_verify_report_request(
-                    &get_malformed_evidence(),
+                    &get_evidence_v2_genoa(),
                     &get_genoa_vcek(),
                     /*application_signing_key=*/
-                    "cf8d805ed629f4f95d20714a847773b3e53d3d8ab155e52c882646f702a98ce8",
+                    "90c6593892237eb36a525902340c02a6865a13e37ed9eb73b5123b312a0bb3b0",
                 )
                 .unwrap(),
         }) {

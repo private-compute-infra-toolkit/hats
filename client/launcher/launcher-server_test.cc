@@ -43,6 +43,7 @@
 #include "grpcpp/support/status.h"
 #include "gtest/gtest.h"
 #include "key_manager/test-key-fetcher.h"
+#include "proto/attestation/evidence.pb.h"
 #include "src/google/protobuf/test_textproto.h"
 #include "status_macro/status_macros.h"
 #include "status_macro/status_test_macros.h"
@@ -64,19 +65,36 @@ using ::testing::HasSubstr;
 using ::testing::UnorderedElementsAre;
 using OakLauncher = ::oak::containers::Launcher;
 
-absl::StatusOr<tvs::VerifyReportRequest> VerifyReportRequestFromFile(
+absl::StatusOr<oak::attestation::v1::Evidence> EvidenceFromFile(
     const std::string& file_path) {
-  tvs::VerifyReportRequest verify_report_request;
+  oak::attestation::v1::Evidence evidence;
   std::ifstream if_stream(file_path);
   google::protobuf::io::IstreamInputStream istream(&if_stream);
-  if (!google::protobuf::TextFormat::Parse(&istream, &verify_report_request)) {
+  if (!google::protobuf::TextFormat::Parse(&istream, &evidence)) {
     return absl::UnknownError(
         absl::StrCat("Cannot parse proto from '", file_path, "'"));
   }
-  return verify_report_request;
+  return evidence;
 }
 
-absl::StatusOr<tvs::VerifyReportRequest> GetGoodReportRequest() {
+absl::StatusOr<std::string> ReadBinaryFile(const std::string& path) {
+  std::ifstream if_stream(path);
+  if (!if_stream.is_open()) {
+    return absl::UnknownError(absl::StrCat("Cannot open file at '", path, "'"));
+  }
+  if_stream.seekg(0, std::ios::end);
+  std::streampos file_size = if_stream.tellg();
+  if_stream.seekg(0, std::ios::beg);
+  std::string data;
+  data.resize(file_size);
+  if_stream.read(data.data(), file_size);
+  if (!if_stream) {
+    return absl::UnknownError(
+        absl::StrCat("Cannot read from file at '", path, "'"));
+  }
+  return data;
+}
+absl::StatusOr<tvs::VerifyReportRequest> GetGenoaV1ReportRequest() {
   std::string runfiles_error;
   auto runfiles =
       bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&runfiles_error);
@@ -84,11 +102,18 @@ absl::StatusOr<tvs::VerifyReportRequest> GetGoodReportRequest() {
     return absl::UnknownError(
         absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
   }
-  return VerifyReportRequestFromFile(runfiles->Rlocation(
-      "_main/tvs/test_data/good_verify_request_report.txtpb"));
+  HATS_ASSIGN_OR_RETURN(oak::attestation::v1::Evidence evidence,
+                        EvidenceFromFile(runfiles->Rlocation(
+                            "_main/tvs/test_data/evidence_v1_genoa.txtpb")));
+  tvs::VerifyReportRequest request;
+  *request.mutable_evidence() = std::move(evidence);
+  HATS_ASSIGN_OR_RETURN(*request.mutable_tee_certificate(),
+                        ReadBinaryFile(runfiles->Rlocation(
+                            "_main/tvs/test_data/vcek_genoa.crt")));
+  return request;
 }
 
-absl::StatusOr<tvs::VerifyReportRequest> GetBadReportRequest() {
+absl::StatusOr<tvs::VerifyReportRequest> GetGenoaV2ReportRequest() {
   std::string runfiles_error;
   auto runfiles =
       bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&runfiles_error);
@@ -96,8 +121,15 @@ absl::StatusOr<tvs::VerifyReportRequest> GetBadReportRequest() {
     return absl::UnknownError(
         absl::StrCat("Runfiles::CreateForTest failed: ", runfiles_error));
   }
-  return VerifyReportRequestFromFile(runfiles->Rlocation(
-      "_main/tvs/test_data/bad_verify_request_report.txtpb"));
+  HATS_ASSIGN_OR_RETURN(oak::attestation::v1::Evidence evidence,
+                        EvidenceFromFile(runfiles->Rlocation(
+                            "_main/tvs/test_data/evidence_v2_genoa.txtpb")));
+  tvs::VerifyReportRequest request;
+  *request.mutable_evidence() = std::move(evidence);
+  HATS_ASSIGN_OR_RETURN(*request.mutable_tee_certificate(),
+                        ReadBinaryFile(runfiles->Rlocation(
+                            "_main/tvs/test_data/vcek_genoa.crt")));
+  return request;
 }
 
 absl::StatusOr<tvs::AppraisalPolicies> GetTestAppraisalPolicies() {
@@ -108,21 +140,21 @@ absl::StatusOr<tvs::AppraisalPolicies> GetTestAppraisalPolicies() {
               measurement {
                 stage0_measurement {
                   amd_sev {
-                    sha384: "de654ed1eb03b69567338d357f86735c64fc771676bcd5d05ca6afe86f3eb9f7549222afae6139a8d282a34d09d59f95"
-                    min_tcb_version { boot_loader: 7 snp: 15 microcode: 62 }
+                    sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc"
+                    min_tcb_version { boot_loader: 10 snp: 25 microcode: 84 }
                   }
                 }
-                kernel_image_sha256: "442a36913e2e299da2b516814483b6acef11b63e03f735610341a8561233f7bf"
-                kernel_setup_data_sha256: "68cb426afaa29465f7c71f26d4f9ab5a82c2e1926236648bec226a8194431db9"
-                init_ram_fs_sha256: "3b30793d7f3888742ad63f13ebe6a003bc9b7634992c6478a6101f9ef323b5ae"
-                memory_map_sha256: "4c985428fdc6101c71cc26ddc313cd8221bcbc54471991ec39b1be026d0e1c28"
-                acpi_table_sha256: "a4df9d8a64dcb9a713cec028d70d2b1599faef07ccd0d0e1816931496b4898c8"
-                kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10000000 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::eth0:off$"
-                system_image_sha256: "e3ded9e7cfd953b4ee6373fb8b412a76be102a6edd4e05aa7f8970e20bfc4bcd"
-                container_binary_sha256: "bf173d846c64e5caf491de9b5ea2dfac349cfe22a5e6f03ad8048bb80ade430c"
+                kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+                kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+                init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+                memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+                acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e"
+                kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+                system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836"
+                container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
               }
               signature {
-                signature: "003cfc8524266b283d4381e967680765bbd2a9ac2598eb256ba82ba98b3e23b384e72ad846c4ec3ff7b0791a53011b51d5ec1f61f61195ff083c4a97d383c13c"
+                signature: "db07413c03902c54275858269fb19aac96ba5d80f027653bc2664a87c37c277407bffa411e6b06de773cee60fd5bb7a0f7a01eda746fa8a508bbc2bdfd83c3b6"
                 signer: "hats"
               }
             })pb",
@@ -379,10 +411,10 @@ TEST(LauncherServer, Successful) {
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
-      "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
+      "be828103ab28b93a5d91592d69374541d6e7decd287ef7df1f990a87f231cb8c";
 
   HATS_ASSERT_OK_AND_ASSIGN(tvs::VerifyReportRequest verify_report_request,
-                            GetGoodReportRequest());
+                            GetGenoaV1ReportRequest());
   HATS_EXPECT_OK_AND_HOLDS(
       RemoteVerifyReport(
           std::unordered_map<int64_t, absl::string_view>{
@@ -503,10 +535,10 @@ TEST(LauncherServer, SplitSuccessful) {
   std::unique_ptr<grpc::Server> launcher_server =
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
   constexpr absl::string_view kApplicationSigningKey =
-      "b4f9b8837978fe99a99e55545c554273d963e1c73e16c7406b99b773e930ce23";
+      "be828103ab28b93a5d91592d69374541d6e7decd287ef7df1f990a87f231cb8c";
 
   HATS_ASSERT_OK_AND_ASSIGN(tvs::VerifyReportRequest verify_report_request,
-                            GetGoodReportRequest());
+                            GetGenoaV1ReportRequest());
   // Currently we don't have a good way to change the secret because the
   // EchoKeyFetcher returns the same userID from every TVS
   HATS_EXPECT_OK_AND_HOLDS(
@@ -586,10 +618,10 @@ TEST(LauncherServer, BadReportError) {
       grpc::ServerBuilder().RegisterService(&launcher_service).BuildAndStart();
 
   HATS_ASSERT_OK_AND_ASSIGN(tvs::VerifyReportRequest verify_report_request,
-                            GetBadReportRequest());
+                            GetGenoaV2ReportRequest());
 
   constexpr absl::string_view kApplicationSigningKey =
-      "df2eb4193f689c0fd5a266d764b8b6fd28e584b4f826a3ccb96f80fed2949759";
+      "90c6593892237eb36a525902340c02a6865a13e37ed9eb73b5123b312a0bb3b0";
   HATS_EXPECT_STATUS_MESSAGE(
       RemoteVerifyReport(
           std::unordered_map<int64_t, absl::string_view>{

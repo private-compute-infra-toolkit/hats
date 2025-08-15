@@ -168,6 +168,7 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf_headers",
         "@com_google_protobuf//src/google/protobuf/io",
+        "@oak//proto/attestation:evidence_cc_proto",
         "@oak//proto/containers:interfaces_cc_grpc",
         "@oak//proto/containers:interfaces_cc_proto",
     ],

@@ -97,5 +97,6 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf_headers",
+        "@oak//proto/attestation:evidence_cc_proto",
     ],
 )
