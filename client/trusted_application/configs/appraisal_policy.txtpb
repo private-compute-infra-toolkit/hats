@@ -3,11 +3,11 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "79a2cde473c9bb5708b16e9dd5ad0f3a38ed9da8c1d75f8c4bd5bc80dc1ea994d31987dab22e7feb910945e038e006a4"
+        sha384: "650878bd1730156706e907bde9bfc5de20ad5a6697f6599d22dbf4a789ee592d97d3673e2231bbcf9b3c2722d62a5e44"
         min_tcb_version {
-          boot_loader: 7
-          snp: 15
-          microcode: 62
+          boot_loader: 10
+          snp: 25
+          microcode: 84
         }
       }
     }
@@ -21,7 +21,7 @@ policies {
     container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
   }
   signature {
-    signature: "470191ad396f36ea62076b4cadde3acf282a31e12380edeb61ff10540cfbe4df2cc21be0a3f83dc988150c51ab7de2e7a288842f4e339462d718471538c6d895"
+    signature: "a4a6931f572380ef330dc0d616c2271eec3ccc6e32329a9a47581cc590416a3d93bc8fca6a89f25f65890de06021a7386ff5e9fb2263ecef097a640789bd9a81"
     signer: "hats"
   }
 }
@@ -30,11 +30,11 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "cb7bf4be1169e3ba576a7c2c2ec6f507d79e6cbc67e305c0a965122683c2ece03ed7024f225f0c5e3d8ea449d41a7c6a"
+        sha384: "a1eeeef893af682889323afda0e8ac943f5c2603d9ef7c4b2e491988f550ff7148f10759dbf32664af064ecd11ac1008"
         min_tcb_version {
-          boot_loader: 7
-          snp: 15
-          microcode: 62
+          boot_loader: 10
+          snp: 25
+          microcode: 84
         }
       }
     }
@@ -48,7 +48,7 @@ policies {
     container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
   }
   signature {
-    signature: "ffd9c13197ae4bc8cf236ae326dc6162111a516c1d1e72073c48407b44f6986d5e4de9027737d2b68e5cef90222522bb5654b102b50cba9c3629b90569629db9"
+    signature: "0436621daa9f03cb2318a3ebb97607272c8fef16683e7f03c2bbed6a8e4d6e110675158ca6b04be68a7dbbb04979771f3e35335800a4c36044e02d12dc8d2025"
     signer: "hats"
   }
 }
@@ -57,11 +57,11 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "81e907f4deff5b673d0aeea7f1131a37543d00bf9007b403897075269670892e5baf136df5f51e8c96888567fed074f1"
+        sha384: "847e3616ed70b3e27bb3144c20ffe32d42baf1971b586fe4c663e0d1a170cd13af2e11af45bae91a91755fd2a3a73497"
         min_tcb_version {
-          boot_loader: 7
-          snp: 15
-          microcode: 62
+          boot_loader: 10
+          snp: 25
+          microcode: 84
         }
       }
     }
@@ -75,7 +75,7 @@ policies {
     container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
   }
   signature {
-    signature: "73da41e5f4547b464e47e133671c70ab756592ce169252972c6a8b18e97d797c8803f683f39aaee4738f9bb7490e5276cebc62e8c6318ef2f71a6d131f73bc79"
+    signature: "c3221606a934eb352a84fef58d2995d74a71dc9c3ee4106de05c7ee67910898396318252dfd2b127bef6226fffdaf1ff49af2518d0c1acdc07551e44a726d261"
     signer: "hats"
   }
 }
@@ -84,11 +84,11 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "4cca87bd71495f8484343f9524bf9a866c98851b8bfcadbd385fdc798ace74fce976ebe70c3d6ded70b86980cab5e4c5"
+        sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc"
         min_tcb_version {
-          boot_loader: 7
-          snp: 15
-          microcode: 62
+          boot_loader: 10
+          snp: 25
+          microcode: 84
         }
       }
     }
@@ -102,7 +102,7 @@ policies {
     container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
   }
   signature {
-    signature: "dee95fc6dbb51e9f17b8180666ff041d9715431bee6d548cad1a1a0983904d264d350779b93a134a4f9717d8bb101d3058722aa79a620baf77ec0de90b83608c"
+    signature: "ff33cff0f1045e3740814438bfb4ca6ecd72abf4d6a1a6224da8124f7d8d16d239421b3a7c5ebc7723f6c7410498a093010c2322d25588a08821a595f3b2cd31"
     signer: "hats"
   }
 }
@@ -111,11 +111,11 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "79a2cde473c9bb5708b16e9dd5ad0f3a38ed9da8c1d75f8c4bd5bc80dc1ea994d31987dab22e7feb910945e038e006a4"
+        sha384: "650878bd1730156706e907bde9bfc5de20ad5a6697f6599d22dbf4a789ee592d97d3673e2231bbcf9b3c2722d62a5e44"
         min_tcb_version {
-          boot_loader: 7
-          snp: 15
-          microcode: 62
+          boot_loader: 10
+          snp: 25
+          microcode: 84
         }
       }
     }
@@ -129,7 +129,7 @@ policies {
     container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
   }
   signature {
-    signature: "16644a1410d6053ebff5b06af575af94d16c2798d112679c2df59ba5f2cda7c440da5d6928c4574433da1b2b4995887da797f5768ae061efdc3b67baf0735a51"
+    signature: "6bdf0e30c929e68499363497589074823b7773c55803de6637c5e7b0a92c60a08da104fff37c38d5203b0432c9a7345027fe5530e35e1777238d6237b253d3e9"
     signer: "hats"
   }
 }
@@ -138,11 +138,11 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "cb7bf4be1169e3ba576a7c2c2ec6f507d79e6cbc67e305c0a965122683c2ece03ed7024f225f0c5e3d8ea449d41a7c6a"
+        sha384: "a1eeeef893af682889323afda0e8ac943f5c2603d9ef7c4b2e491988f550ff7148f10759dbf32664af064ecd11ac1008"
         min_tcb_version {
-          boot_loader: 7
-          snp: 15
-          microcode: 62
+          boot_loader: 10
+          snp: 25
+          microcode: 84
         }
       }
     }
@@ -156,7 +156,7 @@ policies {
     container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
   }
   signature {
-    signature: "253cc2b71360d8f7896c193d2ec6330050147658b35c96bacb1e30a21f7afed0e66fc425958d51fd49d8b186d6673026ff9c001ad424924f06e357e5e75ed2d4"
+    signature: "775fb1ac855b3e3ff46f43be37840999383662543828b728c804176bf496a34f90469e06a03a6d0501f931f951722a459fbfa87fac1f84855668a35e9bfdee1c"
     signer: "hats"
   }
 }
@@ -165,10 +165,10 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "81e907f4deff5b673d0aeea7f1131a37543d00bf9007b403897075269670892e5baf136df5f51e8c96888567fed074f1"
+        sha384: "847e3616ed70b3e27bb3144c20ffe32d42baf1971b586fe4c663e0d1a170cd13af2e11af45bae91a91755fd2a3a73497"
         min_tcb_version {
-          boot_loader: 7
-          snp: 15
+          boot_loader: 10
+          snp: 25
           microcode: 62
         }
       }
@@ -183,7 +183,7 @@ policies {
     container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
   }
   signature {
-    signature: "f19abf41c423aff63e615c0f458a6bfd4bfa161d41d36840f04515949cc559bd6eb333b3925c9c0c9531d162cf730131db2660c2d7bef79a052baf11bb27ae0e"
+    signature: "c2df28a8a61ee6347b114c9330dddfa9ac20da6a9045cccb123533cf4980bec17b96503f5b2c27e035f13e617ceeed9a43d24a5b3bb3433cbc4c5ac2bceeda9b"
     signer: "hats"
   }
 }
@@ -192,11 +192,11 @@ policies {
   measurement {
     stage0_measurement {
       amd_sev {
-        sha384: "4cca87bd71495f8484343f9524bf9a866c98851b8bfcadbd385fdc798ace74fce976ebe70c3d6ded70b86980cab5e4c5"
+        sha384: "c57729018b0a6fb90dc17bb138b0aa35e4401004283ff4a2c24d3739ff3750f52384370e77b7032862a08c440a9bc4dc"
         min_tcb_version {
-          boot_loader: 7
-          snp: 15
-          microcode: 62
+          boot_loader: 10
+          snp: 25
+          microcode: 84
         }
       }
     }
@@ -210,7 +210,7 @@ policies {
     container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
   }
   signature {
-    signature: "cebcfd64c8e574d10cc40be0fe016c4fffb458745fa1fee67936735c896e643befcb7f833bb1ba3b8830847daa74bb7b195cd0ea2e11de649b0554fd2d4f33d3"
+    signature: "8ad326b9c323766721430baa4e734cf5d83d12f039129220453d4d24263dc3581c8e6096667084dbe93e80f365511418bf1d4f65beb6fc0fb15f243e4b9ffc9d"
     signer: "hats"
   }
 }
