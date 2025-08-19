@@ -19,7 +19,6 @@ pub enum CpuType {
     EpycMilanV2 = 12,
     EpycGenoa = 13,
     EpycGenoaV1 = 14,
-    EpycGenoaV2 = 15,
 }
 
 impl TryFrom<u8> for CpuType {
@@ -41,7 +40,6 @@ impl TryFrom<u8> for CpuType {
             12 => Ok(CpuType::EpycMilanV2),
             13 => Ok(CpuType::EpycGenoa),
             14 => Ok(CpuType::EpycGenoaV1),
-            15 => Ok(CpuType::EpycGenoaV2),
             _ => {
                 return Err(conversion(
                     format!("value: '{}' cannot map to CpuType", value),
@@ -69,22 +67,18 @@ impl CpuType {
             CpuType::EpycMilanV1 => cpu_sig(25, 1, 1),
             CpuType::EpycMilanV2 => cpu_sig(25, 1, 1),
             CpuType::EpycGenoa => cpu_sig(25, 17, 0),
-            CpuType::EpycGenoaV1 => cpu_sig(25, 17, 0),
-            CpuType::EpycGenoaV2 => cpu_sig(25, 17, 0),
+            CpuType::EpycGenoaV1 => cpu_sig(25, 17, 1),
         }
     }
 
     /// Creates a CpuType from raw CPUID family, model, and stepping info.
-    ///
-    /// Note: This can only map to the base type for a given CPU generation,
-    /// as version differences (e.g., EpycMilan vs EpycMilanV1) are not
-    /// distinguishable from CPUID alone.
     pub fn from_cpuid(family: i32, model: i32, stepping: i32) -> Result<Self, error::Error> {
         match (family, model, stepping) {
             (23, 1, 2) => Ok(CpuType::Epyc),
             (23, 49, 0) => Ok(CpuType::EpycRome),
             (25, 1, 1) => Ok(CpuType::EpycMilan),
             (25, 17, 0) => Ok(CpuType::EpycGenoa),
+            (25, 17, 1) => Ok(CpuType::EpycGenoaV1),
             _ => Err(conversion(
                 format!(
                     "Unsupported or unknown CPU type with family: {}, model: {}, stepping: {}",
@@ -114,7 +108,6 @@ impl fmt::Display for CpuType {
             CpuType::EpycMilanV2 => write!(f, "EPYC-Milan-v2"),
             CpuType::EpycGenoa => write!(f, "EYPC-Genoa"),
             CpuType::EpycGenoaV1 => write!(f, "EYPC-Genoa-v1"),
-            CpuType::EpycGenoaV2 => write!(f, "EYPC-Genoa-v2"),
         }
     }
 }
@@ -139,7 +132,6 @@ impl FromStr for CpuType {
             "EPYC-Milan-v2" => Ok(CpuType::EpycMilanV2),
             "EPYC-Genoa" => Ok(CpuType::EpycGenoa),
             "EPYC-Genoa-v1" => Ok(CpuType::EpycGenoaV1),
-            "EPYC-Genoa-v2" => Ok(CpuType::EpycGenoaV2),
             _ => Err(conversion(
                 format!("unable to create CpuType from_str: {}", s),
                 None,
