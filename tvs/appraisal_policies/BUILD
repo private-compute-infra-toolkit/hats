@@ -67,6 +67,10 @@ cc_library(
     hdrs = [
         "policy-fetcher-gcp.h",
     ],
+    defines = select({
+        "//:dynamic_attestation_enabled": ["DYNAMIC_ATTESTATION"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":policy-fetcher-interface",
         "//gcp_common:flags",
@@ -83,11 +87,17 @@ cc_test(
     name = "policy-fetcher-gcp_test",
     size = "small",
     srcs = [":policy-fetcher-gcp_test.cc"],
+    defines = select({
+        "//:dynamic_attestation_enabled": ["DYNAMIC_ATTESTATION"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":policy-fetcher-gcp",
         "//status_macro:status_test_macros",
         "//tvs/proto:appraisal_policies_cc_proto",
+        "@boringssl//:crypto",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@google_cloud_cpp//:spanner",

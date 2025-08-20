@@ -18,7 +18,10 @@
 #include <string>
 #include <utility>
 
+#include <openssl/sha.h>
+
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "gmock/gmock.h"
 #include "google/cloud/spanner/client.h"
 #include "google/cloud/spanner/mocks/mock_spanner_connection.h"
@@ -69,6 +72,269 @@ absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
   return appraisal_policies;
 }
 
+#if defined(DYNAMIC_ATTESTATION)
+TEST(KeyFetcherGcp, GetLatestNPoliciesSuccessfull_With_Blobs) {
+  // create fake blob data
+  const std::string kFakeBlobData = "fake_blob_data";
+  std::string kFakeBlobShaRaw(SHA256_DIGEST_LENGTH, '\0');
+  SHA256(reinterpret_cast<const unsigned char*>(kFakeBlobData.data()),
+         kFakeBlobData.size(),
+         reinterpret_cast<unsigned char*>(kFakeBlobShaRaw.data()));
+  const std::string kFakeBlobShaHex = absl::BytesToHexString(kFakeBlobShaRaw);
+
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_policies,
+                            GetTestAppraisalPolicies());
+
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields:
+      [ {
+        name: "PolicyId",
+        type: { code: INT64 }
+      }
+        , {
+          name: "Policy",
+          type: { code: BYTES }
+        }
+        , {
+          name: "Sha256Digest",
+          type: { code: BYTES }
+        }
+        , {
+          name: "BlobData",
+          type: { code: BYTES }
+        }]
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow({
+          {"PolicyId", google::cloud::spanner::Value(123)},
+          {"Policy",
+           google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+               expected_policies.policies(0).SerializeAsString()))},
+          {"Sha256Digest", google::cloud::spanner::Value(
+                               google::cloud::spanner::Bytes(kFakeBlobShaRaw))},
+          {"BlobData", google::cloud::spanner::Value(
+                           google::cloud::spanner::Bytes(kFakeBlobData))},
+      })))
+      .WillOnce(Return(google::cloud::spanner::Row()));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce(Return(google::cloud::spanner::RowStream(
+          std::move(mock_result_set_source))));
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<PolicyFetcher> policy_fetcher =
+      PolicyFetcherGcp::Create(std::move(spanner_client));
+
+  AppraisalPolicies expected_policies_with_blobs = expected_policies;
+  (*expected_policies_with_blobs
+        .mutable_stage0_binary_sha256_to_blob())[kFakeBlobShaHex] =
+      kFakeBlobData;
+  std::string expected_text_proto;
+  google::protobuf::TextFormat::PrintToString(expected_policies_with_blobs,
+                                              &expected_text_proto);
+  HATS_EXPECT_OK_AND_HOLDS(policy_fetcher->GetLatestNPolicies(
+                               /*n=*/5),
+                           EqualsProto(expected_text_proto));
+}
+
+TEST(KeyFetcherGcp, GetLatestNPoliciesNotFoundError_With_Blobs) {
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields:
+      [ {
+        name: "PolicyId",
+        type: { code: INT64 }
+      }
+        , {
+          name: "Policy",
+          type: { code: BYTES }
+        }
+        , {
+          name: "Sha256Digest",
+          type: { code: BYTES }
+        }
+        , {
+          name: "BlobData",
+          type: { code: BYTES }
+        }]
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner::Row()));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce(Return(google::cloud::spanner::RowStream(
+          std::move(mock_result_set_source))));
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<PolicyFetcher> policy_fetcher =
+      PolicyFetcherGcp::Create(std::move(spanner_client));
+  HATS_EXPECT_STATUS_MESSAGE(policy_fetcher->GetLatestNPolicies(/*n=*/5),
+                             absl::StatusCode::kNotFound,
+                             HasSubstr("No policies found"));
+}
+
+TEST(KeyFetcherGcp, GetLatestNPoliciesForDigest_With_Blobs) {
+  // create fake blob data
+  const std::string kFakeBlobData = "fake_blob_data";
+  std::string kFakeBlobShaRaw(SHA256_DIGEST_LENGTH, '\0');
+  SHA256(reinterpret_cast<const unsigned char*>(kFakeBlobData.data()),
+         kFakeBlobData.size(),
+         reinterpret_cast<unsigned char*>(kFakeBlobShaRaw.data()));
+  const std::string kFakeBlobShaHex = absl::BytesToHexString(kFakeBlobShaRaw);
+
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_policies,
+                            GetTestAppraisalPolicies());
+
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields:
+      [ {
+        name: "PolicyId",
+        type: { code: INT64 }
+      }
+        , {
+          name: "Policy",
+          type: { code: BYTES }
+        }
+        , {
+          name: "Sha256Digest",
+          type: { code: BYTES }
+        }
+        , {
+          name: "BlobData",
+          type: { code: BYTES }
+        }]
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner_mocks::MakeRow({
+          {"PolicyId", google::cloud::spanner::Value(123)},
+          {"Policy",
+           google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+               expected_policies.policies(0).SerializeAsString()))},
+          {"Sha256Digest", google::cloud::spanner::Value(
+                               google::cloud::spanner::Bytes(kFakeBlobShaRaw))},
+          {"BlobData", google::cloud::spanner::Value(
+                           google::cloud::spanner::Bytes(kFakeBlobData))},
+      })))
+      .WillOnce(Return(google::cloud::spanner::Row()));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+
+  constexpr absl::string_view kApplicationDigest = "some_digest";
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce(
+          [&mock_result_set_source, &kApplicationDigest](
+              const google::cloud::spanner::Connection::SqlParams& sql_params)
+              -> google::cloud::spanner::RowStream {
+            // Make sure the right parameter is specified in the code.
+            google::cloud::StatusOr<google::cloud::spanner::Value> parameter =
+                sql_params.statement.GetParameter("application_digest");
+            if (!parameter.ok()) return {};
+            google::cloud::StatusOr<google::cloud::spanner::Bytes>
+                application_digest =
+                    parameter->get<google::cloud::spanner::Bytes>();
+            if (!application_digest.ok()) return {};
+            if (application_digest->get<std::string>() != kApplicationDigest) {
+              return {};
+            }
+            return google::cloud::spanner::RowStream(
+                std::move(mock_result_set_source));
+          });
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<PolicyFetcher> policy_fetcher =
+      PolicyFetcherGcp::Create(std::move(spanner_client));
+
+  AppraisalPolicies expected_policies_with_blobs = expected_policies;
+  (*expected_policies_with_blobs
+        .mutable_stage0_binary_sha256_to_blob())[kFakeBlobShaHex] =
+      kFakeBlobData;
+  std::string expected_text_proto;
+  google::protobuf::TextFormat::PrintToString(expected_policies_with_blobs,
+                                              &expected_text_proto);
+  HATS_EXPECT_OK_AND_HOLDS(
+      policy_fetcher->GetLatestNPoliciesForDigest(kApplicationDigest,
+                                                  /*n=*/5),
+      EqualsProto(expected_text_proto));
+}
+
+TEST(KeyFetcherGcp, GetLatestNPoliciesForDigestNotFoundError_With_Blobs) {
+  auto mock_result_set_source =
+      std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
+
+  constexpr absl::string_view kSchema = R"pb(
+    row_type: {
+      fields:
+      [ {
+        name: "PolicyId",
+        type: { code: INT64 }
+      }
+        , {
+          name: "Policy",
+          type: { code: BYTES }
+        }
+        , {
+          name: "Sha256Digest",
+          type: { code: BYTES }
+        }
+        , {
+          name: "BlobData",
+          type: { code: BYTES }
+        }]
+    })pb";
+  google::spanner::v1::ResultSetMetadata metadata;
+  ASSERT_TRUE(
+      google::protobuf::TextFormat::ParseFromString(kSchema, &metadata));
+  EXPECT_CALL(*mock_result_set_source, Metadata())
+      .WillRepeatedly(Return(metadata));
+
+  EXPECT_CALL(*mock_result_set_source, NextRow())
+      .WillOnce(Return(google::cloud::spanner::Row()));
+
+  auto mock_connection =
+      std::make_shared<google::cloud::spanner_mocks::MockConnection>();
+  EXPECT_CALL(*mock_connection, ExecuteQuery)
+      .WillOnce(Return(google::cloud::spanner::RowStream(
+          std::move(mock_result_set_source))));
+  google::cloud::spanner::Client spanner_client(mock_connection);
+  std::unique_ptr<PolicyFetcher> policy_fetcher =
+      PolicyFetcherGcp::Create(std::move(spanner_client));
+  HATS_EXPECT_STATUS_MESSAGE(policy_fetcher->GetLatestNPoliciesForDigest(
+                                 /*application_digest=*/"some_digest", /*n=*/5),
+                             absl::StatusCode::kNotFound,
+                             HasSubstr("No policies found"));
+}
+
+#else
 TEST(KeyFetcherGcp, GetLatestNPoliciesSuccessfull) {
   auto mock_result_set_source =
       std::make_unique<google::cloud::spanner_mocks::MockResultSetSource>();
@@ -250,6 +516,7 @@ TEST(KeyFetcherGcp, GetLatestNPoliciesForDigestNotFoundError) {
                              absl::StatusCode::kNotFound,
                              HasSubstr("No policies found"));
 }
+#endif  // defined(DYNAMIC_ATTESTATION)
 
 }  // namespace
 }  // namespace pcit::tvs
