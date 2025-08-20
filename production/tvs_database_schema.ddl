@@ -84,6 +84,31 @@ CREATE TABLE ApplicationDigestsDynamic (
 ) PRIMARY KEY(PolicyId, ApplicationDigest),
 INTERLEAVE IN PARENT AppraisalPoliciesDynamic ON DELETE CASCADE;
 
+-- Table storing the stage0 blobs. The table contains the following columns:
+-- * Sha256Digest: sha256 digest of the stage0 blob.
+-- * BlobData: the stage0 blob data.
+-- * UpdateTimestamp: timestamp of the last update to the row.
+CREATE TABLE Stage0Blobs (
+    Sha256Digest BYTES(MAX) NOT NULL,
+    BlobData BYTES(MAX) NOT NULL,
+    UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+) PRIMARY KEY(Sha256Digest);
+
+-- Table storing the stage0 blobs to policy mapping. The table contains the
+-- following columns:
+-- * Sha256Digest: sha256 digest of the stage0 blob.
+-- * PolicyId: the policy id of the policy that the stage0 blob is associated with.
+-- * UpdateTimestamp: timestamp of the last update to the row.
+CREATE TABLE Stage0BlobToPolicy (
+    Sha256Digest BYTES(MAX) NOT NULL,
+    PolicyId INT64 NOT NULL,
+    UpdateTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+) PRIMARY KEY(Sha256Digest, PolicyId),
+INTERLEAVE IN PARENT Stage0Blobs ON DELETE CASCADE;
+
+-- Index to quickly find all blobs that belong to a given policy.
+CREATE INDEX Stage0BlobToPolicyByPolicyId ON Stage0BlobToPolicy(PolicyId);
+
 -- Table storing wrapped data encryption keys (DEK)s. DEKs are encrypted with
 -- KekId. The table contains the following columns:
 -- * DekId: a unique identifier for a DEK.
