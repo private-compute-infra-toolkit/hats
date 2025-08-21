@@ -173,12 +173,14 @@ impl PolicyManager {
                 appraisal_policies.policies,
                 &[&policy_verifying_key],
                 /*num_pass_required=*/ 1,
+                self.accept_insecure_policies,
             )
         } else {
             process_and_validate_policies(
                 appraisal_policies.policies,
                 &[],
                 /*num_pass_required=*/ 0,
+                self.accept_insecure_policies,
             )
         }?;
 
@@ -447,6 +449,18 @@ mod dynamic {
                 && allowed_cpu.model == measured_model
                 && allowed_cpu.stepping == measured_stepping
         })
+    }
+
+    // checks if a policy is insecure or not
+    pub fn is_insecure_policy(policy: &AppraisalPolicy) -> bool {
+        matches!(
+            policy
+                .measurement
+                .as_ref()
+                .and_then(|m| m.stage0_measurement.as_ref())
+                .and_then(|s0| s0.r#type.as_ref()),
+            Some(stage0_measurement::Type::Insecure(_))
+        )
     }
 }
 
@@ -724,10 +738,14 @@ fn process_and_validate_policies(
     policies: Vec<AppraisalPolicy>,
     verifying_keys: &[&VerifyingKey],
     num_pass_required: u32,
+    accept_insecure_policies: bool,
 ) -> anyhow::Result<Vec<AppraisalPolicy>> {
     policies
         .into_iter()
         .map(|policy| {
+            if !accept_insecure_policies && dynamic::is_insecure_policy(&policy) {
+                return Err(anyhow::anyhow!("Cannot accept insecure policies."));
+            }
             if num_pass_required == 0 {
                 Ok(policy)
             } else {
