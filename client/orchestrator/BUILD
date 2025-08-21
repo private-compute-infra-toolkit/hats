@@ -61,6 +61,10 @@ rust_test(
 rust_library(
     name = "tvs-grpc-client",
     srcs = ["tvs-grpc-client.rs"],
+    crate_features = select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//client/proto_rust:client-proto",
         "//tvs/client:trusted-client-noffi",
@@ -90,13 +94,22 @@ rust_test(
     size = "small",
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = ":tvs-grpc-client",
+    crate_features = select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//tvs/key_fetcher_wrapper:key-fetcher",
         "//tvs/trusted_tvs/library:trusted-tvs",
         "@enclave//crypto",
         "@oak_crates_index//:futures",
         "@oak_crates_index//:tokio-stream",
-    ],
+    ] + select({
+        "//:dynamic_attestation_enabled": [
+            "//tvs/test_utils_rs",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 rust_library(

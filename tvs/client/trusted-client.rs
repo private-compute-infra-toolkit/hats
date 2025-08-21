@@ -211,6 +211,8 @@ mod tests {
     use key_fetcher::{ffi::create_test_key_fetcher_wrapper, KeyFetcher};
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use std::sync::Arc;
+    #[cfg(feature = "dynamic_attestation")]
+    use test_utils_rs::create_dynamic_genoa_policy;
     use tvs_proto::pcit::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement, Secret,
         Signature as PolicySignature, Stage0Measurement, VerifyReportResponse,
@@ -268,6 +270,17 @@ mod tests {
     // End to end testing: handshake, building and signing the report and decrypt the secret.
     #[test]
     fn verify_report_successful() {
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
         let key_id = "11";
@@ -282,7 +295,7 @@ mod tests {
         ));
         let service = trusted_tvs::service::Service::new(
             Arc::new(key_fetcher),
-            &default_appraisal_policies(),
+            &policies,
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )

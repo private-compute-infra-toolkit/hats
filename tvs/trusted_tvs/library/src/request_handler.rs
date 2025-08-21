@@ -304,6 +304,10 @@ mod tests {
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use policy_manager::PolicyManager;
+    #[cfg(feature = "dynamic_attestation")]
+    use test_utils_rs::{
+        create_dynamic_genoa_policy, create_dynamic_genoa_policy_multiple_containers,
+    };
     use tvs_proto::pcit::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, InitSessionRequest,
         Measurement, Signature as PolicySignature, Stage0Measurement,
@@ -362,6 +366,7 @@ mod tests {
         buf
     }
 
+    #[cfg(not(feature = "dynamic_attestation"))]
     fn default_appraisal_policies_multiple_container_binaries() -> Vec<u8> {
         let policies = AppraisalPolicies {
             policies: vec![AppraisalPolicy{
@@ -492,11 +497,21 @@ mod tests {
     #[test]
     fn verify_report_successful() {
         init_logger();
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new_with_policies(
-            default_appraisal_policies().as_slice(),
-            /*enable_policy_signature=*/ true,
+            &policies, /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
@@ -554,11 +569,21 @@ mod tests {
     #[test]
     fn verify_report_successful_multiple_container_binaries() {
         init_logger();
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy_multiple_containers()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies_multiple_container_binaries()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new_with_policies(
-            default_appraisal_policies_multiple_container_binaries().as_slice(),
-            /*enable_policy_signature=*/ true,
+            &policies, /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
@@ -616,13 +641,23 @@ mod tests {
     #[test]
     fn verify_report_with_secondary_key_successful() {
         init_logger();
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let primary_tvs_private_key = P256Scalar::generate();
         let primary_tvs_public_key = primary_tvs_private_key.compute_public_key();
         let secondary_tvs_private_key = P256Scalar::generate();
         let secondary_tvs_public_key = secondary_tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new_with_policies(
-            default_appraisal_policies().as_slice(),
-            /*enable_policy_signature=*/ true,
+            &policies, /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();
@@ -684,11 +719,21 @@ mod tests {
     #[test]
     fn verify_report_session_termination_on_successful_session() {
         init_logger();
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let tvs_public_key = tvs_private_key.compute_public_key();
         let policy_manager = PolicyManager::new_with_policies(
-            default_appraisal_policies().as_slice(),
-            /*enable_policy_signature=*/ true,
+            &policies, /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
         .unwrap();

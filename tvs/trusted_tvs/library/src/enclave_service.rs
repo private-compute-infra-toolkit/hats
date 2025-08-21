@@ -242,6 +242,8 @@ mod tests {
     use crypto::P256Scalar;
     use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use prost::Message;
+    #[cfg(feature = "dynamic_attestation")]
+    use test_utils_rs::create_dynamic_genoa_policy;
     use tvs_proto::pcit::tvs::{
         stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy, Measurement,
         Signature as PolicySignature, Stage0Measurement,
@@ -311,6 +313,17 @@ mod tests {
     #[test]
     fn verify_report_successful() {
         init_logger();
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
         let mut service = EnclaveService::new().unwrap();
@@ -324,9 +337,7 @@ mod tests {
 
         // Load the appraisal policies.
         service
-            .load_appraisal_policies(LoadAppraisalPoliciesRequest {
-                policies: default_appraisal_policies(),
-            })
+            .load_appraisal_policies(LoadAppraisalPoliciesRequest { policies })
             .unwrap();
 
         // Register a user.

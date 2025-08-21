@@ -170,17 +170,23 @@ impl Service {
 #[cfg(test)]
 mod tests {
     use crate::interface::new_service;
-    use crypto::{P256Scalar, P256_SCALAR_LENGTH};
+    use crypto::P256Scalar;
     use handshake::noise::HandshakeType;
     use key_fetcher::ffi::create_test_key_fetcher_wrapper;
-    use oak_proto_rust::oak::attestation::v1::{InsecureReferenceValues, TcbVersion};
+    use oak_proto_rust::oak::attestation::v1::TcbVersion;
     use prost::Message;
+    #[cfg(feature = "dynamic_attestation")]
+    use test_utils_rs::create_dynamic_genoa_policy;
     use tvs_proto::pcit::tvs::{
         attest_report_request, stage0_measurement, AmdSev, AppraisalPolicies, AppraisalPolicy,
         AttestReportRequest, InitSessionRequest, Measurement, Secret, Signature as PolicySignature,
         Stage0Measurement, VerifyReportResponse,
     };
     use tvs_trusted_client::TvsClient;
+    #[cfg(not(feature = "dynamic_attestation"))]
+    use {
+        crypto::P256_SCALAR_LENGTH, oak_proto_rust::oak::attestation::v1::InsecureReferenceValues,
+    };
 
     fn get_evidence_v1_genoa() -> Vec<u8> {
         include_bytes!("../../../test_data/evidence_v1_genoa.binarypb").to_vec()
@@ -230,6 +236,7 @@ mod tests {
         buf
     }
 
+    #[cfg(not(feature = "dynamic_attestation"))]
     fn insecure_appraisal_policies() -> Vec<u8> {
         let policies = AppraisalPolicies {
             policies: vec![AppraisalPolicy{
@@ -296,6 +303,17 @@ mod tests {
     #[test]
     fn verify_report_successful() {
         init_logger();
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
         let key_id = "11";
@@ -311,7 +329,7 @@ mod tests {
 
         let service = new_service(
             key_fetcher,
-            &default_appraisal_policies(),
+            &policies,
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
@@ -371,6 +389,17 @@ mod tests {
     #[test]
     fn verify_report_successful_with_secondary_key() {
         init_logger();
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
         let key_id = "12";
@@ -385,7 +414,7 @@ mod tests {
         );
         let service = new_service(
             key_fetcher,
-            &default_appraisal_policies(),
+            &policies,
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
@@ -697,6 +726,17 @@ mod tests {
     #[test]
     fn verify_report_no_secret_error() {
         init_logger();
+        // Select which appriasal policies to use based on dynamic_attestation flag
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let client_private_key = P256Scalar::generate();
         let user_id = "5";
@@ -712,7 +752,7 @@ mod tests {
         );
         let service = new_service(
             key_fetcher,
-            &default_appraisal_policies(),
+            &policies,
             /*enable_policy_signature=*/ true,
             /*accept_insecure_policies=*/ false,
         )
@@ -754,6 +794,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(feature = "dynamic_attestation"))]
     #[test]
     fn service_creation_error() {
         init_logger();

@@ -22,6 +22,10 @@ package(
 rust_library(
     name = "trusted-client",
     srcs = ["trusted-client.rs"],
+    crate_features = select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//tvs/proto_rust:tvs-proto",
         "@cxx.rs//:cxx",
@@ -40,7 +44,10 @@ rust_library(
 rust_library(
     name = "trusted-client-noffi",
     srcs = ["trusted-client.rs"],
-    crate_features = ["noffi"],
+    crate_features = ["noffi"] + select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     crate_name = "tvs_trusted_client",
     deps = [
         "//tvs/proto_rust:tvs-proto",
@@ -61,12 +68,20 @@ rust_test(
     size = "small",
     compile_data = ["//tvs/test_data:tvs_test_data"],
     crate = ":trusted-client",
-    crate_features = ["noffi"],
+    crate_features = ["noffi"] + select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//tvs/key_fetcher_wrapper:key-fetcher",
         "//tvs/trusted_tvs/library:trusted-tvs",
         "@oak_crates_index//:anyhow",
-    ],
+    ] + select({
+        "//:dynamic_attestation_enabled": [
+            "//tvs/test_utils_rs",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 rust_cxx_bridge(

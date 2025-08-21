@@ -286,6 +286,8 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::pin::Pin;
     use std::sync::Arc;
+    #[cfg(feature = "dynamic_attestation")]
+    use test_utils_rs::create_dynamic_genoa_policy;
     use tokio::net::TcpListener;
     use tokio_stream::wrappers::TcpListenerStream;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
@@ -405,6 +407,16 @@ mod tests {
 
     #[tokio::test]
     async fn verify_report_successful() {
+        let policies = {
+            #[cfg(feature = "dynamic_attestation")]
+            {
+                create_dynamic_genoa_policy()
+            }
+            #[cfg(not(feature = "dynamic_attestation"))]
+            {
+                default_appraisal_policies()
+            }
+        };
         let tvs_private_key = P256Scalar::generate();
         let tvs_authentication_key = P256Scalar::generate();
         let test_service = TestLauncherService {
@@ -423,7 +435,7 @@ mod tests {
                             /*public_key=*/ b"test_public_key1",
                         ),
                     )),
-                    &default_appraisal_policies(),
+                    &policies,
                     /*enable_policy_signature=*/ true,
                     /*accept_insecure_policies=*/ false,
                 )

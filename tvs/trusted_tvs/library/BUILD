@@ -22,7 +22,10 @@ package(
 rust_library(
     name = "trusted-tvs",
     srcs = glob(["src/**"]),
-    crate_features = ["default"],
+    crate_features = ["default"] + select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//tvs/proto_rust:tvs-proto",
         "//tvs/appraisal_policies/policy_manager:policy-manager",
@@ -52,14 +55,22 @@ rust_test(
     crate_features = [
         "default",
         "enclave",
-    ],
+    ] + select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//tvs/client:trusted-client-noffi",
         "//tvs/trusted_tvs/proto:tvs_enclave",
         "@hats_crate_index//:hex",
         "@oak//micro_rpc",
         "@oak_crates_index//:log",
-    ],
+    ] + select({
+        "//:dynamic_attestation_enabled": [
+            "//tvs/test_utils_rs",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 rust_cxx_bridge(
@@ -76,7 +87,10 @@ rust_library(
     crate_features = [
         "enclave",
         "no_std",
-    ],
+    ] + select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//tvs/proto_rust:tvs-proto",
         "//tvs/appraisal_policies/policy_manager:policy-manager-no-std",
