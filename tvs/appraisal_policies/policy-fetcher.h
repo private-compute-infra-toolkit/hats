@@ -29,6 +29,9 @@ class PolicyFetcher {
   static absl::StatusOr<std::unique_ptr<PolicyFetcher>> Create();
   static absl::StatusOr<std::unique_ptr<PolicyFetcher>> Create(
       const std::string& file_path);
+  static absl::StatusOr<std::unique_ptr<PolicyFetcher>> CreateWithBlobs(
+      const std::string& file_path,
+      const std::string& stage0_blob_directory_path);
   virtual ~PolicyFetcher() = default;
 
   // Get latest `n` policies. The method retrieve the last `n` inserted

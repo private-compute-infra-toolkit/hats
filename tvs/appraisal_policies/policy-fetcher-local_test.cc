@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <fstream>
 #include <string>
 
@@ -23,12 +27,14 @@
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
+#include "openssl/sha.h"
 #include "src/google/protobuf/test_textproto.h"
 #include "status_macro/status_test_macros.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
 ABSL_DECLARE_FLAG(std::string, appraisal_policy_file);
+ABSL_DECLARE_FLAG(std::string, stage0_blob_directory);
 
 namespace pcit::tvs {
 namespace {
@@ -81,6 +87,45 @@ absl::StatusOr<AppraisalPolicies> GetTestAppraisalPolicies() {
     return absl::UnknownError("Cannot parse test appraisal policies");
   }
   return policies;
+}
+
+struct TestBlobInfo {
+  std::string directory_path;
+  std::string blob_sha256_digest;
+  std::string blob_data;
+};
+
+absl::StatusOr<TestBlobInfo> CreateTestBlobDirectory() {
+  TestBlobInfo info;
+  info.blob_data = "fake_blob_data";
+
+  // Calculate the real hash of the fake data
+  std::string blob_sha_raw(SHA256_DIGEST_LENGTH, '\0');
+  SHA256(reinterpret_cast<const unsigned char*>(info.blob_data.data()),
+         info.blob_data.size(),
+         reinterpret_cast<unsigned char*>(blob_sha_raw.data()));
+  info.blob_sha256_digest = absl::BytesToHexString(blob_sha_raw);
+
+  // Create a temporary directory using the POSIX mkdir function
+  info.directory_path = absl::StrCat(testing::TempDir(), "/test_blob_dir");
+  // '0755' sets the directory permissions.
+  if (mkdir(info.directory_path.c_str(), 0755) != 0) {
+    if (errno != EEXIST) {
+      return absl::InternalError("Failed to create test blob directory");
+    }
+  }
+
+  // Create the blob file inside the directory, named with its hash
+  std::string blob_file_path =
+      absl::StrCat(info.directory_path, "/", info.blob_sha256_digest);
+  std::ofstream blob_file(blob_file_path, std::ios::binary);
+  if (!blob_file.is_open()) {
+    return absl::InternalError("Failed to create test blob file");
+  }
+  blob_file << info.blob_data;
+  blob_file.close();
+
+  return info;
 }
 
 TEST(PolicyFetcherLocal, GetLatestNPoliciesSuccessfull) {
@@ -146,6 +191,111 @@ TEST(PolicyFetcherLocal, GetLatestNPoliciesForDigestNotFoundError) {
   HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_policies,
                             GetTestAppraisalPolicies());
   absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
+                            PolicyFetcher::Create());
+  HATS_EXPECT_STATUS_MESSAGE(policy_fetcher->GetLatestNPoliciesForDigest(
+                                 /*application_digest*/ "some_digest",
+                                 /*n=*/5),
+                             absl::StatusCode::kNotFound, "No policies found");
+}
+
+// Test that GetLatestNPolicies returns the expected result when blobs are
+// provided.
+TEST(PolicyFetcherLocal, GetLatestNPoliciesSuccess_WithBlobs) {
+  HATS_ASSERT_OK_AND_ASSIGN(std::string policy_file, WriteTestPolicyToFile());
+  HATS_ASSERT_OK_AND_ASSIGN(TestBlobInfo blob_info, CreateTestBlobDirectory());
+
+  absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+  absl::SetFlag(&FLAGS_stage0_blob_directory, blob_info.directory_path);
+
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_result,
+                            GetTestAppraisalPolicies());
+  (*expected_result
+        .mutable_stage0_binary_sha256_to_blob())[blob_info.blob_sha256_digest] =
+      blob_info.blob_data;
+
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
+                            PolicyFetcher::Create());
+  std::string expected_text_proto;
+  google::protobuf::TextFormat::PrintToString(expected_result,
+                                              &expected_text_proto);
+  HATS_EXPECT_OK_AND_HOLDS(policy_fetcher->GetLatestNPolicies(/*n=*/1),
+                           EqualsProto(expected_text_proto));
+}
+
+// Test that GetLatestNPolicies returns NotFoundError when the policy file is
+// empty, even when blobs are provided.
+TEST(PolicyFetcherLocal, GetLatestNPoliciesNotFoundError_WithBlobs) {
+  // Create an empty file
+  std::string test_file = absl::StrCat(testing::TempDir(), "policy_file");
+  std::ofstream policy_file(test_file);
+  ASSERT_TRUE(policy_file.is_open());
+  policy_file.close();
+
+  // Create a valid blob directory and file
+  HATS_ASSERT_OK_AND_ASSIGN(TestBlobInfo blob_info, CreateTestBlobDirectory());
+
+  absl::SetFlag(&FLAGS_appraisal_policy_file, test_file);
+  absl::SetFlag(&FLAGS_stage0_blob_directory, blob_info.directory_path);
+
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
+                            PolicyFetcher::Create());
+  HATS_EXPECT_STATUS_MESSAGE(policy_fetcher->GetLatestNPolicies(/*n=*/1),
+                             absl::StatusCode::kNotFound, "No policies found");
+}
+
+// Test that GetLatestNPoliciesForDigest returns the expected result when the
+// application digest is found in the policy file and blobs are provided.
+TEST(PolicyFetcherLocal, GetLatestNPoliciesForDigestSuccess_WithBlobs) {
+  HATS_ASSERT_OK_AND_ASSIGN(std::string policy_file, WriteTestPolicyToFile());
+  HATS_ASSERT_OK_AND_ASSIGN(TestBlobInfo blob_info, CreateTestBlobDirectory());
+
+  absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+  absl::SetFlag(&FLAGS_stage0_blob_directory, blob_info.directory_path);
+
+  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies expected_result,
+                            GetTestAppraisalPolicies());
+  (*expected_result
+        .mutable_stage0_binary_sha256_to_blob())[blob_info.blob_sha256_digest] =
+      blob_info.blob_data;
+
+  HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
+                            PolicyFetcher::Create());
+
+  std::string expected_text_proto;
+  google::protobuf::TextFormat::PrintToString(expected_result,
+                                              &expected_text_proto);
+
+  std::string first_application_digest;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      expected_result.policies(0).measurement().container_binary_sha256(0),
+      &first_application_digest));
+
+  HATS_EXPECT_OK_AND_HOLDS(
+      policy_fetcher->GetLatestNPoliciesForDigest(first_application_digest,
+                                                  /*n=*/5),
+      EqualsProto(expected_text_proto));
+
+  std::string second_application_digest;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      expected_result.policies(0).measurement().container_binary_sha256(1),
+      &second_application_digest));
+  HATS_EXPECT_OK_AND_HOLDS(
+      policy_fetcher->GetLatestNPoliciesForDigest(second_application_digest,
+                                                  /*n=*/5),
+      EqualsProto(expected_text_proto));
+}
+
+// Test that GetLatestNPoliciesForDigest returns NotFoundError when the
+// application digest is not found in the policy file, even when blobs are
+// provided.
+TEST(PolicyFetcherLocal, GetLatestNPoliciesForDigestNotFoundError_WithBlobs) {
+  HATS_ASSERT_OK_AND_ASSIGN(std::string policy_file, WriteTestPolicyToFile());
+  HATS_ASSERT_OK_AND_ASSIGN(TestBlobInfo blob_info, CreateTestBlobDirectory());
+
+  absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+  absl::SetFlag(&FLAGS_stage0_blob_directory, blob_info.directory_path);
+
   HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
                             PolicyFetcher::Create());
   HATS_EXPECT_STATUS_MESSAGE(policy_fetcher->GetLatestNPoliciesForDigest(
