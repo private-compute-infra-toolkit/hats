@@ -75,6 +75,9 @@ The files can be groupd into the following:
     ```
     https://kdsintf.amd.com/vcek/v1/Genoa/D2421D976F95CE0BA849B7CC5C789122F1E59C77A037272C137AE4D188BB102ADBC7C53D0302BFF82A432C94A305DEC7A7A270CEB19A10F04A83316C6486968D?blSPL=10&teeSPL=00&snpSPL=25&ucodeSPL=84
     ```
+## Stage0 Binary File
+
+This stage0 binary file was compiled from oak commit d6f890b76203f55446f46edb51b8690eca3adb4c, and is the stage0 OVMF binary that matches with the Genoa and Milan test data evidence. This stage0_bin file is used for testing, primarily for the dynamic_attestation feature.
 
 ## Updating Test Files
 
