@@ -1243,7 +1243,7 @@ mod tests {
         use sha2::{Digest, Sha256};
         use std::fs;
         use tvs_proto::pcit::tvs::{
-            AmdSevDynamic, AppraisalPolicy, CpuInfo, Measurement, Stage0Measurement,
+            AmdSevDynamic, AppraisalPolicy, CpuInfo, Measurement, Signature, Stage0Measurement,
         };
         use zerocopy::FromZeros;
 
@@ -1292,7 +1292,11 @@ mod tests {
                         system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
                         container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string()],
                     }),
-                    ..Default::default()
+                    signature: vec![Signature{
+                        signature: "972449509fe27fa8fffbebe77b83ed908e698b6efa09727c38fbd84186db79b24a79f5a40ddbda77b3db066293c4931f8b036d0f2193326f2b7b8dd3de80509f".to_string(),
+                        signer: "".to_string(),
+                        },
+                        ],
                 }],
                 stage0_binary_sha256_to_blob: BTreeMap::from([(stage0_hash.clone(), stage0_blob.to_vec())]),
             };
@@ -1315,7 +1319,7 @@ mod tests {
             let serialized_policies = dynamic_milan_policies(stage0_hash.clone(), &stage0_blob);
             let policy_manager = PolicyManager::new_with_policies(
                 &serialized_policies,
-                /*enable_policy_signature=*/ false,
+                /*enable_policy_signature=*/ true,
                 /*accept_insecure_policies=*/ false,
             )
             .unwrap();
@@ -1339,7 +1343,7 @@ mod tests {
             let serialized_policies = dynamic_milan_policies(stage0_hash.clone(), &stage0_blob);
             let policy_manager = PolicyManager::new_with_policies(
                 &serialized_policies,
-                /*enable_policy_signature=*/ false,
+                /*enable_policy_signature=*/ true,
                 /*accept_insecure_policies=*/ false,
             )
             .unwrap();
@@ -1384,7 +1388,11 @@ mod tests {
                         system_image_sha256: "3c59bd10c2b890ff152cc57fdca0633693acbb04982da90c670de6530fa8a836".to_string(),
                         container_binary_sha256:vec!["b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899".to_string()],
                     }),
-                    ..Default::default()
+                    signature: vec![Signature{
+                        signature: "972449509fe27fa8fffbebe77b83ed908e698b6efa09727c38fbd84186db79b24a79f5a40ddbda77b3db066293c4931f8b036d0f2193326f2b7b8dd3de80509f".to_string(),
+                        signer: "".to_string(),
+                        },
+                        ],
                 }],
                 stage0_binary_sha256_to_blob: BTreeMap::from([(stage0_hash.clone(), stage0_blob.to_vec())]),
             };
@@ -1407,7 +1415,7 @@ mod tests {
             let serialized_policies = dynamic_genoa_policies(stage0_hash.clone(), &stage0_blob);
             let policy_manager = PolicyManager::new_with_policies(
                 &serialized_policies,
-                /*enable_policy_signature=*/ false,
+                /*enable_policy_signature=*/ true,
                 /*accept_insecure_policies=*/ false,
             )
             .unwrap();
@@ -1431,7 +1439,7 @@ mod tests {
             let serialized_policies = dynamic_genoa_policies(stage0_hash.clone(), &stage0_blob);
             let policy_manager = PolicyManager::new_with_policies(
                 &serialized_policies,
-                /*enable_policy_signature=*/ false,
+                /*enable_policy_signature=*/ true,
                 /*accept_insecure_policies=*/ false,
             )
             .unwrap();
