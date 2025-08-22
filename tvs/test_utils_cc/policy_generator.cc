@@ -17,6 +17,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/escaping.h"
@@ -36,7 +37,8 @@ absl::StatusOr<std::string> GetStage0Blob() {
         absl::StrCat("Failed to create Runfiles: ", error));
   }
 
-  std::string path = runfiles->Rlocation("tvs/test_data/stage0_bin_for_test");
+  std::string path =
+      runfiles->Rlocation("_main/tvs/test_data/stage0_bin_for_test");
   std::ifstream file_stream(path, std::ios::binary);
   if (!file_stream) {
     return absl::NotFoundError(absl::StrCat("Could not open file: ", path));
@@ -116,6 +118,76 @@ absl::StatusOr<AppraisalPolicies> CreateDynamicGenoaPolicy() {
       stage0_blob;
 
   return policies;
+}
+
+absl::StatusOr<AppraisalPolicies> CreateMixedDynamicAndInsecurePolicies() {
+  // Secure dynamic policy.
+  absl::StatusOr<AppraisalPolicies> policies_status =
+      CreateDynamicGenoaPolicy();
+  if (!policies_status.ok()) {
+    return policies_status.status();
+  }
+  AppraisalPolicies policies = *std::move(policies_status);
+
+  // Second insecure policy to the list.
+  AppraisalPolicy& insecure_policy = *policies.add_policies();
+  Measurement& measurement = *insecure_policy.mutable_measurement();
+
+  // other fields(they dont rly matter for insecure policy but still)
+  measurement.set_kernel_image_sha256(
+      "eca5ef41f6dc7e930d8e9376e78d19802c49f5a24a14c0be18c8e0e3a8be3e84");
+  measurement.set_kernel_setup_data_sha256(
+      "c1022e7dd178023609a24839d1c32ea2687477586a5442b9209b67f73655b11c");
+  measurement.set_init_ram_fs_sha256(
+      "5e26c78994236a661a4b522e07e8b8c9706ffc1005d8c4f5ccb5d0c641de1edb");
+  measurement.set_memory_map_sha256(
+      "73ec5878eed10ac257e855324bf2621ebed8f5825464c6afe2f0152ac23ea7fb");
+  measurement.set_acpi_table_sha256(
+      "668b5b4db79f9939c741d62182b5962e19c150c1eb78fa824864feb299c0e8c7");
+  measurement.set_kernel_cmd_line_regex(
+      "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 "
+      "brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- "
+      "--launcher-addr=vsock://2:.*$");
+  measurement.set_system_image_sha256(
+      "bb3bdaa18daa6a6bcb90cc00ca7213c20cefec9b894f612baeafd569281766e1");
+  measurement.add_container_binary_sha256(
+      "cb31d889e33eaf9e3b43cdbeb3554903c36b5e037c5187e876a69e8c5b5d864c");
+
+  Signature& signature = *insecure_policy.add_signature();
+  signature.set_signature(
+      "82422b8c775c51498fab8252c956597e88ba6d6f7045c9815c08b617f4302c70a748a911"
+      "22"
+      "2e241fad516113307a695d62d65cde98916c094b634d047dc22d60");
+  signature.set_signer("hats");
+
+  return policies;
+}
+
+absl::Status PopulateTempBlobDirectory(absl::string_view temp_dir_path) {
+  // read the real stage0 binary content.
+  absl::StatusOr<std::string> stage0_blob_status = GetStage0Blob();
+  if (!stage0_blob_status.ok()) {
+    return stage0_blob_status.status();
+  }
+  std::string stage0_blob = *stage0_blob_status;
+
+  // Calculate its sha256 hash to use as filename
+  std::vector<uint8_t> hash(SHA256_DIGEST_LENGTH);
+  SHA256(reinterpret_cast<const uint8_t*>(stage0_blob.data()),
+         stage0_blob.size(), hash.data());
+  std::string stage0_hash_hex = absl::BytesToHexString(absl::string_view(
+      reinterpret_cast<const char*>(hash.data()), hash.size()));
+
+  // Write content to the new file in the directory
+  std::string blob_path = absl::StrCat(temp_dir_path, "/", stage0_hash_hex);
+  std::ofstream out_stream(blob_path, std::ios::binary);
+  if (!out_stream) {
+    return absl::InternalError("Failed to open temporary file for writing.");
+  }
+  out_stream << stage0_blob;
+  out_stream.close();
+
+  return absl::OkStatus();
 }
 
 }  // namespace pcit::tvs::test_utils_cc

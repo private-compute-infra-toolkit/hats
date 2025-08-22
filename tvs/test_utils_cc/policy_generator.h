@@ -15,7 +15,9 @@
 #ifndef TVS_TEST_UTILS_CC_POLICY_GENERATOR_H_
 #define TVS_TEST_UTILS_CC_POLICY_GENERATOR_H_
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "tvs/proto/appraisal_policies.pb.h"
 
 namespace pcit::tvs::test_utils_cc {
@@ -23,6 +25,14 @@ namespace pcit::tvs::test_utils_cc {
 // Creates and returns a fully-formed dynamic AppraisalPolicies proto
 // for use in tests.
 absl::StatusOr<AppraisalPolicies> CreateDynamicGenoaPolicy();
+
+// Creates a policy set with one valid dynamic policy and one
+// insecure policy.
+absl::StatusOr<AppraisalPolicies> CreateMixedDynamicAndInsecurePolicies();
+
+// Reads the stage0 bin, hashes it, and writes it to a file
+// named with the hash inside the provided temporary directory.
+absl::Status PopulateTempBlobDirectory(absl::string_view temp_dir_path);
 
 }  // namespace pcit::tvs::test_utils_cc
 

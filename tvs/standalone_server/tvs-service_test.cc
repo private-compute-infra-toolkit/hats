@@ -48,7 +48,16 @@
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/test_client/tvs-untrusted-client.h"
 
+#ifdef DYNAMIC_ATTESTATION
+#include <unistd.h>
+
+#include <cstdlib>
+
+#include "tvs/test_utils_cc/policy_generator.h"
+#endif
+
 ABSL_DECLARE_FLAG(std::string, appraisal_policy_file);
+ABSL_DECLARE_FLAG(std::string, stage0_blob_directory);
 
 namespace pcit::tvs {
 namespace {
@@ -223,8 +232,16 @@ TEST(TvsService, Successful) {
           },
       });
 
-  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
-                            GetTestAppraisalPolicies());
+  // Declare the variables that will be set conditionally.
+  AppraisalPolicies appraisal_policies;
+
+#ifdef DYNAMIC_ATTESTATION
+  HATS_ASSERT_OK_AND_ASSIGN(
+      appraisal_policies, pcit::tvs::test_utils_cc::CreateDynamicGenoaPolicy());
+#else
+  HATS_ASSERT_OK_AND_ASSIGN(appraisal_policies, GetTestAppraisalPolicies());
+#endif
+
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<TvsService> tvs_service,
       TvsService::Create({
@@ -342,8 +359,16 @@ TEST(TvsService, UseSecondaryTvsKey) {
           },
       });
 
-  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
-                            GetTestAppraisalPolicies());
+  // Declare the variables that will be set conditionally.
+  AppraisalPolicies appraisal_policies;
+
+#ifdef DYNAMIC_ATTESTATION
+  HATS_ASSERT_OK_AND_ASSIGN(
+      appraisal_policies, pcit::tvs::test_utils_cc::CreateDynamicGenoaPolicy());
+#else
+  HATS_ASSERT_OK_AND_ASSIGN(appraisal_policies, GetTestAppraisalPolicies());
+#endif
+
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<TvsService> tvs_service,
       TvsService::Create({
@@ -467,8 +492,15 @@ TEST(TvsService, SessionTerminationAfterVerifyReportRequest) {
           },
       });
 
-  HATS_ASSERT_OK_AND_ASSIGN(AppraisalPolicies appraisal_policies,
-                            GetTestAppraisalPolicies());
+  // Declare the variables that will be set conditionally.
+  AppraisalPolicies appraisal_policies;
+
+#ifdef DYNAMIC_ATTESTATION
+  HATS_ASSERT_OK_AND_ASSIGN(
+      appraisal_policies, pcit::tvs::test_utils_cc::CreateDynamicGenoaPolicy());
+#else
+  HATS_ASSERT_OK_AND_ASSIGN(appraisal_policies, GetTestAppraisalPolicies());
+#endif
 
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<TvsService> tvs_service,
@@ -744,6 +776,41 @@ TEST(TvsService, DynamicPolicyFetching) {
           },
       });
 
+#ifdef DYNAMIC_ATTESTATION
+  {
+    // Create policies, one secure(dynamic), one insecure
+    HATS_ASSERT_OK_AND_ASSIGN(
+        pcit::tvs::AppraisalPolicies mixed_policies,
+        pcit::tvs::test_utils_cc::CreateMixedDynamicAndInsecurePolicies());
+    // Serialize object into a text-proto string
+    std::string policies_textpb;
+    google::protobuf::TextFormat::PrintToString(mixed_policies,
+                                                &policies_textpb);
+    // Pass string to file-writing helper
+    HATS_ASSERT_OK_AND_ASSIGN(std::string policy_file,
+                              WriteTestPolicyToFile(policies_textpb));
+
+    // Create a temporary directory where the stage0_bin_for_test is, so that
+    // the policy fetcher grabs the blobs along with the dynamic policy. Path to
+    // the temp directory managed by Bazel
+    const char* test_tmpdir_cstr = std::getenv("TEST_TMPDIR");
+    ASSERT_NE(test_tmpdir_cstr, nullptr) << "TEST_TMPDIR is not set";
+    // template for unique directory
+    std::string temp_dir_template =
+        std::string(test_tmpdir_cstr) + "/blobs.XXXXXX";
+    // POSIX mkdtemp function to securely create the directory
+    char* temp_dir_path_cstr = mkdtemp(temp_dir_template.data());
+    ASSERT_NE(temp_dir_path_cstr, nullptr) << "Failed to create temp directory";
+    std::string temp_path = temp_dir_path_cstr;
+    // use directory to create blob
+    HATS_ASSERT_OK(
+        pcit::tvs::test_utils_cc::PopulateTempBlobDirectory(temp_path));
+
+    // set flags:
+    absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+    absl::SetFlag(&FLAGS_stage0_blob_directory, temp_path);
+  }
+#else
   // In dynamic policy fetching mode, only policies that are matching the
   // application layer digest are fetched and proceeded. To test that TVS is
   // using dynamic policy fetching, we pass two policies: one is accepted
@@ -799,6 +866,8 @@ TEST(TvsService, DynamicPolicyFetching) {
             })pb"));
 
   absl::SetFlag(&FLAGS_appraisal_policy_file, policy_file);
+#endif  // DYNAMIC_ATTESTATION
+
   HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<PolicyFetcher> policy_fetcher,
                             PolicyFetcher::Create());
   HATS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<TvsService> tvs_service,

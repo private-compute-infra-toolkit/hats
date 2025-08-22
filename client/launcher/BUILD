@@ -148,6 +148,10 @@ cc_test(
     data = [
         "//tvs/test_data:tvs_test_data",
     ],
+    defines = select({
+        "//:dynamic_attestation_enabled": ["DYNAMIC_ATTESTATION"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":launcher-server",
         "//client/proto:launcher_cc_proto",
@@ -171,7 +175,12 @@ cc_test(
         "@oak//proto/attestation:evidence_cc_proto",
         "@oak//proto/containers:interfaces_cc_grpc",
         "@oak//proto/containers:interfaces_cc_proto",
-    ],
+    ] + select({
+        "//:dynamic_attestation_enabled": [
+            "//tvs/test_utils_cc:policy_generator",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 cc_library(

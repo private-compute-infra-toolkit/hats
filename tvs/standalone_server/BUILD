@@ -79,6 +79,10 @@ cc_test(
     data = [
         "//tvs/test_data:tvs_test_data",
     ],
+    defines = select({
+        "//:dynamic_attestation_enabled": ["DYNAMIC_ATTESTATION"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":tvs-service",
         "//crypto:test-ec-key",
@@ -98,5 +102,10 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf_headers",
         "@oak//proto/attestation:evidence_cc_proto",
-    ],
+    ] + select({
+        "//:dynamic_attestation_enabled": [
+            "//tvs/test_utils_cc:policy_generator",
+        ],
+        "//conditions:default": [],
+    }),
 )

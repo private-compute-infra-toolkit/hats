@@ -53,6 +53,10 @@
 #include "tvs/proto/tvs_messages.pb.h"
 #include "tvs/standalone_server/tvs-service.h"
 
+#ifdef DYNAMIC_ATTESTATION
+#include "tvs/test_utils_cc/policy_generator.h"
+#endif
+
 namespace pcit::client {
 namespace {
 
@@ -383,8 +387,17 @@ TEST(LauncherServer, Successful) {
               .public_key = "public-1-1",
           },
       });
-  HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
-                            GetTestAppraisalPolicies());
+
+  // Declare the variables that will be set conditionally.
+  tvs::AppraisalPolicies appraisal_policies;
+
+#ifdef DYNAMIC_ATTESTATION
+  HATS_ASSERT_OK_AND_ASSIGN(
+      appraisal_policies, pcit::tvs::test_utils_cc::CreateDynamicGenoaPolicy());
+#else
+  HATS_ASSERT_OK_AND_ASSIGN(appraisal_policies, GetTestAppraisalPolicies());
+#endif
+
   // Real TVS server.
   HATS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<tvs::TvsService> tvs_service,
@@ -431,8 +444,16 @@ TEST(LauncherServer, Successful) {
 }
 
 TEST(LauncherServer, SplitSuccessful) {
-  HATS_ASSERT_OK_AND_ASSIGN(tvs::AppraisalPolicies appraisal_policies,
-                            GetTestAppraisalPolicies());
+  // Declare the variables that will be set conditionally.
+  tvs::AppraisalPolicies appraisal_policies;
+
+#ifdef DYNAMIC_ATTESTATION
+  HATS_ASSERT_OK_AND_ASSIGN(
+      appraisal_policies, pcit::tvs::test_utils_cc::CreateDynamicGenoaPolicy());
+#else
+  HATS_ASSERT_OK_AND_ASSIGN(appraisal_policies, GetTestAppraisalPolicies());
+#endif
+
   HATS_ASSERT_OK_AND_ASSIGN(crypto::TestEcKey client_authentication_key,
                             crypto::GenerateEcKeyForTest());
 
