@@ -61,10 +61,13 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
+
+#include <openssl/sha.h>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
@@ -72,6 +75,7 @@
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
@@ -111,6 +115,8 @@ ABSL_FLAG(std::vector<std::string>, key_resource_names,
           "<Key resource name 1>, <Key resource name 2>");
 ABSL_FLAG(std::string, appraisal_policy_path, "",
           "Path to an appraisal policy file");
+ABSL_FLAG(std::string, blob_path, "",
+          "Path to a Stage 0 binary blob file to insert to Spanner.");
 ABSL_FLAG(std::string, user_authentication_public_key, "",
           "User public key for authentication. Uncompressed secp128r1 public "
           "key in hex format.");
@@ -685,6 +691,51 @@ absl::Status InsertDynamicAppraisalPolicy(
   return absl::OkStatus();
 }
 
+// Inserts a Stage 0 blob into the Stage0Blobs table
+// Returns the sha256 hex digest of the blob on success
+absl::StatusOr<std::string> InsertStage0Blob(absl::string_view spanner_database,
+                                             absl::string_view blob_path) {
+  // read
+  std::ifstream if_stream({std::string(blob_path)}, std::ios::binary);
+  if (!if_stream.is_open()) {
+    return absl::NotFoundError(
+        absl::StrCat("Failed to open file: ", blob_path));
+  }
+  std::stringstream buffer;
+  buffer << if_stream.rdbuf();
+  const std::string blob_data = buffer.str();
+  if (blob_data.empty()) {
+    return absl::InvalidArgumentError("Blob file cannot be empty.");
+  }
+
+  // Calculate sha256 hash of the blob
+  std::string raw_hash(SHA256_DIGEST_LENGTH, '\0');
+  SHA256(reinterpret_cast<const unsigned char*>(blob_data.data()),
+         blob_data.size(), reinterpret_cast<unsigned char*>(raw_hash.data()));
+
+  const std::string hex_hash = absl::BytesToHexString(raw_hash);
+  std::cout << "Read blob from " << blob_path
+            << " with SHA-256 hash: " << hex_hash << std::endl;
+
+  HATS_ASSIGN_OR_RETURN(google::cloud::spanner::Database database,
+                        CreateSpannerDatabase(spanner_database));
+  google::cloud::spanner::Client client(
+      google::cloud::spanner::MakeConnection(database));
+
+  google::cloud::spanner::Mutation mutation =
+      google::cloud::spanner::MakeInsertOrUpdateMutation(
+          "Stage0Blobs", {"Sha256Digest", "BlobData", "UpdateTimestamp"},
+          google::cloud::spanner::Bytes(raw_hash),
+          google::cloud::spanner::Bytes(blob_data),
+          google::cloud::spanner::CommitTimestamp());
+  auto commit_result = client.Commit({mutation});
+  HATS_RETURN_IF_ERROR(commit_result.status());
+
+  std::cout << "Successfully inserted/updated blob in Spanner." << std::endl;
+
+  return hex_hash;
+}
+
 // Helper class to generate HPKE key pairs.
 class HPKEKey {
  public:
@@ -1085,6 +1136,12 @@ int main(int argc, char* argv[]) {
                              absl::GetFlag(FLAGS_spanner_database),
                              absl::GetFlag(FLAGS_appraisal_policy_path)))
         .PrependWith("Failed to insert a dynamic appraisal policy: ")
+        .LogErrorAndExit();
+  } else if (operation == "insert_blob") {
+    HATS_RETURN_IF_ERROR(InsertStage0Blob(absl::GetFlag(FLAGS_spanner_database),
+                                          absl::GetFlag(FLAGS_blob_path))
+                             .status())
+        .PrependWith("Failed to insert blob: ")
         .LogErrorAndExit();
   } else if (operation == "register_or_update_user") {
     HATS_RETURN_IF_ERROR(

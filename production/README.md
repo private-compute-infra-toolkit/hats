@@ -284,13 +284,22 @@ deploy a Cloud Run Instance.
     ```shell
     $ gcloud run deploy tvs-service --image=<image_url> --use-http2  --min-instances 3 --region <region> --args="--project_id=<project_id>","--instance_id=<spanner_instance_id>","--database_id=<spanner_db_id>"
     ```
-## Dynamic Appraisal Policies
+## Dynamic Appraisal Policies and Stage0 Binaries
 
 To insert dynamic appraisal policies, run this command with a file path to dynamic appraisal policies.
-```shell
+    ```shell
     $ bazel build //production:database_main
     $ bazel-bin/production/database_main \
         --operation=insert_dynamic_policy \
         --spanner_database=<gcp_project>/<database_instance>/<database_name> \
         --appraisal_policy_path=<path to dynamic appraisal policy>
+    ```
+
+To insert Stage0 binary blobs, run this command with the file path to the binary blob.
+    ```shell
+    $ bazel build //production:database_main
+    $ bazel-bin/production/database_main \
+        --operation=insert_blob \
+        --spanner_database=<gcp_project>/<database_instance>/<database_name> \
+        --blob_path=<path to stage0 binary>
     ```
