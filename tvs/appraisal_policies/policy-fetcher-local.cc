@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <fstream>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
+#include "absl/cleanup/cleanup.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
@@ -30,6 +36,9 @@
 
 ABSL_FLAG(std::string, appraisal_policy_file, "",
           "Policy that defines acceptable evidence.");
+ABSL_FLAG(std::string, stage0_blob_directory, "",
+          "Path to the directory containing stage0 blobs. The filename of each "
+          "blob must be its hex-encoded sha256 digest.");
 
 namespace pcit::tvs {
 
@@ -51,13 +60,65 @@ absl::StatusOr<AppraisalPolicies> ReadAppraisalPolicies(
   return appraisal_policies;
 }
 
+// Load stage0 blobs from a directory. The directory must contain files with
+// hex-encoded sha256 digest as their filename.
+absl::StatusOr<absl::flat_hash_map<std::string, std::string>> LoadStage0Blobs(
+    absl::string_view directory_path) {
+  absl::flat_hash_map<std::string, std::string> blobs;
+  if (directory_path.empty()) {
+    return blobs;
+  }
+
+  // Use the POSIX API to open and read the directory
+  DIR* dirp = opendir(std::string(directory_path).c_str());
+  if (dirp == nullptr) {
+    return absl::InternalError(
+        absl::StrCat("Failed to open blob directory: ", directory_path));
+  }
+  // Ensure the directory handle is closed when we're done.
+  absl::Cleanup closer = [dirp] { closedir(dirp); };
+
+  struct dirent* dp;
+  errno = 0;
+  while ((dp = readdir(dirp)) != nullptr) {
+    if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0) {
+      continue;
+    }
+
+    std::string filename = dp->d_name;
+    std::string full_path = absl::StrCat(directory_path, "/", filename);
+
+    // use stat to ensure regular file
+    struct stat statbuf;
+    if (stat(full_path.c_str(), &statbuf) != 0 || !S_ISREG(statbuf.st_mode)) {
+      continue;
+    }
+    // Read binary content of the file
+    std::ifstream file_stream(full_path, std::ios::binary);
+    if (!file_stream) {
+      return absl::InternalError(
+          absl::StrCat("Failed to open blob file: ", full_path));
+    }
+    std::string content((std::istreambuf_iterator<char>(file_stream)),
+                        std::istreambuf_iterator<char>());
+
+    blobs[filename] = std::move(content);
+  }
+  if (errno != 0) {
+    return absl::InternalError(
+        absl::StrCat("Error reading directory: ", directory_path));
+  }
+  return blobs;
+}
+
 // Index appriasal policies by their application digest(s)
 absl::StatusOr<std::unordered_map<std::string, AppraisalPolicies>>
-IndexAppraisalPolicies(AppraisalPolicies appraisal_policies) {
+IndexAppraisalPolicies(const AppraisalPolicies& appraisal_policies) {
   std::unordered_map<std::string, AppraisalPolicies> indexed_appraisal_policies;
-  // Use non-const to enable effective use of std::move().
-  for (AppraisalPolicy& appraisal_policy :
-       *appraisal_policies.mutable_policies()) {
+
+  // The policies are passed by const reference to avoid a copy.
+  for (const AppraisalPolicy& appraisal_policy :
+       appraisal_policies.policies()) {
     // If an appraisal policy has an empty list of container binaries, ignore
     // this invalid policy, skip and continue to the next
     if (appraisal_policy.measurement().container_binary_sha256().empty()) {
@@ -87,12 +148,23 @@ IndexAppraisalPolicies(AppraisalPolicies appraisal_policies) {
   return indexed_appraisal_policies;
 }
 
+// Dynamic attestation note:
+// This local implementation of the PolicyFetcher is a simple simulator for
+// local development and testing. It loads all policies and all blobs from the
+// filesystem at startup. When a Get... method is called, it returns the
+// requested subset of policies along with the *entire* map of all known blobs.
+// This differs slightly from the production GCP fetcher, which only returns
+// blobs that are explicitly linked to the returned policies. This simpler
+// approach is sufficient for local testing, as the downstream PolicyManager
+// will receive all the blobs it needs (and some harmless extra ones).
 class PolicyFetcherLocal final : public PolicyFetcher {
  public:
   PolicyFetcherLocal() = delete;
   PolicyFetcherLocal(
-      std::unordered_map<std::string, AppraisalPolicies> policies)
-      : policies_(std::move(policies)) {}
+      std::unordered_map<std::string, AppraisalPolicies> policies,
+      absl::flat_hash_map<std::string, std::string> all_stage0_blobs)
+      : policies_(std::move(policies)),
+        all_stage0_blobs_(std::move(all_stage0_blobs)) {}
 
   // Arbitrary return `n` policies as we don't have update timestamp
   // in the file.
@@ -103,12 +175,18 @@ class PolicyFetcherLocal final : public PolicyFetcher {
     for (const auto& [_, policies] : policies_) {
       for (const AppraisalPolicy& policy : policies.policies()) {
         *result.add_policies() = policy;
-        if (++counter == n) return result;
+        if (++counter == n) break;
       }
+      if (counter == n) break;
     }
 
     if (result.policies().size() == 0) {
       return absl::NotFoundError("No policies found");
+    }
+
+    // Add stage0 blobs to the result.
+    for (const auto& [digest, blob] : all_stage0_blobs_) {
+      (*result.mutable_stage0_binary_sha256_to_blob())[digest] = blob;
     }
     return result;
   }
@@ -118,18 +196,22 @@ class PolicyFetcherLocal final : public PolicyFetcher {
   absl::StatusOr<AppraisalPolicies> GetLatestNPoliciesForDigest(
       absl::string_view application_digest, int n) override {
     // Number of policies found;
-    int counter = 0;
     AppraisalPolicies result;
     if (auto it = policies_.find(std::string(application_digest));
         it != policies_.end()) {
+      int counter = 0;
       for (const AppraisalPolicy& policy : it->second.policies()) {
         *result.add_policies() = policy;
-        if (++counter == n) return result;
+        if (++counter == n) break;
       }
     }
 
     if (result.policies().size() == 0) {
       return absl::NotFoundError("No policies found");
+    }
+    // Add the blobs to the final result object
+    for (const auto& [digest, blob] : all_stage0_blobs_) {
+      (*result.mutable_stage0_binary_sha256_to_blob())[digest] = blob;
     }
     return result;
   }
@@ -138,30 +220,54 @@ class PolicyFetcherLocal final : public PolicyFetcher {
   // Policies keyed by application digest i.e. container_binary_sha256 filed.
   // The key is the byte representation of the digest.
   const std::unordered_map<std::string, AppraisalPolicies> policies_;
+  const absl::flat_hash_map<std::string, std::string> all_stage0_blobs_;
 };
 
 }  // namespace
 
+// Command-line use, take in flags for appraisal policy and stage0
+// blob directory (optional)
 absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create() {
-  HATS_ASSIGN_OR_RETURN(
-      AppraisalPolicies policies,
-      ReadAppraisalPolicies(absl::GetFlag(FLAGS_appraisal_policy_file)));
-  std::unordered_map<std::string, AppraisalPolicies> indexed_appraisal_policies;
-  HATS_ASSIGN_OR_RETURN(indexed_appraisal_policies,
-                        IndexAppraisalPolicies(std::move(policies)));
-  return std::make_unique<PolicyFetcherLocal>(
-      std::move(indexed_appraisal_policies));
+  const std::string appraisal_policy_file =
+      absl::GetFlag(FLAGS_appraisal_policy_file);
+  const std::string stage0_blob_directory =
+      absl::GetFlag(FLAGS_stage0_blob_directory);
+
+  if (stage0_blob_directory.empty()) {
+    return Create(appraisal_policy_file);
+  } else {
+    return CreateWithBlobs(appraisal_policy_file, stage0_blob_directory);
+  }
 }
 
+// Programmatic use  for appraisal policy only
 absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::Create(
     const std::string& file_path) {
   HATS_ASSIGN_OR_RETURN(AppraisalPolicies policies,
                         ReadAppraisalPolicies(file_path));
   std::unordered_map<std::string, AppraisalPolicies> indexed_appraisal_policies;
   HATS_ASSIGN_OR_RETURN(indexed_appraisal_policies,
-                        IndexAppraisalPolicies(std::move(policies)));
+                        IndexAppraisalPolicies(policies));
   return std::make_unique<PolicyFetcherLocal>(
-      std::move(indexed_appraisal_policies));
+      std::move(indexed_appraisal_policies),
+      absl::flat_hash_map<std::string, std::string>());  // empty map for blobs
+}
+
+// Programmatic use for appraisal policy and blobs
+absl::StatusOr<std::unique_ptr<PolicyFetcher>> PolicyFetcher::CreateWithBlobs(
+    const std::string& file_path,
+    const std::string& stage0_blob_directory_path) {
+  HATS_ASSIGN_OR_RETURN(AppraisalPolicies policies,
+                        ReadAppraisalPolicies(file_path));
+  std::unordered_map<std::string, AppraisalPolicies> indexed_appraisal_policies;
+  HATS_ASSIGN_OR_RETURN(indexed_appraisal_policies,
+                        IndexAppraisalPolicies(policies));
+  // load blobs from the (optional) provided directory path
+  absl::flat_hash_map<std::string, std::string> all_stage0_blobs;
+  HATS_ASSIGN_OR_RETURN(all_stage0_blobs,
+                        LoadStage0Blobs(stage0_blob_directory_path));
+  return std::make_unique<PolicyFetcherLocal>(
+      std::move(indexed_appraisal_policies), std::move(all_stage0_blobs));
 }
 
 }  // namespace pcit::tvs
