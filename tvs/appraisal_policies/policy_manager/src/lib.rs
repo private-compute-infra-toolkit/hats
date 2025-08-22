@@ -16,16 +16,17 @@
 extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
+#[cfg(not(feature = "dynamic_attestation"))]
+use oak_proto_rust::oak::attestation::v1::InsecureReferenceValues;
 #[cfg(feature = "regex")]
 use oak_proto_rust::oak::attestation::v1::Regex;
 use oak_proto_rust::oak::attestation::v1::{
     binary_reference_value, endorsements, kernel_binary_reference_value, reference_values,
     text_reference_value, AmdSevReferenceValues, BinaryReferenceValue,
-    ContainerLayerReferenceValues, Digests, Endorsements, Evidence, InsecureReferenceValues,
-    KernelBinaryReferenceValue, KernelDigests, KernelLayerReferenceValues,
-    OakContainersEndorsements, OakContainersReferenceValues, ReferenceValues,
-    RootLayerEndorsements, RootLayerReferenceValues, SkipVerification, SystemLayerReferenceValues,
-    TextReferenceValue,
+    ContainerLayerReferenceValues, Digests, Endorsements, Evidence, KernelBinaryReferenceValue,
+    KernelDigests, KernelLayerReferenceValues, OakContainersEndorsements,
+    OakContainersReferenceValues, ReferenceValues, RootLayerEndorsements, RootLayerReferenceValues,
+    SkipVerification, SystemLayerReferenceValues, TextReferenceValue,
 };
 use oak_proto_rust::oak::RawDigest;
 use p256::ecdsa::VerifyingKey;
@@ -259,7 +260,7 @@ mod dynamic {
         anyhow::Context,
         measure::{snp_calc_launch_digest_from_bytes, vcpu_types::CpuType},
         oak_sev_snp_attestation_report::AttestationReport,
-        tvs_proto::pcit::tvs::{stage0_measurement::Type, AmdSev, CpuInfo},
+        tvs_proto::pcit::tvs::{stage0_measurement::Type, CpuInfo},
         zerocopy::FromBytes,
     };
 
@@ -336,17 +337,18 @@ mod dynamic {
                         stage0_binary_hash
                     );
                     // stage0 measurement is valid, set up so Oak verifier can match rest of policy with measured evidence
-                    // TODO: b/434016988 directly create reference values from a verified stage0 sha384, without mutable situation
-                    let mut final_policy = policy.clone();
-                    update_policy_with_final_hash(
-                        &mut final_policy,
+                    // Build the dynamic root layer with the verified hash.
+                    let root_layer = build_root_layer_from_dynamic(
+                        &amd_sev_dynamic.min_tcb_version,
                         &attestation_report.data.measurement,
-                    );
-
-                    // turn final_policy AppraisalPolicy object into a ReferenceValues object for Oak Verifier
-                    let final_reference_values = appraisal_policy_to_reference_values(
-                        &final_policy,
-                        policy_manager.accept_insecure_policies,
+                    )?;
+                    // Assemble the complete ReferenceValues
+                    let final_reference_values = assemble_oak_reference_values(
+                        root_layer,
+                        policy
+                            .measurement
+                            .as_ref()
+                            .context("Policy is missing measurement")?,
                     )?;
 
                     // Let Oak verifier match this policy
@@ -380,22 +382,6 @@ mod dynamic {
         Err(anyhow::anyhow!(
             "Failed to verify report. No matching appraisal policy found"
         ))
-    }
-
-    // TODO: b/434016988 The purpose of this method will need to be merged with the ReferenceValues conversion in a later CL.
-    fn update_policy_with_final_hash(final_policy: &mut AppraisalPolicy, actual_hash: &[u8]) {
-        if let Some(measurement) = final_policy.measurement.as_mut() {
-            if let Some(stage0) = measurement.stage0_measurement.as_mut() {
-                if let Some(Type::AmdSevDynamic(amd_sev_dynamic)) = stage0.r#type.as_mut() {
-                    // replace AmdSevDynamic stage0 measurement to be an AmdSev static one
-                    let static_policy = AmdSev {
-                        sha384: hex::encode(actual_hash),
-                        min_tcb_version: amd_sev_dynamic.min_tcb_version,
-                    };
-                    stage0.r#type = Some(Type::AmdSev(static_policy));
-                }
-            }
-        }
     }
 
     /// Checks if a given stage0 binary blob and CPU config can produce the measured hash,
@@ -790,6 +776,7 @@ fn process_and_validate_policies(
         .collect()
 }
 
+#[cfg(not(feature = "dynamic_attestation"))]
 fn appraisal_policy_to_reference_values(
     policy: &AppraisalPolicy,
     accept_insecure_policies: bool,
@@ -810,6 +797,30 @@ fn appraisal_policy_to_reference_values(
     })
 }
 
+#[cfg(feature = "dynamic_attestation")]
+fn assemble_oak_reference_values(
+    root_layer: RootLayerReferenceValues,
+    measurement: &Measurement,
+) -> anyhow::Result<ReferenceValues> {
+    // Build the other layers using existing helpers.
+    let kernel_layer = get_kernel_layer(measurement)?;
+    let system_layer = get_system_layer(measurement)?;
+    let container_layer = get_container_layer(measurement)?;
+
+    // Assemble and return the final ReferenceValues object.
+    Ok(ReferenceValues {
+        r#type: Some(reference_values::Type::OakContainers(
+            OakContainersReferenceValues {
+                root_layer: Some(root_layer),
+                kernel_layer: Some(kernel_layer),
+                system_layer: Some(system_layer),
+                container_layer: Some(container_layer),
+            },
+        )),
+    })
+}
+
+#[cfg(not(feature = "dynamic_attestation"))]
 fn get_root_layer(
     measurement: &Measurement,
     accept_insecure_policies: bool,
@@ -863,11 +874,50 @@ fn get_root_layer(
             })
         }
         Some(stage0_measurement::Type::AmdSevDynamic(_)) => {
-            //TODO: b/434016988 - to be implemented
-            anyhow::bail!("Dynamic appraisal policy is not yet supported")
+            // This path is taken when the dynamic_attestation feature is disabled.
+            // In this case, receiving a dynamic policy is an error.
+            anyhow::bail!("Dynamic appraisal policy is not supported by this build")
         }
         None => Err(anyhow::anyhow!("stage0_measurement field is not set")),
     }
+}
+
+#[cfg(feature = "dynamic_attestation")]
+fn build_root_layer_from_dynamic(
+    min_tcb_version: &Option<oak_proto_rust::oak::attestation::v1::TcbVersion>,
+    calculated_sha384_digest: &[u8],
+) -> anyhow::Result<RootLayerReferenceValues> {
+    if min_tcb_version.is_none() {
+        anyhow::bail!("min_tcb_version is not set in the dynamic policy");
+    }
+
+    #[allow(deprecated)]
+    Ok(RootLayerReferenceValues {
+        amd_sev: Some(AmdSevReferenceValues {
+            allow_debug: false,
+            min_tcb_version: *min_tcb_version,
+            genoa: None,
+            milan: None,
+            turin: None,
+            stage0: Some(BinaryReferenceValue {
+                r#type: Some(binary_reference_value::Type::Digests(Digests {
+                    digests: vec![RawDigest {
+                        sha2_384: calculated_sha384_digest.to_vec(),
+                        psha2: vec![],
+                        sha1: vec![],
+                        sha2_256: vec![],
+                        sha2_512: vec![],
+                        sha3_512: vec![],
+                        sha3_384: vec![],
+                        sha3_256: vec![],
+                        sha3_224: vec![],
+                    }],
+                })),
+            }),
+        }),
+        insecure: None,
+        intel_tdx: None,
+    })
 }
 
 fn get_kernel_layer(measurement: &Measurement) -> anyhow::Result<KernelLayerReferenceValues> {
