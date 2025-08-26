@@ -86,8 +86,6 @@ absl::StatusOr<AppraisalPolicies> CreateDynamicGenoaPolicy() {
   cpu_info.set_model(17);
   cpu_info.set_stepping(1);
 
-  amd_sev_dynamic.add_vcpu_count(4);
-
   measurement.set_kernel_image_sha256(
       "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447");
   measurement.set_kernel_setup_data_sha256(

@@ -55,8 +55,6 @@ message AmdSevDynamic {
   oak.attestation.v1.TcbVersion min_tcb_version = 2;
   // All acceptable CPU types
   repeated CpuInfo cpu_info = 3;
-  // All acceptable vCPU counts
-  repeated uint32 vcpu_count = 4;
 }
 
 message AmdSev {

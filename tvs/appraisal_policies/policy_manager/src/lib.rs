@@ -330,7 +330,6 @@ mod dynamic {
                     stage0_blob,
                     &attestation_report,
                     &measured_vcpu_type,
-                    &amd_sev_dynamic.vcpu_count,
                 )? {
                     log::debug!(
                         "Stage0 measurement is VALID for stage0 hash '{}'. Proceeding to full verification.",
@@ -385,17 +384,16 @@ mod dynamic {
     }
 
     /// Checks if a given stage0 binary blob and CPU config can produce the measured hash,
-    /// using one of the allowed vCPU counts.
+    /// using any vCPU count, as we accept any vCPU count from 1-256.
     pub fn stage0_measurement_is_valid(
         stage0_blob: &[u8],
         attestation_report: &AttestationReport,
         measured_cpu_type: &CpuType,
-        allowed_vcpu_counts: &[u32],
     ) -> anyhow::Result<bool> {
         let actual_hash = attestation_report.data.measurement.as_slice(); // extract stage0 hash
 
-        // Loop only through the vCPU counts specified in the policy.
-        for &vcpu_count in allowed_vcpu_counts {
+        // Loop through all vCPU counts
+        for vcpu_count in 1..=256 {
             // Re-calculate the full launch digest using snp utility function.
             // Note: kernel_path, initrd_path, and append are `None` because the launch
             // digest measurement in the attestation report is calculated before these
@@ -417,7 +415,7 @@ mod dynamic {
                 return Ok(true);
             }
         }
-        log::debug!("No vCPU count in policy produced a matching stage0 measurement.");
+        log::debug!("No vCPU count produced a matching stage0 measurement.");
         Ok(false)
     }
 
@@ -1348,7 +1346,6 @@ mod tests {
                                     ..Default::default()
                                 }),
                                 cpu_info: vec![CpuInfo { family: 25, model: 1, stepping: 1 }],
-                                vcpu_count: vec![4],
                             })),
                         }),
                         kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
@@ -1444,7 +1441,6 @@ mod tests {
                                     ..Default::default()
                                 }),
                                 cpu_info: vec![CpuInfo { family: 25, model: 17, stepping: 1 }],
-                                vcpu_count: vec![4],
                             })),
                         }),
                         kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
@@ -1535,7 +1531,6 @@ mod tests {
                 fs::read(stage0_path).expect("Failed to read stage0_bin from runfiles");
 
             let measured_cpu_type = CpuType::from_cpuid(25, 1, 1).unwrap(); // Milan
-            let allowed_vcpu_counts = vec![1, 2, 4, 8];
 
             let expected_digest = snp_calc_launch_digest_from_bytes(
                 4,
@@ -1556,7 +1551,6 @@ mod tests {
                 &stage0_blob,
                 &mock_report,
                 &measured_cpu_type,
-                &allowed_vcpu_counts,
             );
 
             assert!(result.is_ok());
@@ -1573,11 +1567,10 @@ mod tests {
                 fs::read(stage0_path).expect("Failed to read stage0_bin from runfiles");
 
             let measured_cpu_type = CpuType::from_cpuid(25, 1, 1).unwrap();
-            let allowed_vcpu_counts = vec![1, 2, 4, 8];
 
-            // vCPU count of 5 is not within the appraisal policy
+            // vCPU count of 0 is not allowed
             let non_matching_digest = snp_calc_launch_digest_from_bytes(
-                5,
+                0,
                 measured_cpu_type.clone(),
                 &stage0_blob,
                 None,
@@ -1597,7 +1590,6 @@ mod tests {
                 &stage0_blob,
                 &mock_report,
                 &measured_cpu_type,
-                &allowed_vcpu_counts,
             );
 
             assert!(result.is_ok());

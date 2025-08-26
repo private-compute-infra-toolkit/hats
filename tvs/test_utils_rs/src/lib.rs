@@ -46,7 +46,6 @@ pub fn create_dynamic_genoa_policy() -> Vec<u8> {
                             ..Default::default()
                         }),
                         cpu_info: vec![CpuInfo { family: 25, model: 17, stepping: 1 }],
-                        vcpu_count: vec![4],
                     })),
                 }),
                 kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
@@ -89,7 +88,6 @@ pub fn create_dynamic_genoa_policy_multiple_containers() -> Vec<u8> {
                             ..Default::default()
                         }),
                         cpu_info: vec![CpuInfo { family: 25, model: 17, stepping: 1 }],
-                        vcpu_count: vec![4],
                     })),
                 }),
                 kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447".to_string(),
