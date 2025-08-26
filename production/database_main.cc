@@ -571,6 +571,120 @@ absl::Status InsertAppraisalPolicy(absl::string_view spanner_database,
   return absl::OkStatus();
 }
 
+absl::Status InsertDynamicAppraisalPolicy(
+    absl::string_view spanner_database,
+    absl::string_view appraisal_policy_path) {
+  HATS_ASSIGN_OR_RETURN(google::cloud::spanner::Database database,
+                        CreateSpannerDatabase(spanner_database));
+  HATS_ASSIGN_OR_RETURN(pcit::tvs::AppraisalPolicies appraisal_policies,
+                        ReadAppraisalPolicies(appraisal_policy_path));
+  // Spanner client.
+  google::cloud::spanner::Client spanner_client(
+      google::cloud::spanner::MakeConnection(database));
+
+  auto commit = spanner_client.Commit(
+      [&spanner_client, &appraisal_policies = appraisal_policies](
+          google::cloud::spanner::Transaction transaction)
+          -> google::cloud::StatusOr<google::cloud::spanner::Mutations> {
+        google::cloud::spanner::Mutations mutations;
+
+        for (const pcit::tvs::AppraisalPolicy& appraisal_policy :
+             appraisal_policies.policies()) {
+          if (!appraisal_policy.measurement()
+                   .stage0_measurement()
+                   .has_amd_sev_dynamic()) {
+            // only for dynamic policies, spik all else
+            continue;
+          }
+
+          if (appraisal_policy.measurement().container_binary_sha256_size() ==
+              0) {
+            return google::cloud::v2_36::Status(
+                google::cloud::StatusCode::kInvalidArgument,
+                "No application digests found in the appraisal policy.");
+          }
+
+          // Get next sequence value, which is the PolicyID
+          google::cloud::spanner::RowStream get_sequence_value_stream =
+              spanner_client.ExecuteQuery(
+                  transaction, google::cloud::spanner::SqlStatement(
+                                   "SELECT GET_NEXT_SEQUENCE_VALUE(SEQUENCE "
+                                   "PolicyIdSequence)"));
+          // Iterate through RowStream to get first row
+          auto it = get_sequence_value_stream.begin();
+          if (it == get_sequence_value_stream.end()) {
+            return google::cloud::StatusOr<google::cloud::spanner::Mutations>(
+                google::cloud::v2_36::Status(
+                    google::cloud::StatusCode::kInternal,
+                    "Failed to get next sequence value for PolicyId (no row "
+                    "returned)."));
+          }
+          HATS_ASSIGN_OR_RETURN(google::cloud::spanner::Row row, *it);
+          // Save the first row = PolicyID
+          std::int64_t generated_policy_id;
+          HATS_ASSIGN_OR_RETURN(generated_policy_id, row.get<std::int64_t>(0));
+
+          mutations.push_back(google::cloud::spanner::MakeInsertMutation(
+              "AppraisalPoliciesDynamic",
+              {"PolicyId", "UpdateTimestamp", "Policy"},
+              google::cloud::spanner::Value(generated_policy_id),
+              google::cloud::spanner::Value(
+                  google::cloud::spanner::CommitTimestamp()),
+              google::cloud::spanner::Value(google::cloud::spanner::Bytes(
+                  appraisal_policy.SerializeAsString()))));
+
+          // Link the policy to the stage0 blobs it allows
+          const pcit::tvs::AmdSevDynamic& amd_sev_dynamic =
+              appraisal_policy.measurement()
+                  .stage0_measurement()
+                  .amd_sev_dynamic();
+
+          for (const std::string& blob_hash_hex :
+               amd_sev_dynamic.stage0_ovmf_binary_hash()) {
+            std::string blob_hash_bytes;
+            if (!absl::HexStringToBytes(blob_hash_hex, &blob_hash_bytes)) {
+              return google::cloud::v2_36::Status(
+                  google::cloud::StatusCode::kInvalidArgument,
+                  "Failed to parse stage0_ovmf_binary_hash hex string.");
+            }
+
+            mutations.push_back(google::cloud::spanner::MakeInsertMutation(
+                "Stage0BlobToPolicy",
+                {"Sha256Digest", "PolicyId", "UpdateTimestamp"},
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(blob_hash_bytes)),
+                google::cloud::spanner::Value(generated_policy_id),
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::CommitTimestamp())));
+          }
+
+          // Insert container binaries into ApplicationDigestsDynamic for this
+          // appraisal policy
+          for (const std::string& application_digest_hex :
+               appraisal_policy.measurement().container_binary_sha256()) {
+            std::string application_digest_bytes;
+            if (!absl::HexStringToBytes(application_digest_hex,
+                                        &application_digest_bytes)) {
+              return google::cloud::v2_36::Status(
+                  google::cloud::StatusCode::kInvalidArgument,
+                  "Failed to parse application digest. The digest should be in "
+                  "formatted as hex string.");
+            }
+
+            mutations.push_back(google::cloud::spanner::MakeInsertMutation(
+                "ApplicationDigestsDynamic", {"PolicyId", "ApplicationDigest"},
+                google::cloud::spanner::Value(generated_policy_id),
+                google::cloud::spanner::Value(
+                    google::cloud::spanner::Bytes(application_digest_bytes))));
+          }
+        }
+        return mutations;  // Return all mutations together
+      });
+  HATS_RETURN_IF_ERROR(commit.status());
+
+  return absl::OkStatus();
+}
+
 // Helper class to generate HPKE key pairs.
 class HPKEKey {
  public:
@@ -965,6 +1079,12 @@ int main(int argc, char* argv[]) {
         InsertAppraisalPolicy(absl::GetFlag(FLAGS_spanner_database),
                               absl::GetFlag(FLAGS_appraisal_policy_path)))
         .PrependWith("Failed to insert an appraisal policy: ")
+        .LogErrorAndExit();
+  } else if (operation == "insert_dynamic_policy") {
+    HATS_RETURN_IF_ERROR(InsertDynamicAppraisalPolicy(
+                             absl::GetFlag(FLAGS_spanner_database),
+                             absl::GetFlag(FLAGS_appraisal_policy_path)))
+        .PrependWith("Failed to insert a dynamic appraisal policy: ")
         .LogErrorAndExit();
   } else if (operation == "register_or_update_user") {
     HATS_RETURN_IF_ERROR(

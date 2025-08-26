@@ -1,0 +1,608 @@
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 1, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 10
+          snp: 25
+          microcode: 84
+        }
+        cpu_info {
+          family: 25
+          model: 17
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "a2b717448a93e9a9eef48de1769876fba4fc6ea0cf5fed14424d88604b15515d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "a7d0f61152fd4c5e2733e8e3657da4c4224fceef253153905ace83ee68ef42895fa7aa78c595503959c604ca70a0ea41676b1cd53f9baeec3fbc52de7c5a8ce5"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 2, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 10
+          snp: 25
+          microcode: 84
+        }
+        cpu_info {
+          family: 25
+          model: 17
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "4c14293d26dbcd30717a77ffc595103b52ad83d9e985b5fec4dad8c4353822b5"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "0b2dcfd4c7983834734b52d1793e956fa33817f95176bd2827c1f4e45ca8ed0fe1ac3d9f055c57e29797c1f85a45f6071606565c41fc6ad56a6e06e50987ae1c"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 3, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 10
+          snp: 25
+          microcode: 84
+        }
+        cpu_info {
+          family: 25
+          model: 17
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "0d68af22ededb85dac5f292df67cf1fb902b04657f34e7f3fef12307129aeaa4"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "95f7a18d822e2243767f00aee5dcd7ae668eabe6fc00fc484c4b437c76b6da6bc7911f4d2596095ddd2892e94943e89899da76079ebb21d24ae46c1fc1d4896d"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 10
+          snp: 25
+          microcode: 84
+        }
+        cpu_info {
+          family: 25
+          model: 17
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "86208c07708fccc78d25c960a09e0ebedfb587b653c89178b98f50bf0149e2b91e09420b1579bb29028d580ea7d6a65f545028e56afb33b1776901343876893e"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 1, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 10
+          snp: 25
+          microcode: 84
+        }
+        cpu_info {
+          family: 25
+          model: 17
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "23b1d609b7fb55c1f10764567359f1e2e4c773e27371324ef9bab521f2467429"
+    acpi_table_sha256: "f1e532831a593a87ff86f34694780515951da3ca91a56145fbace8660deaa62e"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "390729834ba26cd0297fba4683c7ae56d24e77e1355907e377edc1414fe1fbf05dabd2093d804440635531a4cad4eb36a0586cf8ac4cfd3c478e709fdcc6fb5c"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 2, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 10
+          snp: 25
+          microcode: 84
+        }
+        cpu_info {
+          family: 25
+          model: 17
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "23b1d609b7fb55c1f10764567359f1e2e4c773e27371324ef9bab521f2467429"
+    acpi_table_sha256: "faa40e4863702396dc878a2371b526748e9990da549f444e597c4f7714ab116c"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "9b42bf0961f83b2a0cc8d597502952853731c1c7a16c8cbfb659b826e66dfc35bab5fcb0e9a2de4d029ec30e773819a6f50b7d831bf94ba6b1f4652a0ab3a052"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 3, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 10
+          snp: 25
+          microcode: 62
+        }
+        cpu_info {
+          family: 25
+          model: 17
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "23b1d609b7fb55c1f10764567359f1e2e4c773e27371324ef9bab521f2467429"
+    acpi_table_sha256: "5bb8bdb9921cd39f84c437e25e3b7889d2c0a1fc0426dbf2e6fbdf444f0378de"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "3b68314cbee4e510bb678e7c1e392208c6df2ea71c075a2b3d5bad3468a6f49cd199fad2686c051460ab2030b0712deb6aecb9382ee6ccdfd4ef676bc5f8f79f"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Genoa, Family: 25, Model: 17, Stepping: 1) CVM. Cores: 4, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 10
+          snp: 25
+          microcode: 84
+        }
+        cpu_info {
+          family: 25
+          model: 17
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "23b1d609b7fb55c1f10764567359f1e2e4c773e27371324ef9bab521f2467429"
+    acpi_table_sha256: "ceec1aa78f898b088c655156f1b97fc5804775442f040e550a4cc794f66eedee"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "5fedcc60eddd42db13c4820d6ef9a456662f7c96ec5b9bb7de61ac78c17a3cc18cef97c203d343d44a283ae2c8f5868fc12027a082345903e7f947c26d6e3924"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 1, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "a2b717448a93e9a9eef48de1769876fba4fc6ea0cf5fed14424d88604b15515d"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "a7d0f61152fd4c5e2733e8e3657da4c4224fceef253153905ace83ee68ef42895fa7aa78c595503959c604ca70a0ea41676b1cd53f9baeec3fbc52de7c5a8ce5"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1). Cores: 2, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "4c14293d26dbcd30717a77ffc595103b52ad83d9e985b5fec4dad8c4353822b5"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "0b2dcfd4c7983834734b52d1793e956fa33817f95176bd2827c1f4e45ca8ed0fe1ac3d9f055c57e29797c1f85a45f6071606565c41fc6ad56a6e06e50987ae1c"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP  (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 3, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "0d68af22ededb85dac5f292df67cf1fb902b04657f34e7f3fef12307129aeaa4"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "95f7a18d822e2243767f00aee5dcd7ae668eabe6fc00fc484c4b437c76b6da6bc7911f4d2596095ddd2892e94943e89899da76079ebb21d24ae46c1fc1d4896d"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "86208c07708fccc78d25c960a09e0ebedfb587b653c89178b98f50bf0149e2b91e09420b1579bb29028d580ea7d6a65f545028e56afb33b1776901343876893e"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 1, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "23b1d609b7fb55c1f10764567359f1e2e4c773e27371324ef9bab521f2467429"
+    acpi_table_sha256: "f1e532831a593a87ff86f34694780515951da3ca91a56145fbace8660deaa62e"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "390729834ba26cd0297fba4683c7ae56d24e77e1355907e377edc1414fe1fbf05dabd2093d804440635531a4cad4eb36a0586cf8ac4cfd3c478e709fdcc6fb5c"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1)  CVM. Cores: 2, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "23b1d609b7fb55c1f10764567359f1e2e4c773e27371324ef9bab521f2467429"
+    acpi_table_sha256: "faa40e4863702396dc878a2371b526748e9990da549f444e597c4f7714ab116c"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "9b42bf0961f83b2a0cc8d597502952853731c1c7a16c8cbfb659b826e66dfc35bab5fcb0e9a2de4d029ec30e773819a6f50b7d831bf94ba6b1f4652a0ab3a052"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 3, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "23b1d609b7fb55c1f10764567359f1e2e4c773e27371324ef9bab521f2467429"
+    acpi_table_sha256: "5bb8bdb9921cd39f84c437e25e3b7889d2c0a1fc0426dbf2e6fbdf444f0378de"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "3b68314cbee4e510bb678e7c1e392208c6df2ea71c075a2b3d5bad3468a6f49cd199fad2686c051460ab2030b0712deb6aecb9382ee6ccdfd4ef676bc5f8f79f"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 4000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "23b1d609b7fb55c1f10764567359f1e2e4c773e27371324ef9bab521f2467429"
+    acpi_table_sha256: "ceec1aa78f898b088c655156f1b97fc5804775442f040e550a4cc794f66eedee"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "6bec5de8b861310fdabcede296a9e2a956f09556d511e327c915e393c57ebad7"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "5fedcc60eddd42db13c4820d6ef9a456662f7c96ec5b9bb7de61ac78c17a3cc18cef97c203d343d44a283ae2c8f5868fc12027a082345903e7f947c26d6e3924"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in xor 2 split mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "a78826c6bcf3395753e1f57fc0bc5c9ef39fefc04fb57cd734afea2e7705bbdb"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "f0679caa1dc5d4d361a5ed458e781466c0f531c09732f9793854bcee6596149860c4ec8dc45b9e113f38becc2de9737c1024cd6f533a09cd059b860634b55942"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in Shamir 3 to 2 split mode running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "d69c0399c9bdd6b829d80ea657dd925a2847dc8c1666968e00e9338ee956308d"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "007ee2be025a7fb1e6b89052f6ef9c3dfa9e604323cfa693cb7e0fb58722e632be4ca771ed6242ad60bc3bd84b58fdf1ef122a318b50cffaf0b744533f545393"
+    signer: "hats"
+  }
+}
+policies {
+  description: "Dynamic Policy for Trusted Application in single TVS mode with 1 second heart-beat frequency running in an AMD SEV-SNP (Milan, Family: 25, Model: 1, Stepping: 1) CVM. Cores: 4, RAM: 8000000 KB"
+  measurement {
+    stage0_measurement {
+      amd_sev_dynamic {
+        stage0_ovmf_binary_hash: "9b795df6f5e575d78d751377ab06dca91d6e72864b0c8badeab12bc7d2aeb4f9"
+        min_tcb_version {
+          boot_loader: 4
+          snp: 22
+          microcode: 213
+        }
+        cpu_info {
+          family: 25
+          model: 1
+          stepping: 1
+        }
+      }
+    }
+    kernel_image_sha256: "f9d0584247b46cc234a862aa8cd08765b38405022253a78b9af189c4cedbe447"
+    kernel_setup_data_sha256: "75f091da89ce81e9decb378c3b72a948aed5892612256b3a6e8305ed034ec39a"
+    init_ram_fs_sha256: "b2b5eda097c2e15988fd3837145432e3792124dbe0586edd961efda497274391"
+    memory_map_sha256: "11103720aab9f4eff4b68b7573b6968e3947e5d7552ace7cebacdbdb448b68fe"
+    acpi_table_sha256: "194afdde1699c335fdd4ed99fd36d9500230fbda0ab14f6d95fc35d219ddf32e"
+    kernel_cmd_line_regex: "^ console=ttyS0 panic=-1 brd.rd_nr=1 brd.rd_size=10485760 brd.max_part=1 ip=10.0.2.15:::255.255.255.0::enp0s1:off quiet -- --launcher-addr=vsock://2:.*$"
+    system_image_sha256: "d9fb9c8c8c10870739ae8ebc396b5c9044c194d6c7be75637d27633ab0bcc25e"
+    container_binary_sha256: "b0803886a6e096bf1c9eacaa77dd1514134d2e88a7734af9ba2dbf650884f899"
+  }
+  signature {
+    signature: "8c10c6739ed282223eb12de1171eaa74ac38536c18bcf1d864a66597ed87bf81fc13e680abde3a7b8b93bcb44c6185d1f40e0d1386f273550139fb1bff0b8355"
+    signer: "hats"
+  }
+}
