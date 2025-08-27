@@ -303,12 +303,14 @@ mod dynamic {
                 .and_then(|m| m.stage0_measurement.as_ref())
                 .and_then(|s0| s0.r#type.as_ref())
             else {
+                #[cfg(feature = "regex")]
                 log::debug!("Skipping policy: not an AmdSevDynamic type.");
                 continue;
             };
 
             // check if CPU info is allowed by policy
             if !is_cpu_type_allowed(measured_cpu, &amd_sev_dynamic.cpu_info) {
+                #[cfg(feature = "regex")]
                 log::debug!(
                     "Measured CPU type (family: {}, model: {}, stepping: {}) is not in the policy's allowlist. Skipping policy.",
                     measured_cpu.0, measured_cpu.1, measured_cpu.2
@@ -319,6 +321,7 @@ mod dynamic {
             for stage0_binary_hash in &amd_sev_dynamic.stage0_ovmf_binary_hash {
                 let Some(stage0_blob) = policy_manager.stage0_binary_store.get(stage0_binary_hash)
                 else {
+                    #[cfg(feature = "regex")]
                     log::debug!(
                         "Stage0 binary content not found for hash: {}. Skipping.",
                         stage0_binary_hash
@@ -331,6 +334,7 @@ mod dynamic {
                     &attestation_report,
                     &measured_vcpu_type,
                 )? {
+                    #[cfg(feature = "regex")]
                     log::debug!(
                         "Stage0 measurement is VALID for stage0 hash '{}'. Proceeding to full verification.",
                         stage0_binary_hash
@@ -351,6 +355,8 @@ mod dynamic {
                     )?;
 
                     // Let Oak verifier match this policy
+
+                    #[cfg(feature = "regex")]
                     if oak_attestation_verification_with_regex::verifier::verify(
                         time_milis,
                         evidence,
@@ -361,7 +367,20 @@ mod dynamic {
                     {
                         return Ok(()); // Found matching policy
                     }
+
+                    #[cfg(not(feature = "regex"))]
+                    if oak_attestation_verification::verifier::verify(
+                        time_milis,
+                        evidence,
+                        &endorsement,
+                        &final_reference_values,
+                    )
+                    .is_ok()
+                    {
+                        return Ok(()); // Found matching policy
+                    }
                 } else {
+                    #[cfg(feature = "regex")]
                     log::debug!(
                         "Stage0 measurement is INVALID for stage0 hash '{}'. Skipping.",
                         stage0_binary_hash
@@ -370,6 +389,7 @@ mod dynamic {
             }
         }
 
+        #[cfg(feature = "regex")]
         if log::log_enabled!(log::Level::Debug) {
             if let Err(err) = debug::suggest_appraisal_policy(evidence) {
                 log::debug!(
@@ -408,6 +428,7 @@ mod dynamic {
             )?;
             // Compare measured digest and calculated digest
             if calculated_digest.0.as_slice() == actual_hash {
+                #[cfg(feature = "regex")]
                 log::debug!(
                     "Found a valid stage0 measurement match for vCPU count {}",
                     vcpu_count
@@ -415,6 +436,7 @@ mod dynamic {
                 return Ok(true);
             }
         }
+        #[cfg(feature = "regex")]
         log::debug!("No vCPU count produced a matching stage0 measurement.");
         Ok(false)
     }
@@ -664,6 +686,7 @@ impl EvidenceValidator for PolicyManager {
     /// sign the root attestation report. The certificate is used to validate
     /// the root layer signature. The certificate is validated against a cert
     /// chain issued by the vendor.
+    #[cfg(not(feature = "dynamic_attestation"))]
     fn check_evidence(
         &self,
         time_milis: i64,
@@ -685,6 +708,17 @@ impl EvidenceValidator for PolicyManager {
         Err(anyhow::anyhow!(
             "Failed to verify report. No matching appraisal policy found"
         ))
+    }
+
+    // Dynamic Attestation implementation
+    #[cfg(feature = "dynamic_attestation")]
+    fn check_evidence(
+        &self,
+        time_milis: i64,
+        evidence: &Evidence,
+        tee_certificate: &[u8],
+    ) -> anyhow::Result<()> {
+        dynamic::check_evidence(self, time_milis, evidence, tee_certificate)
     }
 }
 

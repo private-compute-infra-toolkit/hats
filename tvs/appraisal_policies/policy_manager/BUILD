@@ -41,12 +41,8 @@ rust_library(
         # Dependencies ONLY for dynamic attestation.
         "//:dynamic_attestation_enabled": [
             "@oak//oak_sev_snp_attestation_report",
-            "@oak_crates_index//:hashbrown",
             "@oak_crates_index//:zerocopy",
-            "@sev-snp-utils//:common",
-            "@sev-snp-utils//:error",
             "@sev-snp-utils//:measure",
-            "@sev-snp-utils//:vcpu_types",
         ],
         "//conditions:default": [],
     }),
@@ -68,15 +64,11 @@ rust_test(
         "//:dynamic_attestation_enabled": [
             "@oak//oak_sev_snp_attestation_report",
             "@oak_crates_index//:env_logger",
-            "@oak_crates_index//:hashbrown",
             "@oak_crates_index//:hex",
             "@oak_crates_index//:sha2",
             "@oak_crates_index//:zerocopy",
             "@rules_rust//tools/runfiles",
-            "@sev-snp-utils//:common",
-            "@sev-snp-utils//:error",
             "@sev-snp-utils//:measure",
-            "@sev-snp-utils//:vcpu_types",
         ],
         "//conditions:default": [],
     }),
@@ -85,6 +77,10 @@ rust_test(
 rust_library(
     name = "policy-manager-no-std",
     srcs = glob(["src/**"]),
+    crate_features = select({
+        "//:dynamic_attestation_enabled": ["dynamic_attestation"],
+        "//conditions:default": [],
+    }),
     crate_name = "policy_manager",
     deps = [
         "//tvs/appraisal_policies/policy_signature:policy-signature",
@@ -96,5 +92,13 @@ rust_library(
         "@oak_crates_index//:hex",
         "@oak_crates_index//:p256",
         "@oak_crates_index//:prost",
-    ],
+    ] + select({
+        # Dependencies ONLY for dynamic attestation.
+        "//:dynamic_attestation_enabled": [
+            "@oak//oak_sev_snp_attestation_report",
+            "@oak_crates_index//:zerocopy",
+            "@sev-snp-utils//:measure",
+        ],
+        "//conditions:default": [],
+    }),
 )
