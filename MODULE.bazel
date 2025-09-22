@@ -18,6 +18,16 @@
 #
 # For more details, please check https://github.com/bazelbuild/bazel/issues/18958
 ###############################################################################
+
+"""
+Bazel module.
+"""
+
+module(
+    name = "hats",
+    version = "0.1.0",
+)
+
 bazel_dep(name = "rules_pkg", version = "1.0.1")
 bazel_dep(name = "rules_rust", version = "0.62.0")
 bazel_dep(name = "protobuf", version = "31.1", repo_name = "com_google_protobuf")
