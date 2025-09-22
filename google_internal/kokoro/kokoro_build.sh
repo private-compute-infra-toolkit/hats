@@ -118,11 +118,11 @@ HATS_BAZEL_FLAGS="--config=ci" ./client/scripts/update-hashes.sh
 # Compare sorted, to see if changed
 # Still continue on new hashes, to see if policies also need updating.
 if [[ "${OLD_RUNTIME_HASH}" != "$(sort "${RUNTIME_HASH_FILE}")" ]]; then
-  echo "Error: Runtime hash changed. Use ./client/scripts/update_hashes.sh"
+  echo "Error: Runtime hash changed. Use ./client/scripts/update-hashes.sh"
   FAILURE=1
 fi
 if [[ "${OLD_IMAGE_HASHES}" != "$(sort "${SYSTEM_IMAGE_HASH_FILE}")" ]]; then
-  echo "Error: System image hashes changed. Use ./client/scripts/update_hashes.sh"
+  echo "Error: System image hashes changed. Use ./client/scripts/update-hashes.sh"
   FAILURE=1
 fi
 # Check policies
@@ -130,7 +130,7 @@ HATS_BAZEL_FLAGS="--config=ci" ./client/scripts/check-hashes.sh || FAILURE=1
 
 if [[ "${FAILURE}" -eq 1 ]]; then
   echo "Error: some hashes need updating. "\
-       "Use ./client/scripts/update_hashes.sh followed by ./client/scripts/check_hashes.sh"
+       "Use ./client/scripts/update-hashes.sh followed by ./client/scripts/check-hashes.sh"
   exit 1
 fi
 
