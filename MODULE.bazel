@@ -77,11 +77,6 @@ git_override(
 bazel_dep(name = "libarchive", version = "3.7.4.bcr.3")
 bazel_dep(name = "curl", version = "8.8.0.bcr.1")
 bazel_dep(name = "cpp-httplib", version = "0.12.3")
-bazel_dep(name = "cxx.rs", repo_name = "cxx.rs")
-local_path_override(
-    module_name = "cxx.rs",
-    path = "third_party/cxx.rs",
-)
 
 # Set repo_name to com_github_opentelemetry_proto to match the repo_name used by opentelemetry-cpp
 bazel_dep(name = "opentelemetry-proto", version = "1.5.0", repo_name = "com_github_opentelemetry_proto")
@@ -281,3 +276,9 @@ sev_snp_utils_crate.spec(
 )
 sev_snp_utils_crate.from_specs(name = "sev_snp_utils_crate_index")
 use_repo(sev_snp_utils_crate, "sev_snp_utils_crate_index")
+
+# cxx.rs:
+crate_repositories = use_extension("//third_party/cxx.rs/tools/bazel:extension.bzl", "crate_repositories")
+use_repo(crate_repositories, "crates.io")
+
+bazel_dep(name = "bazel_skylib", version = "1.7.1")

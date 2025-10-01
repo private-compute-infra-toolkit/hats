@@ -179,13 +179,7 @@ http_file(
     url = "https://raw.githubusercontent.com/torvalds/linux/3ec3f5fc4a91e389ea56b111a73d97ffc94f19c6/include/uapi/linux/psp-sev.h",
 )
 
-local_repository(
-    name = "cxx.rs",
-    path = "third_party/cxx.rs",
-)
-
 # sev-snp-utils repository and crates repository.
-
 local_repository(
     name = "sev-snp-utils",
     path = "third_party/sev-snp-utils",

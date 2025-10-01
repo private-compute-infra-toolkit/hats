@@ -93,7 +93,7 @@ pub mod ffi {
     }
 
     unsafe extern "C++" {
-        include!("tests/ffi/tests.h");
+        include!("third_party/cxx.rs/tests/ffi/tests.h");
 
         type C;
 
@@ -222,7 +222,7 @@ pub mod ffi {
     }
 
     extern "C++" {
-        include!("tests/ffi/module.rs.h");
+        include!("third_party/cxx.rs/tests/ffi/module.rs.h");
 
         type COwnedEnum;
         type Job = crate::module::ffi::Job;

@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//third_party/cxx.rs/tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -29,11 +29,11 @@ cc_library(
         ":key-fetcher-wrapper-bridge/include",
         "//key_manager:key-fetcher-interface",
         "//key_manager:test-key-fetcher",
+        "//third_party/cxx.rs:cxx",
         "//tvs/proto:tvs_messages_cc_proto",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@cxx.rs//:cxx",
     ],
 )
 
@@ -48,8 +48,8 @@ rust_library(
     deps = [
         ":key-fetcher-wrapper",
         ":key-fetcher-wrapper-bridge",
+        "//third_party/cxx.rs:cxx",
         "//tvs/trusted_tvs/types:trusted-tvs-types",
-        "@cxx.rs//:cxx",
         "@oak_crates_index//:anyhow",
     ],
 )

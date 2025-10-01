@@ -979,7 +979,7 @@ fn write_rust_function_shim_decl(
                 write!(out, "absl::StatusOr<");
                 write_return_type(out, &sig.ret);
                 write!(out, ">")
-            },
+            }
             // Do not write return type if it's void
             None => write!(out, "absl::Status "),
         }
@@ -1135,7 +1135,10 @@ fn write_rust_function_shim_impl(
     if sig.throws {
         out.builtin.rust_error = true;
         writeln!(out, "  if (error$.ptr) {{");
-        writeln!(out, "     return absl::UnknownError(static_cast<const char*>(error$.ptr));");
+        writeln!(
+            out,
+            "     return absl::UnknownError(static_cast<const char*>(error$.ptr));"
+        );
         writeln!(out, "  }}");
         if sig.ret.is_none() {
             writeln!(out, "return absl::OkStatus();");

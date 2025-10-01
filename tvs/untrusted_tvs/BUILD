@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//third_party/cxx.rs/tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 rust_library(
     name = "launcher",
     srcs = ["launcher.rs"],
     deps = [
+        "//third_party/cxx.rs:cxx",
         "//tvs/trusted_tvs/proto:tvs_enclave",
-        "@cxx.rs//:cxx",
         "@oak//micro_rpc",
         "@oak//oak_launcher_utils",
         "@oak_crates_index//:anyhow",

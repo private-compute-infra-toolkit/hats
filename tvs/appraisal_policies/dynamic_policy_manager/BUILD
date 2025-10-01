@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//third_party/cxx.rs/tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 cc_library(
     name = "policy-fetcher-wrapper",
@@ -23,10 +23,10 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":policy-fetcher-wrapper-bridge/include",
+        "//third_party/cxx.rs:cxx",
         "//tvs/appraisal_policies:policy-fetcher-interface",
         "//tvs/proto:appraisal_policies_cc_proto",
         "@com_google_absl//absl/status:statusor",
-        "@cxx.rs//:cxx",
     ],
 )
 
@@ -39,9 +39,9 @@ rust_library(
     deps = [
         ":policy-fetcher-wrapper",
         ":policy-fetcher-wrapper-bridge",
+        "//third_party/cxx.rs:cxx",
         "//tvs/appraisal_policies/policy_manager:policy-manager",
         "//tvs/trusted_tvs/types:trusted-tvs-types",
-        "@cxx.rs//:cxx",
         "@oak//oak_attestation_verification",
         "@oak//oak_proto_rust",
         "@oak_crates_index//:anyhow",

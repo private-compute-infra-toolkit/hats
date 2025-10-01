@@ -1,6 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
-load("//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
+load("//third_party/cxx.rs/tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 rust_binary(
     name = "demo",
@@ -9,7 +9,7 @@ rust_binary(
     deps = [
         ":blobstore-sys",
         ":bridge",
-        "//:cxx",
+        "//third_party/cxx.rs:cxx",
     ],
 )
 
@@ -33,7 +33,7 @@ cc_library(
     name = "blobstore-include",
     hdrs = ["include/blobstore.h"],
     deps = [
-        "//:core",
+        "//third_party/cxx.rs:core",
         "@com_google_absl//absl/status:statusor",
     ],
 )

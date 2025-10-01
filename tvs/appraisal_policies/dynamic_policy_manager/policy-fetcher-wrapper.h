@@ -17,7 +17,7 @@
 
 #include <memory>
 
-#include "include/cxx.h"
+#include "third_party/cxx.rs/include/cxx.h"
 #include "tvs/appraisal_policies/policy-fetcher.h"
 
 namespace pcit::tvs::trusted {

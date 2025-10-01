@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("//third_party/cxx.rs/tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -28,7 +28,7 @@ rust_library(
     }),
     deps = [
         "//tvs/proto_rust:tvs-proto",
-        "@cxx.rs//:cxx",
+        "//third_party/cxx.rs:cxx",
         "@hats_crate_index//:p256",
         # Use the same version oak uses protos generated from a different
         # prost version are not compatible. Here we are referring to the

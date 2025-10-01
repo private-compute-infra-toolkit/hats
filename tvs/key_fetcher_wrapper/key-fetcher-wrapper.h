@@ -17,8 +17,8 @@
 
 #include <memory>
 
-#include "include/cxx.h"
 #include "key_manager/key-fetcher.h"
+#include "third_party/cxx.rs/include/cxx.h"
 
 namespace pcit::tvs::trusted {
 

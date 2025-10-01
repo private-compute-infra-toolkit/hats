@@ -1,5 +1,5 @@
-#include "demo/include/blobstore.h"
-#include "demo/src/main.rs.h"
+#include "third_party/cxx.rs/demo/include/blobstore.h"
+#include "third_party/cxx.rs/demo/src/main.rs.h"
 #include <algorithm>
 #include <functional>
 #include <set>

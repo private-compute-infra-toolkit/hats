@@ -5,7 +5,7 @@ pub mod ffi {
     }
 
     unsafe extern "C++" {
-        include!("tests/ffi/tests.h");
+        include!("third_party/cxx.rs/tests/ffi/tests.h");
 
         type C = crate::ffi::C;
 
@@ -18,7 +18,7 @@ pub mod ffi {
 #[cxx::bridge(namespace = "tests")]
 pub mod ffi2 {
     unsafe extern "C++" {
-        include!("tests/ffi/tests.h");
+        include!("third_party/cxx.rs/tests/ffi/tests.h");
 
         type D = crate::other::D;
         type E = crate::other::E;

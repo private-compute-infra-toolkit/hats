@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@cxx.rs//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("//third_party/cxx.rs/tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -40,7 +40,7 @@ rust_library(
         "@enclave//crypto",
         "@enclave//handshake",
         "//tvs/key_fetcher_wrapper:key-fetcher",
-        "@cxx.rs//:cxx",
+        "//third_party/cxx.rs:cxx",
         "//tvs/trusted_tvs/types:trusted-tvs-types",
         "@oak_crates_index//:anyhow",
         "@oak_crates_index//:env_logger",

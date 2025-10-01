@@ -1,5 +1,5 @@
-#include "tests/ffi/tests.h"
-#include "tests/ffi/lib.rs.h"
+#include "third_party/cxx.rs/tests/ffi/tests.h"
+#include "third_party/cxx.rs/tests/ffi/lib.rs.h"
 #include <cstdlib>
 #include <cstring>
 #include <iterator>
@@ -878,7 +878,7 @@ extern "C" const char *cxx_run_test() noexcept {
   ASSERT(cstr == "foo");
   ASSERT(other_cstr == "test");
 
-  const char *utf8_literal = u8"Test string";
+  const char utf8_literal[] = u8"Test string";
   const char16_t *utf16_literal = u"Test string";
   rust::String utf8_rstring = utf8_literal;
   rust::String utf16_rstring = utf16_literal;

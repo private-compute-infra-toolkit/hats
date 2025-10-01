@@ -14,6 +14,7 @@ rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [":core-lib"],
+    tags = ["no-clippy"],
 )
 
 alias(
@@ -34,6 +35,7 @@ rust_binary(
         "@crates.io//:quote",
         "@crates.io//:syn",
     ],
+    tags = ["no-clippy"],
 )
 
 cc_library(
@@ -42,6 +44,7 @@ cc_library(
     include_prefix = "rust",
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],
+    tags = ["no-clippy"],
 )
 
 cc_library(
@@ -49,6 +52,7 @@ cc_library(
     srcs = ["src/cxx.cc"],
     hdrs = ["include/cxx.h"],
     deps = ["@com_google_absl//absl/status:statusor"],
+    tags = ["no-clippy"],
 )
 
 rust_proc_macro(
@@ -60,6 +64,7 @@ rust_proc_macro(
         "@crates.io//:quote",
         "@crates.io//:syn",
     ],
+    tags = ["no-clippy"],
 )
 
 rust_library(
@@ -76,6 +81,7 @@ rust_library(
         "@crates.io//:scratch",
         "@crates.io//:syn",
     ],
+    tags = ["no-clippy"],
 )
 
 rust_library(
@@ -91,4 +97,5 @@ rust_library(
         "@crates.io//:quote",
         "@crates.io//:syn",
     ],
+    tags = ["no-clippy"],
 )

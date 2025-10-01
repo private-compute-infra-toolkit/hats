@@ -1,6 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
-load("//tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
+load("//third_party/cxx.rs/tools/bazel:rust_cxx_bridge.bzl", "rust_cxx_bridge")
 
 rust_test(
     name = "test",
@@ -9,7 +9,7 @@ rust_test(
     edition = "2021",
     deps = [
         ":cxx_test_suite",
-        "//:cxx",
+        "//third_party/cxx.rs:cxx",
     ],
 )
 
@@ -23,7 +23,7 @@ rust_library(
     edition = "2021",
     deps = [
         ":impl",
-        "//:cxx",
+        "//third_party/cxx.rs:cxx",
     ],
 )
 
@@ -38,7 +38,7 @@ cc_library(
     deps = [
         ":bridge/include",
         ":module/include",
-        "//:core",
+        "//third_party/cxx.rs:core",
         "@com_google_absl//absl/status:statusor",
     ],
 )
